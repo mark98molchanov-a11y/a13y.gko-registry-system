@@ -106,45 +106,14 @@
 
     <!-- React-компонент вкладки -->
     <script type="text/babel" src="components/TreeTab.jsx"></script>
-    <script>
+   <script>
         // Небольшая задержка для проверки загрузки TreeTab
         setTimeout(() => {
             window.DEBUG.log('✅ TreeTab проверен', !!window.TreeTab);
             window.DEBUG.checkAll();
         }, 500);
-    </script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        brand: { 
-                            50: '#f0f9ff', 
-                            100: '#e0f2fe', 
-                            500: '#0ea5e9', 
-                            600: '#0284c7', 
-                            700: '#0369a1', 
-                            800: '#075985', 
-                            900: '#0c4a6e' 
-                        },
-                        superset: {
-                            50: '#eef2ff',
-                            500: '#4f46e5',
-                            600: '#4338ca',
-                            700: '#3730a3'
-                        },
-                        calculator: {
-                            50: '#f0f9ff',
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+
+        // Tailwind конфигурация (только один раз!)
         tailwind.config = {
             theme: {
                 extend: {
