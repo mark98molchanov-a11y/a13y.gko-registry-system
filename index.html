@@ -1,36 +1,152 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <script>
+        // Глобальный объект для отладки
+        window.DEBUG = {
+            logs: [],
+            log: function(msg, data) {
+                const logMsg = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                this.logs.push(logMsg);
+                console.log(logMsg, data || '');
+            },
+            showStatus: function() {
+                console.log('=== СТАТУС ЗАГРУЗКИ ===');
+                console.log('React:', !!window.React);
+                console.log('ReactDOM:', !!window.ReactDOM);
+                console.log('THREE:', !!window.THREE);
+                console.log('TreeManager:', !!window.TreeManager);
+                console.log('IndexedDBManager:', !!window.IndexedDBManager);
+                console.log('NodeEffects:', !!window.NodeEffects);
+                console.log('TreeAppWrapper:', !!window.TreeAppWrapper);
+                console.log('TreeTab:', !!window.TreeTab);
+                console.log('========================');
+            },
+            checkAll: function() {
+                const status = {
+                    react: !!window.React,
+                    reactDom: !!window.ReactDOM,
+                    three: !!window.THREE,
+                    treeManager: !!window.TreeManager,
+                    indexedDB: !!window.IndexedDBManager,
+                    nodeEffects: !!window.NodeEffects,
+                    treeAppWrapper: !!window.TreeAppWrapper,
+                    treeTab: !!window.TreeTab
+                };
+                
+                const allLoaded = Object.values(status).every(v => v === true);
+                
+                console.log('=== ПРОВЕРКА ЗАГРУЗКИ ===');
+                console.table(status);
+                console.log('Все скрипты загружены:', allLoaded ? '✅ ДА' : '❌ НЕТ');
+                
+                if (!allLoaded) {
+                    const missing = Object.entries(status)
+                        .filter(([key, value]) => !value)
+                        .map(([key]) => key);
+                    console.log('Отсутствуют:', missing.join(', '));
+                }
+                
+                return status;
+            }
+        };
+        window.DEBUG.log('🔍 Отладка включена');
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Отдел ГКО: База знаний </title>
+    <title>Отдел ГКО: База знаний</title>
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>window.DEBUG.log('✅ Tailwind загружен');</script>
     
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>window.DEBUG.log('✅ Chart.js загружен', !!window.Chart);</script>
 
+    <!-- XLSX -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>window.DEBUG.log('✅ XLSX загружен', !!window.XLSX);</script>
 
+    <!-- React и ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>window.DEBUG.log('✅ React загружен', !!window.React);</script>
     
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>window.DEBUG.log('✅ ReactDOM загружен', !!window.ReactDOM);</script>
+    
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script>window.DEBUG.log('✅ Babel загружен', !!window.Babel);</script>
 
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Подключение стилей дерева -->
+    <!-- Three.js (для дерева) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script>window.DEBUG.log('✅ Three.js загружен', !!window.THREE);</script>
+
+    <!-- Стили дерева -->
     <link rel="stylesheet" href="tree/styles.css">
+    <script>window.DEBUG.log('✅ Стили дерева подключены');</script>
 
-    <!-- Подключение скриптов дерева -->
+    <!-- Скрипты дерева в правильном порядке -->
     <script src="tree/tree-manager-core.js"></script>
-    <script src="tree/indexed-db-manager.js"></script>
-    <script src="tree/node-effects.js"></script>
-    <script src="tree/tree-main-export.js"></script>
+    <script>window.DEBUG.log('✅ tree-manager-core загружен', !!window.TreeManager);</script>
 
-    <!-- Подключение React-компонента вкладки -->
+    <script src="tree/indexed-db-manager.js"></script>
+    <script>window.DEBUG.log('✅ indexed-db-manager загружен', !!window.IndexedDBManager);</script>
+
+    <script src="tree/node-effects.js"></script>
+    <script>window.DEBUG.log('✅ node-effects загружен', !!window.NodeEffects);</script>
+
+    <script src="tree/tree-main-export.js"></script>
+    <script>window.DEBUG.log('✅ tree-main-export загружен', !!window.TreeAppWrapper);</script>
+
+    <!-- React-компонент вкладки -->
     <script type="text/babel" src="components/TreeTab.jsx"></script>
+    <script>
+        // Небольшая задержка для проверки загрузки TreeTab
+        setTimeout(() => {
+            window.DEBUG.log('✅ TreeTab проверен', !!window.TreeTab);
+            window.DEBUG.checkAll();
+        }, 500);
+    </script>
 
     <script>
+        // Здесь начинается ваш основной код
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 
+                            50: '#f0f9ff', 
+                            100: '#e0f2fe', 
+                            500: '#0ea5e9', 
+                            600: '#0284c7', 
+                            700: '#0369a1', 
+                            800: '#075985', 
+                            900: '#0c4a6e' 
+                        },
+                        superset: {
+                            50: '#eef2ff',
+                            500: '#4f46e5',
+                            600: '#4338ca',
+                            700: '#3730a3'
+                        },
+                        calculator: {
+                            50: '#f0f9ff',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
         tailwind.config = {
             theme: {
                 extend: {
@@ -2048,84 +2164,191 @@ async function loadFromGitHub() {
         }
         
         // Для главной секции ДИО
-        if (tabName === 'dio') {
-            const dioSection = Array.from(document.querySelectorAll('.book-section.main'))
-                .find(el => el.textContent.includes('База ДИО'));
-            if (dioSection) {
-                dioSection.classList.add('active');
-            }
+if (tabName === 'dio') {
+    console.log('🔵 Переключение на вкладку ДИО');
+    window.DEBUG?.log('Переключение на вкладку ДИО');
+    
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
+    document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
+    currentTab = 'dio';
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+    
+    // --- РЕНДЕРИНГ КОМПОНЕНТА ДЕРЕВА ---
+    const rootElement = document.getElementById('dio-tab-root');
+    console.log('📦 rootElement:', rootElement);
+    console.log('🎯 window.TreeTab доступен:', !!window.TreeTab);
+    console.log('🎯 ReactDOM доступен:', !!window.ReactDOM);
+    
+    if (rootElement) {
+        // Очищаем контейнер перед рендерингом
+        rootElement.innerHTML = '';
+        
+        if (!window.TreeTab) {
+            console.error('❌ TreeTab не загружен!');
+            window.DEBUG?.log('TreeTab не загружен');
+            
+            rootElement.innerHTML = `
+                <div style="padding: 40px; text-align: center; background: white; border-radius: 8px; border: 2px solid #ef4444;">
+                    <h3 style="color: #ef4444; font-size: 20px; margin-bottom: 10px;">
+                        ❌ TreeTab не загружен
+                    </h3>
+                    <p style="color: #666; margin-bottom: 20px;">Проверьте подключение components/TreeTab.jsx</p>
+                    <button onclick="window.DEBUG?.showStatus()" style="
+                        padding: 10px 20px;
+                        background: #3b82f6;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        margin-right: 10px;
+                    ">
+                        Показать статус
+                    </button>
+                    <button onclick="location.reload()" style="
+                        padding: 10px 20px;
+                        background: #6b7280;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                    ">
+                        Перезагрузить
+                    </button>
+                </div>
+            `;
+            return;
         }
         
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.getElementById(`${tabName}Tab`).classList.add('active');
-        
-        if (tabName === 'dio') {
-            document.getElementById('npaImportButtons').classList.add('hidden');
-            document.getElementById('dashboardsImportButtons').classList.add('hidden');
-            document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
-            document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
-            currentTab = 'dio';
-            document.getElementById('bulkToolbar').classList.add('hidden');
-            document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        if (!window.ReactDOM) {
+            console.error('❌ ReactDOM не загружен!');
+            window.DEBUG?.log('ReactDOM не загружен');
             
-            // --- РЕНДЕРИНГ КОМПОНЕНТА ДЕРЕВА ---
-            const rootElement = document.getElementById('dio-tab-root');
-            if (rootElement && !rootElement.hasChildNodes() && window.TreeTab) {
-                const root = ReactDOM.createRoot(rootElement);
-                root.render(React.createElement(window.TreeTab));
-                console.log('🌳 Компонент дерева отрендерен');
-            }
-            
-        } else if (tabName === 'npas') {
-            document.getElementById('npaImportButtons').classList.remove('hidden');
-            document.getElementById('dashboardsImportButtons').classList.add('hidden');
-            document.getElementById('addButtonText').textContent = 'Добавить запись';
-            document.getElementById('resetBtnText').textContent = 'Сброс НПА';
-            currentTab = 'npas';
-            document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-            if (selectedIds.size > 0) {
-                document.getElementById('bulkToolbar').classList.remove('hidden');
-            }
-            renderGrid();
-        } else if (tabName === 'dashboards') {
-            document.getElementById('npaImportButtons').classList.add('hidden');
-            document.getElementById('dashboardsImportButtons').classList.remove('hidden');
-            document.getElementById('addButtonText').textContent = 'Новый дашборд';
-            document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
-            currentTab = 'dashboards';
-            document.getElementById('bulkToolbar').classList.add('hidden');
-            if (selectedIdsDashboards.size > 0) {
-                document.getElementById('bulkToolbarDashboards').classList.remove('hidden');
-            }
-            
-            if (dashboardsData.length === 0) {
-                loadDashboardsData();
-            }
-            
-            setTimeout(() => {
-                updateDashboardStatsDashboards();
-                renderStatusFiltersDashboards();
-                renderTypeFiltersDashboards();
-                renderTagsDashboards();
-                updateChartDashboards(dashboardsData);
-                renderDashboardsGrid();
-                updateBulkToolbarDashboards();
-            }, 50);
-        } else if (tabName === 'calculator') {
-            document.getElementById('npaImportButtons').classList.add('hidden');
-            document.getElementById('dashboardsImportButtons').classList.add('hidden');
-            document.getElementById('addButtonText').textContent = 'Новый расчет';
-            document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
-            currentTab = 'calculator';
-            
-            document.getElementById('bulkToolbar').classList.add('hidden');
-            document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-            
-            initCalculator();
+            rootElement.innerHTML = `
+                <div style="padding: 40px; text-align: center; background: white; border-radius: 8px; border: 2px solid #ef4444;">
+                    <h3 style="color: #ef4444; font-size: 20px; margin-bottom: 10px;">
+                        ❌ ReactDOM не загружен
+                    </h3>
+                    <p style="color: #666;">Проверьте подключение React и ReactDOM</p>
+                </div>
+            `;
+            return;
         }
+        
+        try {
+            console.log('🔄 Создаем корневой элемент React...');
+            
+            // Проверяем, не был ли уже создан root
+            let root;
+            if (rootElement._reactRoot) {
+                root = rootElement._reactRoot;
+                console.log('📦 Используем существующий root');
+            } else {
+                root = ReactDOM.createRoot(rootElement);
+                rootElement._reactRoot = root; // Сохраняем для повторного использования
+                console.log('✅ Создан новый root');
+            }
+            
+            console.log('🔄 Рендерим TreeTab компонент...');
+            root.render(React.createElement(window.TreeTab));
+            
+            console.log('✅ Компонент дерева отрендерен');
+            window.DEBUG?.log('Дерево отрендерено успешно');
+            
+        } catch (error) {
+            console.error('❌ Ошибка рендеринга дерева:', error);
+            window.DEBUG?.log('Ошибка рендеринга: ' + error.message);
+            
+            rootElement.innerHTML = `
+                <div style="padding: 40px; text-align: center; background: white; border-radius: 8px; border: 2px solid #ef4444;">
+                    <h3 style="color: #ef4444; font-size: 20px; margin-bottom: 10px;">
+                        ❌ Ошибка загрузки дерева
+                    </h3>
+                    <p style="color: #666; margin-bottom: 20px;">${error.message}</p>
+                    <div style="margin-top: 20px; text-align: left; background: #f3f4f6; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px;">
+                        <strong>Статус загрузки:</strong><br>
+                        React: ${!!window.React}<br>
+                        ReactDOM: ${!!window.ReactDOM}<br>
+                        THREE: ${!!window.THREE}<br>
+                        TreeManager: ${!!window.TreeManager}<br>
+                        IndexedDBManager: ${!!window.IndexedDBManager}<br>
+                        NodeEffects: ${!!window.NodeEffects}<br>
+                        TreeAppWrapper: ${!!window.TreeAppWrapper}<br>
+                        TreeTab: ${!!window.TreeTab}
+                    </div>
+                    <button onclick="location.reload()" style="
+                        margin-top: 20px;
+                        padding: 10px 20px;
+                        background: #3b82f6;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                    ">
+                        Перезагрузить страницу
+                    </button>
+                </div>
+            `;
+        }
+    } else {
+        console.error('❌ rootElement (dio-tab-root) не найден в DOM');
+        window.DEBUG?.log('dio-tab-root не найден');
     }
+    
+} else if (tabName === 'npas') {
+    console.log('📚 Переключение на вкладку НПА');
+    document.getElementById('npaImportButtons').classList.remove('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButtonText').textContent = 'Добавить запись';
+    document.getElementById('resetBtnText').textContent = 'Сброс НПА';
+    currentTab = 'npas';
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+    if (selectedIds.size > 0) {
+        document.getElementById('bulkToolbar').classList.remove('hidden');
+    }
+    renderGrid();
+    
+} else if (tabName === 'dashboards') {
+    console.log('📊 Переключение на вкладку Дашборды');
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.remove('hidden');
+    document.getElementById('addButtonText').textContent = 'Новый дашборд';
+    document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
+    currentTab = 'dashboards';
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    if (selectedIdsDashboards.size > 0) {
+        document.getElementById('bulkToolbarDashboards').classList.remove('hidden');
+    }
+    
+    if (dashboardsData.length === 0) {
+        loadDashboardsData();
+    }
+    
+    setTimeout(() => {
+        updateDashboardStatsDashboards();
+        renderStatusFiltersDashboards();
+        renderTypeFiltersDashboards();
+        renderTagsDashboards();
+        updateChartDashboards(dashboardsData);
+        renderDashboardsGrid();
+        updateBulkToolbarDashboards();
+    }, 50);
+    
+} else if (tabName === 'calculator') {
+    console.log('🧮 Переключение на вкладку Калькулятор');
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButtonText').textContent = 'Новый расчет';
+    document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
+    currentTab = 'calculator';
+    
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+    
+    initCalculator();
+}
 
     
 function hardResetCurrent() {
