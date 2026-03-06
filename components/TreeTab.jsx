@@ -1,67 +1,132 @@
 // ==================== components/TreeTab.jsx ====================
 
-const { useEffect, useRef } = React;
+(function(global) {
+  // Проверяем, что React доступен
+  if (!global.React || !global.ReactDOM) {
+    console.error('❌ React или ReactDOM не загружены!');
+    return;
+  }
 
-function TreeTab() {
-  const treeContainerRef = useRef(null);
-  const treeAppRef = useRef(null);
+  const { useEffect, useRef } = global.React;
 
-  useEffect(() => {
-    // Функция для инициализации дерева
-    const initTree = async () => {
-      if (!window.TreeAppWrapper) {
-        console.error('TreeAppWrapper не загружен!');
-        return;
-      }
+  function TreeTab() {
+    const containerRef = useRef(null);
+    const treeAppRef = useRef(null);
 
-      // Создаем экземпляр приложения дерева, передавая ID контейнера
-      const treeApp = new window.TreeAppWrapper('tree-canvas-container');
-      await treeApp.init();
-      treeAppRef.current = treeApp;
-    };
+    useEffect(() => {
+      console.log('🌳 TreeTab монтируется...');
+      console.log('window.TreeAppWrapper:', global.TreeAppWrapper);
 
-    initTree();
+      // Функция инициализации дерева
+      const initTree = async () => {
+        // Проверяем наличие контейнера
+        if (!containerRef.current) {
+          console.error('❌ Контейнер дерева не найден');
+          return;
+        }
 
-    // Функция очистки при размонтировании компонента
-    return () => {
-      if (treeAppRef.current) {
-        treeAppRef.current.destroy();
+        // Проверяем наличие TreeAppWrapper
+        if (!global.TreeAppWrapper) {
+          console.error('❌ TreeAppWrapper не загружен!');
+          containerRef.current.innerHTML = `
+            <div style="padding: 40px; text-align: center; background: white; border-radius: 8px; border: 2px solid red;">
+              <h3 style="color: red;">❌ TreeAppWrapper не загружен</h3>
+              <p>Проверьте подключение скриптов в index.html</p>
+              <p style="font-family: monospace; background: #f0f0f0; padding: 10px; margin-top: 10px;">
+                Должны быть подключены:<br>
+                - tree/tree-manager-core.js<br>
+                - tree/indexed-db-manager.js<br>
+                - tree/node-effects.js<br>
+                - tree/tree-main-export.js
+              </p>
+            </div>
+          `;
+          return;
+        }
+
+        try {
+          console.log('🚀 Создаем экземпляр TreeAppWrapper...');
+          
+          // Очищаем контейнер
+          containerRef.current.innerHTML = '';
+
+          // Создаем HTML структуру для дерева
+          const treeContainer = document.createElement('div');
+          treeContainer.id = 'tree-canvas-container';
+          treeContainer.style.width = '100%';
+          treeContainer.style.minHeight = '70vh';
+          treeContainer.style.position = 'relative';
+          treeContainer.style.background = '#ffffff';
+          treeContainer.style.border = '1px solid #e2e8f0';
+          treeContainer.style.borderRadius = '8px';
+          treeContainer.style.padding = '10px';
+          
+          containerRef.current.appendChild(treeContainer);
+
+          // Создаем экземпляр приложения
+          const treeApp = new global.TreeAppWrapper('tree-canvas-container');
+          
+          // Сохраняем ссылку для доступа из других частей приложения
+          global.treeAppWrapperInstance = treeApp;
+          treeAppRef.current = treeApp;
+
+          // Инициализируем
+          await treeApp.init();
+          console.log('✅ TreeAppWrapper успешно инициализирован');
+
+        } catch (error) {
+          console.error('❌ Ошибка инициализации дерева:', error);
+          if (containerRef.current) {
+            containerRef.current.innerHTML = `
+              <div style="padding: 40px; text-align: center; background: white; border-radius: 8px; border: 2px solid red;">
+                <h3 style="color: red;">❌ Ошибка загрузки дерева</h3>
+                <p style="color: #666;">${error.message}</p>
+                <button onclick="window.location.reload()" style="
+                  padding: 10px 20px;
+                  background: #0284c7;
+                  color: white;
+                  border: none;
+                  border-radius: 6px;
+                  cursor: pointer;
+                  font-size: 14px;
+                  margin-top: 10px;
+                ">
+                  Перезагрузить
+                </button>
+              </div>
+            `;
+          }
+        }
+      };
+
+      initTree();
+
+      // Очистка при размонтировании
+      return () => {
+        console.log('🧹 Очистка TreeTab...');
+        if (treeAppRef.current && treeAppRef.current.destroy) {
+          treeAppRef.current.destroy();
+        }
+        if (global.treeAppWrapperInstance === treeAppRef.current) {
+          global.treeAppWrapperInstance = null;
+        }
         treeAppRef.current = null;
+      };
+    }, []);
+
+    return React.createElement('div', {
+      ref: containerRef,
+      style: {
+        width: '100%',
+        minHeight: '70vh',
+        position: 'relative'
       }
-    };
-  }, []); // Пустой массив зависимостей означает, что эффект выполнится один раз при монтировании
+    });
+  }
 
-  return (
-    <div className="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Панель управления для дерева (можно сделать свою или использовать ту, что встроена в TreeManager) */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4 flex flex-wrap gap-2">
-        <input
-          type="text"
-          id="treeSearchInput"
-          placeholder="Поиск..."
-          className="pl-10 pr-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none"
-        />
-        <button id="treeSaveBtn" className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
-          💾 Сохранить
-        </button>
-        <button id="treeCollapseAllBtn" className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">
-          Свернуть все
-        </button>
-        {/* Можно добавить и другие кнопки управления, но они уже есть в самом дереве */}
-      </div>
+  // Экспортируем компонент в глобальную область
+  global.TreeTab = TreeTab;
+  
+  console.log('✅ TreeTab компонент загружен');
 
-      {/* Основной контейнер для дерева. TreeManager будет искать внутри него элементы по ID */}
-      <div
-        id="tree-canvas-container"
-        ref={treeContainerRef}
-        className="tree-container bg-white rounded-xl border border-slate-200 shadow-sm p-4"
-        style={{ minHeight: '70vh', overflow: 'auto', position: 'relative' }}
-      >
-        {/* Сам TreeManager отрендерит сюда дерево */}
-      </div>
-    </div>
-  );
-}
-
-// Не забываем сделать компонент доступным глобально, если он не в модульной системе
-window.TreeTab = TreeTab;
+})(window);
