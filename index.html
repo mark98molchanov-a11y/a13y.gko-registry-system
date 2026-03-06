@@ -18,6 +18,18 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Подключение стилей дерева -->
+    <link rel="stylesheet" href="tree/styles.css">
+
+    <!-- Подключение скриптов дерева -->
+    <script src="tree/tree-manager-core.js"></script>
+    <script src="tree/indexed-db-manager.js"></script>
+    <script src="tree/node-effects.js"></script>
+    <script src="tree/tree-main-export.js"></script>
+
+    <!-- Подключение React-компонента вкладки -->
+    <script type="text/babel" src="components/TreeTab.jsx"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -709,7 +721,8 @@
             </div>
 <div class="tab-content" id="dioTab">
                 <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <!-- Пустой контент - можно будет наполнить позже -->
+                    <!-- Контейнер для дерева -->
+                    <div id="dio-tab-root"></div>
                 </div>
             </div>
         </main>
@@ -1755,6 +1768,156 @@ async function loadFromGitHub() {
         currentGitHubToken = null;
     }
     
+    // --- ШАГ 5: Функция подготовки всех данных (включая дерево) ---
+    function prepareAllData() {
+        const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
+        
+        // Получаем данные из дерева, если оно инициализировано
+        let treeData = null;
+        if (window.treeAppWrapperInstance && window.treeAppWrapperInstance.initialized) {
+            treeData = window.treeAppWrapperInstance.exportData();
+            console.log('✅ Данные дерева получены для экспорта');
+        } else {
+            // Пробуем прочитать из localStorage как запасной вариант
+            try {
+                const savedTree = localStorage.getItem('treeData');
+                if (savedTree) {
+                    treeData = JSON.parse(savedTree);
+                    console.log('📦 Данные дерева загружены из localStorage');
+                }
+            } catch (e) {
+                console.warn('Не удалось прочитать данные дерева из localStorage', e);
+            }
+        }
+        
+        return {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            npas: appData,
+            dashboards: dashboardsData,
+            calculator: calculatorData,
+            tree: treeData,
+            metadata: {
+                npaCount: appData.length,
+                dashboardsCount: dashboardsData.length,
+                hasTree: !!treeData,
+                exportFormat: "combined"
+            }
+        };
+    }
+
+    // --- МОДИФИЦИРОВАННАЯ функция exportJson ---
+    function exportJson() {
+        const allData = prepareAllData();
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allData, null, 2));
+        const a = document.createElement('a');
+        a.href = dataStr;
+        a.download = `gko_all_data_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        
+        showNotification(`✅ Экспортировано: НПА: ${allData.npas.length}, Дашбордов: ${allData.dashboards.length}${allData.metadata.hasTree ? ', Дерево: данные' : ''}`, 'success');
+    }
+
+    // --- МОДИФИЦИРОВАННАЯ функция importJson ---
+    function importJson() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    
+                    let confirmMessage = "Импортировать данные из файла?\n\n";
+                    let hasNPA = false;
+                    let hasDashboards = false;
+                    let hasCalculator = false;
+                    let hasTree = false;
+                    
+                    if (json.npas && Array.isArray(json.npas)) {
+                        confirmMessage += `✅ НПА: ${json.npas.length} записей\n`;
+                        hasNPA = true;
+                    }
+                    
+                    if (json.dashboards && Array.isArray(json.dashboards)) {
+                        confirmMessage += `✅ Дашборды: ${json.dashboards.length} записей\n`;
+                        hasDashboards = true;
+                    }
+                    
+                    if (json.calculator) {
+                        confirmMessage += `✅ Калькулятор: данные настроек\n`;
+                        hasCalculator = true;
+                    }
+                    
+                    if (json.tree) {
+                        confirmMessage += `✅ Дерево: данные присутствуют\n`;
+                        hasTree = true;
+                    }
+                    
+                    if (confirmMessage === "Импортировать данные из файла?\n\n") {
+                        confirmMessage = "Файл не содержит распознаваемых данных. Импортировать как есть?";
+                        if (!confirm(confirmMessage)) return;
+                    } else {
+                        if (!confirm(confirmMessage)) return;
+                    }
+                    
+                    // Импорт НПА
+                    if (hasNPA) {
+                        appData = [...json.npas];
+                        saveData();
+                    }
+                    
+                    // Импорт дашбордов
+                    if (hasDashboards) {
+                        dashboardsData = [...json.dashboards];
+                        saveDashboardsData();
+                    }
+                    
+                    // Импорт калькулятора
+                    if (hasCalculator && json.calculator) {
+                        localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+                    }
+                    
+                    // --- ИМПОРТ ДЕРЕВА ---
+                    if (hasTree && window.treeAppWrapperInstance && window.treeAppWrapperInstance.initialized) {
+                        const success = window.treeAppWrapperInstance.importData(json.tree);
+                        if (success) {
+                            console.log('✅ Данные дерева импортированы');
+                        } else {
+                            console.warn('⚠️ Не удалось импортировать данные дерева');
+                        }
+                    } else if (hasTree) {
+                        // Если wrapper нет, сохраняем в localStorage
+                        try {
+                            localStorage.setItem('treeData', JSON.stringify(json.tree));
+                            console.log('📦 Данные дерева сохранены в localStorage');
+                            alert('Данные дерева сохранены в localStorage. Они загрузятся при следующем открытии вкладки.');
+                        } catch (storageError) {
+                            console.warn('Не удалось сохранить дерево в localStorage', storageError);
+                        }
+                    }
+                    
+                    // Обновляем интерфейс
+                    if (currentTab === 'npas') renderGrid();
+                    if (currentTab === 'dashboards') renderDashboardsGrid();
+                    
+                    showNotification('✅ Данные успешно импортированы!', 'success');
+                    
+                } catch(e) {
+                    alert("❌ Ошибка чтения JSON файла: " + e.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    // --- МОДИФИЦИРОВАННАЯ функция saveToGitHub ---
     async function saveToGitHub() {
         const token = document.getElementById('githubTokenInput').value.trim();
         
@@ -1765,14 +1928,7 @@ async function loadFromGitHub() {
         
         currentGitHubToken = token;
         
-        const allData = {
-            version: "1.0",
-            exportDate: new Date().toISOString(),
-            npas: appData,
-            dashboards: dashboardsData,
-            calculator: JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}')
-        };
-        
+        const allData = prepareAllData();
         const content = JSON.stringify(allData, null, 2);
         const owner = 'mark98molchanov-a11y';
         const repo = 'mark98molchanov-a12y.gko-registry-system';
@@ -1810,55 +1966,48 @@ async function loadFromGitHub() {
             
             if (response.ok) {
                 closeGitHubModal();
-                
-                const success = document.createElement('div');
-                success.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                success.textContent = '✅ Успешно сохранено';
-                document.body.appendChild(success);
-                
-                setTimeout(() => {
-                    success.remove();
-                }, 3000);
-                
+                showNotification('✅ Успешно сохранено в GitHub!', 'success');
             } else {
                 const error = await response.json();
-                alert(`Ошибка: ${error.message || 'Неизвестная ошибка'}`);
+                alert(`❌ Ошибка: ${error.message || 'Неизвестная ошибка'}`);
                 document.getElementById('githubTokenInput').focus();
             }
             
         } catch (error) {
-            alert(`Ошибка: ${error.message}`);
+            alert(`❌ Ошибка: ${error.message}`);
             document.getElementById('githubTokenInput').focus();
         }
     }
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
-        type === 'success' ? 'bg-emerald-500 text-white' :
-        type === 'error' ? 'bg-red-500 text-white' :
-        type === 'warning' ? 'bg-amber-500 text-white' :
-        'bg-brand-600 text-white'
-    }`;
-    notification.innerHTML = `
-        <div class="flex items-center gap-2">
-            <span class="font-medium">${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-white/80">&times;</button>
-        </div>
-    `;
     
-    document.body.appendChild(notification);
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
-            }, 300);
-        }
-    }, 5000);
-}
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+            type === 'success' ? 'bg-emerald-500 text-white' :
+            type === 'error' ? 'bg-red-500 text-white' :
+            type === 'warning' ? 'bg-amber-500 text-white' :
+            'bg-brand-600 text-white'
+        }`;
+        notification.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="font-medium">${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-white/80">&times;</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+    
     let appData = [];
     let currentDocFilter = null;
     let currentTypeFilter = null;
@@ -1876,192 +2025,107 @@ function showNotification(message, type = 'info') {
 
     let currentTab = 'npas';
 
-function exportJson() {
-    const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
-    
-    const allData = {
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        npas: appData,
-        dashboards: dashboardsData,
-        calculator: calculatorData,
-        metadata: {
-            npaCount: appData.length,
-            dashboardsCount: dashboardsData.length,
-            exportFormat: "combined"
-        }
-    };
-    
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allData, null, 2));
-    const a = document.createElement('a');
-    a.href = dataStr;
-    a.download = `gko_all_data.json`;
-    a.click();
-}
-
-    function importJson() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const json = JSON.parse(e.target.result);
-                    
-                    let confirmMessage = "Импортировать данные из файла?\n\n";
-                    let hasNPA = false;
-                    let hasDashboards = false;
-                    let hasCalculator = false;
-                    
-                    if (json.npas && Array.isArray(json.npas)) {
-                        confirmMessage += `НПА: ${json.npas.length} записей\n`;
-                        hasNPA = true;
-                    }
-                    
-                    if (json.dashboards && Array.isArray(json.dashboards)) {
-                        confirmMessage += `Дашборды: ${json.dashboards.length} записей\n`;
-                        hasDashboards = true;
-                    }
-                    
-                    if (json.calculator) {
-                        confirmMessage += `Калькулятор: данные настроек\n`;
-                        hasCalculator = true;
-                    }
-                    
-                    if (json.version && json.version === "1.0" && json.exportFormat === "combined") {
-                        confirmMessage += "\nФормат: объединенный файл";
-                    } else if (Array.isArray(json) && json.length > 0 && json[0].doc) {
-                        confirmMessage = `Импортировать ${json.length} записей НПА?`;
-                        hasNPA = true;
-                        hasDashboards = false;
-                    } else if (Array.isArray(json) && json.length > 0 && json[0].title) {
-                        confirmMessage = `Импортировать ${json.length} дашбордов?`;
-                        hasNPA = false;
-                        hasDashboards = true;
-                    }
-                    
-                    if (confirm(confirmMessage)) {
-                        if (hasNPA) {
-                            const npaData = json.npas || json;
-                            appData = [...npaData];
-                            saveData();
-                        }
-                        
-                        if (hasDashboards) {
-                            const dashData = json.dashboards || json;
-                            dashboardsData = [...dashData];
-                            saveDashboardsData();
-                        }
-                        
-                        if (hasCalculator && json.calculator) {
-                            localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
-                        }
-                        
-                        alert("Данные успешно импортированы!");
-                    }
-                } catch(e) {
-                    alert("Ошибка чтения JSON файла: " + e.message);
-                }
-            };
-            reader.readAsText(file);
+    // --- МОДИФИЦИРОВАННАЯ функция switchTab (добавлен рендеринг дерева) ---
+    function switchTab(tabName) {
+        // Убрать активность со всех пунктов навигации
+        document.querySelectorAll('.book-section.main, .book-subsection, .book-subsubsection').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        const navIdMap = {
+            'npas': 'navNPA',
+            'dashboards': 'navDashboards', 
+            'calculator': 'navCalculator',
+            'dio': null
         };
-        input.click();
-    }
-function switchTab(tabName) {
-    // Убрать активность со всех пунктов навигации
-    document.querySelectorAll('.book-section.main, .book-subsection, .book-subsubsection').forEach(el => {
-        el.classList.remove('active');
-    });
-    
-    const navIdMap = {
-        'npas': 'navNPA',
-        'dashboards': 'navDashboards', 
-        'calculator': 'navCalculator',
-        'dio': null
-    };
-    
-    const navId = navIdMap[tabName];
-    if (navId) {
-        const activeNavItem = document.getElementById(navId);
-        if (activeNavItem) {
-            activeNavItem.classList.add('active');
-        }
-    }
-    
-    // Для главной секции ДИО
-    if (tabName === 'dio') {
-        const dioSection = Array.from(document.querySelectorAll('.book-section.main'))
-            .find(el => el.textContent.includes('База ДИО'));
-        if (dioSection) {
-            dioSection.classList.add('active');
-        }
-    }
-    
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.getElementById(`${tabName}Tab`).classList.add('active');
-    
-    if (tabName === 'dio') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
-        document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
-        currentTab = 'dio';
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    } else if (tabName === 'npas') {
-        document.getElementById('npaImportButtons').classList.remove('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButtonText').textContent = 'Добавить запись';
-        document.getElementById('resetBtnText').textContent = 'Сброс НПА';
-        currentTab = 'npas';
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        if (selectedIds.size > 0) {
-            document.getElementById('bulkToolbar').classList.remove('hidden');
-        }
-        renderGrid();
-    } else if (tabName === 'dashboards') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.remove('hidden');
-        document.getElementById('addButtonText').textContent = 'Новый дашборд';
-        document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
-        currentTab = 'dashboards';
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        if (selectedIdsDashboards.size > 0) {
-            document.getElementById('bulkToolbarDashboards').classList.remove('hidden');
+        
+        const navId = navIdMap[tabName];
+        if (navId) {
+            const activeNavItem = document.getElementById(navId);
+            if (activeNavItem) {
+                activeNavItem.classList.add('active');
+            }
         }
         
-        if (dashboardsData.length === 0) {
-            loadDashboardsData();
+        // Для главной секции ДИО
+        if (tabName === 'dio') {
+            const dioSection = Array.from(document.querySelectorAll('.book-section.main'))
+                .find(el => el.textContent.includes('База ДИО'));
+            if (dioSection) {
+                dioSection.classList.add('active');
+            }
         }
         
-        setTimeout(() => {
-            updateDashboardStatsDashboards();
-            renderStatusFiltersDashboards();
-            renderTypeFiltersDashboards();
-            renderTagsDashboards();
-            updateChartDashboards(dashboardsData);
-            renderDashboardsGrid();
-            updateBulkToolbarDashboards();
-        }, 50);
-    } else if (tabName === 'calculator') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButtonText').textContent = 'Новый расчет';
-        document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
-        currentTab = 'calculator';
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.getElementById(`${tabName}Tab`).classList.add('active');
         
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        
-        initCalculator();
+        if (tabName === 'dio') {
+            document.getElementById('npaImportButtons').classList.add('hidden');
+            document.getElementById('dashboardsImportButtons').classList.add('hidden');
+            document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
+            document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
+            currentTab = 'dio';
+            document.getElementById('bulkToolbar').classList.add('hidden');
+            document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+            
+            // --- РЕНДЕРИНГ КОМПОНЕНТА ДЕРЕВА ---
+            const rootElement = document.getElementById('dio-tab-root');
+            if (rootElement && !rootElement.hasChildNodes() && window.TreeTab) {
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(React.createElement(window.TreeTab));
+                console.log('🌳 Компонент дерева отрендерен');
+            }
+            
+        } else if (tabName === 'npas') {
+            document.getElementById('npaImportButtons').classList.remove('hidden');
+            document.getElementById('dashboardsImportButtons').classList.add('hidden');
+            document.getElementById('addButtonText').textContent = 'Добавить запись';
+            document.getElementById('resetBtnText').textContent = 'Сброс НПА';
+            currentTab = 'npas';
+            document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+            if (selectedIds.size > 0) {
+                document.getElementById('bulkToolbar').classList.remove('hidden');
+            }
+            renderGrid();
+        } else if (tabName === 'dashboards') {
+            document.getElementById('npaImportButtons').classList.add('hidden');
+            document.getElementById('dashboardsImportButtons').classList.remove('hidden');
+            document.getElementById('addButtonText').textContent = 'Новый дашборд';
+            document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
+            currentTab = 'dashboards';
+            document.getElementById('bulkToolbar').classList.add('hidden');
+            if (selectedIdsDashboards.size > 0) {
+                document.getElementById('bulkToolbarDashboards').classList.remove('hidden');
+            }
+            
+            if (dashboardsData.length === 0) {
+                loadDashboardsData();
+            }
+            
+            setTimeout(() => {
+                updateDashboardStatsDashboards();
+                renderStatusFiltersDashboards();
+                renderTypeFiltersDashboards();
+                renderTagsDashboards();
+                updateChartDashboards(dashboardsData);
+                renderDashboardsGrid();
+                updateBulkToolbarDashboards();
+            }, 50);
+        } else if (tabName === 'calculator') {
+            document.getElementById('npaImportButtons').classList.add('hidden');
+            document.getElementById('dashboardsImportButtons').classList.add('hidden');
+            document.getElementById('addButtonText').textContent = 'Новый расчет';
+            document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
+            currentTab = 'calculator';
+            
+            document.getElementById('bulkToolbar').classList.add('hidden');
+            document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+            
+            initCalculator();
+        }
     }
-}
 
     
 function hardResetCurrent() {
@@ -2077,7 +2141,22 @@ function hardResetCurrent() {
         }
     } else if (currentTab === 'dio') {
         if (confirm("Очистить данные Базы ДИО?")) {
+            // Очищаем данные дерева
+            if (window.treeAppWrapperInstance && window.treeAppWrapperInstance.initialized) {
+                // TODO: добавить метод очистки в TreeAppWrapper если нужно
+            }
+            localStorage.removeItem('treeData');
             showNotification('Данные ДИО очищены', 'success');
+            
+            // Перерендериваем вкладку
+            const rootElement = document.getElementById('dio-tab-root');
+            if (rootElement) {
+                rootElement.innerHTML = '';
+                if (window.TreeTab) {
+                    const root = ReactDOM.createRoot(rootElement);
+                    root.render(React.createElement(window.TreeTab));
+                }
+            }
         }
     }
 }
