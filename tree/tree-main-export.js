@@ -1,5 +1,3 @@
-// ==================== tree/tree-main-export.js ====================
-
 (function(global) {
   console.log('📦 Загрузка TreeAppWrapper...');
 
