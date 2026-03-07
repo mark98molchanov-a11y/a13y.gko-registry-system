@@ -1837,6 +1837,7 @@
             );
         }
 
+
         function initCalculator() {
             const calculatorRoot = document.getElementById('calculatorRoot');
             if (calculatorRoot) {
@@ -1844,6 +1845,9 @@
                 root.render(React.createElement(EfficiencyCalculator));
             }
         }
+        
+        // Экспортируем функцию в глобальную область, чтобы она была доступна из обычного скрипта
+        window.initCalculator = initCalculator;
     </script>
 
     <script>
