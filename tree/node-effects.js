@@ -1,5 +1,3 @@
-// ==================== tree/node-effects.js ====================
-
 (function(global) {
   if (global.NodeEffects) {
     console.log('NodeEffects уже загружен');
