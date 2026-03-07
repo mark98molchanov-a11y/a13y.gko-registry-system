@@ -1,4 +1,12 @@
-class TreeManager {
+
+(function(global) {
+  // Проверяем, не определен ли уже класс
+  if (global.TreeManager) {
+    console.log('TreeManager уже загружен');
+    return;
+  }
+
+  class TreeManager {
     constructor() {
         this.actionLog = [];
         this.maxLogEntries = 15;
@@ -57,60 +65,61 @@ class TreeManager {
             showNewNodesOnly: false,
             selectedNodesInDialog: new Set() 
         };
-        this.db = new IndexedDBManager();
+        this.db = new global.IndexedDBManager();
         
 
         this.bindElements();
         this.loadThemePreference();
-            this._asyncInitStarted = false;
+        this._asyncInitStarted = false;
     }
     
-async initialize() {
-    try {
-        if (this.initialized) {
-            console.warn('TreeManager уже инициализирован, пропускаем повторную инициализацию');
-            return;
-        }
-        
-        console.log('TreeManager инициализация...');
-        
+    async initialize() {
+        try {
+            if (this.initialized) {
+                console.warn('TreeManager уже инициализирован, пропускаем повторную инициализацию');
+                return;
+            }
+            
+            console.log('TreeManager инициализация...');
+            
 
-        if (!this.elements || !this.elements.treeContainer) {
-            this.bindElements();
-        }
-        
-        if (!this._asyncInitStarted) {
-            this._asyncInitStarted = true;
-            await this.asyncInit();
-        }
-        this.initialized = true;
-        
-        if (this.processOperationQueue && typeof this.processOperationQueue === 'function') {
-            this.processOperationQueue();
-        }
-        
-        if (this.saveToHistory && typeof this.saveToHistory === 'function') {
-            this.saveToHistory(true);
-        }
-        
-        console.log('TreeManager успешно инициализирован');
-        
-    } catch (error) {
-        console.error('Initialization failed:', error);
-        
-        if (!window._initializationInProgress) {
-            this.showNotification('Ошибка инициализации приложения');
-        }
-        
-        if (this.loadFromLocalStorageFallback && typeof this.loadFromLocalStorageFallback === 'function') {
-            try {
-                await this.loadFromLocalStorageFallback();
-            } catch (fallbackError) {
-                console.error('Ошибка в fallback загрузке:', fallbackError);
+            if (!this.elements || !this.elements.treeContainer) {
+                this.bindElements();
+            }
+            
+            if (!this._asyncInitStarted) {
+                this._asyncInitStarted = true;
+                await this.asyncInit();
+            }
+            this.initialized = true;
+            
+            if (this.processOperationQueue && typeof this.processOperationQueue === 'function') {
+                this.processOperationQueue();
+            }
+            
+            if (this.saveToHistory && typeof this.saveToHistory === 'function') {
+                this.saveToHistory(true);
+            }
+            
+            console.log('TreeManager успешно инициализирован');
+            
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            
+            if (!window._initializationInProgress) {
+                this.showNotification('Ошибка инициализации приложения');
+            }
+            
+            if (this.loadFromLocalStorageFallback && typeof this.loadFromLocalStorageFallback === 'function') {
+                try {
+                    await this.loadFromLocalStorageFallback();
+                } catch (fallbackError) {
+                    console.error('Ошибка в fallback загрузке:', fallbackError);
+                }
             }
         }
     }
-}
+    
     async asyncInit() {
         await this.db.open();
         await this.loadFilesData();
@@ -10069,3 +10078,10 @@ const NODE_TYPE_ABBREVIATIONS = {
   'для всех сотрудников': 'для всех',
   'идентичное полномочие': 'ид. полн.'
 };
+  }
+
+  // Экспортируем класс в глобальную область
+  global.TreeManager = TreeManager;
+  console.log('✅ TreeManager загружен в глобальную область');
+
+})(window);
