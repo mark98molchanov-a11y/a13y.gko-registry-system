@@ -2371,19 +2371,34 @@
                 }, 50);
                 
             } else if (tabName === 'calculator') {
-                console.log('🧮 Переключение на вкладку Калькулятор');
-                document.getElementById('npaImportButtons').classList.add('hidden');
-                document.getElementById('dashboardsImportButtons').classList.add('hidden');
-                document.getElementById('addButtonText').textContent = 'Новый расчет';
-                document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
-                currentTab = 'calculator';
-                
-                document.getElementById('bulkToolbar').classList.add('hidden');
-                document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-                
+    console.log('🧮 Переключение на вкладку Калькулятор');
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButtonText').textContent = 'Новый расчет';
+    document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
+    currentTab = 'calculator';
+    
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+    
+    // Безопасный вызов initCalculator с проверкой
+    if (typeof initCalculator === 'function') {
+        initCalculator();
+    } else if (typeof window.initCalculator === 'function') {
+        window.initCalculator();
+    } else {
+        console.log('initCalculator еще не загружен, пробуем через 100мс...');
+        setTimeout(() => {
+            if (typeof initCalculator === 'function') {
                 initCalculator();
+            } else if (typeof window.initCalculator === 'function') {
+                window.initCalculator();
+            } else {
+                console.error('initCalculator не найден даже после задержки');
             }
-        }
+        }, 100);
+    }
+}
 
         function hardResetCurrent() {
             if (currentTab === 'npas') {
