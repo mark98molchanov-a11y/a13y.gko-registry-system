@@ -1,5 +1,3 @@
-// ==================== tree/indexed-db-manager.js ====================
-
 (function(global) {
   if (global.IndexedDBManager) {
     console.log('IndexedDBManager уже загружен');
