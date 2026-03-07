@@ -1,4 +1,3 @@
-
 (function(global) {
   // Проверяем, не определен ли уже класс
   if (global.TreeManager) {
@@ -10059,7 +10058,7 @@ restoreFromHistory() {
     }
     
 
-} 
+}
 const NODE_TYPE_COLORS = {
   'должностные регламенты': '#191970',          
   'государственная программа': '#00BFFF',      
@@ -10078,9 +10077,6 @@ const NODE_TYPE_ABBREVIATIONS = {
   'для всех сотрудников': 'для всех',
   'идентичное полномочие': 'ид. полн.'
 };
-  }
-
-  // Экспортируем класс в глобальную область
   global.TreeManager = TreeManager;
   console.log('✅ TreeManager загружен в глобальную область');
 
