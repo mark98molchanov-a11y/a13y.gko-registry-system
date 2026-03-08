@@ -1179,5 +1179,73 @@
       "k_uknm_gzn": 0,
       "k_uknm_mzk": 0
     }
+ },  // <-- ЭТА ЗАПЯТАЯ УЖЕ БЫЛА, ОНА ПРАВИЛЬНАЯ
+  "tree": {
+    "id": "root",
+    "content": {
+      "text": "Департамент имущественных отношений ЯНАО",
+      "isHorizontal": false
+    },
+    "children": [
+      {
+        "id": 1,
+        "content": {
+          "text": "Отдел кадастровой оценки",
+          "isHorizontal": false
+        },
+        "children": [
+          {
+            "id": 2,
+            "content": {
+              "text": "Сектор методологии",
+              "isHorizontal": false
+            },
+            "children": []
+          },
+          {
+            "id": 3,
+            "content": {
+              "text": "Сектор анализа данных",
+              "isHorizontal": false
+            },
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "content": {
+          "text": "Отдел информационных технологий",
+          "isHorizontal": false
+        },
+        "children": [
+          {
+            "id": 5,
+            "content": {
+              "text": "Сектор разработки",
+              "isHorizontal": false
+            },
+            "children": []
+          },
+          {
+            "id": 6,
+            "content": {
+              "text": "Сектор сопровождения",
+              "isHorizontal": false
+            },
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "content": {
+          "text": "Отдел правового обеспечения",
+          "isHorizontal": false
+        },
+        "children": []
+      }
+    ],
+    "isExpanded": true
   }
 }
