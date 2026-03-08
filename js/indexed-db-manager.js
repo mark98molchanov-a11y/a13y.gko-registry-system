@@ -118,3 +118,5 @@ class IndexedDBManager {
         }
     }
 }
+window.IndexedDBManager = IndexedDBManager;
+console.log('✅ IndexedDBManager зарегистрирован в window');
