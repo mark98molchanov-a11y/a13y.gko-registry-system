@@ -1,11 +1,7 @@
-// main.js - Интегрированная версия для сайта Отдела ГКО
-// Объединяет функциональность дерева и основного сайта
+console.log('🔥 main-tree.js загружен');
+console.log('TreeManager доступен:', typeof TreeManager !== 'undefined');
+console.log('window.initTreeInTab:', typeof window.initTreeInTab);
 
-// ============================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-// ============================================
-
-// Переменные для дерева
 window._initializationInProgress = false;
 window._treeManagerInitialized = false;
 window._treeManager = null;
