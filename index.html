@@ -285,20 +285,6 @@
     <script>window.DEBUG.log('✅ Стили дерева подключены');</script>
 
     <!-- Скрипты дерева в правильном порядке -->
-    <script src="tree/tree-manager-core.js"></script>
-    <script>window.DEBUG.log('✅ tree-manager-core загружен', !!window.TreeManager);</script>
-
-    <script src="tree/indexed-db-manager.js"></script>
-    <script>window.DEBUG.log('✅ indexed-db-manager загружен', !!window.IndexedDBManager);</script>
-
-    <script src="tree/node-effects.js"></script>
-    <script>window.DEBUG.log('✅ node-effects загружен', !!window.NodeEffects);</script>
-
-    <script src="tree/tree-main-export.js"></script>
-    <script>window.DEBUG.log('✅ tree-main-export загружен', !!window.TreeAppWrapper);</script>
-
-    <!-- React-компонент вкладки -->
-    <script type="text/babel" src="components/TreeTab.jsx"></script>
     <script>
         // Небольшая задержка для проверки загрузки TreeTab
         setTimeout(() => {
