@@ -1,6 +1,17 @@
-console.log('🔥 main-tree.js загружен');
-console.log('TreeManager доступен:', typeof TreeManager !== 'undefined');
-console.log('window.initTreeInTab:', typeof window.initTreeInTab);
+console.log('=== НАЧАЛО main-tree.js ===');
+console.log('1. Проверка зависимостей:');
+console.log('   - LZString:', typeof LZString);
+console.log('   - Sortable:', typeof Sortable);
+console.log('   - THREE:', typeof THREE);
+
+console.log('2. Проверка классов дерева:');
+console.log('   - TreeManager (глобально):', typeof TreeManager);
+console.log('   - window.TreeManager:', typeof window.TreeManager);
+console.log('   - NodeEffects:', typeof NodeEffects);
+
+console.log('3. Функции инициализации:');
+console.log('   - initTreeInTab:', typeof initTreeInTab);
+console.log('=== КОНЕЦ main-tree.js ===');
 
 window._initializationInProgress = false;
 window._treeManagerInitialized = false;
