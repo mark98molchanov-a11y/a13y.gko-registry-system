@@ -1,4 +1,3 @@
-
 :root {
     --primary-color: #5D8AA8;
     --secondary-color: #87CEEB;
@@ -2500,4 +2499,18 @@ max-width: 300px;
     font-size: 40px;
     background: linear-gradient(145deg, #FFA500, #FF8C00); 
 }
-
+.tree-tab-container {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+    position: relative;
+}
+.tree-tab-container .tree {
+    min-height: 500px;
+}
+.tree-tab-container .controls {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    margin-bottom: 20px;
+}
