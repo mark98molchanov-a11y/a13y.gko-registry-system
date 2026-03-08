@@ -103,4 +103,6 @@ case 'power269':
     return new THREE.Mesh(geometry, material);
   }
 }
+window.NodeEffects = NodeEffects;
+console.log('✅ NodeEffects зарегистрирован в window');
 
