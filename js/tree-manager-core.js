@@ -1,4 +1,4 @@
-window.TreeManager = class TreeManager { {
+window.TreeManager = class TreeManager { 
     constructor() {
         this.actionLog = [];
         this.maxLogEntries = 15;
