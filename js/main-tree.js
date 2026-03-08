@@ -38,14 +38,6 @@ let chartInstanceDashboards = null;
 
 let currentTab = 'npas';
 let currentGitHubToken = null;
-
-// Константы
-const STORAGE_KEY_NPA = 'rosreestr_npa_viz_v5';
-const STORAGE_KEY_DASHBOARDS = 'gko_dashboards_v2';
-const STORAGE_KEY_CALCULATOR = 'gko_calculator_data_v1';
-const STORAGE_KEY_ALL = 'gko_all_data';
-const STORAGE_KEY_TREE = 'treeData';
-
 const GITHUB_CONFIG = {
     OWNER: 'mark98molchanov-a11y',
     REPO: 'mark98molchanov-a12y.gko-registry-system',
