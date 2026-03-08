@@ -387,54 +387,44 @@ function createFallbackInterface() {
 
 // Функция инициализации дерева в указанном контейнере
 async function initTreeInTab(containerId = 'dioTabContent') {
-    console.log('=== ИНИЦИАЛИЗАЦИЯ ДЕРЕВА ВО ВКЛАДКЕ ДИО ===');
+    console.log('🚀 initTreeInTab ВЫЗВАНА с containerId:', containerId);
+    console.log('   - container существует:', !!document.getElementById(containerId));
     
     const container = document.getElementById(containerId);
     if (!container) {
-        console.error('❌ Контейнер для дерева не найден:', containerId);
+        console.error('❌ Контейнер не найден!');
         return;
     }
     
-    // Показываем индикатор загрузки
-    container.innerHTML = `
-        <div class="text-center text-slate-400 py-12" id="treeLoadingIndicator">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4"></div>
-            <p>Загрузка интерактивного дерева...</p>
-        </div>
-    `;
-    
     try {
-        // Создаем структуру DOM для дерева
+        console.log('4. Попытка создать DOM для дерева...');
         const treeHTML = createTreeDOM();
         container.innerHTML = treeHTML;
+        console.log('   ✅ DOM создан');
         
-        // Инициализируем TreeManager если ещё не инициализирован
-        if (!window.treeManager) {
-            await initializeApp();
-        }
+        console.log('5. Попытка инициализировать TreeManager...');
+        console.log('   - window.treeManager до инициализации:', window.treeManager);
         
-        // Настраиваем интеграцию с общим GitHub API
+        await initializeTreeManagerInTab();
+        
+        console.log('   - window.treeManager после инициализации:', window.treeManager);
+        
+        console.log('6. Настройка GitHub интеграции...');
         setupTreeGitHubIntegration();
         
-        // Загружаем данные из объединённого JSON
+        console.log('7. Загрузка данных из JSON...');
         await loadTreeDataFromCombinedJSON();
         
-        console.log('✅ Дерево успешно инициализировано во вкладке');
+        window.treeInitialized = true;
+        console.log('✅ Дерево успешно инициализировано');
         
-        // Скрываем индикатор загрузки
         const loader = document.getElementById('treeLoadingIndicator');
         if (loader) loader.style.display = 'none';
         
     } catch (error) {
-        console.error('❌ Ошибка инициализации дерева во вкладке:', error);
-        container.innerHTML = `
-            <div class="text-center text-red-500 py-12">
-                <p>Ошибка загрузки дерева: ${error.message}</p>
-                <button onclick="window.initTreeInTab('${containerId}')" class="mt-4 px-4 py-2 bg-brand-600 text-white rounded-lg">
-                    Повторить попытку
-                </button>
-            </div>
-        `;
+        console.error('❌ КРИТИЧЕСКАЯ ОШИБКА:', error);
+        console.error('   - Сообщение:', error.message);
+        console.error('   - Стек:', error.stack);
     }
 }
 
