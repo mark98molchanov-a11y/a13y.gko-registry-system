@@ -1,4 +1,4 @@
-class TreeManager {
+window.TreeManager = class TreeManager { {
     constructor() {
         this.actionLog = [];
         this.maxLogEntries = 15;
@@ -10069,3 +10069,5 @@ const NODE_TYPE_ABBREVIATIONS = {
   'для всех сотрудников': 'для всех',
   'идентичное полномочие': 'ид. полн.'
 };
+window.TreeManager = TreeManager;
+console.log('✅ TreeManager зарегистрирован в window');
