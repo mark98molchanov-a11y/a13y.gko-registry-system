@@ -64,7 +64,9 @@ window.TreeManager = class TreeManager {
             this._asyncInitStarted = false;
          this.elements = {}; 
     }
-    bindElementsToDOM() {
+    
+bindElementsToDOM() {
+    console.log('🔗 Привязка элементов DOM к TreeManager');
     this.elements = {
         jsonExportBtn: document.getElementById('jsonExportBtn'),
         searchInput: document.getElementById('searchInput'),
@@ -85,8 +87,22 @@ window.TreeManager = class TreeManager {
         addToClusterBtn: document.getElementById('addToClusterBtn')
     };
     
+    // Проверяем, что все элементы найдены
+    const missingElements = [];
+    for (const [key, value] of Object.entries(this.elements)) {
+        if (!value && key !== 'someOptionalElement') {
+            missingElements.push(key);
+        }
+    }
+    
+    if (missingElements.length > 0) {
+        console.warn('⚠️ Не найдены элементы:', missingElements);
+    }
+    
     // Теперь можно безопасно вызывать setupHelpTooltips
-    this.setupHelpTooltips(this.elements.controls, 'main');
+    if (this.setupHelpTooltips && this.elements.controls) {
+        this.setupHelpTooltips(this.elements.controls, 'main');
+    }
 }
 async initialize() {
     try {
@@ -97,9 +113,9 @@ async initialize() {
         
         console.log('TreeManager инициализация...');
         
-
+        // НЕ вызываем bindElements здесь, так как DOM еще может быть не готов
         if (!this.elements || !this.elements.treeContainer) {
-            this.bindElements();
+            console.log('⏭️ Пропускаем bindElements в initialize, будет вызван позже');
         }
         
         if (!this._asyncInitStarted) {
@@ -140,7 +156,7 @@ async initialize() {
         await this.loadFromLocalStorage();
         this.loadActionLog();
         this.setupHistoryLogUI();
-        
+         this.bindElementsToDOM();
         // Создаем кнопку круговой замены только если ее нет
         if (!document.getElementById('circular-replacement-btn-main')) {
             const circularReplaceBtn = document.createElement('button');
@@ -435,6 +451,8 @@ renderVisibleNodes() {
     treeContainer.appendChild(this.createNodeElement(this.treeData));
 }
 bindElements() {
+    console.log('🔍 bindElements: начало привязки элементов DOM');
+    
     this.elements = {
         jsonExportBtn: document.getElementById('jsonExportBtn'),
         searchInput: document.getElementById('searchInput'),
@@ -454,7 +472,30 @@ bindElements() {
         clusterSelect: document.getElementById('clusterSelect'),
         addToClusterBtn: document.getElementById('addToClusterBtn')
     };
-    this.setupHelpTooltips(this.elements.controls, 'main');
+    
+    // Проверяем, какие элементы не найдены
+    const missingElements = [];
+    for (const [key, value] of Object.entries(this.elements)) {
+        if (!value) {
+            missingElements.push(key);
+        }
+    }
+    
+    if (missingElements.length > 0) {
+        console.warn('⚠️ bindElements: не найдены элементы:', missingElements.join(', '));
+    } else {
+        console.log('✅ bindElements: все элементы успешно найдены');
+    }
+    
+    // Проверяем controls перед вызовом setupHelpTooltips
+    if (this.elements.controls) {
+        console.log('🔧 bindElements: вызываем setupHelpTooltips');
+        this.setupHelpTooltips(this.elements.controls, 'main');
+    } else {
+        console.error('❌ bindElements: elements.controls не найден, пропускаем setupHelpTooltips');
+    }
+    
+    console.log('🏁 bindElements: завершено');
 }
 
 setupEventListeners() {
