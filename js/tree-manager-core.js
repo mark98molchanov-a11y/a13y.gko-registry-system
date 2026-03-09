@@ -60,11 +60,34 @@ window.TreeManager = class TreeManager {
         this.db = new IndexedDBManager();
         
 
-        this.bindElements();
         this.loadThemePreference();
             this._asyncInitStarted = false;
+         this.elements = {}; 
     }
+    bindElementsToDOM() {
+    this.elements = {
+        jsonExportBtn: document.getElementById('jsonExportBtn'),
+        searchInput: document.getElementById('searchInput'),
+        jsonImportBtn: document.getElementById('jsonImportBtn'),
+        collapseAllBtn: document.getElementById('collapseAllBtn'),
+        saveBtn: document.getElementById('saveBtn'),
+        themeSwitch: document.getElementById('themeSwitch'),
+        dropZone: document.getElementById('dropZone'),
+        treeContainer: document.getElementById('tree'),
+        previewContainer: document.getElementById('previewContainer'),
+        fullPreview: document.getElementById('fullPreview'),
+        toggleControls: document.getElementById('toggleControls'),
+        zoomResetBtn: document.getElementById('zoomResetBtn'),
+        zoomInBtn: document.getElementById('zoomInBtn'),
+        zoomOutBtn: document.getElementById('zoomOutBtn'),
+        controls: document.getElementById('controls'),
+        clusterSelect: document.getElementById('clusterSelect'),
+        addToClusterBtn: document.getElementById('addToClusterBtn')
+    };
     
+    // Теперь можно безопасно вызывать setupHelpTooltips
+    this.setupHelpTooltips(this.elements.controls, 'main');
+}
 async initialize() {
     try {
         if (this.initialized) {
