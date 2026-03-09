@@ -74,8 +74,6 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         }
     }
 }
-
-// Функция для безопасного создания TreeManager во вкладке
 async function initializeTreeManagerInTab() {
     console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
@@ -93,15 +91,32 @@ async function initializeTreeManagerInTab() {
         const TreeManagerClass = TreeManager || window.TreeManager;
         console.log('✅ TreeManager класс найден');
         
-        // Создаем экземпляр
+        // Создаем экземпляр (без привязки к DOM)
         window.treeApp = new TreeManagerClass();
         console.log('✅ Экземпляр treeApp создан');
+        
+        // ПРИНУДИТЕЛЬНО отключаем bindElements если он был вызван
+        if (window.treeApp.bindElements && typeof window.treeApp.bindElements === 'function') {
+            // Переопределяем, если нужно
+        }
         
         // Создаем NodeEffects
         if (typeof NodeEffects === 'function' || typeof window.NodeEffects === 'function') {
             const NodeEffectsClass = NodeEffects || window.NodeEffects;
             window.nodeEffects = new NodeEffectsClass();
             console.log('✅ NodeEffects создан');
+        }
+        
+        // Теперь привязываем к DOM (элементы уже должны существовать)
+        if (window.treeApp.bindElementsToDOM && typeof window.treeApp.bindElementsToDOM === 'function') {
+            window.treeApp.bindElementsToDOM();
+            console.log('✅ Элементы привязаны к DOM');
+        } else {
+            // Если нет нового метода, создаем элементы вручную
+            window.treeApp.elements = {
+                treeContainer: document.getElementById('tree')
+            };
+            console.log('⚠️ Создан минимальный набор элементов');
         }
         
         // Инициализируем
@@ -119,6 +134,7 @@ async function initializeTreeManagerInTab() {
         throw error;
     }
 }
+
 
 // Создание DOM структуры дерева
 function createTreeDOM() {
