@@ -1,2 +1,2 @@
-# a13y.gko-registry-system-
+# a13y.gko-registry-system
 GKO BASE
