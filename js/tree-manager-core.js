@@ -497,146 +497,213 @@ bindElements() {
     
     console.log('🏁 bindElements: завершено');
 }
-
 setupEventListeners() {
-    this.elements.searchInput.addEventListener('input', (e) => {
-        this.searchQuery = e.target.value.toLowerCase().trim();
-        this.updateTree();
-    });
+    console.log('🔧 setupEventListeners: начало');
+    
+    // Проверяем searchInput
+    if (this.elements.searchInput) {
+        this.elements.searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase().trim();
+            this.updateTree();
+        });
+        console.log('✅ searchInput обработчик добавлен');
+    } else {
+        console.warn('⚠️ searchInput не найден');
+    }
+    
     this.ctrlWasReleased = false;
 
-document.addEventListener('keydown', (e) => {
-    const isEditing = document.activeElement.tagName === 'TEXTAREA' || 
-                     document.activeElement.tagName === 'INPUT' ||
-                     document.activeElement.contentEditable === 'true';
-    
-    if (isEditing) {
-        this.editingMode = true;
-        return; 
-    }
-    
-    this.editingMode = false;
-    if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
-        this.clipboard = null;
-        this.showNotification('Буфер обмена очищен');
-        this.clearMultiSelection();
-        return;
-    }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'с' || e.key === 'C' || e.key === 'С')) {
-        e.preventDefault();
-        this.copySelectedNode();
-        return;
-    }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'м' || e.key === 'V' || e.key === 'М')) {
-        e.preventDefault();
-        this.pasteNode();
-        return;
-    }
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'а' || e.key === 'F' || e.key === 'А')) {
-    e.preventDefault();
-    this.pasteNodeAsChild();
-    return;
-}
-if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'п' || e.key === 'G' || e.key === 'П')) {
-    e.preventDefault();
-    this.pasteAsParent();
-    return;
-}
-
-if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'к' || e.key === 'R' || e.key === 'К')) {
-    e.preventDefault();
-    this.replaceNode(); 
-    return;
-}
-
-    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && 
-        (e.key === 'z' || e.key === 'я' || e.key === 'Z' || e.key === 'Я')) {
-        e.preventDefault();
-        this.undo();
-        return;
-    }
-    if (e.key === 'Control' || e.key === 'Meta') {
-        this.ctrlPressed = true;
-    }
-});
-
-document.addEventListener('keyup', (e) => {
-    if (e.key === 'Control' || e.key === 'Meta') {
-        this.ctrlPressed = false;
-    }
-});
-let scrollTimeout;
-this.elements.treeContainer.addEventListener('scroll', () => {
-  clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    this.updateNodeEffects();
-  }, 100);
-}, { passive: true });
-    this.elements.jsonExportBtn.addEventListener('click', () => this.exportToJSON());
-    this.elements.jsonImportBtn.addEventListener('click', () => this.importFromJSON());
-  this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAllNodes());
-    this.elements.saveBtn.addEventListener('click', () => this.saveData());
-    this.elements.themeSwitch.addEventListener('click', () => this.toggleTheme());
-
-    document.getElementById('closeDepartmentManagement').addEventListener('click', () => {
-        this.hideDepartmentManagement();
-        this.promptReplacementMode();
+    // Обработчики клавиатуры (всегда работают)
+    document.addEventListener('keydown', (e) => {
+        const isEditing = document.activeElement.tagName === 'TEXTAREA' || 
+                         document.activeElement.tagName === 'INPUT' ||
+                         document.activeElement.contentEditable === 'true';
+        
+        if (isEditing) {
+            this.editingMode = true;
+            return; 
+        }
+        
+        this.editingMode = false;
+        if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
+            this.clipboard = null;
+            this.showNotification('Буфер обмена очищен');
+            this.clearMultiSelection();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'с' || e.key === 'C' || e.key === 'С')) {
+            e.preventDefault();
+            this.copySelectedNode();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'м' || e.key === 'V' || e.key === 'М')) {
+            e.preventDefault();
+            this.pasteNode();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'а' || e.key === 'F' || e.key === 'А')) {
+            e.preventDefault();
+            this.pasteNodeAsChild();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'п' || e.key === 'G' || e.key === 'П')) {
+            e.preventDefault();
+            this.pasteAsParent();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'к' || e.key === 'R' || e.key === 'К')) {
+            e.preventDefault();
+            this.replaceNode(); 
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && 
+            (e.key === 'z' || e.key === 'я' || e.key === 'Z' || e.key === 'Я')) {
+            e.preventDefault();
+            this.undo();
+            return;
+        }
+        if (e.key === 'Control' || e.key === 'Meta') {
+            this.ctrlPressed = true;
+        }
     });
 
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'Control' || e.key === 'Meta') {
+            this.ctrlPressed = false;
+        }
+    });
+    
+    // Scroll обработчик для treeContainer
+    let scrollTimeout;
+    if (this.elements.treeContainer) {
+        this.elements.treeContainer.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                this.updateNodeEffects();
+            }, 100);
+        }, { passive: true });
+        console.log('✅ treeContainer scroll обработчик добавлен');
+    } else {
+        console.warn('⚠️ treeContainer не найден');
+    }
+    
+    // JSON экспорт
+    if (this.elements.jsonExportBtn) {
+        this.elements.jsonExportBtn.addEventListener('click', () => this.exportToJSON());
+        console.log('✅ jsonExportBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ jsonExportBtn не найден');
+    }
+    
+    // JSON импорт
+    if (this.elements.jsonImportBtn) {
+        this.elements.jsonImportBtn.addEventListener('click', () => this.importFromJSON());
+        console.log('✅ jsonImportBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ jsonImportBtn не найден');
+    }
+    
+    // Collapse all
+    if (this.elements.collapseAllBtn) {
+        this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAllNodes());
+        console.log('✅ collapseAllBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ collapseAllBtn не найден');
+    }
+    
+    // Save
+    if (this.elements.saveBtn) {
+        this.elements.saveBtn.addEventListener('click', () => this.saveData());
+        console.log('✅ saveBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ saveBtn не найден');
+    }
+    
+    // Theme switch
+    if (this.elements.themeSwitch) {
+        this.elements.themeSwitch.addEventListener('click', () => this.toggleTheme());
+        console.log('✅ themeSwitch обработчик добавлен');
+    } else {
+        console.warn('⚠️ themeSwitch не найден');
+    }
+
+    // Close department management
+    const closeDeptBtn = document.getElementById('closeDepartmentManagement');
+    if (closeDeptBtn) {
+        closeDeptBtn.addEventListener('click', () => {
+            this.hideDepartmentManagement();
+            this.promptReplacementMode();
+        });
+        console.log('✅ closeDepartmentManagement обработчик добавлен');
+    } else {
+        console.warn('⚠️ closeDepartmentManagement не найден');
+    }
+
+    // Drag and drop для department management
     document.addEventListener('dragover', (e) => {
         if (e.target.closest('.department-column')) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
         }
     });
-const departmentManagementEl = document.getElementById('departmentManagement');
+    
+    // Department management element
+    const departmentManagementEl = document.getElementById('departmentManagement');
+    if (departmentManagementEl) {
+        let dragPos = { x: 0, y: 0 };
+        let isDragging = false;
+        
+        departmentManagementEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragPos.x = e.clientX;
+            dragPos.y = e.clientY;
 
-if (departmentManagementEl) {
-  let dragPos = { x: 0, y: 0 };
-  let isDragging = false;
-  departmentManagementEl.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dragPos.x = e.clientX;
-    dragPos.y = e.clientY;
+            if (!isDragging) {
+                isDragging = true;
+                requestAnimationFrame(autoScroll);
+            }
+        }, { passive: false });
+        
+        function autoScroll() {
+            if (!isDragging) return;
 
-    if (!isDragging) {
-      isDragging = true;
-      requestAnimationFrame(autoScroll);
-    }
-  }, { passive: false });
-  function autoScroll() {
-    if (!isDragging) return;
+            const rect = departmentManagementEl.getBoundingClientRect();
+            const scrollMargin = 60;
+            const maxScrollSpeed = 30; 
 
-    const rect = departmentManagementEl.getBoundingClientRect();
-    const scrollMargin = 60;
-    const maxScrollSpeed = 30; 
+            let dx = 0;
+            let dy = 0;
 
-    let dx = 0;
-    let dy = 0;
+            if (dragPos.x < rect.left + scrollMargin) {
+                dx = -calcSpeed(rect.left + scrollMargin - dragPos.x, scrollMargin, maxScrollSpeed);
+            } else if (dragPos.x > rect.right - scrollMargin) {
+                dx = calcSpeed(dragPos.x - (rect.right - scrollMargin), scrollMargin, maxScrollSpeed);
+            }
+            if (dragPos.y < rect.top + scrollMargin) {
+                dy = -calcSpeed(rect.top + scrollMargin - dragPos.y, scrollMargin, maxScrollSpeed);
+            } else if (dragPos.y > rect.bottom - scrollMargin) {
+                dy = calcSpeed(dragPos.y - (rect.bottom - scrollMargin), scrollMargin, maxScrollSpeed);
+            }
 
-    if (dragPos.x < rect.left + scrollMargin) {
-      dx = -calcSpeed(rect.left + scrollMargin - dragPos.x, scrollMargin, maxScrollSpeed);
-    } else if (dragPos.x > rect.right - scrollMargin) {
-      dx = calcSpeed(dragPos.x - (rect.right - scrollMargin), scrollMargin, maxScrollSpeed);
-    }
-    if (dragPos.y < rect.top + scrollMargin) {
-      dy = -calcSpeed(rect.top + scrollMargin - dragPos.y, scrollMargin, maxScrollSpeed);
-    } else if (dragPos.y > rect.bottom - scrollMargin) {
-      dy = calcSpeed(dragPos.y - (rect.bottom - scrollMargin), scrollMargin, maxScrollSpeed);
-    }
-
-    if (dx !== 0 || dy !== 0) {
-      departmentManagementEl.scrollLeft += dx;
-      departmentManagementEl.scrollTop += dy;
-      requestAnimationFrame(autoScroll);
+            if (dx !== 0 || dy !== 0) {
+                departmentManagementEl.scrollLeft += dx;
+                departmentManagementEl.scrollTop += dy;
+                requestAnimationFrame(autoScroll);
+            } else {
+                isDragging = false;
+            }
+        }
+        
+        function calcSpeed(distance, margin, maxSpeed) {
+            return Math.min(maxSpeed, (distance / margin) * maxSpeed);
+        }
+        
+        console.log('✅ departmentManagement обработчики добавлены');
     } else {
-      isDragging = false;
+        console.warn('⚠️ departmentManagement не найден');
     }
-  }
-  function calcSpeed(distance, margin, maxSpeed) {
-    return Math.min(maxSpeed, (distance / margin) * maxSpeed);
-  }
-}
+    
+    // Drop обработчик
     document.addEventListener('drop', (e) => {
         if (!this.departmentManagement.active || !this.departmentManagement.draggedItem) return;
         
@@ -664,48 +731,157 @@ if (departmentManagementEl) {
             this.saveData();
         }
     });
-    this.elements.clusterSelect.addEventListener('change', (e) => {
-        this.activeCluster = e.target.value || null;
-        this.updateTree();
-        this.saveData();
-});
-this.elements.addToClusterBtn.addEventListener('click', () => {
-  if (this.selectedNodes.size > 1) {
-    this.showMultiClusterDialog();
-  } else {
-    this.showClusterDialog();
-  }
-});
-    this.elements.toggleControls.addEventListener('click', () => this.toggleControlsVisibility());
+    
+    // Cluster select
+    if (this.elements.clusterSelect) {
+        this.elements.clusterSelect.addEventListener('change', (e) => {
+            this.activeCluster = e.target.value || null;
+            this.updateTree();
+            this.saveData();
+        });
+        console.log('✅ clusterSelect обработчик добавлен');
+    } else {
+        console.warn('⚠️ clusterSelect не найден');
+    }
+    
+    // Add to cluster
+    if (this.elements.addToClusterBtn) {
+        this.elements.addToClusterBtn.addEventListener('click', () => {
+            if (this.selectedNodes.size > 1) {
+                this.showMultiClusterDialog();
+            } else {
+                this.showClusterDialog();
+            }
+        });
+        console.log('✅ addToClusterBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ addToClusterBtn не найден');
+    }
+    
+    // Toggle controls
+    if (this.elements.toggleControls) {
+        this.elements.toggleControls.addEventListener('click', () => this.toggleControlsVisibility());
+        console.log('✅ toggleControls обработчик добавлен');
+    } else {
+        console.warn('⚠️ toggleControls не найден');
+    }
+    
+    // Drag and drop файлов
     document.addEventListener('dragover', this.handleDragOver.bind(this));
     document.addEventListener('drop', this.handleFileDrop.bind(this));
-    this.elements.previewContainer.addEventListener('click', () => this.hidePreview());
-this.elements.addSubordinateBtn = document.getElementById('addSubordinateBtn');
-this.elements.authorityBtn = document.getElementById('authorityBtn');
-this.elements.authorityBtn.addEventListener('click', () => this.toggleAuthorityMark());
-this.elements.zoomResetBtn.addEventListener('click', () => this.resetZoom());
-this.elements.zoomInBtn.addEventListener('click', () => this.changeZoom(0.1));
-this.elements.zoomOutBtn.addEventListener('click', () => this.changeZoom(-0.1));
-this.elements.expandAllBtn = document.getElementById('expandAllBtn');
-this.elements.uploadFileBtn = document.getElementById('uploadFileBtn');
-this.elements.uploadFileBtn.addEventListener('click', () => this.uploadFile());
- this.elements.addSuperordinateAboveBtn = document.getElementById('addSuperordinateAboveBtn');
-    this.elements.addSuperordinateAboveBtn.addEventListener('click', () => this.addSuperordinateAbove());
-this.elements.mark269Btn = document.getElementById('mark269Btn');
-this.elements.mark269Btn.addEventListener('click', () => this.toggle269Mark());
-this.elements.power269Btn = document.getElementById('power269Btn');
-this.elements.power269Btn.addEventListener('click', () => this.togglePower269Mark());
-  this.elements.forAllBtn = document.getElementById('forAllBtn');
+    
+    // Preview container
+    if (this.elements.previewContainer) {
+        this.elements.previewContainer.addEventListener('click', () => this.hidePreview());
+        console.log('✅ previewContainer обработчик добавлен');
+    } else {
+        console.warn('⚠️ previewContainer не найден');
+    }
+    
+    // Authority button
+    if (this.elements.authorityBtn) {
+        this.elements.authorityBtn.addEventListener('click', () => this.toggleAuthorityMark());
+        console.log('✅ authorityBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ authorityBtn не найден');
+    }
+    
+    // Zoom buttons
+    if (this.elements.zoomResetBtn) {
+        this.elements.zoomResetBtn.addEventListener('click', () => this.resetZoom());
+        console.log('✅ zoomResetBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ zoomResetBtn не найден');
+    }
+    
+    if (this.elements.zoomInBtn) {
+        this.elements.zoomInBtn.addEventListener('click', () => this.changeZoom(0.1));
+        console.log('✅ zoomInBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ zoomInBtn не найден');
+    }
+    
+    if (this.elements.zoomOutBtn) {
+        this.elements.zoomOutBtn.addEventListener('click', () => this.changeZoom(-0.1));
+        console.log('✅ zoomOutBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ zoomOutBtn не найден');
+    }
+    
+    // Upload file
+    if (this.elements.uploadFileBtn) {
+        this.elements.uploadFileBtn.addEventListener('click', () => this.uploadFile());
+        console.log('✅ uploadFileBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ uploadFileBtn не найден');
+    }
+    
+    // Add superordinate above
+    if (this.elements.addSuperordinateAboveBtn) {
+        this.elements.addSuperordinateAboveBtn.addEventListener('click', () => this.addSuperordinateAbove());
+        console.log('✅ addSuperordinateAboveBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ addSuperordinateAboveBtn не найден');
+    }
+    
+    // Mark 269
+    if (this.elements.mark269Btn) {
+        this.elements.mark269Btn.addEventListener('click', () => this.toggle269Mark());
+        console.log('✅ mark269Btn обработчик добавлен');
+    } else {
+        console.warn('⚠️ mark269Btn не найден');
+    }
+    
+    // Power 269
+    if (this.elements.power269Btn) {
+        this.elements.power269Btn.addEventListener('click', () => this.togglePower269Mark());
+        console.log('✅ power269Btn обработчик добавлен');
+    } else {
+        console.warn('⚠️ power269Btn не найден');
+    }
+    
+    // For all
+    if (this.elements.forAllBtn) {
         this.elements.forAllBtn.addEventListener('click', () => this.toggleForAll());
-this.elements.collapseParentBtn = document.getElementById('collapseParentBtn');
-this.elements.collapseParentBtn.addEventListener('click', () => this.collapseParentNode());
-this.elements.subordinateBtn = document.getElementById('subordinateBtn');
-this.elements.subordinateBtn.addEventListener('click', () => this.toggleSubordinateMark());
-this.elements.okrBtn = document.getElementById('okrBtn');
-this.elements.okrBtn.addEventListener('click', () => this.toggleOKRMark());
-this.elements.indicatorBtn = document.getElementById('indicatorBtn');
-this.elements.indicatorBtn.addEventListener('click', () => this.toggleIndicatorMark());
-  }
+        console.log('✅ forAllBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ forAllBtn не найден');
+    }
+    
+    // Collapse parent
+    if (this.elements.collapseParentBtn) {
+        this.elements.collapseParentBtn.addEventListener('click', () => this.collapseParentNode());
+        console.log('✅ collapseParentBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ collapseParentBtn не найден');
+    }
+    
+    // Subordinate
+    if (this.elements.subordinateBtn) {
+        this.elements.subordinateBtn.addEventListener('click', () => this.toggleSubordinateMark());
+        console.log('✅ subordinateBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ subordinateBtn не найден');
+    }
+    
+    // OKR
+    if (this.elements.okrBtn) {
+        this.elements.okrBtn.addEventListener('click', () => this.toggleOKRMark());
+        console.log('✅ okrBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ okrBtn не найден');
+    }
+    
+    // Indicator
+    if (this.elements.indicatorBtn) {
+        this.elements.indicatorBtn.addEventListener('click', () => this.toggleIndicatorMark());
+        console.log('✅ indicatorBtn обработчик добавлен');
+    } else {
+        console.warn('⚠️ indicatorBtn не найден');
+    }
+    
+    console.log('🏁 setupEventListeners: завершено');
+}
 getFileIcon(fileType) {
     return '';
 }
