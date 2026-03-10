@@ -13,8 +13,8 @@ module.exports = async (req, res) => {
   }
 
   const {
-    GITHUB_TOKEN='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',
-    GITHUB_REPO_OWNER = 'mark98molchanov',
+    GITHUB_TOKEN,
+    GITHUB_REPO_OWNER = 'mark98molchanov-a11y',
     GITHUB_REPO_NAME = 'a13y.gko-registry-system'
   } = process.env;
 
@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'GitHub token not configured' });
   }
 
-  const GITHUB_FILE_PATH = req.query.path || 'gko_all_data_2026-01-22.json';
+  const GITHUB_FILE_PATH = req.query.path || 'gko_all_data.json';
 
   if (req.method === 'GET') {
     // Загрузка файла из GitHub
