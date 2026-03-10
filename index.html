@@ -3618,32 +3618,100 @@ function initDIOTree() {
     treeContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
     container.appendChild(treeContainer);
     
-    // Инициализируем дерево
+    // Проверяем, какой класс доступен для инициализации дерева
     if (window.TreeManager) {
         try {
             window.dioTreeApp = new window.TreeManager('dio-tree-container');
-            console.log('✅ Дерево ДИО успешно инициализировано');
+            console.log('✅ Дерево ДИО успешно инициализировано через TreeManager');
             
-            // Загружаем сохраненные данные
-            const savedTree = localStorage.getItem('dioTreeData');
-            if (savedTree && window.dioTreeApp.importData) {
-                try {
-                    const treeData = JSON.parse(savedTree);
-                    window.dioTreeApp.importData(treeData);
-                    console.log('✅ Данные дерева ДИО загружены из localStorage');
-                } catch (e) {
-                    console.error('Ошибка загрузки данных дерева ДИО:', e);
-                }
-            }
+            // Загружаем сохраненные данные, если есть
+            loadDIOTreeData();
         } catch (e) {
-            console.error('Ошибка инициализации дерева ДИО:', e);
-            container.innerHTML = '<div class="text-center text-red-500 p-8">Ошибка загрузки дерева</div>';
+            console.error('Ошибка инициализации дерева ДИО через TreeManager:', e);
+            tryAlternativeTreeInit(container);
+        }
+    } else if (window.treeApp && window.treeApp.constructor && window.treeApp.constructor.name === 'TreeManager') {
+        // Если есть уже созданный экземпляр, используем его
+        try {
+            // Создаем новый экземпляр для ДИО
+            window.dioTreeApp = new window.treeApp.constructor('dio-tree-container');
+            console.log('✅ Дерево ДИО успешно инициализировано через существующий конструктор');
+            loadDIOTreeData();
+        } catch (e) {
+            console.error('Ошибка инициализации дерева ДИО через существующий конструктор:', e);
+            tryAlternativeTreeInit(container);
         }
     } else {
-        console.error('TreeManager не найден');
-        container.innerHTML = '<div class="text-center text-red-500 p-8">TreeManager не найден</div>';
+        console.error('TreeManager не найден, пробуем альтернативные методы');
+        tryAlternativeTreeInit(container);
     }
 }
+
+function tryAlternativeTreeInit(container) {
+    // Пробуем найти глобальный метод инициализации
+    if (window.initTreeInTab) {
+        try {
+            // Создаем временный ID для инициализации
+            const tempId = 'dio-temp-tree';
+            const tempContainer = document.createElement('div');
+            tempContainer.id = tempId;
+            tempContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
+            container.innerHTML = '';
+            container.appendChild(tempContainer);
+            
+            window.initTreeInTab(tempId);
+            console.log('✅ Дерево ДИО инициализировано через initTreeInTab');
+        } catch (e) {
+            console.error('Ошибка инициализации через initTreeInTab:', e);
+            showTreeError(container);
+        }
+    } else {
+        showTreeError(container);
+    }
+}
+
+function showTreeError(container) {
+    container.innerHTML = `
+        <div class="text-center text-red-500 p-8">
+            <p class="text-lg font-medium mb-2">Ошибка загрузки дерева</p>
+            <p class="text-sm">Не удалось инициализировать интерактивное дерево</p>
+            <button onclick="initDIOTree()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                Повторить попытку
+            </button>
+        </div>
+    `;
+}
+
+function loadDIOTreeData() {
+    // Загружаем сохраненные данные для дерева ДИО
+    try {
+        // Сначала пробуем загрузить из общего хранилища
+        const allData = localStorage.getItem('gko_all_data');
+        if (allData) {
+            const parsed = JSON.parse(allData);
+            if (parsed.tree && window.dioTreeApp && window.dioTreeApp.importData) {
+                window.dioTreeApp.importData({ tree: parsed.tree });
+                console.log('✅ Данные дерева ДИО загружены из gko_all_data');
+                return;
+            }
+        }
+        
+        // Затем пробуем из специального хранилища
+        const savedTree = localStorage.getItem('dioTreeData');
+        if (savedTree && window.dioTreeApp && window.dioTreeApp.importData) {
+            const treeData = JSON.parse(savedTree);
+            window.dioTreeApp.importData(treeData);
+            console.log('✅ Данные дерева ДИО загружены из dioTreeData');
+        } else if (window.dioTreeApp && window.dioTreeApp.importData) {
+            // Если нет сохраненных данных, создаем пустое дерево
+            window.dioTreeApp.importData({ tree: { nodes: [], edges: [] } });
+            console.log('✅ Создано пустое дерево ДИО');
+        }
+    } catch (e) {
+        console.error('Ошибка загрузки данных дерева ДИО:', e);
+    }
+}
+
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Инициализация приложения...');
     
