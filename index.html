@@ -3620,47 +3620,56 @@ function initDIOTree() {
     treeContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
     container.appendChild(treeContainer);
     
-    // Используем безопасную инициализацию
-    if (window.safeInitDIOTree) {
-        window.dioTreeApp = window.safeInitDIOTree('dio-tree-container');
-        
-        // Проверяем результат
-        setTimeout(() => {
-            if (window.dioTreeApp && window.dioTreeApp.isReady && window.dioTreeApp.isReady()) {
-                console.log('✅ Дерево ДИО готово к работе');
-                document.getElementById('dioTreeLoading')?.remove();
-            } else {
-                console.warn('⚠️ Дерево ДИО не полностью готово');
-            }
-        }, 1000);
-        
-    } else if (window.TreeManager) {
-        // Запасной вариант
-        try {
-            window.dioTreeApp = new window.TreeManager('dio-tree-container');
-            console.log('⚠️ Дерево создано через стандартный TreeManager');
+    // Даем время на создание DOM-элемента
+    setTimeout(() => {
+        // Используем безопасную инициализацию
+        if (window.safeInitDIOTree) {
+            window.dioTreeApp = window.safeInitDIOTree('dio-tree-container');
             
+            // Проверяем результат
             setTimeout(() => {
-                window.dioTreeApp.importData({
-                    nodes: [{
-                        id: 'root',
-                        label: 'База ДИО',
-                        type: 'root',
-                        x: 400,
-                        y: 50
-                    }],
-                    edges: []
-                });
-            }, 500);
+                if (window.dioTreeApp) {
+                    console.log('✅ Дерево ДИО инициализировано');
+                    
+                    // Проверяем, есть ли данные в дереве
+                    if (window.dioTreeApp._pendingData) {
+                        console.log('📦 Данные ожидают загрузки');
+                    } else {
+                        console.log('✅ Дерево готово к работе');
+                    }
+                } else {
+                    console.warn('⚠️ Дерево ДИО не инициализировано');
+                }
+            }, 1000);
             
-        } catch (e) {
-            console.error('❌ Ошибка создания дерева:', e);
+        } else if (window.TreeManager) {
+            // Запасной вариант
+            try {
+                window.dioTreeApp = new window.TreeManager('dio-tree-container');
+                console.log('⚠️ Дерево создано через стандартный TreeManager');
+                
+                setTimeout(() => {
+                    window.dioTreeApp.importData({
+                        nodes: [{
+                            id: 'root',
+                            label: 'База ДИО',
+                            type: 'root',
+                            x: 400,
+                            y: 50
+                        }],
+                        edges: []
+                    });
+                }, 500);
+                
+            } catch (e) {
+                console.error('❌ Ошибка создания дерева:', e);
+                showTreeFallback(container);
+            }
+        } else {
+            console.error('❌ TreeManager не найден');
             showTreeFallback(container);
         }
-    } else {
-        console.error('❌ TreeManager не найден');
-        showTreeFallback(container);
-    }
+    }, 100);
 }
 
 function showTreeFallback(container) {
