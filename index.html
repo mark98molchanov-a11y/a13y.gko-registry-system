@@ -454,22 +454,13 @@
         </div>
     </div> <!-- Закрывается subsectionsContainer -->
 
-    <!-- База ДИО - отдельная секция с подразделами -->
-    <div class="book-section main" onclick="toggleDIOSections()" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); margin-top: 10px;">
+    <!-- База ДИО - отдельная секция на том же уровне, что и Отдел ГКО -->
+    <div class="book-section main" onclick="switchTab('dio')" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); margin-top: 10px;">
         <div class="section-icon">
             <img src="https://avatars.mds.yandex.net/i?id=b76c00669840a26fac6c5622da34239f_l-16407139-images-thumbs&n=13" 
                  style="width: 20px; height: 20px; object-fit: contain; border-radius: 4px;">
         </div>
         <span>База ДИО</span>
-        <div id="dioCollapseIcon" class="ml-auto transition-transform">▼</div>
-    </div>
-
-    <!-- Подразделы Базы ДИО -->
-    <div id="dioSubsectionsContainer" style="display: block;">
-        <div class="book-subsection" onclick="switchTab('dio-tree')" id="navDIOTree">
-            <div class="section-icon">🌳</div>
-            <span>Интерактивное дерево</span>
-        </div>
     </div>
 </aside>
 
@@ -727,25 +718,13 @@
                     <div id="cardsGridDashboards" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
                 </div>
             </div>
- <div class="tab-content calculator-tab" id="calculatorTab">
-    <div id="calculatorRoot"></div>
-</div>
+            <div class="tab-content calculator-tab" id="calculatorTab">
+                <div id="calculatorRoot"></div>
+            </div>
 <div class="tab-content" id="dioTab">
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="dioTabContent">
         <!-- Контейнер для дерева будет заполнен динамически -->
         <div class="text-center text-slate-400 py-12" id="dioLoading">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-dio-600 mx-auto mb-4"></div>
-            <p class="text-lg font-medium mb-2">Загрузка интерактивного дерева...</p>
-            <p class="text-sm">Пожалуйста, подождите</p>
-        </div>
-    </div>
-</div>
-
-<!-- НОВАЯ ВКЛАДКА ДЛЯ ИНТЕРАКТИВНОГО ДЕРЕВА -->
-<div class="tab-content" id="dioTreeTab">
-    <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="dioTreeTabContent">
-        <!-- Контейнер для дерева будет заполнен динамически -->
-        <div class="text-center text-slate-400 py-12" id="dioTreeLoading">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-dio-600 mx-auto mb-4"></div>
             <p class="text-lg font-medium mb-2">Загрузка интерактивного дерева...</p>
             <p class="text-sm">Пожалуйста, подождите</p>
@@ -999,7 +978,6 @@
     <script src="js/node-effects.js"></script>
     <script src="js/tree-manager-core.js"></script>
     <script src="js/main-tree.js"></script>
-    <script src="js/dio-tree-fix.js"></script>
 </body>
 </html>
 <script type="text/babel">
@@ -2077,8 +2055,7 @@ function switchTab(tabName) {
         'npas': 'navNPA',
         'dashboards': 'navDashboards', 
         'calculator': 'navCalculator',
-        'dio': null,
-        'dio-tree': 'navDIOTree'
+        'dio': null
     };
     
     const navId = navIdMap[tabName];
@@ -2090,47 +2067,34 @@ function switchTab(tabName) {
     }
     
     // Для главной секции ДИО
-else if (tabName === 'dio-tree') {
-    document.getElementById('npaImportButtons').classList.add('hidden');
-    document.getElementById('dashboardsImportButtons').classList.add('hidden');
-    document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
-    document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
-    currentTab = 'dio-tree';
-    
-    document.getElementById('bulkToolbar').classList.add('hidden');
-    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    
-    // Инициализируем дерево
-    setTimeout(() => {
-        // Проверяем наличие функции в глобальной области
-        if (typeof window.initDIOTree === 'function') {
-            console.log('✅ Вызов window.initDIOTree()');
-            window.initDIOTree();
-        } else if (typeof initDIOTree === 'function') {
-            console.log('⚠️ Вызов локальной initDIOTree()');
-            initDIOTree();
-        } else {
-            console.error('❌ Функция initDIOTree не найдена');
-            // Показываем сообщение об ошибке
-            const container = document.getElementById('dioTreeTabContent');
-            if (container) {
-                container.innerHTML = `
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-                        <p class="text-red-600 mb-4">Ошибка загрузки интерактивного дерева</p>
-                        <p class="text-sm text-gray-600 mb-4">Функция инициализации не найдена</p>
-                        <button onclick="location.reload()" class="px-4 py-2 bg-red-600 text-white rounded-lg">
-                            Перезагрузить страницу
-                        </button>
-                    </div>
-                `;
-            }
+    if (tabName === 'dio') {
+        const dioSection = Array.from(document.querySelectorAll('.book-section.main'))
+            .find(el => el.textContent.includes('База ДИО'));
+        if (dioSection) {
+            dioSection.classList.add('active');
         }
-    }, 100);
+    }
     
-} else if (tabName === 'dio') {
-    // Перенаправляем на дерево, если кликнули на саму секцию
-    switchTab('dio-tree');
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+    
+    if (tabName === 'dio') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
+        document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
+        currentTab = 'dio';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
+        // Инициализируем дерево, если оно еще не инициализировано
+        if (typeof window.initTreeInTab === 'function' && !window.treeInitialized) {
+            setTimeout(() => {
+                window.initTreeInTab('dioTabContent');
+            }, 100);
+        }
     } else if (tabName === 'npas') {
         document.getElementById('npaImportButtons').classList.remove('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
@@ -2142,7 +2106,6 @@ else if (tabName === 'dio-tree') {
             document.getElementById('bulkToolbar').classList.remove('hidden');
         }
         renderGrid();
-        
     } else if (tabName === 'dashboards') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.remove('hidden');
@@ -2167,7 +2130,6 @@ else if (tabName === 'dio-tree') {
             renderDashboardsGrid();
             updateBulkToolbarDashboards();
         }, 50);
-        
     } else if (tabName === 'calculator') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
@@ -2184,6 +2146,7 @@ else if (tabName === 'dio-tree') {
     // Триггерим событие для внешних скриптов
     window.dispatchEvent(new CustomEvent('tabChanged', { detail: { tab: tabName } }));
 }
+    
 
 function hardResetCurrent() {
     if (currentTab === 'npas') {
@@ -3580,320 +3543,9 @@ function toggleCapitalization() {
         isCapitalizationExpanded = true;
     }
 }
-let isDIOCollapsed = false;
 
-function toggleDIOSections() {
-    const container = document.getElementById('dioSubsectionsContainer');
-    const icon = document.getElementById('dioCollapseIcon');
-    
-    if (isDIOCollapsed) {
-        container.style.display = 'block';
-        icon.style.transform = 'rotate(0deg)';
-        icon.textContent = '▼';
-        isDIOCollapsed = false;
-    } else {
-        container.style.display = 'none';
-        icon.style.transform = 'rotate(-90deg)';
-        icon.textContent = '▶';
-        isDIOCollapsed = true;
-    }
-}
-
-function initDIOTree() {
-    console.log('🚀 Инициализация дерева ДИО...');
-    
-    const container = document.getElementById('dioTreeTabContent');
-    if (!container) {
-        console.error('❌ Контейнер dioTreeTabContent не найден');
-        return;
-    }
-    
-    // Убираем сообщение о загрузке
-    const loadingEl = document.getElementById('dioTreeLoading');
-    if (loadingEl) loadingEl.style.display = 'none';
-    
-    // Очищаем контейнер
-    container.innerHTML = '';
-    
-    // Создаём контейнер для дерева
-    const treeContainer = document.createElement('div');
-    treeContainer.id = 'dio-tree-container';
-    treeContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
-    container.appendChild(treeContainer);
-    
-    // Даем время на создание DOM-элемента
-    setTimeout(() => {
-        // Используем безопасную инициализацию
-        if (window.safeInitDIOTree) {
-            window.dioTreeApp = window.safeInitDIOTree('dio-tree-container');
-            
-            // Проверяем результат
-            setTimeout(() => {
-                if (window.dioTreeApp) {
-                    console.log('✅ Дерево ДИО инициализировано');
-                    
-                    // Проверяем, есть ли данные в дереве
-                    if (window.dioTreeApp._pendingData) {
-                        console.log('📦 Данные ожидают загрузки');
-                    } else {
-                        console.log('✅ Дерево готово к работе');
-                    }
-                } else {
-                    console.warn('⚠️ Дерево ДИО не инициализировано');
-                }
-            }, 1000);
-            
-        } else if (window.TreeManager) {
-            // Запасной вариант
-            try {
-                window.dioTreeApp = new window.TreeManager('dio-tree-container');
-                console.log('⚠️ Дерево создано через стандартный TreeManager');
-                
-                setTimeout(() => {
-                    window.dioTreeApp.importData({
-                        nodes: [{
-                            id: 'root',
-                            label: 'База ДИО',
-                            type: 'root',
-                            x: 400,
-                            y: 50
-                        }],
-                        edges: []
-                    });
-                }, 500);
-                
-            } catch (e) {
-                console.error('❌ Ошибка создания дерева:', e);
-                showTreeFallback(container);
-            }
-        } else {
-            console.error('❌ TreeManager не найден');
-            showTreeFallback(container);
-        }
-    }, 100);
-}
-
-function showTreeFallback(container) {
-    container.innerHTML = `
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
-            <h2 class="text-xl font-bold text-yellow-800 mb-2">🌳 База ДИО</h2>
-            <p class="text-yellow-600 mb-4">Интерактивное дерево временно недоступно</p>
-            <button onclick="initDIOTree()" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">
-                🔄 Повторить попытку
-            </button>
-        </div>
-    `;
-}
-
-function tryAlternativeTreeInit(container) {
-    // Пробуем найти глобальный метод инициализации
-    if (window.initTreeInTab) {
-        try {
-            // Создаем временный ID для инициализации
-            const tempId = 'dio-temp-tree';
-            const tempContainer = document.createElement('div');
-            tempContainer.id = tempId;
-            tempContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
-            container.innerHTML = '';
-            container.appendChild(tempContainer);
-            
-            window.initTreeInTab(tempId);
-            console.log('✅ Дерево ДИО инициализировано через initTreeInTab');
-        } catch (e) {
-            console.error('Ошибка инициализации через initTreeInTab:', e);
-            showTreeError(container);
-        }
-    } else {
-        showTreeError(container);
-    }
-}
-
-function showTreeError(container) {
-    container.innerHTML = `
-        <div class="text-center text-red-500 p-8">
-            <p class="text-lg font-medium mb-2">Ошибка загрузки дерева</p>
-            <p class="text-sm">Не удалось инициализировать интерактивное дерево</p>
-            <button onclick="initDIOTree()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                Повторить попытку
-            </button>
-        </div>
-    `;
-}
-
-function loadDIOTreeData() {
-    console.log('Загрузка данных для дерева ДИО...');
-    
-    // Даем время на полную инициализацию дерева
-    setTimeout(() => {
-        try {
-            if (!window.dioTreeApp) {
-                console.error('dioTreeApp не инициализирован');
-                return;
-            }
-            
-            if (!window.dioTreeApp.importData) {
-                console.error('Метод importData не найден');
-                return;
-            }
-            
-            // Сначала пробуем загрузить из общего хранилища
-            const allData = localStorage.getItem('gko_all_data');
-            if (allData) {
-                try {
-                    const parsed = JSON.parse(allData);
-                    if (parsed.tree) {
-                        console.log('Найдены данные дерева в gko_all_data');
-                        
-                        // Создаем правильную структуру для импорта
-                        const treeData = {
-                            tree: parsed.tree
-                        };
-                        
-                        // Пробуем импортировать с небольшой задержкой
-                        setTimeout(() => {
-                            try {
-                                window.dioTreeApp.importData(treeData);
-                                console.log('✅ Данные дерева ДИО загружены из gko_all_data');
-                            } catch (e) {
-                                console.error('Ошибка при импорте данных:', e);
-                                // Если не получается, создаем пустое дерево
-                                createEmptyTree();
-                            }
-                        }, 100);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Ошибка парсинга gko_all_data:', e);
-                }
-            }
-            
-            // Затем пробуем из специального хранилища
-            const savedTree = localStorage.getItem('dioTreeData');
-            if (savedTree) {
-                try {
-                    const treeData = JSON.parse(savedTree);
-                    console.log('Найдены данные дерева в dioTreeData');
-                    
-                    setTimeout(() => {
-                        try {
-                            window.dioTreeApp.importData(treeData);
-                            console.log('✅ Данные дерева ДИО загружены из dioTreeData');
-                        } catch (e) {
-                            console.error('Ошибка при импорте данных из dioTreeData:', e);
-                            createEmptyTree();
-                        }
-                    }, 100);
-                } catch (e) {
-                    console.error('Ошибка парсинга dioTreeData:', e);
-                    createEmptyTree();
-                }
-            } else {
-                console.log('Нет сохраненных данных, создаем пустое дерево');
-                createEmptyTree();
-            }
-        } catch (e) {
-            console.error('Критическая ошибка загрузки данных дерева ДИО:', e);
-            createEmptyTree();
-        }
-    }, 300); // Даем время на полную инициализацию
-}
-
-function createEmptyTree() {
-    console.log('Создание пустого дерева...');
-    setTimeout(() => {
-        if (window.dioTreeApp && window.dioTreeApp.importData) {
-            try {
-                // Создаем пустое дерево с корневым узлом
-                const emptyData = {
-                    tree: {
-                        nodes: [
-                            {
-                                id: 'root',
-                                label: 'База ДИО',
-                                type: 'root',
-                                x: 400,
-                                y: 50
-                            }
-                        ],
-                        edges: []
-                    }
-                };
-                window.dioTreeApp.importData(emptyData);
-                console.log('✅ Создано пустое дерево с корневым узлом');
-            } catch (e) {
-                console.error('Ошибка создания пустого дерева:', e);
-            }
-        }
-    }, 100);
-}
-function forceInitDIOTree() {
-    console.log('Принудительная инициализация дерева ДИО...');
-    
-    const container = document.getElementById('dioTreeTabContent');
-    if (!container) return;
-    
-    // Полностью очищаем контейнер
-    container.innerHTML = '';
-    
-    // Создаем новый контейнер
-    const treeContainer = document.createElement('div');
-    treeContainer.id = 'dio-tree-container';
-    treeContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
-    container.appendChild(treeContainer);
-    
-    // Пробуем создать новый экземпляр
-    if (window.TreeManager) {
-        try {
-            window.dioTreeApp = new window.TreeManager('dio-tree-container');
-            console.log('✅ Дерево ДИО принудительно инициализировано');
-            
-            // Создаем пустое дерево
-            setTimeout(() => {
-                if (window.dioTreeApp && window.dioTreeApp.importData) {
-                    window.dioTreeApp.importData({
-                        tree: {
-                            nodes: [
-                                {
-                                    id: 'root',
-                                    label: 'База ДИО',
-                                    type: 'root',
-                                    x: 400,
-                                    y: 50
-                                }
-                            ],
-                            edges: []
-                        }
-                    });
-                }
-            }, 100);
-        } catch (e) {
-            console.error('Ошибка принудительной инициализации:', e);
-        }
-    }
-}
-
-// Добавляем кнопку принудительной инициализации в интерфейс
-function addForceInitButton() {
-    const container = document.getElementById('dioTreeTabContent');
-    if (!container) return;
-    
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'fixed bottom-4 right-4 z-50';
-    buttonContainer.innerHTML = `
-        <button onclick="forceInitDIOTree()" 
-                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg">
-            🔄 Перезагрузить дерево
-        </button>
-    `;
-    document.body.appendChild(buttonContainer);
-}
-
-// Вызываем добавление кнопки после загрузки страницы
-setTimeout(addForceInitButton, 2000);
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Инициализация приложения...');
-    
-    // Инициализация секции Отдела ГКО
     const container = document.getElementById('subsectionsContainer');
     const icon = document.getElementById('collapseIcon');
     const capitalizationContainer = document.getElementById('capitalizationSubsections');
@@ -3910,19 +3562,7 @@ window.addEventListener('DOMContentLoaded', function() {
         capitalizationIcon.textContent = '▼';
         isCapitalizationExpanded = false;
     }
-    
-    // Инициализация секции Базы ДИО
-    const dioContainer = document.getElementById('dioSubsectionsContainer');
-    const dioIcon = document.getElementById('dioCollapseIcon');
-    if (dioContainer && dioIcon) {
-        dioContainer.style.display = 'block';
-        dioIcon.textContent = '▼';
-        isDIOCollapsed = false;
-    }
-    
-    // Обработка хэша URL
     const urlHash = window.location.hash;
-    
     if (urlHash === '#calculator' || urlHash === '#capitalization') {
         if (capitalizationContainer && capitalizationIcon) {
             capitalizationContainer.style.display = 'block';
@@ -3934,17 +3574,6 @@ window.addEventListener('DOMContentLoaded', function() {
         if (calculatorNav) {
             calculatorNav.classList.add('active');
         }
-    } else if (urlHash === '#dio' || urlHash === '#dio-tree') {
-        // Если хэш указывает на ДИО, активируем соответствующий подраздел
-        const dioNav = document.getElementById('navDIOTree');
-        if (dioNav) {
-            dioNav.classList.add('active');
-        }
-        const dioSection = Array.from(document.querySelectorAll('.book-section.main'))
-            .find(el => el.textContent.includes('База ДИО'));
-        if (dioSection) {
-            dioSection.classList.add('active');
-        }
     } else {
         // По умолчанию активен Реестр НПА
         const npaNav = document.getElementById('navNPA');
@@ -3952,22 +3581,14 @@ window.addEventListener('DOMContentLoaded', function() {
             npaNav.classList.add('active');
         }
     }
-    
-    // Загрузка данных
     loadData();
     loadDashboardsData();
     
-    // Загрузка из GitHub
     loadFromGitHub().then(() => {
         console.log('✅ Все данные загружены из GitHub');
-        
         if (urlHash === '#calculator') {
             setTimeout(() => {
                 switchTab('calculator');
-            }, 100);
-        } else if (urlHash === '#dio' || urlHash === '#dio-tree') {
-            setTimeout(() => {
-                switchTab('dio-tree');
             }, 100);
         }
     }).catch((error) => {
@@ -3978,14 +3599,8 @@ window.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 switchTab('calculator');
             }, 100);
-        } else if (urlHash === '#dio' || urlHash === '#dio-tree') {
-            setTimeout(() => {
-                switchTab('dio-tree');
-            }, 100);
         }
     });
-    
-    // Обработчик изменения хэша
     window.addEventListener('hashchange', function() {
         const hash = window.location.hash;
         console.log('Hash changed to:', hash);
@@ -4001,10 +3616,6 @@ window.addEventListener('DOMContentLoaded', function() {
             switchTab('npas');
         } else if (hash === '#dashboards') {
             switchTab('dashboards');
-        } else if (hash === '#dio' || hash === '#dio-tree') {
-            setTimeout(() => {
-                switchTab('dio-tree');
-            }, 50);
         }
     });
 });
