@@ -2090,45 +2090,46 @@ function switchTab(tabName) {
     }
     
     // Для главной секции ДИО
-    if (tabName === 'dio' || tabName === 'dio-tree') {
-        const dioSection = Array.from(document.querySelectorAll('.book-section.main'))
-            .find(el => el.textContent.includes('База ДИО'));
-        if (dioSection) {
-            dioSection.classList.add('active');
-        }
-    }
+else if (tabName === 'dio-tree') {
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
+    document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
+    currentTab = 'dio-tree';
     
-    // Скрываем все табы
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
     
-    // Показываем нужный таб
-    if (tabName === 'dio-tree') {
-        document.getElementById('dioTreeTab').classList.add('active');
-    } else {
-        document.getElementById(`${tabName}Tab`).classList.add('active');
-    }
-    
-    // Обновляем UI в зависимости от выбранного таба
-    if (tabName === 'dio-tree') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
-        document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
-        currentTab = 'dio-tree';
-        
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        
-        // Инициализируем дерево
-        setTimeout(() => {
+    // Инициализируем дерево
+    setTimeout(() => {
+        // Проверяем наличие функции в глобальной области
+        if (typeof window.initDIOTree === 'function') {
+            console.log('✅ Вызов window.initDIOTree()');
+            window.initDIOTree();
+        } else if (typeof initDIOTree === 'function') {
+            console.log('⚠️ Вызов локальной initDIOTree()');
             initDIOTree();
-        }, 100);
-        
-    } else if (tabName === 'dio') {
-        // Перенаправляем на дерево, если кликнули на саму секцию
-        switchTab('dio-tree');
+        } else {
+            console.error('❌ Функция initDIOTree не найдена');
+            // Показываем сообщение об ошибке
+            const container = document.getElementById('dioTreeTabContent');
+            if (container) {
+                container.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                        <p class="text-red-600 mb-4">Ошибка загрузки интерактивного дерева</p>
+                        <p class="text-sm text-gray-600 mb-4">Функция инициализации не найдена</p>
+                        <button onclick="location.reload()" class="px-4 py-2 bg-red-600 text-white rounded-lg">
+                            Перезагрузить страницу
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }, 100);
+    
+} else if (tabName === 'dio') {
+    // Перенаправляем на дерево, если кликнули на саму секцию
+    switchTab('dio-tree');
         
     } else if (tabName === 'npas') {
         document.getElementById('npaImportButtons').classList.remove('hidden');
