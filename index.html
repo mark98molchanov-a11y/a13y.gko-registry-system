@@ -999,6 +999,7 @@
     <script src="js/node-effects.js"></script>
     <script src="js/tree-manager-core.js"></script>
     <script src="js/main-tree.js"></script>
+    <script src="js/dio-tree-fix.js"></script>
 </body>
 </html>
 <script type="text/babel">
@@ -3598,10 +3599,11 @@ function toggleDIOSections() {
 }
 
 function initDIOTree() {
-    console.log('Инициализация дерева ДИО...');
+    console.log('🚀 Инициализация дерева ДИО...');
+    
     const container = document.getElementById('dioTreeTabContent');
     if (!container) {
-        console.error('Контейнер dioTreeTabContent не найден');
+        console.error('❌ Контейнер dioTreeTabContent не найден');
         return;
     }
     
@@ -3612,48 +3614,65 @@ function initDIOTree() {
     // Очищаем контейнер
     container.innerHTML = '';
     
-    // Создаем контейнер для дерева
+    // Создаём контейнер для дерева
     const treeContainer = document.createElement('div');
     treeContainer.id = 'dio-tree-container';
     treeContainer.className = 'tree-container w-full h-full min-h-[600px] bg-white rounded-lg shadow-sm p-4';
     container.appendChild(treeContainer);
     
-    // Проверяем, какой класс доступен для инициализации дерева
-    if (window.TreeManager) {
+    // Используем безопасную инициализацию
+    if (window.safeInitDIOTree) {
+        window.dioTreeApp = window.safeInitDIOTree('dio-tree-container');
+        
+        // Проверяем результат
+        setTimeout(() => {
+            if (window.dioTreeApp && window.dioTreeApp.isReady && window.dioTreeApp.isReady()) {
+                console.log('✅ Дерево ДИО готово к работе');
+                document.getElementById('dioTreeLoading')?.remove();
+            } else {
+                console.warn('⚠️ Дерево ДИО не полностью готово');
+            }
+        }, 1000);
+        
+    } else if (window.TreeManager) {
+        // Запасной вариант
         try {
             window.dioTreeApp = new window.TreeManager('dio-tree-container');
-            console.log('✅ Дерево ДИО успешно инициализировано через TreeManager');
+            console.log('⚠️ Дерево создано через стандартный TreeManager');
             
-            // ВАЖНО: Добавляем задержку перед загрузкой данных,
-            // чтобы дерево полностью завершило инициализацию
             setTimeout(() => {
-                loadDIOTreeData();
-            }, 500); // Задержка 500 миллисекунд
-            
-        } catch (e) {
-            console.error('Ошибка инициализации дерева ДИО через TreeManager:', e);
-            tryAlternativeTreeInit(container);
-        }
-    } else if (window.treeApp && window.treeApp.constructor && window.treeApp.constructor.name === 'TreeManager') {
-        // Если есть уже созданный экземпляр, используем его
-        try {
-            // Создаем новый экземпляр для ДИО
-            window.dioTreeApp = new window.treeApp.constructor('dio-tree-container');
-            console.log('✅ Дерево ДИО успешно инициализировано через существующий конструктор');
-            
-            // ВАЖНО: Добавляем задержку перед загрузкой данных
-            setTimeout(() => {
-                loadDIOTreeData();
+                window.dioTreeApp.importData({
+                    nodes: [{
+                        id: 'root',
+                        label: 'База ДИО',
+                        type: 'root',
+                        x: 400,
+                        y: 50
+                    }],
+                    edges: []
+                });
             }, 500);
             
         } catch (e) {
-            console.error('Ошибка инициализации дерева ДИО через существующий конструктор:', e);
-            tryAlternativeTreeInit(container);
+            console.error('❌ Ошибка создания дерева:', e);
+            showTreeFallback(container);
         }
     } else {
-        console.error('TreeManager не найден, пробуем альтернативные методы');
-        tryAlternativeTreeInit(container);
+        console.error('❌ TreeManager не найден');
+        showTreeFallback(container);
     }
+}
+
+function showTreeFallback(container) {
+    container.innerHTML = `
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+            <h2 class="text-xl font-bold text-yellow-800 mb-2">🌳 База ДИО</h2>
+            <p class="text-yellow-600 mb-4">Интерактивное дерево временно недоступно</p>
+            <button onclick="initDIOTree()" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">
+                🔄 Повторить попытку
+            </button>
+        </div>
+    `;
 }
 
 function tryAlternativeTreeInit(container) {
