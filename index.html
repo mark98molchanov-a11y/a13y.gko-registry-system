@@ -454,13 +454,21 @@
         </div>
     </div> <!-- Закрывается subsectionsContainer -->
 
-    <!-- База ДИО - отдельная секция на том же уровне, что и Отдел ГКО -->
-    <div class="book-section main" onclick="switchTab('dio')" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); margin-top: 10px;">
+    <div class="book-section main" onclick="toggleDIOSections()" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); margin-top: 10px;">
         <div class="section-icon">
             <img src="https://avatars.mds.yandex.net/i?id=b76c00669840a26fac6c5622da34239f_l-16407139-images-thumbs&n=13" 
                  style="width: 20px; height: 20px; object-fit: contain; border-radius: 4px;">
         </div>
         <span>База ДИО</span>
+        <div id="dioCollapseIcon" class="ml-auto transition-transform">▼</div>
+    </div>
+
+    <!-- Подразделы Базы ДИО -->
+    <div id="dioSubsectionsContainer" style="display: block;">
+        <div class="book-subsection" onclick="switchTab('dio')" id="navDIO">
+            <div class="section-icon">🌳</div>
+            <span>Структура ДИО</span>
+        </div>
     </div>
 </aside>
 
@@ -2055,7 +2063,7 @@ function switchTab(tabName) {
         'npas': 'navNPA',
         'dashboards': 'navDashboards', 
         'calculator': 'navCalculator',
-        'dio': null
+        'dio': 'navDIO'
     };
     
     const navId = navIdMap[tabName];
