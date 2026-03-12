@@ -3551,7 +3551,23 @@ function toggleCapitalization() {
         isCapitalizationExpanded = true;
     }
 }
-
+let isDIOCollapsed = false;
+function toggleDIOSections() {
+    const container = document.getElementById('dioSubsectionsContainer');
+    const icon = document.getElementById('dioCollapseIcon');
+    
+    if (isDIOCollapsed) {
+        container.style.display = 'block';
+        icon.style.transform = 'rotate(0deg)';
+        icon.textContent = '▼';
+        isDIOCollapsed = false;
+    } else {
+        container.style.display = 'none';
+        icon.style.transform = 'rotate(-90deg)';
+        icon.textContent = '▶';
+        isDIOCollapsed = true;
+    }
+}
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Инициализация приложения...');
     const container = document.getElementById('subsectionsContainer');
