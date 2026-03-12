@@ -1758,11 +1758,27 @@ async function loadFromGitHub() {
         
         if (json.tree) {
             console.log('Данные дерева найдены в GitHub');
-            localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
             
-            // Если дерево уже инициализировано, загружаем данные
+            // Подготавливаем данные для сохранения
+            const treeDataToSave = { 
+                tree: json.tree
+            };
+            
+            // Добавляем изображения, если они есть
+            if (json.images) {
+                treeDataToSave.images = json.images;
+                console.log(`Загружено изображений: ${Object.keys(json.images).length}`);
+            } else {
+                console.log('Изображения не найдены в файле');
+            }
+            
+            // Сохраняем в localStorage
+            localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
+            
+            // Если дерево уже инициализировано, загружаем данные с изображениями
             if (window.treeApp && window.treeApp.importData) {
-                window.treeApp.importData({ tree: json.tree });
+                window.treeApp.importData(treeDataToSave);
+                console.log('Данные переданы в дерево');
             }
         }
         
@@ -1782,6 +1798,7 @@ async function loadFromGitHub() {
         loadDashboardsData();
     }
 }
+
     
     let currentGitHubToken = null;
 
@@ -1807,26 +1824,39 @@ async function saveToGitHub() {
     
     currentGitHubToken = token;
     
-    // Получаем данные дерева
+    // Получаем данные дерева и изображения
     let treeData = null;
+    let imagesData = {}; // ДОБАВЛЯЕМ
+    
     if (window.treeApp && window.treeApp.treeData) {
         treeData = window.treeApp.serializeTree(window.treeApp.treeData);
+        imagesData = window.treeApp.imagesData || {}; // ПОЛУЧАЕМ ИЗОБРАЖЕНИЯ
     } else {
         try {
             const savedTree = localStorage.getItem('treeData');
             if (savedTree) {
-                treeData = JSON.parse(savedTree).tree || null;
+                const parsed = JSON.parse(savedTree);
+                treeData = parsed.tree || null;
+                imagesData = parsed.images || {}; // ЗАГРУЖАЕМ ИЗОБРАЖЕНИЯ
             }
         } catch (e) {}
     }
     
     const allData = {
-        version: "1.0",
+        version: "2.0", // МЕНЯЕМ ВЕРСИЮ
         exportDate: new Date().toISOString(),
         npas: appData,
         dashboards: dashboardsData,
         tree: treeData,
-        calculator: JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}')
+        images: imagesData, // ДОБАВЛЯЕМ ИЗОБРАЖЕНИЯ
+        calculator: JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}'),
+        metadata: { // ДОБАВЛЯЕМ МЕТАДАННЫЕ
+            npaCount: appData.length,
+            dashboardsCount: dashboardsData.length,
+            hasTree: !!treeData,
+            imageCount: Object.keys(imagesData).length,
+            exportFormat: "combined"
+        }
     };
     
     const content = JSON.stringify(allData, null, 2);
@@ -1836,6 +1866,7 @@ async function saveToGitHub() {
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
     
     try {
+        // Получаем sha существующего файла
         let sha = null;
         try {
             const res = await fetch(apiUrl, {
@@ -1848,8 +1879,12 @@ async function saveToGitHub() {
                 const data = await res.json();
                 sha = data.sha;
             }
-        } catch (e) { /* Файл не существует */ }
+        } catch (e) { 
+            // Файл не существует - игнорируем
+            console.log('Файл не существует, будет создан новый');
+        }
         
+        // Сохраняем файл
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
@@ -1870,9 +1905,10 @@ async function saveToGitHub() {
             // Сохраняем локально
             localStorage.setItem('gko_all_data', JSON.stringify(allData));
             
+            // Показываем уведомление об успехе
             const success = document.createElement('div');
             success.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-            success.textContent = '✅ Успешно сохранено в GitHub';
+            success.textContent = `✅ Успешно сохранено в GitHub (изображений: ${Object.keys(imagesData).length})`;
             document.body.appendChild(success);
             
             setTimeout(() => {
@@ -1938,25 +1974,31 @@ function showNotification(message, type = 'info') {
 function exportJson() {
     const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
     
-    // Получаем данные дерева, если они есть
+    // Получаем данные дерева и изображения
     let treeData = null;
+    let imagesData = {};
+    
     if (window.treeApp && window.treeApp.treeData) {
         treeData = window.treeApp.serializeTree(window.treeApp.treeData);
+        imagesData = window.treeApp.imagesData || {};
     } else {
         try {
             const savedTree = localStorage.getItem('treeData');
             if (savedTree) {
-                treeData = JSON.parse(savedTree).tree || null;
+                const parsed = JSON.parse(savedTree);
+                treeData = parsed.tree || null;
+                imagesData = parsed.images || {};
             }
         } catch (e) {}
     }
     
     const allData = {
-        version: "1.0",
+        version: "2.0",
         exportDate: new Date().toISOString(),
         npas: appData,
         dashboards: dashboardsData,
         tree: treeData,
+        images: imagesData,
         calculator: calculatorData,
         metadata: {
             npaCount: appData.length,
@@ -1990,6 +2032,7 @@ function importJson() {
                 let hasNPA = false;
                 let hasDashboards = false;
                 let hasTree = false;
+                let hasImages = false;
                 let hasCalculator = false;
                 
                 if (json.npas && Array.isArray(json.npas)) {
@@ -2007,13 +2050,18 @@ function importJson() {
                     hasTree = true;
                 }
                 
+                if (json.images) {
+                    confirmMessage += `Изображения: присутствуют\n`;
+                    hasImages = true;
+                }
+                
                 if (json.calculator) {
                     confirmMessage += `Калькулятор: данные настроек\n`;
                     hasCalculator = true;
                 }
                 
-                if (json.version && json.version === "1.0") {
-                    confirmMessage += "\nФормат: объединенный файл";
+                if (json.version) {
+                    confirmMessage += `\nФормат: версия ${json.version}`;
                 }
                 
                 if (confirm(confirmMessage)) {
@@ -2030,20 +2078,37 @@ function importJson() {
                     }
                     
                     if (hasTree && window.treeApp && window.treeApp.importData) {
-                        window.treeApp.importData({ tree: json.tree });
-                        localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
+                        const importData = { tree: json.tree };
+                        
+                        if (hasImages) {
+                            importData.images = json.images;
+                        }
+                        
+                        window.treeApp.importData(importData);
+                        
+                        localStorage.setItem('treeData', JSON.stringify({ 
+                            tree: json.tree,
+                            images: json.images || {} 
+                        }));
+                        
                     } else if (hasTree) {
-                        localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
+                        localStorage.setItem('treeData', JSON.stringify({ 
+                            tree: json.tree,
+                            images: json.images || {} 
+                        }));
                     }
                     
                     if (hasCalculator && json.calculator) {
                         localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
                     }
                     
-                    // Сохраняем объединённый JSON
                     localStorage.setItem('gko_all_data', JSON.stringify(json));
                     
                     alert("✅ Данные успешно импортированы!");
+                    
+                    if (hasTree && window.treeApp) {
+                        window.treeApp.updateTree();
+                    }
                 }
             } catch(e) {
                 alert("Ошибка чтения JSON файла: " + e.message);
