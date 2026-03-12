@@ -3570,6 +3570,16 @@ window.addEventListener('DOMContentLoaded', function() {
         capitalizationIcon.textContent = '▼';
         isCapitalizationExpanded = false;
     }
+
+    // Инициализация секции Базы ДИО
+    const dioContainer = document.getElementById('dioSubsectionsContainer');
+    const dioIcon = document.getElementById('dioCollapseIcon');
+    if (dioContainer && dioIcon) {
+        dioContainer.style.display = 'block';
+        dioIcon.textContent = '▼';
+        isDIOCollapsed = false;
+    }
+    
     const urlHash = window.location.hash;
     if (urlHash === '#calculator' || urlHash === '#capitalization') {
         if (capitalizationContainer && capitalizationIcon) {
@@ -3609,6 +3619,7 @@ window.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }
     });
+});
     window.addEventListener('hashchange', function() {
         const hash = window.location.hash;
         console.log('Hash changed to:', hash);
