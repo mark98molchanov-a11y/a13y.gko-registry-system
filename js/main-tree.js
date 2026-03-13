@@ -404,9 +404,16 @@ async function saveTreeToGitHub() {
     }
 }
 
-// Функция загрузки данных дерева из объединённого JSON
 async function loadTreeDataFromCombinedJSON() {
     try {
+        // ✅ СОХРАНЯЕМ УЖЕ ЗАГРУЖЕННЫЕ ИЗОБРАЖЕНИЯ
+        const existingImages = window.treeApp?.imagesData || {};
+        const hasImages = Object.keys(existingImages).length > 0;
+        
+        if (hasImages) {
+            console.log('🖼️ Сохраняем существующие изображения:', Object.keys(existingImages).length);
+        }
+        
         // Пробуем загрузить из объединённого JSON
         const allDataStr = localStorage.getItem('gko_all_data');
         if (allDataStr && window.treeApp) {
@@ -416,7 +423,8 @@ async function loadTreeDataFromCombinedJSON() {
                 const treeImportData = {
                     tree: allData.tree,
                     version: allData.version || '2.8',
-                    images: allData.tree?.images || {},
+                    // ✅ ВАЖНО: используем существующие изображения, если они есть
+                    images: hasImages ? existingImages : (allData.tree?.images || {}),
                     filesData: allData.tree?.filesData || {},
                     clusters: allData.tree?.clusters || [],
                     availableClusters: allData.tree?.availableClusters || [],
@@ -424,7 +432,7 @@ async function loadTreeDataFromCombinedJSON() {
                 };
                 
                 await window.treeApp.importData(treeImportData);
-                console.log('✅ Данные дерева загружены из объединённого JSON');
+                console.log('✅ Данные дерева загружены с сохранением изображений');
                 return true;
             }
         }
@@ -433,7 +441,14 @@ async function loadTreeDataFromCombinedJSON() {
         const treeDataStr = localStorage.getItem(STORAGE_KEY_TREE);
         if (treeDataStr && window.treeApp) {
             const treeData = JSON.parse(treeDataStr);
-            await window.treeApp.importData(treeData);
+            
+            const treeImportData = {
+                tree: treeData.tree,
+                // ✅ ВАЖНО: тоже сохраняем изображения
+                images: hasImages ? existingImages : (treeData.images || {})
+            };
+            
+            await window.treeApp.importData(treeImportData);
             console.log('✅ Данные дерева загружены из отдельного хранилища');
             return true;
         }
