@@ -1744,7 +1744,6 @@ async function loadFromGitHub() {
         console.log('📦 Наличие images:', !!json.images);
         
         if (json.images) {
-            console.log('🖼️ Ключи images:', Object.keys(json.images));
             console.log('🖼️ Количество изображений в файле:', Object.keys(json.images).length);
             
             // Покажем пример первого изображения
@@ -1776,29 +1775,27 @@ async function loadFromGitHub() {
         if (json.tree) {
             console.log('🌳 Данные дерева найдены в GitHub');
             
-            // Подготавливаем данные для сохранения
+            // 🚨 ИЗМЕНЕНИЕ: Подготавливаем данные для сохранения - БЕЗ ИЗОБРАЖЕНИЙ!
             const treeDataToSave = { 
                 tree: json.tree
+                // images НЕ сохраняем в localStorage!
             };
             
-            // Добавляем изображения, если они есть
-            if (json.images) {
-                treeDataToSave.images = json.images;
-                console.log(`✅ Загружено изображений: ${Object.keys(json.images).length}`);
-            } else {
-                console.log('⚠️ Изображения не найдены в файле');
-            }
+            console.log('📦 Сохраняем в localStorage ТОЛЬКО структуру дерева (без изображений)');
             
-            console.log('📦 Сохраняем в localStorage treeData с изображениями:', 
-                treeDataToSave.images ? Object.keys(treeDataToSave.images).length : 0);
-            
-            // Сохраняем в localStorage
+            // Сохраняем в localStorage ТОЛЬКО структуру дерева
             localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
             
             // Если дерево уже инициализировано, загружаем данные с изображениями
             if (window.treeApp && window.treeApp.importData) {
                 console.log('🔄 Передаем данные в treeApp.importData()');
-                window.treeApp.importData(treeDataToSave);
+                
+                // 🚨 ИЗМЕНЕНИЕ: Передаем ВСЕ данные (и дерево, и изображения) в память
+                window.treeApp.importData({
+                    tree: json.tree,
+                    images: json.images || {}  // изображения только в память!
+                });
+                
                 console.log('✅ Данные переданы в дерево');
                 
                 // Проверим, что загрузилось
