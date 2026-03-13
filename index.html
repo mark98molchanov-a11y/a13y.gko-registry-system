@@ -1826,31 +1826,31 @@ async function saveToGitHub() {
     
     // Получаем данные дерева и изображения
     let treeData = null;
-    let imagesData = {}; // ДОБАВЛЯЕМ
+    let imagesData = {};
     
     if (window.treeApp && window.treeApp.treeData) {
         treeData = window.treeApp.serializeTree(window.treeApp.treeData);
-        imagesData = window.treeApp.imagesData || {}; // ПОЛУЧАЕМ ИЗОБРАЖЕНИЯ
+        imagesData = window.treeApp.imagesData || {};
     } else {
         try {
             const savedTree = localStorage.getItem('treeData');
             if (savedTree) {
                 const parsed = JSON.parse(savedTree);
                 treeData = parsed.tree || null;
-                imagesData = parsed.images || {}; // ЗАГРУЖАЕМ ИЗОБРАЖЕНИЯ
+                imagesData = parsed.images || {};
             }
         } catch (e) {}
     }
     
     const allData = {
-        version: "2.0", // МЕНЯЕМ ВЕРСИЮ
+        version: "2.0",
         exportDate: new Date().toISOString(),
         npas: appData,
         dashboards: dashboardsData,
         tree: treeData,
-        images: imagesData, // ДОБАВЛЯЕМ ИЗОБРАЖЕНИЯ
+        images: imagesData,
         calculator: JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}'),
-        metadata: { // ДОБАВЛЯЕМ МЕТАДАННЫЕ
+        metadata: {
             npaCount: appData.length,
             dashboardsCount: dashboardsData.length,
             hasTree: !!treeData,
@@ -1880,11 +1880,10 @@ async function saveToGitHub() {
                 sha = data.sha;
             }
         } catch (e) { 
-            // Файл не существует - игнорируем
             console.log('Файл не существует, будет создан новый');
         }
         
-        // Сохраняем файл
+        // Сохраняем файл в GitHub
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
@@ -1902,8 +1901,8 @@ async function saveToGitHub() {
         if (response.ok) {
             closeGitHubModal();
             
-            // Сохраняем локально
-            localStorage.setItem('gko_all_data', JSON.stringify(allData));
+            // 🚨 УДАЛЕНО: сохранение в localStorage больше не происходит
+            // localStorage.setItem('gko_all_data', JSON.stringify(allData));
             
             // Показываем уведомление об успехе
             const success = document.createElement('div');
