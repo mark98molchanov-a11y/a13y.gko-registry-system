@@ -587,23 +587,7 @@ setupEventListeners() {
         console.warn('⚠️ treeContainer не найден');
     }
     
-    // JSON экспорт
-    if (this.elements.jsonExportBtn) {
-        this.elements.jsonExportBtn.addEventListener('click', () => this.exportToJSON());
-        console.log('✅ jsonExportBtn обработчик добавлен');
-    } else {
-        console.warn('⚠️ jsonExportBtn не найден');
-    }
-    
-    // JSON импорт
-    if (this.elements.jsonImportBtn) {
-        this.elements.jsonImportBtn.addEventListener('click', () => this.importFromJSON());
-        console.log('✅ jsonImportBtn обработчик добавлен');
-    } else {
-        console.warn('⚠️ jsonImportBtn не найден');
-    }
-    
-    // Collapse all
+
     if (this.elements.collapseAllBtn) {
         this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAllNodes());
         console.log('✅ collapseAllBtn обработчик добавлен');
@@ -5425,99 +5409,6 @@ restoreScrollPosition() {
             treeContainer.style.transform = this.scrollPosition.transform;
         }
     });
-}
-async exportToJSON() {
-  try {
-    const imagesToSave = {};
-    for(const [key, value] of Object.entries(this.imagesData)) {
-      if(value.startsWith('data:image')) {
-        imagesToSave[key] = value;
-      }
-    }
-    
-    const data = {
-      version: '2.8',
-      tree: this.serializeTree(this.treeData),
-      images: imagesToSave,
-      filesData: this.filesData,
-      clusters: Array.from(this.clusters.entries()), 
-      availableClusters: Array.from(this.availableClusters), 
-      settings: {
-        nodeCounter: this.nodeCounter,
-        darkMode: this.darkMode,
-        activeCluster: this.activeCluster 
-      },
-      timestamp: Date.now()
-    };
-
-    const jsonString = JSON.stringify(data);
-    
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `tree-project_${Date.now()}.json`;
-    link.click();
-    
-    this.showNotification('Проект успешно экспортирован в JSON');
-  } catch(error) {
-    console.error('Ошибка экспорта:', error);
-    this.showNotification(`Ошибка экспорта: ${error.message}`);
-  }
-}
-async importFromJSON() {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const jsonString = e.target.result;
-          const data = JSON.parse(jsonString);
-          
-          if (!data.version || data.version < '2.0') {
-            throw new Error('Устаревший формат файла');
-          }
-          const validatedImages = {};
-          for(const [key, value] of Object.entries(data.images || {})) {
-            if(typeof value === 'string' && value.startsWith('data:image')) {
-              validatedImages[key] = value;
-            }
-          }
-          this.imagesData = validatedImages;
-          this.nodeCounter = data.settings.nodeCounter || 1;
-          this.treeData = this.restoreTree(data.tree);
-          this.filesData = data.filesData || {};
-          if (data.version >= '2.7') {
-            this.clusters = new Map(data.clusters || []);
-            this.availableClusters = new Set(data.availableClusters || []);
-            this.activeCluster = data.settings?.activeCluster || null;
-          } else {
-            this.clusters = new Map();
-            this.availableClusters = new Set();
-            this.activeCluster = null;
-          }
-          this.updateClusterSelect();
-this.saveToHistory(true, true);
-          this.updateTree();
-          this.saveData();
-          
-          this.showNotification('Проект успешно импортирован!');
-          resolve(true);
-       } catch(error) {
-          console.error('Ошибка импорта:', error);
-          this.showNotification(`Ошибка импорта: ${error.message}`);
-          resolve(false);
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  });
 }
   showNotification(text) {
     const notification = document.createElement('div');
