@@ -43,10 +43,11 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         
         console.log('   - window.treeApp после инициализации:', window.treeApp);
         
-        // ❌ GitHub интеграция удалена
-        
         console.log('7. Загрузка данных из JSON...');
         await loadTreeDataFromCombinedJSON();
+        
+        // ✅ ЗАГРУЖАЕМ ФАЙЛЫ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+        await loadFilesFromGlobal();
         
         window.treeInitialized = true;
         console.log('✅ Дерево успешно инициализировано');
@@ -74,7 +75,7 @@ async function initTreeInTab(containerId = 'dioTabContent') {
     }
 }
 
-// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ С ЗАГРУЗКОЙ ИЗОБРАЖЕНИЙ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+// Функция инициализации TreeManager во вкладке
 async function initializeTreeManagerInTab() {
     console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
@@ -92,14 +93,9 @@ async function initializeTreeManagerInTab() {
         const TreeManagerClass = TreeManager || window.TreeManager;
         console.log('✅ TreeManager класс найден');
         
-        // Создаем экземпляр (без привязки к DOM)
+        // Создаем экземпляр
         window.treeApp = new TreeManagerClass();
         console.log('✅ Экземпляр treeApp создан');
-        
-        // ПРИНУДИТЕЛЬНО отключаем bindElements если он был вызван
-        if (window.treeApp.bindElements && typeof window.treeApp.bindElements === 'function') {
-            // Переопределяем, если нужно
-        }
         
         // Создаем NodeEffects
         if (typeof NodeEffects === 'function' || typeof window.NodeEffects === 'function') {
@@ -108,12 +104,11 @@ async function initializeTreeManagerInTab() {
             console.log('✅ NodeEffects создан');
         }
         
-        // Теперь привязываем к DOM (элементы уже должны существовать)
+        // Привязываем к DOM
         if (window.treeApp.bindElementsToDOM && typeof window.treeApp.bindElementsToDOM === 'function') {
             window.treeApp.bindElementsToDOM();
             console.log('✅ Элементы привязаны к DOM');
         } else {
-            // Если нет нового метода, создаем элементы вручную
             window.treeApp.elements = {
                 treeContainer: document.getElementById('tree')
             };
@@ -129,7 +124,7 @@ async function initializeTreeManagerInTab() {
         
         console.log('✅ TreeManager инициализирован');
         
-        // ✅ ЗАГРУЖАЕМ ИЗОБРАЖЕНИЯ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+        // Загружаем изображения из глобальной переменной
         await loadImagesFromGlobal();
         
         return window.treeApp;
@@ -140,7 +135,7 @@ async function initializeTreeManagerInTab() {
     }
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: загрузка изображений из глобальной переменной
+// Загрузка изображений из глобальной переменной
 async function loadImagesFromGlobal() {
     try {
         console.log('🖼️ Проверка глобальной переменной pendingTreeImages...');
@@ -149,21 +144,14 @@ async function loadImagesFromGlobal() {
             console.log('📸 Найдено изображений в pendingTreeImages:', Object.keys(window.pendingTreeImages).length);
             
             if (window.treeApp) {
-                // Загружаем изображения в дерево
                 window.treeApp.imagesData = window.pendingTreeImages;
                 console.log('✅ Изображения загружены в treeApp.imagesData');
-                
-                // Обновляем отображение
                 window.treeApp.updateTree();
-                
-                // Очищаем глобальную переменную
                 window.pendingTreeImages = null;
-                console.log('🧹 Глобальная переменная очищена');
+                console.log('🧹 Глобальная переменная изображений очищена');
             }
         } else {
             console.log('ℹ️ Нет изображений в глобальной переменной');
-            
-            // Пробуем загрузить из localStorage как запасной вариант
             await loadImagesFromLocalStorage();
         }
     } catch (error) {
@@ -171,7 +159,88 @@ async function loadImagesFromGlobal() {
     }
 }
 
-// ✅ ЗАПАСНАЯ ФУНКЦИЯ: загрузка из localStorage
+// ✅ НОВАЯ ФУНКЦИЯ: загрузка файлов из глобальной переменной
+async function loadFilesFromGlobal() {
+    try {
+        console.log('📁 Проверка глобальной переменной pendingTreeFiles...');
+        
+        if (window.pendingTreeFiles && Object.keys(window.pendingTreeFiles).length > 0) {
+            console.log('📦 Найдено файлов в pendingTreeFiles:', Object.keys(window.pendingTreeFiles).length);
+            
+            if (window.treeApp) {
+                // Загружаем метаданные файлов в память
+                window.treeApp.filesData = window.pendingTreeFiles;
+                console.log('✅ Файлы загружены в treeApp.filesData');
+                
+                // Загружаем файлы в IndexedDB
+                console.log('📁 Загрузка файлов в IndexedDB...');
+                let loadedCount = 0;
+                
+                for (const [fileId, fileMeta] of Object.entries(window.pendingTreeFiles)) {
+                    try {
+                        const existingFile = await window.treeApp.db.getFile(fileId);
+                        if (!existingFile) {
+                            await window.treeApp.db.saveFile(fileId, fileMeta);
+                            loadedCount++;
+                        }
+                    } catch (dbError) {
+                        console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
+                    }
+                }
+                
+                console.log(`✅ Загружено ${loadedCount} новых файлов в IndexedDB`);
+                
+                // Обновляем отображение
+                window.treeApp.updateTree();
+                
+                // Очищаем глобальную переменную
+                window.pendingTreeFiles = null;
+                console.log('🧹 Глобальная переменная файлов очищена');
+            }
+        } else {
+            console.log('ℹ️ Нет файлов в глобальной переменной');
+            await loadFilesFromLocalStorage();
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки файлов из глобальной переменной:', error);
+    }
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: загрузка файлов из localStorage
+async function loadFilesFromLocalStorage() {
+    try {
+        const allData = localStorage.getItem('gko_all_data');
+        if (allData) {
+            const parsed = JSON.parse(allData);
+            if (parsed.filesData && Object.keys(parsed.filesData).length > 0) {
+                console.log('📁 Найдено файлов в localStorage:', Object.keys(parsed.filesData).length);
+                
+                if (window.treeApp) {
+                    window.treeApp.filesData = parsed.filesData;
+                    console.log('✅ Файлы загружены из localStorage');
+                    
+                    // Загружаем в IndexedDB
+                    for (const [fileId, fileMeta] of Object.entries(parsed.filesData)) {
+                        try {
+                            const existingFile = await window.treeApp.db.getFile(fileId);
+                            if (!existingFile) {
+                                await window.treeApp.db.saveFile(fileId, fileMeta);
+                            }
+                        } catch (dbError) {
+                            console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
+                        }
+                    }
+                    
+                    window.treeApp.updateTree();
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Ошибка загрузки файлов из localStorage:', e);
+    }
+}
+
+// Загрузка изображений из localStorage
 async function loadImagesFromLocalStorage() {
     try {
         const allData = localStorage.getItem('gko_all_data');
@@ -192,7 +261,7 @@ async function loadImagesFromLocalStorage() {
     }
 }
 
-// Создание DOM структуры дерева (без GitHub кнопок)
+// Создание DOM структуры дерева
 function createTreeDOM() {
     return `
         <div class="tree-tab-container">
@@ -200,8 +269,6 @@ function createTreeDOM() {
                 <input type="text" id="searchInput" placeholder="Поиск..." style="padding: 8px; border-radius: 8px; border: 1px solid var(--primary-color);">
                 <span id="selectedCount" style="margin-left: 10px; font-size: 0.9em; color: var(--accent-color); display: none;">Выделено: 0</span>
                 <div class="autocomplete-suggestions" id="searchSuggestions"></div>
-                
-                <!-- ❌ GitHub и JSON кнопки удалены -->
                 
                 <button type="button" id="saveBtn">Сохранить</button>
                 <button type="button" id="collapseAllBtn">Свернуть все</button>
@@ -265,18 +332,19 @@ function createTreeDOM() {
     `;
 }
 
+// Загрузка данных дерева из объединенного JSON
 async function loadTreeDataFromCombinedJSON() {
     try {
-        // ✅ СОХРАНЯЕМ УЖЕ ЗАГРУЖЕННЫЕ ИЗОБРАЖЕНИЯ
+        // Сохраняем уже загруженные изображения и файлы
         const existingImages = window.treeApp?.imagesData || {};
-        const existingFiles = window.treeApp?.filesData || {}; // ДОБАВЛЯЕМ ЭТУ СТРОКУ
+        const existingFiles = window.treeApp?.filesData || {};
         const hasImages = Object.keys(existingImages).length > 0;
-        const hasFiles = Object.keys(existingFiles).length > 0; // ДОБАВЛЯЕМ ЭТУ СТРОКУ
+        const hasFiles = Object.keys(existingFiles).length > 0;
         
         if (hasImages) {
             console.log('🖼️ Сохраняем существующие изображения:', Object.keys(existingImages).length);
         }
-        if (hasFiles) { // ДОБАВЛЯЕМ ЭТОТ БЛОК
+        if (hasFiles) {
             console.log('📁 Сохраняем существующие файлы:', Object.keys(existingFiles).length);
         }
         
@@ -289,15 +357,30 @@ async function loadTreeDataFromCombinedJSON() {
                 const treeImportData = {
                     tree: allData.tree,
                     version: allData.version || '2.8',
-                    // ✅ ИСПРАВЛЕНО: используем существующие изображения и файлы, если они есть
                     images: hasImages ? existingImages : (allData.images || {}),
-                    filesData: hasFiles ? existingFiles : (allData.filesData || {}), // ДОБАВЛЯЕМ ЭТУ СТРОКУ
+                    filesData: hasFiles ? existingFiles : (allData.filesData || {}),
                     clusters: allData.clusters || [],
                     availableClusters: allData.availableClusters || [],
                     settings: allData.settings || {}
                 };
                 
                 await window.treeApp.importData(treeImportData);
+                
+                // Загружаем файлы в IndexedDB
+                if (allData.filesData && Object.keys(allData.filesData).length > 0 && !hasFiles) {
+                    console.log('📁 Загрузка файлов в IndexedDB из объединенного JSON...');
+                    for (const [fileId, fileMeta] of Object.entries(allData.filesData)) {
+                        try {
+                            const existingFile = await window.treeApp.db.getFile(fileId);
+                            if (!existingFile) {
+                                await window.treeApp.db.saveFile(fileId, fileMeta);
+                            }
+                        } catch (dbError) {
+                            console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
+                        }
+                    }
+                }
+                
                 console.log('✅ Данные дерева загружены с сохранением изображений и файлов');
                 return true;
             }
@@ -310,12 +393,27 @@ async function loadTreeDataFromCombinedJSON() {
             
             const treeImportData = {
                 tree: treeData.tree,
-                // ✅ ИСПРАВЛЕНО: тоже сохраняем изображения и файлы
                 images: hasImages ? existingImages : (treeData.images || {}),
-                filesData: hasFiles ? existingFiles : (treeData.filesData || {}) // ДОБАВЛЯЕМ ЭТУ СТРОКУ
+                filesData: hasFiles ? existingFiles : (treeData.filesData || {})
             };
             
             await window.treeApp.importData(treeImportData);
+            
+            // Загружаем файлы в IndexedDB
+            if (treeData.filesData && Object.keys(treeData.filesData).length > 0 && !hasFiles) {
+                console.log('📁 Загрузка файлов в IndexedDB из отдельного хранилища...');
+                for (const [fileId, fileMeta] of Object.entries(treeData.filesData)) {
+                    try {
+                        const existingFile = await window.treeApp.db.getFile(fileId);
+                        if (!existingFile) {
+                            await window.treeApp.db.saveFile(fileId, fileMeta);
+                        }
+                    } catch (dbError) {
+                        console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
+                    }
+                }
+            }
+            
             console.log('✅ Данные дерева загружены из отдельного хранилища');
             return true;
         }
@@ -332,7 +430,6 @@ async function loadTreeDataFromCombinedJSON() {
 // Функция обновления объединённого JSON (только для дерева)
 function updateTreeCombinedJSON(treeData) {
     try {
-        // Пробуем получить существующие данные
         let currentData = {};
         const saved = localStorage.getItem('gko_all_data');
         if (saved) {
@@ -353,7 +450,6 @@ function updateTreeCombinedJSON(treeData) {
 // ЭКСПОРТ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
 // ============================================
 
-// Экспортируем только функции дерева (без GitHub)
 window.initTreeInTab = initTreeInTab;
 
 // Для отладки
