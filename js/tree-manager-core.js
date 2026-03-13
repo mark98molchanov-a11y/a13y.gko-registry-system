@@ -5686,7 +5686,7 @@ importData(data) {
       hasImages: !!data.images
     });
     
-    if (data.version && data.version !== '1.0') {
+    if (data.version && data.version !== '1.0' && data.version !== '2.0') {
       const userConfirmed = confirm(
         'Этот файл создан в другой версии приложения.\n' +
         'Возможны ошибки в работе. Продолжить импорт?'
@@ -5694,6 +5694,11 @@ importData(data) {
       if (!userConfirmed) {
         throw new Error('Импорт отменен пользователем');
       }
+    }
+    
+    // ✅ Добавляем информационное сообщение для версии 2.0
+    if (data.version === '2.0') {
+      console.log('✅ Импорт версии 2.0 с поддержкой изображений');
     }
     
     this.imagesData = data.images || {};
