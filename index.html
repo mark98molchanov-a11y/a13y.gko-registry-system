@@ -2201,13 +2201,14 @@ function switchTab(tabName) {
     document.getElementById(`${tabName}Tab`).classList.add('active');
     
     if (tabName === 'dio') {
+        // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        // Изменено: убираем надпись "Добавить в ДИО"
-        document.getElementById('addButtonText').textContent = 'Действия с деревом';
-        // Можно также скрыть кнопку полностью, раскомментировав следующую строку:
-        // document.getElementById('addButton').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden'); // Полностью скрываем кнопку "Добавить"
+        
+        // Меняем текст сброса (опционально)
         document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
+        
         currentTab = 'dio';
         document.getElementById('bulkToolbar').classList.add('hidden');
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
@@ -2219,8 +2220,10 @@ function switchTab(tabName) {
             }, 100);
         }
     } else if (tabName === 'npas') {
+        // Для других вкладок показываем кнопки обратно
         document.getElementById('npaImportButtons').classList.remove('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Добавить запись';
         document.getElementById('resetBtnText').textContent = 'Сброс НПА';
         currentTab = 'npas';
@@ -2232,6 +2235,7 @@ function switchTab(tabName) {
     } else if (tabName === 'dashboards') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.remove('hidden');
+        document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Новый дашборд';
         document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
         currentTab = 'dashboards';
@@ -2256,6 +2260,7 @@ function switchTab(tabName) {
     } else if (tabName === 'calculator') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Новый расчет';
         document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
         currentTab = 'calculator';
