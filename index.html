@@ -2203,7 +2203,10 @@ function switchTab(tabName) {
     if (tabName === 'dio') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButtonText').textContent = 'Добавить в ДИО';
+        // Изменено: убираем надпись "Добавить в ДИО"
+        document.getElementById('addButtonText').textContent = 'Действия с деревом';
+        // Можно также скрыть кнопку полностью, раскомментировав следующую строку:
+        // document.getElementById('addButton').classList.add('hidden');
         document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
         currentTab = 'dio';
         document.getElementById('bulkToolbar').classList.add('hidden');
