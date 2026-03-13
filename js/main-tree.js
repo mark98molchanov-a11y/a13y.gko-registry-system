@@ -46,8 +46,11 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         console.log('7. Загрузка данных из JSON...');
         await loadTreeDataFromCombinedJSON();
         
-        // ✅ ЗАГРУЖАЕМ ФАЙЛЫ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+        // Загружаем файлы из глобальной переменной
         await loadFilesFromGlobal();
+        
+        // ✅ ПРИМЕНЯЕМ СОХРАНЕННУЮ ТЕМУ
+        applySavedTheme();
         
         window.treeInitialized = true;
         console.log('✅ Дерево успешно инициализировано');
@@ -72,6 +75,32 @@ async function initTreeInTab(containerId = 'dioTabContent') {
                 </div>
             `;
         }
+    }
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: применение сохраненной темы
+function applySavedTheme() {
+    try {
+        const savedTheme = localStorage.getItem('treeAppTheme');
+        const isDarkMode = savedTheme === 'dark';
+        
+        // Применяем к документу
+        document.documentElement.classList.toggle('dark', isDarkMode);
+        
+        // Если treeApp уже инициализирован, обновляем его свойство
+        if (window.treeApp) {
+            window.treeApp.darkMode = isDarkMode;
+        }
+        
+        // Обновляем переключатель темы
+        const themeSwitch = document.getElementById('themeSwitch');
+        if (themeSwitch) {
+            themeSwitch.classList.toggle('dark', isDarkMode);
+        }
+        
+        console.log(`🎨 Тема применена: ${isDarkMode ? 'темная' : 'светлая'}`);
+    } catch (e) {
+        console.error('Ошибка применения темы:', e);
     }
 }
 
@@ -159,7 +188,7 @@ async function loadImagesFromGlobal() {
     }
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: загрузка файлов из глобальной переменной
+// НОВАЯ ФУНКЦИЯ: загрузка файлов из глобальной переменной
 async function loadFilesFromGlobal() {
     try {
         console.log('📁 Проверка глобальной переменной pendingTreeFiles...');
@@ -206,7 +235,7 @@ async function loadFilesFromGlobal() {
     }
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: загрузка файлов из localStorage
+// НОВАЯ ФУНКЦИЯ: загрузка файлов из localStorage
 async function loadFilesFromLocalStorage() {
     try {
         const allData = localStorage.getItem('gko_all_data');
@@ -300,9 +329,11 @@ function createTreeDOM() {
                     <span class="theme-icon sun-icon">☀️</span>
                     <span class="theme-icon moon-icon">🌙</span>
                     <div class="theme-switch-handle"></div>
-                    <div class="theme-transition-overlay" id="themeTransitionOverlay"></div>
                 </div>
             </div>
+            
+            <!-- ✅ ЭЛЕМЕНТ ДЛЯ АНИМАЦИИ ПЕРЕКЛЮЧЕНИЯ ТЕМЫ -->
+            <div class="theme-transition-overlay" id="themeTransitionOverlay"></div>
             
             <div class="drop-zone" id="dropZone">Перетащите файл сюда</div>
             <div id="tree" class="tree"></div>
@@ -451,8 +482,10 @@ function updateTreeCombinedJSON(treeData) {
 // ============================================
 
 window.initTreeInTab = initTreeInTab;
+window.applySavedTheme = applySavedTheme; // Экспортируем для внешнего использования
 
 // Для отладки
 console.log('✅ main-tree.js готов, функции экспортированы:', {
-    initTreeInTab: typeof initTreeInTab
+    initTreeInTab: typeof initTreeInTab,
+    applySavedTheme: typeof applySavedTheme
 });
