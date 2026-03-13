@@ -265,20 +265,19 @@ function createTreeDOM() {
     `;
 }
 
-// ❌ Функция setupTreeGitHubIntegration УДАЛЕНА
-
-// ❌ Функция loadTreeFromGitHub УДАЛЕНА
-
-// ❌ Функция saveTreeToGitHub УДАЛЕНА
-
 async function loadTreeDataFromCombinedJSON() {
     try {
         // ✅ СОХРАНЯЕМ УЖЕ ЗАГРУЖЕННЫЕ ИЗОБРАЖЕНИЯ
         const existingImages = window.treeApp?.imagesData || {};
+        const existingFiles = window.treeApp?.filesData || {}; // ДОБАВЛЯЕМ ЭТУ СТРОКУ
         const hasImages = Object.keys(existingImages).length > 0;
+        const hasFiles = Object.keys(existingFiles).length > 0; // ДОБАВЛЯЕМ ЭТУ СТРОКУ
         
         if (hasImages) {
             console.log('🖼️ Сохраняем существующие изображения:', Object.keys(existingImages).length);
+        }
+        if (hasFiles) { // ДОБАВЛЯЕМ ЭТОТ БЛОК
+            console.log('📁 Сохраняем существующие файлы:', Object.keys(existingFiles).length);
         }
         
         // Пробуем загрузить из объединённого JSON
@@ -290,16 +289,16 @@ async function loadTreeDataFromCombinedJSON() {
                 const treeImportData = {
                     tree: allData.tree,
                     version: allData.version || '2.8',
-                    // ✅ ВАЖНО: используем существующие изображения, если они есть
-                    images: hasImages ? existingImages : (allData.tree?.images || {}),
-                    filesData: allData.tree?.filesData || {},
-                    clusters: allData.tree?.clusters || [],
-                    availableClusters: allData.tree?.availableClusters || [],
-                    settings: allData.tree?.settings || {}
+                    // ✅ ИСПРАВЛЕНО: используем существующие изображения и файлы, если они есть
+                    images: hasImages ? existingImages : (allData.images || {}),
+                    filesData: hasFiles ? existingFiles : (allData.filesData || {}), // ДОБАВЛЯЕМ ЭТУ СТРОКУ
+                    clusters: allData.clusters || [],
+                    availableClusters: allData.availableClusters || [],
+                    settings: allData.settings || {}
                 };
                 
                 await window.treeApp.importData(treeImportData);
-                console.log('✅ Данные дерева загружены с сохранением изображений');
+                console.log('✅ Данные дерева загружены с сохранением изображений и файлов');
                 return true;
             }
         }
@@ -311,8 +310,9 @@ async function loadTreeDataFromCombinedJSON() {
             
             const treeImportData = {
                 tree: treeData.tree,
-                // ✅ ВАЖНО: тоже сохраняем изображения
-                images: hasImages ? existingImages : (treeData.images || {})
+                // ✅ ИСПРАВЛЕНО: тоже сохраняем изображения и файлы
+                images: hasImages ? existingImages : (treeData.images || {}),
+                filesData: hasFiles ? existingFiles : (treeData.filesData || {}) // ДОБАВЛЯЕМ ЭТУ СТРОКУ
             };
             
             await window.treeApp.importData(treeImportData);
