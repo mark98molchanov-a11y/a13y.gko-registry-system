@@ -43,8 +43,7 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         
         console.log('   - window.treeApp после инициализации:', window.treeApp);
         
-        console.log('6. Настройка GitHub интеграции...');
-        setupTreeGitHubIntegration();
+        // ❌ GitHub интеграция удалена
         
         console.log('7. Загрузка данных из JSON...');
         await loadTreeDataFromCombinedJSON();
@@ -193,7 +192,7 @@ async function loadImagesFromLocalStorage() {
     }
 }
 
-// Создание DOM структуры дерева
+// Создание DOM структуры дерева (без GitHub кнопок)
 function createTreeDOM() {
     return `
         <div class="tree-tab-container">
@@ -202,10 +201,8 @@ function createTreeDOM() {
                 <span id="selectedCount" style="margin-left: 10px; font-size: 0.9em; color: var(--accent-color); display: none;">Выделено: 0</span>
                 <div class="autocomplete-suggestions" id="searchSuggestions"></div>
                 
-                <button type="button" id="jsonExportBtn">JSON Экспорт</button>
-                <button type="button" id="jsonImportBtn">JSON Импорт</button>
-                <button type="button" id="githubLoadBtn" class="github-load-btn" style="background: linear-gradient(145deg, #24292e, #0366d6);">Загрузить из GitHub</button>
-                <button type="button" id="saveToGitHubBtn" style="background: linear-gradient(145deg, #24292e, #2c974b);">💾 Сохранить в GitHub</button>
+                <!-- ❌ GitHub и JSON кнопки удалены -->
+                
                 <button type="button" id="saveBtn">Сохранить</button>
                 <button type="button" id="collapseAllBtn">Свернуть все</button>
                 <button type="button" id="collapseParentBtn" class="collapse-parent-btn">Свернуть родителя</button>
@@ -268,141 +265,11 @@ function createTreeDOM() {
     `;
 }
 
-// Функция для интеграции с GitHub API
-function setupTreeGitHubIntegration() {
-    if (!window.treeApp) return;
-    
-    // Перехватываем кнопку загрузки из GitHub
-    const githubLoadBtn = document.getElementById('githubLoadBtn');
-    if (githubLoadBtn) {
-        const newBtn = githubLoadBtn.cloneNode(true);
-        githubLoadBtn.parentNode.replaceChild(newBtn, githubLoadBtn);
-        
-        newBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await loadTreeFromGitHub();
-        });
-    }
-    
-    // Настраиваем кнопку сохранения в GitHub
-    const saveGitHubBtn = document.getElementById('saveToGitHubBtn');
-    if (saveGitHubBtn) {
-        saveGitHubBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await saveTreeToGitHub();
-        });
-    }
-}
+// ❌ Функция setupTreeGitHubIntegration УДАЛЕНА
 
-// Функция загрузки дерева из GitHub
-async function loadTreeFromGitHub() {
-    if (!window.treeApp) {
-        if (window.showNotification) {
-            window.showNotification('❌ Дерево не инициализировано', 'error');
-        }
-        return;
-    }
-    
-    if (window.showLoadingIndicator) {
-        window.showLoadingIndicator('Загрузка из GitHub...');
-    }
-    
-    try {
-        const GITHUB_CONFIG = {
-            OWNER: 'mark98molchanov-a11y',
-            REPO: 'mark98molchanov-a12y.gko-registry-system',
-            FILE_PATH: 'gko_all_data.json'
-        };
-        
-        const url = `https://raw.githubusercontent.com/${GITHUB_CONFIG.OWNER}/${GITHUB_CONFIG.REPO}/main/${GITHUB_CONFIG.FILE_PATH}`;
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        const response = await fetch(url, {
-            signal: controller.signal,
-            mode: 'cors',
-            cache: 'no-cache'
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ошибка: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.tree) {
-            const importData = {
-                tree: data.tree,
-                version: data.version || '2.8',
-                images: data.tree?.images || {},
-                filesData: data.tree?.filesData || {},
-                clusters: data.tree?.clusters || [],
-                availableClusters: data.tree?.availableClusters || [],
-                settings: data.tree?.settings || {}
-            };
-            
-            await window.treeApp.importData(importData);
-            
-            // Обновляем объединённый JSON
-            updateTreeCombinedJSON({ tree: data.tree });
-            
-            if (window.showNotification) {
-                window.showNotification('✅ Дерево загружено из GitHub', 'success');
-            }
-        } else {
-            throw new Error('Нет данных дерева в загруженном файле');
-        }
-        
-    } catch (error) {
-        console.error('❌ Ошибка загрузки из GitHub:', error);
-        if (window.showNotification) {
-            window.showNotification(`❌ Ошибка: ${error.message}`, 'error');
-        }
-    } finally {
-        if (window.hideLoadingIndicator) {
-            window.hideLoadingIndicator();
-        }
-    }
-}
+// ❌ Функция loadTreeFromGitHub УДАЛЕНА
 
-// Функция сохранения дерева в GitHub
-async function saveTreeToGitHub() {
-    if (!window.treeApp) {
-        if (window.showNotification) {
-            window.showNotification('❌ Дерево не инициализировано', 'error');
-        }
-        return;
-    }
-    
-    try {
-        const treeData = window.treeApp.serializeTree(window.treeApp.treeData);
-        
-        // Сохраняем в localStorage
-        localStorage.setItem(STORAGE_KEY_TREE, JSON.stringify({ tree: treeData }));
-        
-        if (window.showNotification) {
-            window.showNotification('✅ Данные дерева сохранены локально', 'success');
-        }
-        
-        // Открываем модалку GitHub из основного приложения
-        if (window.showGitHubTokenModal) {
-            // Сохраняем данные для отправки
-            window.pendingTreeData = treeData;
-            window.showGitHubTokenModal();
-        } else {
-            console.warn('showGitHubTokenModal не найдена');
-        }
-        
-    } catch (error) {
-        console.error('❌ Ошибка сохранения:', error);
-        if (window.showNotification) {
-            window.showNotification(`❌ Ошибка: ${error.message}`, 'error');
-        }
-    }
-}
+// ❌ Функция saveTreeToGitHub УДАЛЕНА
 
 async function loadTreeDataFromCombinedJSON() {
     try {
@@ -486,14 +353,10 @@ function updateTreeCombinedJSON(treeData) {
 // ЭКСПОРТ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
 // ============================================
 
-// Экспортируем только функции дерева
+// Экспортируем только функции дерева (без GitHub)
 window.initTreeInTab = initTreeInTab;
-window.loadTreeFromGitHub = loadTreeFromGitHub;
-window.saveTreeToGitHub = saveTreeToGitHub;
 
 // Для отладки
 console.log('✅ main-tree.js готов, функции экспортированы:', {
-    initTreeInTab: typeof initTreeInTab,
-    loadTreeFromGitHub: typeof loadTreeFromGitHub,
-    saveTreeToGitHub: typeof saveTreeToGitHub
+    initTreeInTab: typeof initTreeInTab
 });
