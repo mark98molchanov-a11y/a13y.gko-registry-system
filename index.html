@@ -1793,14 +1793,9 @@ async function loadFromGitHub() {
             } else {
                 console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
                 
-                // ✅ СОХРАНЯЕМ ИЗОБРАЖЕНИЯ В ОТДЕЛЬНОМ ХРАНИЛИЩЕ (ОПЦИОНАЛЬНО)
-                // Можно использовать sessionStorage (очищается при закрытии вкладки)
-                try {
-                    sessionStorage.setItem('treeImages', JSON.stringify(json.images || {}));
-                    console.log('🖼️ Изображения сохранены в sessionStorage');
-                } catch (e) {
-                    console.warn('⚠️ Не удалось сохранить изображения в sessionStorage:', e);
-                }
+                // ✅ ИСПРАВЛЕНО: сохраняем в глобальную переменную вместо sessionStorage
+                window.pendingTreeImages = json.images || {};
+                console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
             }
         }
         
