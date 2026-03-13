@@ -75,7 +75,7 @@ async function initTreeInTab(containerId = 'dioTabContent') {
     }
 }
 
-// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ С ЗАГРУЗКОЙ ИЗОБРАЖЕНИЙ
+// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ С ЗАГРУЗКОЙ ИЗОБРАЖЕНИЙ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
 async function initializeTreeManagerInTab() {
     console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
@@ -130,8 +130,8 @@ async function initializeTreeManagerInTab() {
         
         console.log('✅ TreeManager инициализирован');
         
-        // ✅ ЗАГРУЖАЕМ ИЗОБРАЖЕНИЯ ПОСЛЕ ИНИЦИАЛИЗАЦИИ
-        await loadImagesFromSessionStorage();
+        // ✅ ЗАГРУЖАЕМ ИЗОБРАЖЕНИЯ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+        await loadImagesFromGlobal();
         
         return window.treeApp;
         
@@ -141,34 +141,55 @@ async function initializeTreeManagerInTab() {
     }
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: загрузка изображений из sessionStorage
-async function loadImagesFromSessionStorage() {
+// ✅ НОВАЯ ФУНКЦИЯ: загрузка изображений из глобальной переменной
+async function loadImagesFromGlobal() {
     try {
-        console.log('🖼️ Проверка sessionStorage на наличие изображений...');
+        console.log('🖼️ Проверка глобальной переменной pendingTreeImages...');
         
-        const savedImages = sessionStorage.getItem('treeImages');
-        if (!savedImages) {
-            console.log('ℹ️ Нет изображений в sessionStorage');
-            return;
-        }
-        
-        const images = JSON.parse(savedImages);
-        console.log('📸 Найдено изображений в sessionStorage:', Object.keys(images).length);
-        
-        if (window.treeApp) {
-            // Загружаем изображения в дерево
-            window.treeApp.imagesData = images;
-            console.log('✅ Изображения загружены в treeApp.imagesData');
+        if (window.pendingTreeImages && Object.keys(window.pendingTreeImages).length > 0) {
+            console.log('📸 Найдено изображений в pendingTreeImages:', Object.keys(window.pendingTreeImages).length);
             
-            // Обновляем отображение
-            window.treeApp.updateTree();
+            if (window.treeApp) {
+                // Загружаем изображения в дерево
+                window.treeApp.imagesData = window.pendingTreeImages;
+                console.log('✅ Изображения загружены в treeApp.imagesData');
+                
+                // Обновляем отображение
+                window.treeApp.updateTree();
+                
+                // Очищаем глобальную переменную
+                window.pendingTreeImages = null;
+                console.log('🧹 Глобальная переменная очищена');
+            }
+        } else {
+            console.log('ℹ️ Нет изображений в глобальной переменной');
             
-            // Очищаем sessionStorage
-            sessionStorage.removeItem('treeImages');
-            console.log('🧹 sessionStorage очищен');
+            // Пробуем загрузить из localStorage как запасной вариант
+            await loadImagesFromLocalStorage();
         }
     } catch (error) {
-        console.error('❌ Ошибка загрузки изображений из sessionStorage:', error);
+        console.error('❌ Ошибка загрузки изображений из глобальной переменной:', error);
+    }
+}
+
+// ✅ ЗАПАСНАЯ ФУНКЦИЯ: загрузка из localStorage
+async function loadImagesFromLocalStorage() {
+    try {
+        const allData = localStorage.getItem('gko_all_data');
+        if (allData) {
+            const parsed = JSON.parse(allData);
+            if (parsed.images && Object.keys(parsed.images).length > 0) {
+                console.log('📸 Найдено изображений в localStorage:', Object.keys(parsed.images).length);
+                
+                if (window.treeApp) {
+                    window.treeApp.imagesData = parsed.images;
+                    console.log('✅ Изображения загружены из localStorage');
+                    window.treeApp.updateTree();
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Ошибка загрузки из localStorage:', e);
     }
 }
 
