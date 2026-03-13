@@ -657,6 +657,12 @@
                                             <span class="bg-white text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded" id="countOperational">0</span>
                                         </div>
                                     </div>
+                                        <div onclick="setTypeFilterDashboards('audit')" class="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition">
+        <div class="flex justify-between items-center">
+            <span class="font-bold text-indigo-700 text-xs">Деятельность ГБУ</span>
+            <span class="bg-white text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 rounded" id="countAudit">0</span>
+        </div>
+    </div>
                                     <div onclick="setTypeFilterDashboards('reporting')" class="p-2.5 rounded-xl bg-rose-50 border border-rose-100 cursor-pointer hover:bg-rose-100 transition">
                                         <div class="flex justify-between items-center">
                                             <span class="font-bold text-rose-700 text-xs">Отчетность</span>
@@ -2931,22 +2937,31 @@ function hardResetCurrent() {
         updateBulkToolbarDashboards();
     }
 
-    function updateDashboardStatsDashboards(filteredData = dashboardsData) {
-        const total = dashboardsData.length;
-        const active = dashboardsData.filter(d => d.status === 'active').length;
-        
-        const analytical = filteredData.filter(d => d.analysisType === 'analytical').length;
-        const monitoring = filteredData.filter(d => d.analysisType === 'monitoring').length;
-        const operational = filteredData.filter(d => d.analysisType === 'operational').length;
-        const reporting = filteredData.filter(d => d.analysisType === 'reporting').length;
-        
-        document.getElementById('statTotalDashboards').innerText = total;
-        document.getElementById('statActiveDashboards').innerText = active;
-        document.getElementById('countAnalytical').innerText = analytical;
-        document.getElementById('countMonitoring').innerText = monitoring;
-        document.getElementById('countOperational').innerText = operational;
-        document.getElementById('countReporting').innerText = reporting;
-    }
+function updateDashboardStatsDashboards(filteredData = dashboardsData) {
+    const total = dashboardsData.length;
+    const active = dashboardsData.filter(d => d.status === 'active').length;
+    
+    const analytical = filteredData.filter(d => d.analysisType === 'analytical').length;
+    const monitoring = filteredData.filter(d => d.analysisType === 'monitoring').length;
+    const operational = filteredData.filter(d => d.analysisType === 'operational').length;
+    const reporting = filteredData.filter(d => d.analysisType === 'reporting').length;
+    const forecast = filteredData.filter(d => d.analysisType === 'forecast').length; // ДОБАВЛЕНО
+    const audit = filteredData.filter(d => d.analysisType === 'audit').length; // ДОБАВЛЕНО
+    
+    document.getElementById('statTotalDashboards').innerText = total;
+    document.getElementById('statActiveDashboards').innerText = active;
+    document.getElementById('countAnalytical').innerText = analytical;
+    document.getElementById('countMonitoring').innerText = monitoring;
+    document.getElementById('countOperational').innerText = operational;
+    document.getElementById('countReporting').innerText = reporting;
+    
+    // ДОБАВЛЕНО: если есть элементы для новых счетчиков
+    const countForecast = document.getElementById('countForecast');
+    if (countForecast) countForecast.innerText = forecast;
+    
+    const countAudit = document.getElementById('countAudit');
+    if (countAudit) countAudit.innerText = audit;
+}
 
     function updateChartDashboards(filteredData) {
         const typeCounts = {};
@@ -3030,7 +3045,7 @@ function hardResetCurrent() {
             'Оперативные данные': 'operational',
             'Отчетность': 'reporting',
             'Прогнозирование': 'forecast',
-            'Деятельность ГБУ': 'gbuegbu'
+            'Деятельность ГБУ': 'audit'
         };
         return mapping[typeText] || null;
     }
@@ -3211,29 +3226,30 @@ function hardResetCurrent() {
         }
     }
 
-    function getTypeColorDashboards(type) {
-        switch(type) {
-            case 'analytical': return 'bg-purple-100 text-purple-700';
-            case 'monitoring': return 'bg-blue-100 text-blue-700';
-            case 'operational': return 'bg-emerald-100 text-emerald-700';
-            case 'reporting': return 'bg-rose-100 text-rose-700';
-            case 'forecast': return 'bg-amber-100 text-amber-700';
-            case 'audit': return 'bg-indigo-100 text-indigo-700';
-            default: return 'bg-slate-100 text-slate-600';
-        }
+function getTypeColorDashboards(type) {
+    switch(type) {
+        case 'analytical': return 'bg-purple-100 text-purple-700';
+        case 'monitoring': return 'bg-blue-100 text-blue-700';
+        case 'operational': return 'bg-emerald-100 text-emerald-700';
+        case 'reporting': return 'bg-rose-100 text-rose-700';
+        case 'forecast': return 'bg-amber-100 text-amber-700'; // ДОБАВЛЕНО
+        case 'audit': return 'bg-indigo-100 text-indigo-700'; // ДОБАВЛЕНО
+        default: return 'bg-slate-100 text-slate-600';
     }
+}
 
-    function getTypeTextDashboards(type) {
-        switch(type) {
-            case 'analytical': return 'Аналитика';
-            case 'monitoring': return 'Мониторинг';
-            case 'operational': return 'Оперативные';
-            case 'reporting': return 'Отчетность';
-            case 'forecast': return 'Прогноз';
-            case 'audit': return 'Деятельность ГБУ';
-            default: return type;
-        }
+
+function getTypeTextDashboards(type) {
+    switch(type) {
+        case 'analytical': return 'Аналитика';
+        case 'monitoring': return 'Мониторинг';
+        case 'operational': return 'Оперативные';
+        case 'reporting': return 'Отчетность';
+        case 'forecast': return 'Прогноз'; // ДОБАВЛЕНО
+        case 'audit': return 'Деятельность ГБУ'; // ДОБАВЛЕНО
+        default: return type;
     }
+}
 
     function getFrequencyTextDashboards(freq) {
         switch(freq) {
