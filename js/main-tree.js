@@ -74,6 +74,8 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         }
     }
 }
+
+// ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ С ЗАГРУЗКОЙ ИЗОБРАЖЕНИЙ
 async function initializeTreeManagerInTab() {
     console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
@@ -127,6 +129,10 @@ async function initializeTreeManagerInTab() {
         }
         
         console.log('✅ TreeManager инициализирован');
+        
+        // ✅ ЗАГРУЖАЕМ ИЗОБРАЖЕНИЯ ПОСЛЕ ИНИЦИАЛИЗАЦИИ
+        await loadImagesFromSessionStorage();
+        
         return window.treeApp;
         
     } catch (error) {
@@ -135,6 +141,36 @@ async function initializeTreeManagerInTab() {
     }
 }
 
+// ✅ НОВАЯ ФУНКЦИЯ: загрузка изображений из sessionStorage
+async function loadImagesFromSessionStorage() {
+    try {
+        console.log('🖼️ Проверка sessionStorage на наличие изображений...');
+        
+        const savedImages = sessionStorage.getItem('treeImages');
+        if (!savedImages) {
+            console.log('ℹ️ Нет изображений в sessionStorage');
+            return;
+        }
+        
+        const images = JSON.parse(savedImages);
+        console.log('📸 Найдено изображений в sessionStorage:', Object.keys(images).length);
+        
+        if (window.treeApp) {
+            // Загружаем изображения в дерево
+            window.treeApp.imagesData = images;
+            console.log('✅ Изображения загружены в treeApp.imagesData');
+            
+            // Обновляем отображение
+            window.treeApp.updateTree();
+            
+            // Очищаем sessionStorage
+            sessionStorage.removeItem('treeImages');
+            console.log('🧹 sessionStorage очищен');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки изображений из sessionStorage:', error);
+    }
+}
 
 // Создание DOM структуры дерева
 function createTreeDOM() {
