@@ -1746,14 +1746,11 @@ async function loadFromGitHub() {
         if (json.images) {
             console.log('🖼️ Количество изображений в файле:', Object.keys(json.images).length);
             
-            // Покажем пример первого изображения
             const keys = Object.keys(json.images);
             if (keys.length > 0) {
                 console.log('🔑 Пример ключа:', keys[0]);
                 console.log('📸 Размер первого изображения:', json.images[keys[0]]?.length, 'символов');
             }
-        } else {
-            console.warn('⚠️ Поле images отсутствует в загруженном файле!');
         }
         
         if (json.npas && Array.isArray(json.npas)) {
@@ -1775,38 +1772,35 @@ async function loadFromGitHub() {
         if (json.tree) {
             console.log('🌳 Данные дерева найдены в GitHub');
             
-            // 🚨 ИЗМЕНЕНИЕ: Подготавливаем данные для сохранения - БЕЗ ИЗОБРАЖЕНИЙ!
+            // ✅ СОЗДАЕМ ДАННЫЕ ДЛЯ ХРАНЕНИЯ
             const treeDataToSave = { 
                 tree: json.tree
                 // images НЕ сохраняем в localStorage!
             };
             
-            console.log('📦 Сохраняем в localStorage ТОЛЬКО структуру дерева (без изображений)');
-            
-            // Сохраняем в localStorage ТОЛЬКО структуру дерева
+            // ✅ СОХРАНЯЕМ ТОЛЬКО ДЕРЕВО (маленький размер)
             localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
+            console.log('📦 Дерево сохранено в localStorage');
             
-            // Если дерево уже инициализировано, загружаем данные с изображениями
+            // ✅ ЕСЛИ ДЕРЕВО УЖЕ ИНИЦИАЛИЗИРОВАНО - ЗАГРУЖАЕМ СРАЗУ
             if (window.treeApp && window.treeApp.importData) {
-                console.log('🔄 Передаем данные в treeApp.importData()');
-                
-                // 🚨 ИЗМЕНЕНИЕ: Передаем ВСЕ данные (и дерево, и изображения) в память
+                console.log('🔄 Дерево уже инициализировано, загружаем данные...');
                 window.treeApp.importData({
                     tree: json.tree,
-                    images: json.images || {}  // изображения только в память!
+                    images: json.images || {}
                 });
-                
-                console.log('✅ Данные переданы в дерево');
-                
-                // Проверим, что загрузилось
-                setTimeout(() => {
-                    console.log('🔍 После импорта:');
-                    console.log('   treeApp.imagesData:', window.treeApp.imagesData);
-                    console.log('   Количество изображений:', 
-                        Object.keys(window.treeApp.imagesData || {}).length);
-                }, 500);
+                console.log('✅ Данные загружены в дерево');
             } else {
-                console.warn('⚠️ window.treeApp не найден или нет importData');
+                console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
+                
+                // ✅ СОХРАНЯЕМ ИЗОБРАЖЕНИЯ В ОТДЕЛЬНОМ ХРАНИЛИЩЕ (ОПЦИОНАЛЬНО)
+                // Можно использовать sessionStorage (очищается при закрытии вкладки)
+                try {
+                    sessionStorage.setItem('treeImages', JSON.stringify(json.images || {}));
+                    console.log('🖼️ Изображения сохранены в sessionStorage');
+                } catch (e) {
+                    console.warn('⚠️ Не удалось сохранить изображения в sessionStorage:', e);
+                }
             }
         }
         
@@ -1815,11 +1809,7 @@ async function loadFromGitHub() {
             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
         }
         
-        // Сохраняем объединённый JSON
-        localStorage.setItem('gko_all_data', JSON.stringify(json));
-        console.log('💾 Все данные сохранены в localStorage');
-        
-        showNotification('✅ Все данные загружены из GitHub', 'success');
+        showNotification('✅ Данные загружены из GitHub', 'success');
         console.log('=== ЗАГРУЗКА ЗАВЕРШЕНА УСПЕШНО ===');
         
     } catch (error) {
@@ -1829,6 +1819,7 @@ async function loadFromGitHub() {
         loadDashboardsData();
     }
 }
+
     
     let currentGitHubToken = null;
 
