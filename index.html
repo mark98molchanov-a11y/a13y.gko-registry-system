@@ -1744,17 +1744,17 @@ async function loadFromGitHub() {
         const json = await response.json();
         console.log('📦 Получен JSON, версия:', json.version);
         console.log('📦 Наличие images:', !!json.images);
+        console.log('📦 Наличие filesData:', !!json.filesData);
         
         if (json.images) {
             console.log('🖼️ Количество изображений в файле:', Object.keys(json.images).length);
-            
-            const keys = Object.keys(json.images);
-            if (keys.length > 0) {
-                console.log('🔑 Пример ключа:', keys[0]);
-                console.log('📸 Размер первого изображения:', json.images[keys[0]]?.length, 'символов');
-            }
         }
         
+        if (json.filesData) {
+            console.log('📁 Количество файлов в файле:', Object.keys(json.filesData).length);
+        }
+        
+        // Загружаем НПА
         if (json.npas && Array.isArray(json.npas)) {
             appData = [...json.npas];
             localStorage.setItem(STORAGE_KEY_NPA, JSON.stringify(appData));
@@ -1762,6 +1762,7 @@ async function loadFromGitHub() {
             renderGrid();
         }
         
+        // Загружаем дашборды
         if (json.dashboards && Array.isArray(json.dashboards)) {
             dashboardsData = [...json.dashboards];
             localStorage.setItem(STORAGE_KEY_DASHBOARDS, JSON.stringify(dashboardsData));
@@ -1771,36 +1772,71 @@ async function loadFromGitHub() {
             }
         }
         
+        // ✅ ЗАГРУЖАЕМ ФАЙЛЫ В INDEXEDDB
+        if (json.filesData) {
+            console.log('📁 Загрузка файлов в IndexedDB из GitHub...');
+            const filesData = json.filesData;
+            let loadedCount = 0;
+            
+            // Проверяем, инициализирована ли база данных
+            if (window.treeApp && window.treeApp.db) {
+                for (const [fileId, fileMeta] of Object.entries(filesData)) {
+                    try {
+                        // Проверяем, есть ли уже файл
+                        const existingFile = await window.treeApp.db.getFile(fileId);
+                        if (!existingFile) {
+                            // Если файла нет, сохраняем
+                            await window.treeApp.db.saveFile(fileId, fileMeta);
+                            loadedCount++;
+                        }
+                    } catch (dbError) {
+                        console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
+                    }
+                }
+                console.log(`✅ Загружено ${loadedCount} новых файлов в IndexedDB`);
+            } else {
+                console.log('⏳ База данных еще не инициализирована, сохраняем файлы в глобальную переменную');
+                window.pendingTreeFiles = filesData;
+            }
+        }
+        
+        // Загружаем дерево
         if (json.tree) {
             console.log('🌳 Данные дерева найдены в GitHub');
             
-            // ✅ СОЗДАЕМ ДАННЫЕ ДЛЯ ХРАНЕНИЯ
+            // Сохраняем данные дерева в localStorage
             const treeDataToSave = { 
-                tree: json.tree
-                // images НЕ сохраняем в localStorage!
+                tree: json.tree,
+                images: json.images || {},
+                filesData: json.filesData || {}
             };
             
-            // ✅ СОХРАНЯЕМ ТОЛЬКО ДЕРЕВО (маленький размер)
             localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
             console.log('📦 Дерево сохранено в localStorage');
             
-            // ✅ ЕСЛИ ДЕРЕВО УЖЕ ИНИЦИАЛИЗИРОВАНО - ЗАГРУЖАЕМ СРАЗУ
+            // Если дерево уже инициализировано - загружаем сразу
             if (window.treeApp && window.treeApp.importData) {
                 console.log('🔄 Дерево уже инициализировано, загружаем данные...');
+                
+                // Обновляем filesData в памяти
+                window.treeApp.filesData = json.filesData || {};
+                
                 window.treeApp.importData({
                     tree: json.tree,
-                    images: json.images || {}
+                    images: json.images || {},
+                    filesData: json.filesData || {}
                 });
                 console.log('✅ Данные загружены в дерево');
             } else {
                 console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
-                
-                // ✅ ИСПРАВЛЕНО: сохраняем в глобальную переменную вместо sessionStorage
                 window.pendingTreeImages = json.images || {};
+                window.pendingTreeFiles = json.filesData || {};
                 console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
+                console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
             }
         }
         
+        // Загружаем калькулятор
         if (json.calculator) {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
@@ -1816,7 +1852,6 @@ async function loadFromGitHub() {
         loadDashboardsData();
     }
 }
-
     
     let currentGitHubToken = null;
 
@@ -2095,7 +2130,7 @@ function importJson() {
         if (!file) return;
         
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) { // ДОБАВЛЕНО async
             try {
                 const json = JSON.parse(e.target.result);
                 
@@ -2104,7 +2139,7 @@ function importJson() {
                 let hasDashboards = false;
                 let hasTree = false;
                 let hasImages = false;
-                let hasFiles = false; // ДОБАВЛЕНО
+                let hasFiles = false;
                 let hasCalculator = false;
                 
                 if (json.npas && Array.isArray(json.npas)) {
@@ -2128,7 +2163,6 @@ function importJson() {
                     hasImages = true;
                 }
                 
-                // ДОБАВЛЕНО: проверка наличия файлов
                 if (json.filesData) {
                     const fileCount = Object.keys(json.filesData).length;
                     confirmMessage += `Файлы: ${fileCount} шт.\n`;
@@ -2145,23 +2179,54 @@ function importJson() {
                 }
                 
                 if (confirm(confirmMessage)) {
+                    // Загружаем НПА
                     if (hasNPA) {
                         const npaData = json.npas || json;
                         appData = [...npaData];
                         saveData();
                     }
                     
+                    // Загружаем дашборды
                     if (hasDashboards) {
                         const dashData = json.dashboards || json;
                         dashboardsData = [...dashData];
                         saveDashboardsData();
                     }
                     
+                    // ✅ ЗАГРУЖАЕМ ФАЙЛЫ В INDEXEDDB
+                    if (hasFiles && json.filesData) {
+                        console.log('📁 Загрузка файлов в IndexedDB...');
+                        const filesData = json.filesData;
+                        let loadedCount = 0;
+                        
+                        // Проверяем, инициализирована ли база данных
+                        if (window.treeApp && window.treeApp.db) {
+                            for (const [fileId, fileMeta] of Object.entries(filesData)) {
+                                try {
+                                    // Проверяем, есть ли уже файл
+                                    const existingFile = await window.treeApp.db.getFile(fileId);
+                                    if (!existingFile) {
+                                        // Если файла нет, сохраняем
+                                        await window.treeApp.db.saveFile(fileId, fileMeta);
+                                        loadedCount++;
+                                    }
+                                } catch (dbError) {
+                                    console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
+                                }
+                            }
+                            console.log(`✅ Загружено ${loadedCount} новых файлов в IndexedDB`);
+                        } else {
+                            console.log('⏳ База данных еще не инициализирована, сохраняем файлы в глобальную переменную');
+                            window.pendingTreeFiles = filesData;
+                        }
+                    }
+                    
+                    // Загружаем дерево
                     if (hasTree && window.treeApp && window.treeApp.importData) {
                         const importData = { 
                             tree: json.tree,
                             images: json.images || {},
-                            filesData: json.filesData || {} // ДОБАВЛЕНО
+                            filesData: json.filesData || {}
                         };
                         
                         window.treeApp.importData(importData);
@@ -2169,17 +2234,18 @@ function importJson() {
                         localStorage.setItem('treeData', JSON.stringify({ 
                             tree: json.tree,
                             images: json.images || {},
-                            filesData: json.filesData || {} // ДОБАВЛЕНО
+                            filesData: json.filesData || {}
                         }));
                         
                     } else if (hasTree) {
                         localStorage.setItem('treeData', JSON.stringify({ 
                             tree: json.tree,
                             images: json.images || {},
-                            filesData: json.filesData || {} // ДОБАВЛЕНО
+                            filesData: json.filesData || {}
                         }));
                     }
                     
+                    // Загружаем калькулятор
                     if (hasCalculator && json.calculator) {
                         localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
                     }
@@ -2200,6 +2266,7 @@ function importJson() {
     };
     input.click();
 }
+
 function switchTab(tabName) {
     // Убрать активность со всех пунктов навигации
     document.querySelectorAll('.book-section.main, .book-subsection, .book-subsubsection').forEach(el => {
