@@ -1730,6 +1730,7 @@ async function loadFromGitHub() {
     }
     
     try {
+        console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         console.log('Загрузка данных из GitHub...');
         
         const response = await fetch(`${GITHUB_SYNC_API}gko_all_data.json`);
@@ -1739,25 +1740,41 @@ async function loadFromGitHub() {
         }
         
         const json = await response.json();
+        console.log('📦 Получен JSON, версия:', json.version);
+        console.log('📦 Наличие images:', !!json.images);
+        
+        if (json.images) {
+            console.log('🖼️ Ключи images:', Object.keys(json.images));
+            console.log('🖼️ Количество изображений в файле:', Object.keys(json.images).length);
+            
+            // Покажем пример первого изображения
+            const keys = Object.keys(json.images);
+            if (keys.length > 0) {
+                console.log('🔑 Пример ключа:', keys[0]);
+                console.log('📸 Размер первого изображения:', json.images[keys[0]]?.length, 'символов');
+            }
+        } else {
+            console.warn('⚠️ Поле images отсутствует в загруженном файле!');
+        }
         
         if (json.npas && Array.isArray(json.npas)) {
             appData = [...json.npas];
             localStorage.setItem(STORAGE_KEY_NPA, JSON.stringify(appData));
-            console.log(`Загружено ${json.npas.length} записей НПА`);
+            console.log(`📚 Загружено ${json.npas.length} записей НПА`);
             renderGrid();
         }
         
         if (json.dashboards && Array.isArray(json.dashboards)) {
             dashboardsData = [...json.dashboards];
             localStorage.setItem(STORAGE_KEY_DASHBOARDS, JSON.stringify(dashboardsData));
-            console.log(`Загружено ${json.dashboards.length} дашбордов`);
+            console.log(`📊 Загружено ${json.dashboards.length} дашбордов`);
             if (currentTab === 'dashboards') {
                 renderDashboardsGrid();
             }
         }
         
         if (json.tree) {
-            console.log('Данные дерева найдены в GitHub');
+            console.log('🌳 Данные дерева найдены в GitHub');
             
             // Подготавливаем данные для сохранения
             const treeDataToSave = { 
@@ -1767,38 +1784,54 @@ async function loadFromGitHub() {
             // Добавляем изображения, если они есть
             if (json.images) {
                 treeDataToSave.images = json.images;
-                console.log(`Загружено изображений: ${Object.keys(json.images).length}`);
+                console.log(`✅ Загружено изображений: ${Object.keys(json.images).length}`);
             } else {
-                console.log('Изображения не найдены в файле');
+                console.log('⚠️ Изображения не найдены в файле');
             }
+            
+            console.log('📦 Сохраняем в localStorage treeData с изображениями:', 
+                treeDataToSave.images ? Object.keys(treeDataToSave.images).length : 0);
             
             // Сохраняем в localStorage
             localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
             
             // Если дерево уже инициализировано, загружаем данные с изображениями
             if (window.treeApp && window.treeApp.importData) {
+                console.log('🔄 Передаем данные в treeApp.importData()');
                 window.treeApp.importData(treeDataToSave);
-                console.log('Данные переданы в дерево');
+                console.log('✅ Данные переданы в дерево');
+                
+                // Проверим, что загрузилось
+                setTimeout(() => {
+                    console.log('🔍 После импорта:');
+                    console.log('   treeApp.imagesData:', window.treeApp.imagesData);
+                    console.log('   Количество изображений:', 
+                        Object.keys(window.treeApp.imagesData || {}).length);
+                }, 500);
+            } else {
+                console.warn('⚠️ window.treeApp не найден или нет importData');
             }
         }
         
         if (json.calculator) {
-            console.log('Данные калькулятора найдены в GitHub');
+            console.log('🧮 Данные калькулятора найдены в GitHub');
             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
         }
         
         // Сохраняем объединённый JSON
         localStorage.setItem('gko_all_data', JSON.stringify(json));
+        console.log('💾 Все данные сохранены в localStorage');
         
         showNotification('✅ Все данные загружены из GitHub', 'success');
+        console.log('=== ЗАГРУЗКА ЗАВЕРШЕНА УСПЕШНО ===');
         
     } catch (error) {
-        console.warn('Не удалось загрузить из GitHub:', error.message);
+        console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
+        console.warn('⚠️ Загружаем локальные данные...');
         loadData();
         loadDashboardsData();
     }
 }
-
     
     let currentGitHubToken = null;
 
@@ -1828,19 +1861,45 @@ async function saveToGitHub() {
     let treeData = null;
     let imagesData = {};
     
+    console.log('=== НАЧАЛО СОХРАНЕНИЯ В GITHUB ===');
+    
     if (window.treeApp && window.treeApp.treeData) {
+        console.log('✅ treeApp найден, получаем данные...');
         treeData = window.treeApp.serializeTree(window.treeApp.treeData);
         imagesData = window.treeApp.imagesData || {};
+        
+        console.log('📊 treeApp.imagesData:', imagesData);
+        console.log('🖼️ Количество изображений в памяти:', Object.keys(imagesData).length);
+        
+        // Покажем первые 3 ключа для проверки
+        const keys = Object.keys(imagesData);
+        if (keys.length > 0) {
+            console.log('🔑 Примеры ключей:', keys.slice(0, 3));
+            console.log('📸 Пример первого изображения (первые 100 символов):', 
+                imagesData[keys[0]]?.substring(0, 100) + '...');
+        } else {
+            console.warn('⚠️ imagesData пуст! Изображения не будут сохранены');
+        }
+        
     } else {
+        console.log('⚠️ treeApp не найден, проверяем localStorage...');
         try {
             const savedTree = localStorage.getItem('treeData');
             if (savedTree) {
                 const parsed = JSON.parse(savedTree);
                 treeData = parsed.tree || null;
                 imagesData = parsed.images || {};
+                console.log('📦 Загружено из localStorage, изображений:', Object.keys(imagesData).length);
+            } else {
+                console.log('❌ Данные не найдены в localStorage');
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Ошибка парсинга localStorage:', e);
+        }
     }
+    
+    console.log('📦 imagesData перед сохранением:', Object.keys(imagesData));
+    console.log('📦 Размер imagesData (в символах):', JSON.stringify(imagesData).length);
     
     const allData = {
         version: "2.0",
@@ -1858,6 +1917,9 @@ async function saveToGitHub() {
             exportFormat: "combined"
         }
     };
+    
+    console.log('📊 Итоговые метаданные:', allData.metadata);
+    console.log('📦 Размер allData (в символах):', JSON.stringify(allData).length);
     
     const content = JSON.stringify(allData, null, 2);
     const owner = 'mark98molchanov-a11y';
@@ -1878,10 +1940,14 @@ async function saveToGitHub() {
             if (res.ok) {
                 const data = await res.json();
                 sha = data.sha;
+                console.log('📁 Существующий файл найден, sha:', sha);
             }
         } catch (e) { 
-            console.log('Файл не существует, будет создан новый');
+            console.log('📁 Файл не существует, будет создан новый');
         }
+        
+        console.log('📤 Отправка данных в GitHub...');
+        console.log('📤 Размер отправляемых данных:', content.length, 'символов');
         
         // Сохраняем файл в GitHub
         const response = await fetch(apiUrl, {
@@ -1899,10 +1965,8 @@ async function saveToGitHub() {
         });
         
         if (response.ok) {
+            console.log('✅ Данные успешно сохранены в GitHub!');
             closeGitHubModal();
-            
-            // 🚨 УДАЛЕНО: сохранение в localStorage больше не происходит
-            // localStorage.setItem('gko_all_data', JSON.stringify(allData));
             
             // Показываем уведомление об успехе
             const success = document.createElement('div');
@@ -1916,15 +1980,20 @@ async function saveToGitHub() {
             
         } else {
             const error = await response.json();
+            console.error('❌ Ошибка GitHub:', error);
             alert(`Ошибка: ${error.message || 'Неизвестная ошибка'}`);
             document.getElementById('githubTokenInput').focus();
         }
         
     } catch (error) {
+        console.error('❌ Критическая ошибка:', error);
         alert(`Ошибка: ${error.message}`);
         document.getElementById('githubTokenInput').focus();
     }
+    
+    console.log('=== КОНЕЦ СОХРАНЕНИЯ ===');
 }
+
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
