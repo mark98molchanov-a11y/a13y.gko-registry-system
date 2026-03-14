@@ -1804,15 +1804,21 @@ async function loadFromGitHub() {
         if (json.tree) {
             console.log('🌳 Данные дерева найдены в GitHub');
             
-            // Сохраняем данные дерева в localStorage
+            // 🔥 ИСПРАВЛЕНИЕ: Сохраняем в localStorage ТОЛЬКО структуру дерева
+            // Изображения и файлы уже загружаются отдельно через IndexedDB и memory
             const treeDataToSave = { 
-                tree: json.tree,
-                images: json.images || {},
-                filesData: json.filesData || {}
+                tree: json.tree
+                // images и filesData убраны - они слишком тяжелые для localStorage
             };
             
-            localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
-            console.log('📦 Дерево сохранено в localStorage');
+            try {
+                localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
+                console.log('📦 Структура дерева сохранена в localStorage');
+            } catch (e) {
+                console.error('❌ Ошибка сохранения структуры дерева в localStorage:', e);
+                // Если даже структура не влезает, пробуем сохранить без нее
+                showNotification('⚠️ Структура дерева слишком большая для локального хранилища', 'warning');
+            }
             
             // Если дерево уже инициализировано - загружаем сразу
             if (window.treeApp && window.treeApp.importData) {
@@ -1821,18 +1827,21 @@ async function loadFromGitHub() {
                 // Обновляем filesData в памяти
                 window.treeApp.filesData = json.filesData || {};
                 
+                // 🔥 ВАЖНО: Передаем все данные, включая изображения, для импорта в память
                 window.treeApp.importData({
                     tree: json.tree,
-                    images: json.images || {},
-                    filesData: json.filesData || {}
+                    images: json.images || {},      // изображения в память
+                    filesData: json.filesData || {} // файлы уже в IndexedDB
                 });
                 console.log('✅ Данные загружены в дерево');
             } else {
                 console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
                 window.pendingTreeImages = json.images || {};
                 window.pendingTreeFiles = json.filesData || {};
+                window.pendingTree = json.tree; // 🔥 Добавил сохранение структуры
                 console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
                 console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
+                console.log('🌳 Структура сохранена в window.pendingTree');
             }
         }
         
