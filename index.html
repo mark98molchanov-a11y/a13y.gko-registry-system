@@ -2151,7 +2151,7 @@ function importJson() {
         if (!file) return;
         
         const reader = new FileReader();
-        reader.onload = async function(e) { // ДОБАВЛЕНО async
+        reader.onload = async function(e) {
             try {
                 const json = JSON.parse(e.target.result);
                 
@@ -2242,36 +2242,81 @@ function importJson() {
                         }
                     }
                     
-                    // Загружаем дерево
-                    if (hasTree && window.treeApp && window.treeApp.importData) {
-                        const importData = { 
-                            tree: json.tree,
-                            images: json.images || {},
-                            filesData: json.filesData || {}
-                        };
+                    // Загружаем дерево - 🔥 ИСПРАВЛЕНО: добавляем обработку ошибок localStorage
+                    if (hasTree) {
+                        console.log('🌳 Данные дерева найдены в JSON');
                         
-                        window.treeApp.importData(importData);
+                        // ВСЕГДА сохраняем в глобальные переменные (это главное!)
+                        window.pendingTree = json.tree;
+                        window.pendingTreeImages = json.images || {};
+                        window.pendingTreeFiles = json.filesData || {};
                         
-                        localStorage.setItem('treeData', JSON.stringify({ 
-                            tree: json.tree,
-                            images: json.images || {},
-                            filesData: json.filesData || {}
-                        }));
+                        console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
+                        console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
                         
-                    } else if (hasTree) {
-                        localStorage.setItem('treeData', JSON.stringify({ 
-                            tree: json.tree,
-                            images: json.images || {},
-                            filesData: json.filesData || {}
-                        }));
+                        // Пытаемся сохранить в localStorage, но не падаем при ошибке
+                        try {
+                            const treeDataToSave = { 
+                                tree: json.tree,
+                                images: json.images || {},
+                                filesData: json.filesData || {}
+                            };
+                            
+                            // Проверяем примерный размер перед сохранением
+                            const size = new Blob([JSON.stringify(treeDataToSave)]).size;
+                            console.log('📦 Размер данных дерева:', Math.round(size / 1024), 'KB');
+                            
+                            // Если размер меньше 4MB (примерный лимит localStorage), сохраняем полные данные
+                            if (size < 4 * 1024 * 1024) {
+                                localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
+                                console.log('📦 Полные данные дерева сохранены в localStorage');
+                            } else {
+                                // Иначе сохраняем только структуру без изображений
+                                console.log('📦 Данные дерева слишком большие, сохраняем только структуру');
+                                localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
+                            }
+                        } catch (e) {
+                            // Если все равно ошибка - игнорируем, данные уже в памяти
+                            console.log('⚠️ Не удалось сохранить в localStorage, но данные уже в памяти:', e.message);
+                        }
+                        
+                        // Если дерево уже инициализировано - загружаем сразу
+                        if (window.treeApp && window.treeApp.importData) {
+                            console.log('🔄 Дерево уже инициализировано, загружаем данные...');
+                            
+                            try {
+                                await window.treeApp.importData({
+                                    tree: json.tree,
+                                    images: json.images || {},
+                                    filesData: json.filesData || {}
+                                });
+                                console.log('✅ Данные загружены в дерево');
+                                
+                                if (window.treeApp.updateTree) {
+                                    window.treeApp.updateTree();
+                                }
+                            } catch (importError) {
+                                console.error('❌ Ошибка импорта в дерево:', importError);
+                            }
+                        }
                     }
                     
                     // Загружаем калькулятор
                     if (hasCalculator && json.calculator) {
-                        localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+                        try {
+                            localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+                        } catch (e) {
+                            console.log('⚠️ Не удалось сохранить калькулятор в localStorage:', e.message);
+                        }
                     }
                     
-                    localStorage.setItem('gko_all_data', JSON.stringify(json));
+                    // Сохраняем в объединенный JSON (с обработкой ошибок)
+                    try {
+                        localStorage.setItem('gko_all_data', JSON.stringify(json));
+                        console.log('📦 Объединенный JSON сохранен в localStorage');
+                    } catch (e) {
+                        console.log('⚠️ Не удалось сохранить объединенный JSON:', e.message);
+                    }
                     
                     alert("✅ Данные успешно импортированы!");
                     
