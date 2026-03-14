@@ -324,10 +324,29 @@ function createTreeDOM() {
         </div>
     `;
 }
-
 // Загрузка данных дерева из объединенного JSON
 async function loadTreeDataFromCombinedJSON() {
     try {
+        // 🔥 НОВОЕ: Сначала проверяем pending данные (из GitHub)
+        if (window.pendingTree) {
+            console.log('📦 Загрузка из window.pendingTree (из GitHub)...');
+            
+            await window.treeApp.importData({
+                tree: window.pendingTree,
+                images: window.pendingTreeImages || {},
+                filesData: window.pendingTreeFiles || {}
+            });
+            
+            console.log('✅ Данные загружены из GitHub');
+            
+            // Очищаем временные переменные
+            window.pendingTree = null;
+            // window.pendingTreeImages и window.pendingTreeFiles
+            // будут очищены в loadImagesFromGlobal() и loadFilesFromGlobal()
+            
+            return true;
+        }
+    
         // Сохраняем уже загруженные изображения и файлы
         const existingImages = window.treeApp?.imagesData || {};
         const existingFiles = window.treeApp?.filesData || {};
