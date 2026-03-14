@@ -49,8 +49,6 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         // Загружаем файлы из глобальной переменной
         await loadFilesFromGlobal();
         
-        // ✅ ПРИМЕНЯЕМ СОХРАНЕННУЮ ТЕМУ
-        applySavedTheme();
         
         window.treeInitialized = true;
         console.log('✅ Дерево успешно инициализировано');
@@ -77,34 +75,6 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         }
     }
 }
-
-// ✅ НОВАЯ ФУНКЦИЯ: применение сохраненной темы
-function applySavedTheme() {
-    try {
-        const savedTheme = localStorage.getItem('treeAppTheme');
-        const isDarkMode = savedTheme === 'dark';
-        
-        // Применяем к документу
-        document.documentElement.classList.toggle('dark', isDarkMode);
-        
-        // Если treeApp уже инициализирован, обновляем его свойство
-        if (window.treeApp) {
-            window.treeApp.darkMode = isDarkMode;
-        }
-        
-        // Обновляем переключатель темы
-        const themeSwitch = document.getElementById('themeSwitch');
-        if (themeSwitch) {
-            themeSwitch.classList.toggle('dark', isDarkMode);
-        }
-        
-        console.log(`🎨 Тема применена: ${isDarkMode ? 'темная' : 'светлая'}`);
-    } catch (e) {
-        console.error('Ошибка применения темы:', e);
-    }
-}
-
-// Функция инициализации TreeManager во вкладке
 async function initializeTreeManagerInTab() {
     console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
@@ -324,16 +294,8 @@ function createTreeDOM() {
                 <button type="button" id="zoomInBtn">+</button>
                 <button type="button" id="zoomResetBtn" class="reset-zoom-btn" title="Сбросить масштаб">⭕</button>
                 <button type="button" id="zoomOutBtn">-</button>
-                
-                <div class="theme-switch" id="themeSwitch">
-                    <span class="theme-icon sun-icon">☀️</span>
-                    <span class="theme-icon moon-icon">🌙</span>
-                    <div class="theme-switch-handle"></div>
-                </div>
             </div>
             
-            <!-- ✅ ЭЛЕМЕНТ ДЛЯ АНИМАЦИИ ПЕРЕКЛЮЧЕНИЯ ТЕМЫ -->
-            <div class="theme-transition-overlay" id="themeTransitionOverlay"></div>
             
             <div class="drop-zone" id="dropZone">Перетащите файл сюда</div>
             <div id="tree" class="tree"></div>
@@ -482,7 +444,6 @@ function updateTreeCombinedJSON(treeData) {
 // ============================================
 
 window.initTreeInTab = initTreeInTab;
-window.applySavedTheme = applySavedTheme; // Экспортируем для внешнего использования
 
 // Для отладки
 console.log('✅ main-tree.js готов, функции экспортированы:', {
