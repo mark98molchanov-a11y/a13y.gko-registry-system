@@ -7,7 +7,6 @@ window.TreeManager = class TreeManager {
         this.nodeCounter = 1;
         this.treeData = null;
         this.imagesData = {};
-        this.darkMode = false;
         this.controlsVisible = true;
         this.multiSelectMode = false;
         this.selectedNodes = new Set();
@@ -58,9 +57,6 @@ window.TreeManager = class TreeManager {
             selectedNodesInDialog: new Set() 
         };
         this.db = new IndexedDBManager();
-        
-
-        this.loadThemePreference();
             this._asyncInitStarted = false;
          this.elements = {}; 
     }
@@ -73,7 +69,6 @@ bindElementsToDOM() {
         jsonImportBtn: document.getElementById('jsonImportBtn'),
         collapseAllBtn: document.getElementById('collapseAllBtn'),
         saveBtn: document.getElementById('saveBtn'),
-        themeSwitch: document.getElementById('themeSwitch'),
         dropZone: document.getElementById('dropZone'),
         treeContainer: document.getElementById('tree'),
         previewContainer: document.getElementById('previewContainer'),
@@ -459,7 +454,6 @@ bindElements() {
         jsonImportBtn: document.getElementById('jsonImportBtn'),
         collapseAllBtn: document.getElementById('collapseAllBtn'),
         saveBtn: document.getElementById('saveBtn'),
-        themeSwitch: document.getElementById('themeSwitch'),
         dropZone: document.getElementById('dropZone'),
         treeContainer: document.getElementById('tree'),
         previewContainer: document.getElementById('previewContainer'),
@@ -603,15 +597,6 @@ setupEventListeners() {
         console.warn('⚠️ saveBtn не найден');
     }
     
-    // Theme switch
-    if (this.elements.themeSwitch) {
-        this.elements.themeSwitch.addEventListener('click', () => this.toggleTheme());
-        console.log('✅ themeSwitch обработчик добавлен');
-    } else {
-        console.warn('⚠️ themeSwitch не найден');
-    }
-
-    // Close department management
     const closeDeptBtn = document.getElementById('closeDepartmentManagement');
     if (closeDeptBtn) {
         closeDeptBtn.addEventListener('click', () => {
@@ -5607,8 +5592,6 @@ importData(data) {
     }
     
     this.filesData = data.filesData || {}; 
-    this.darkMode = data.theme === 'dark';
-    document.documentElement.classList.toggle('dark', this.darkMode);
     
     if (data.version >= '2.7') {
         this.clusters = new Map(data.clusters || []);
@@ -6117,7 +6100,6 @@ async saveData() {
             availableClusters: Array.from(this.availableClusters),
             settings: {
                 nodeCounter: this.nodeCounter,
-                darkMode: this.darkMode,
                 activeCluster: this.activeCluster,
                 uiSettings: this.uiSettings 
             },
@@ -6197,9 +6179,6 @@ async loadFromLocalStorage() {
             if (this.treeData) {
                 this.treeData.isExpanded = true;
             }
-
-            this.darkMode = savedData.settings?.darkMode || savedData.theme === 'dark';
-            document.documentElement.classList.toggle('dark', this.darkMode);
 
             this.saveToHistory(true, true);
             return;
@@ -8121,25 +8100,6 @@ async handleFileUpload(file, node) {
         };
         input.click();
     }
-  
-toggleTheme() {
-  this.darkMode = !this.darkMode;
-  document.documentElement.classList.toggle('dark', this.darkMode);
-  localStorage.setItem('treeAppTheme', this.darkMode ? 'dark' : 'light');
-  document.body.classList.add('fade-in');
-  const x = window.mouseX || window.innerWidth / 2;
-  const y = window.mouseY || window.innerHeight / 2;
-  this.createFireworks(x, y);
-  const overlay = document.getElementById('themeTransitionOverlay');
-  overlay.style.setProperty('--x', x + 'px');
-  overlay.style.setProperty('--y', y + 'px');
-  overlay.classList.add('active');
-  
-  setTimeout(() => {
-    overlay.classList.remove('active');
-    document.body.classList.remove('fade-in');
-  }, 800);
-}
 hideImageIcon(nodeId) {
   const node = this.findNode(this.treeData, nodeId);
   if (node) {
@@ -9913,41 +9873,6 @@ removeMetricBlock(node, blockIndex) {
     this.saveData();
     this.showNotification('Метрика удалена');
 }
-createFireworks(x, y) {
-  const fireworksContainer = document.createElement('div');
-  fireworksContainer.className = 'firework';
-  document.body.appendChild(fireworksContainer);
-  
-
-  const colors = this.darkMode ? 
-    ['#7BA7CC', '#5D8AA8', '#FF8C66', '#E0E8F0', '#45B7D1'] : 
-    ['#5D8AA8', '#87CEEB', '#FFA07A', '#2F4F4F', '#FF6B6B'];
-  
-  for (let i = 0; i < 50; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'firework-particle';
-
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 50 + Math.random() * 150;
-    const tx = Math.cos(angle) * distance;
-    const ty = Math.sin(angle) * distance;
-  
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    
-    particle.style.left = x + 'px';
-    particle.style.top = y + 'px';
-    particle.style.setProperty('--tx', tx + 'px');
-    particle.style.setProperty('--ty', ty + 'px');
-    particle.style.color = color;
-    particle.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
-    
-    fireworksContainer.appendChild(particle);
-  }
-  
-  setTimeout(() => {
-    fireworksContainer.remove();
-  }, 1500);
-}
 isValidEmail(text) {
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(text) && 
            !/\s/.test(text) && 
@@ -10100,11 +10025,6 @@ restoreFromHistory() {
     this.updateClusterSelect();
     this.updateTree();
 }
-    loadThemePreference() {
-        const savedTheme = localStorage.getItem('treeAppTheme');
-        this.darkMode = savedTheme === 'dark';
-        document.documentElement.classList.toggle('dark', this.darkMode);
-    }
     logAction(actionText) {
         const newLogEntry = { action: actionText, timestamp: new Date().toISOString() };
         this.actionLog.unshift(newLogEntry);
