@@ -1059,13 +1059,6 @@ button:hover {
     background-color: #D44638;
     color: white;
 }
-.dark .sub-block a[href^="mailto:"],
-.dark .sub-block a[href*="email"],
-.dark .sub-block a[href*="mail"] {
-    color: #EA4335; 
-    border-bottom-color: #EA4335;
-    background: rgba(234, 67, 53, 0.2);
-}
 .sub-block a[href^="http"] {
     color: #1a73e8;
     border-bottom-color: #1a73e8;
@@ -2012,12 +2005,6 @@ transform: translateY(100%);
 }
 .fact-bar {
     background: var(--primary-color); 
-}
-.dark .gantt-bar {
-    background: rgba(255, 255, 255, 0.1);
-}
-.dark .gantt-progress {
-    background: var(--secondary-color);
 }
 .indicators-container {
     padding: 10px 12px !important;
