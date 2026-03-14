@@ -1804,15 +1804,40 @@ async function loadFromGitHub() {
         if (json.tree) {
             console.log('🌳 Данные дерева найдены в GitHub');
             
-            // Сохраняем данные дерева в localStorage
-            const treeDataToSave = { 
-                tree: json.tree,
-                images: json.images || {},
-                filesData: json.filesData || {}
-            };
+            // 🔥 ИЗМЕНЕНИЕ: Пытаемся сохранить, но не падаем при ошибке
+            try {
+                // Сохраняем данные дерева в localStorage
+                const treeDataToSave = { 
+                    tree: json.tree,
+                    images: json.images || {},
+                    filesData: json.filesData || {}
+                };
+                
+                // Проверяем примерный размер перед сохранением
+                const size = new Blob([JSON.stringify(treeDataToSave)]).size;
+                console.log('📦 Размер данных дерева:', Math.round(size / 1024), 'KB');
+                
+                // Если размер меньше 4MB (примерный лимит localStorage), сохраняем
+                if (size < 4 * 1024 * 1024) {
+                    localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
+                    console.log('📦 Дерево сохранено в localStorage');
+                } else {
+                    console.log('📦 Данные дерева слишком большие для localStorage, сохраняем только структуру');
+                    // Сохраняем только структуру без изображений
+                    localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
+                }
+            } catch (e) {
+                // Если все равно ошибка - игнорируем, главное что данные уже в pending переменных
+                console.log('⚠️ Не удалось сохранить в localStorage, но данные сохранены в памяти:', e.message);
+            }
             
-            localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
-            console.log('📦 Дерево сохранено в localStorage');
+            // ВСЕГДА сохраняем в глобальные переменные (это главное!)
+            window.pendingTree = json.tree;
+            window.pendingTreeImages = json.images || {};
+            window.pendingTreeFiles = json.filesData || {};
+            
+            console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
+            console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
             
             // Если дерево уже инициализировано - загружаем сразу
             if (window.treeApp && window.treeApp.importData) {
@@ -1829,10 +1854,6 @@ async function loadFromGitHub() {
                 console.log('✅ Данные загружены в дерево');
             } else {
                 console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
-                window.pendingTreeImages = json.images || {};
-                window.pendingTreeFiles = json.filesData || {};
-                console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
-                console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
             }
         }
         
