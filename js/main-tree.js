@@ -143,9 +143,26 @@ async function loadImagesFromGlobal() {
             console.log('📸 Найдено изображений в pendingTreeImages:', Object.keys(window.pendingTreeImages).length);
             
             if (window.treeApp) {
+                // Сохраняем текущие изображения для сравнения
+                const beforeCount = window.treeApp.imagesData ? Object.keys(window.treeApp.imagesData).length : 0;
+                
                 window.treeApp.imagesData = window.pendingTreeImages;
-                console.log('✅ Изображения загружены в treeApp.imagesData');
-                window.treeApp.updateTree();
+                
+                const afterCount = Object.keys(window.treeApp.imagesData).length;
+                console.log(`✅ Изображения загружены: было ${beforeCount}, стало ${afterCount}`);
+                
+                // Принудительно обновляем дерево
+                if (window.treeApp.updateTree) {
+                    window.treeApp.updateTree();
+                }
+                
+                // Показываем пример первого изображения для проверки
+                const firstKey = Object.keys(window.pendingTreeImages)[0];
+                if (firstKey) {
+                    console.log('📸 Пример первого изображения (первые 50 символов):', 
+                        window.pendingTreeImages[firstKey]?.substring(0, 50) + '...');
+                }
+                
                 window.pendingTreeImages = null;
                 console.log('🧹 Глобальная переменная изображений очищена');
             }
@@ -327,22 +344,52 @@ function createTreeDOM() {
 // Загрузка данных дерева из объединенного JSON
 async function loadTreeDataFromCombinedJSON() {
     try {
-        // 🔥 НОВОЕ: Сначала проверяем pending данные (из GitHub)
+        console.log('=== НАЧАЛО ЗАГРУЗКИ ДАННЫХ ДЕРЕВА ===');
+        
+        // 🔥 ПРОВЕРЯЕМ PENDING ДАННЫЕ
+        console.log('Проверка window.pendingTree:', !!window.pendingTree);
+        console.log('Проверка window.pendingTreeImages:', !!window.pendingTreeImages, 
+            window.pendingTreeImages ? `(ключей: ${Object.keys(window.pendingTreeImages).length})` : '');
+        
         if (window.pendingTree) {
             console.log('📦 Загрузка из window.pendingTree (из GitHub)...');
+            console.log('   - Структура дерева есть');
+            console.log('   - Изображений в pending:', window.pendingTreeImages ? Object.keys(window.pendingTreeImages).length : 0);
             
-            await window.treeApp.importData({
+            // Подготавливаем данные для импорта
+            const importData = {
                 tree: window.pendingTree,
                 images: window.pendingTreeImages || {},
                 filesData: window.pendingTreeFiles || {}
-            });
+            };
+            
+            console.log('   - Передаем изображений в importData:', Object.keys(importData.images).length);
+            
+            // Импортируем
+            await window.treeApp.importData(importData);
+            
+            // Проверяем, что изображения загрузились
+            console.log('   - После импорта treeApp.imagesData содержит:', 
+                window.treeApp.imagesData ? Object.keys(window.treeApp.imagesData).length : 0);
+            
+            // Принудительно копируем, если что-то пошло не так
+            if (window.pendingTreeImages && Object.keys(window.pendingTreeImages).length > 0) {
+                if (!window.treeApp.imagesData || Object.keys(window.treeApp.imagesData).length === 0) {
+                    console.log('⚠️ Изображения не загрузились через importData, копируем напрямую');
+                    window.treeApp.imagesData = window.pendingTreeImages;
+                }
+            }
             
             console.log('✅ Данные загружены из GitHub');
             
             // Очищаем временные переменные
             window.pendingTree = null;
-            // window.pendingTreeImages и window.pendingTreeFiles
-            // будут очищены в loadImagesFromGlobal() и loadFilesFromGlobal()
+            // window.pendingTreeImages и window.pendingTreeFiles будут очищены позже
+            
+            // Принудительно обновляем дерево
+            if (window.treeApp.updateTree) {
+                window.treeApp.updateTree();
+            }
             
             return true;
         }
@@ -366,6 +413,9 @@ async function loadTreeDataFromCombinedJSON() {
             const allData = JSON.parse(allDataStr);
             
             if (allData.tree) {
+                console.log('📦 Загрузка из объединенного JSON, изображений в файле:', 
+                    allData.images ? Object.keys(allData.images).length : 0);
+                
                 const treeImportData = {
                     tree: allData.tree,
                     version: allData.version || '2.8',
@@ -375,6 +425,8 @@ async function loadTreeDataFromCombinedJSON() {
                     availableClusters: allData.availableClusters || [],
                     settings: allData.settings || {}
                 };
+                
+                console.log('   - Передаем изображений в importData:', Object.keys(treeImportData.images).length);
                 
                 await window.treeApp.importData(treeImportData);
                 
@@ -402,6 +454,9 @@ async function loadTreeDataFromCombinedJSON() {
         const treeDataStr = localStorage.getItem(STORAGE_KEY_TREE);
         if (treeDataStr && window.treeApp) {
             const treeData = JSON.parse(treeDataStr);
+            
+            console.log('📦 Загрузка из отдельного хранилища treeData, изображений в файле:', 
+                treeData.images ? Object.keys(treeData.images).length : 0);
             
             const treeImportData = {
                 tree: treeData.tree,
@@ -436,8 +491,11 @@ async function loadTreeDataFromCombinedJSON() {
     } catch (error) {
         console.error('❌ Ошибка загрузки данных дерева:', error);
         return false;
+    } finally {
+        console.log('=== КОНЕЦ ЗАГРУЗКИ ДАННЫХ ДЕРЕВА ===');
     }
 }
+
 
 // Функция обновления объединённого JSON (только для дерева)
 function updateTreeCombinedJSON(treeData) {
