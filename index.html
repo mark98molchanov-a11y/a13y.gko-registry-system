@@ -1748,6 +1748,12 @@ async function loadFromGitHub() {
         
         if (json.images) {
             console.log('🖼️ Количество изображений в файле:', Object.keys(json.images).length);
+            // Показываем пример первого изображения для проверки
+            const firstImageKey = Object.keys(json.images)[0];
+            if (firstImageKey) {
+                console.log('📸 Пример первого изображения (первые 100 символов):', 
+                    json.images[firstImageKey]?.substring(0, 100) + '...');
+            }
         }
         
         if (json.filesData) {
@@ -1804,8 +1810,15 @@ async function loadFromGitHub() {
         if (json.tree) {
             console.log('🌳 Данные дерева найдены в GitHub');
             
-            // 🔥 ИСПРАВЛЕНИЕ: Сохраняем в localStorage ТОЛЬКО структуру дерева
-            // Изображения и файлы уже загружаются отдельно через IndexedDB и memory
+            // 🔥 СОХРАНЯЕМ ВСЕ ДАННЫЕ В ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+            window.pendingTree = json.tree;
+            window.pendingTreeImages = json.images || {};
+            window.pendingTreeFiles = json.filesData || {};
+            
+            console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
+            console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
+            
+            // 🔥 СОХРАНЯЕМ ТОЛЬКО СТРУКТУРУ В LOCALSTORAGE (без изображений)
             const treeDataToSave = { 
                 tree: json.tree
                 // images и filesData убраны - они слишком тяжелые для localStorage
@@ -1816,32 +1829,56 @@ async function loadFromGitHub() {
                 console.log('📦 Структура дерева сохранена в localStorage');
             } catch (e) {
                 console.error('❌ Ошибка сохранения структуры дерева в localStorage:', e);
-                // Если даже структура не влезает, пробуем сохранить без нее
                 showNotification('⚠️ Структура дерева слишком большая для локального хранилища', 'warning');
+            }
+            
+            // 🔥 СОХРАНЯЕМ В ОБЪЕДИНЕННЫЙ JSON (для обратной совместимости)
+            try {
+                const allData = {
+                    version: json.version || "2.0",
+                    npas: appData,
+                    dashboards: dashboardsData,
+                    tree: json.tree,
+                    images: json.images || {},
+                    filesData: json.filesData || {},
+                    calculator: json.calculator || {}
+                };
+                localStorage.setItem('gko_all_data', JSON.stringify(allData));
+                console.log('📦 Данные также сохранены в объединенный JSON');
+            } catch (e) {
+                console.warn('⚠️ Не удалось сохранить в объединенный JSON:', e.message);
             }
             
             // Если дерево уже инициализировано - загружаем сразу
             if (window.treeApp && window.treeApp.importData) {
                 console.log('🔄 Дерево уже инициализировано, загружаем данные...');
                 
-                // Обновляем filesData в памяти
-                window.treeApp.filesData = json.filesData || {};
-                
-                // 🔥 ВАЖНО: Передаем все данные, включая изображения, для импорта в память
-                window.treeApp.importData({
-                    tree: json.tree,
-                    images: json.images || {},      // изображения в память
-                    filesData: json.filesData || {} // файлы уже в IndexedDB
-                });
-                console.log('✅ Данные загружены в дерево');
+                try {
+                    // Загружаем в дерево
+                    await window.treeApp.importData({
+                        tree: json.tree,
+                        images: json.images || {},
+                        filesData: json.filesData || {}
+                    });
+                    
+                    console.log('✅ Данные загружены в дерево');
+                    
+                    // Проверяем, что изображения загрузились
+                    if (window.treeApp.imagesData) {
+                        console.log('🖼️ Изображений в treeApp.imagesData после загрузки:', 
+                            Object.keys(window.treeApp.imagesData).length);
+                    }
+                    
+                    // Обновляем отображение
+                    if (window.treeApp.updateTree) {
+                        window.treeApp.updateTree();
+                    }
+                    
+                } catch (importError) {
+                    console.error('❌ Ошибка при импорте в дерево:', importError);
+                }
             } else {
-                console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
-                window.pendingTreeImages = json.images || {};
-                window.pendingTreeFiles = json.filesData || {};
-                window.pendingTree = json.tree; // 🔥 Добавил сохранение структуры
-                console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
-                console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
-                console.log('🌳 Структура сохранена в window.pendingTree');
+                console.log('⏳ Дерево еще не инициализировано, данные сохранены в глобальных переменных');
             }
         }
         
@@ -1856,6 +1893,7 @@ async function loadFromGitHub() {
         
     } catch (error) {
         console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
+        console.error('   - Стек:', error.stack);
         console.warn('⚠️ Загружаем локальные данные...');
         loadData();
         loadDashboardsData();
