@@ -15,11 +15,7 @@ console.log('=== КОНЕЦ main-tree.js ===');
 // Константы только для дерева
 const STORAGE_KEY_TREE = 'treeData';
 
-// ============================================
-// ФУНКЦИИ ДЛЯ ИНТЕГРАЦИИ ДЕРЕВА ВО ВКЛАДКУ ДИО
-// ============================================
 
-// Функция инициализации дерева в указанном контейнере
 async function initTreeInTab(containerId = 'dioTabContent') {
     console.log('🚀 initTreeInTab ВЫЗВАНА с containerId:', containerId);
     console.log('   - container существует:', !!document.getElementById(containerId));
@@ -43,12 +39,23 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         
         console.log('   - window.treeApp после инициализации:', window.treeApp);
         
+        console.log('🔗 Явно привязываем элементы DOM к treeApp');
+        if (window.treeApp && window.treeApp.bindElementsToDOM) {
+            window.treeApp.bindElementsToDOM();
+        }
+        console.log('🔍 Явно настраиваем поиск для нового DOM');
+        if (window.treeApp && window.treeApp.setupSearch) {
+            window.treeApp.setupSearch();
+        }
+
         console.log('7. Загрузка данных из JSON...');
         await loadTreeDataFromCombinedJSON();
         
-        // Загружаем файлы из глобальной переменной
         await loadFilesFromGlobal();
         
+        if (window.treeApp && window.treeApp.updateTree) {
+            window.treeApp.updateTree();
+        }
         
         window.treeInitialized = true;
         console.log('✅ Дерево успешно инициализировано');
@@ -61,7 +68,6 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         console.error('   - Сообщение:', error.message);
         console.error('   - Стек:', error.stack);
         
-        // Показываем ошибку пользователю
         if (container) {
             container.innerHTML = `
                 <div class="text-center text-red-500 py-12">
