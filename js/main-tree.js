@@ -1,4 +1,3 @@
-// main-tree.js - Только функции для дерева (без дублирования основного кода)
 
 console.log('=== НАЧАЛО main-tree.js ===');
 console.log('1. Проверка зависимостей:');
@@ -15,10 +14,14 @@ console.log('=== КОНЕЦ main-tree.js ===');
 // Константы только для дерева
 const STORAGE_KEY_TREE = 'treeData';
 
+// ============================================
+// ФУНКЦИИ ДЛЯ ИНТЕГРАЦИИ ДЕРЕВА ВО ВКЛАДКУ ДИО
+// ============================================
 
+// Функция инициализации дерева в указанном контейнере
 async function initTreeInTab(containerId = 'dioTabContent') {
-    console.log('🚀 ===== НАЧАЛО initTreeInTab =====');
-    console.log('   containerId:', containerId);
+    console.log('🚀 initTreeInTab ВЫЗВАНА с containerId:', containerId);
+    console.log('   - container существует:', !!document.getElementById(containerId));
     
     const container = document.getElementById(containerId);
     if (!container) {
@@ -27,101 +30,37 @@ async function initTreeInTab(containerId = 'dioTabContent') {
     }
     
     try {
-        // ШАГ 1: СОЗДАЕМ DOM
-        console.log('1. Создаем DOM для дерева...');
+        console.log('4. Попытка создать DOM для дерева...');
         const treeHTML = createTreeDOM();
         container.innerHTML = treeHTML;
         console.log('   ✅ DOM создан');
         
-        // Проверяем, что searchInput появился в DOM
-        const searchInputCheck = document.getElementById('searchInput');
-        console.log('   - searchInput в DOM после создания:', !!searchInputCheck);
-        
-        // ШАГ 2: ИНИЦИАЛИЗИРУЕМ TREEMANAGER (ТОЛЬКО ДАННЫЕ)
-        console.log('2. Инициализируем TreeManager...');
+        console.log('5. Попытка инициализировать TreeManager...');
         console.log('   - window.treeApp до инициализации:', window.treeApp);
         
-        if (!window.treeApp) {
-            const TreeManagerClass = TreeManager || window.TreeManager;
-            window.treeApp = new TreeManagerClass();
-            console.log('   ✅ новый экземпляр treeApp создан');
-            
-            // Инициализируем ТОЛЬКО данные, без UI
-            await window.treeApp.initialize();
-            console.log('   ✅ данные инициализированы');
-        } else {
-            console.log('   ✅ treeApp уже существует');
-        }
+        await initializeTreeManagerInTab();
         
-        console.log('   - window.treeApp после инициализации:', !!window.treeApp);
+        console.log('   - window.treeApp после инициализации:', window.treeApp);
         
-        // ШАГ 3: ПРИВЯЗЫВАЕМ ЭЛЕМЕНТЫ DOM
-        console.log('3. Привязываем элементы DOM к treeApp...');
-        if (window.treeApp && window.treeApp.bindElementsToDOM) {
-            window.treeApp.bindElementsToDOM();
-            console.log('   ✅ bindElementsToDOM выполнен');
-            console.log('   - treeApp.elements.searchInput:', !!window.treeApp.elements?.searchInput);
-            console.log('   - treeApp.elements.treeContainer:', !!window.treeApp.elements?.treeContainer);
-        } else {
-            console.error('❌ treeApp.bindElementsToDOM не найден!');
-        }
-        
-        // ШАГ 4: НАСТРАИВАЕМ ПОИСК
-        console.log('4. Настраиваем поиск для нового DOM...');
-        if (window.treeApp && window.treeApp.setupSearch) {
-            window.treeApp.setupSearch();
-            console.log('   ✅ setupSearch выполнен');
-        } else {
-            console.error('❌ treeApp.setupSearch не найден!');
-        }
-        
-        // ШАГ 5: ЗАГРУЖАЕМ ДАННЫЕ
-        console.log('5. Загрузка данных из JSON...');
+        console.log('7. Загрузка данных из JSON...');
         await loadTreeDataFromCombinedJSON();
-        console.log('   ✅ loadTreeDataFromCombinedJSON выполнен');
         
-        console.log('6. Загрузка файлов из глобальной переменной...');
+        // Загружаем файлы из глобальной переменной
         await loadFilesFromGlobal();
-        console.log('   ✅ loadFilesFromGlobal выполнен');
         
-        // ШАГ 6: ОБНОВЛЯЕМ ДЕРЕВО
-        console.log('7. Обновляем дерево...');
-        if (window.treeApp && window.treeApp.updateTree) {
-            window.treeApp.updateTree();
-            console.log('   ✅ updateTree выполнен');
-        } else {
-            console.error('❌ treeApp.updateTree не найден!');
-        }
-        
-        // ШАГ 7: НАСТРАИВАЕМ ОСТАЛЬНЫЕ ОБРАБОТЧИКИ
-        console.log('8. Настраиваем остальные обработчики...');
-        if (window.treeApp) {
-            if (window.treeApp.setupEventListeners) {
-                window.treeApp.setupEventListeners();
-                console.log('   ✅ setupEventListeners выполнен');
-            }
-            if (window.treeApp.setupZoom) {
-                window.treeApp.setupZoom();
-                console.log('   ✅ setupZoom выполнен');
-            }
-            if (window.treeApp.setupClusterControls) {
-                window.treeApp.setupClusterControls();
-                console.log('   ✅ setupClusterControls выполнен');
-            }
-        }
         
         window.treeInitialized = true;
-        console.log('✅ ===== initTreeInTab ЗАВЕРШЕН УСПЕШНО =====');
+        console.log('✅ Дерево успешно инициализировано');
         
-        // Скрываем индикатор загрузки, если есть
         const loader = document.getElementById('treeLoadingIndicator');
         if (loader) loader.style.display = 'none';
         
     } catch (error) {
-        console.error('❌ КРИТИЧЕСКАЯ ОШИБКА в initTreeInTab:', error);
+        console.error('❌ КРИТИЧЕСКАЯ ОШИБКА:', error);
         console.error('   - Сообщение:', error.message);
         console.error('   - Стек:', error.stack);
         
+        // Показываем ошибку пользователю
         if (container) {
             container.innerHTML = `
                 <div class="text-center text-red-500 py-12">
@@ -136,7 +75,7 @@ async function initTreeInTab(containerId = 'dioTabContent') {
     }
 }
 async function initializeTreeManagerInTab() {
-    console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER (ТОЛЬКО ДАННЫЕ) ===');
+    console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
     try {
         if (typeof TreeManager !== 'function' && typeof window.TreeManager !== 'function') {
@@ -145,46 +84,47 @@ async function initializeTreeManagerInTab() {
         }
         
         if (window.treeApp && window.treeApp.initialized) {
-            console.log('✅ TreeManager уже существует и инициализирован');
+            console.warn('TreeManager уже создан');
             return window.treeApp;
         }
         
         const TreeManagerClass = TreeManager || window.TreeManager;
         console.log('✅ TreeManager класс найден');
         
-        // СОЗДАЕМ ЭКЗЕМПЛЯР
+        // Создаем экземпляр
         window.treeApp = new TreeManagerClass();
         console.log('✅ Экземпляр treeApp создан');
         
-        // СОЗДАЕМ NODEEFFECTS
+        // Создаем NodeEffects
         if (typeof NodeEffects === 'function' || typeof window.NodeEffects === 'function') {
             const NodeEffectsClass = NodeEffects || window.NodeEffects;
             window.nodeEffects = new NodeEffectsClass();
             console.log('✅ NodeEffects создан');
         }
         
-        // !!! ВАЖНО: НЕ вызываем bindElementsToDOM здесь !!!
-        // DOM еще не создан, поэтому элементы не найдутся
+        // Привязываем к DOM
+        if (window.treeApp.bindElementsToDOM && typeof window.treeApp.bindElementsToDOM === 'function') {
+            window.treeApp.bindElementsToDOM();
+            console.log('✅ Элементы привязаны к DOM');
+        } else {
+            window.treeApp.elements = {
+                treeContainer: document.getElementById('tree')
+            };
+            console.log('⚠️ Создан минимальный набор элементов');
+        }
         
-        // ИНИЦИАЛИЗИРУЕМ ТОЛЬКО ДАННЫЕ
-        console.log('⏳ Инициализация данных TreeManager...');
-        
-        // Вызываем initialize, но он не должен трогать DOM
+        // Инициализируем
         if (window.treeApp.initialize && typeof window.treeApp.initialize === 'function') {
             await window.treeApp.initialize();
-            console.log('✅ Данные инициализированы');
         } else if (window.treeApp.init && typeof window.treeApp.init === 'function') {
             await window.treeApp.init();
-            console.log('✅ Данные инициализированы (через init)');
-        } else {
-            console.warn('⚠️ Метод initialize не найден, пропускаем');
         }
+        
+        console.log('✅ TreeManager инициализирован');
         
         // Загружаем изображения из глобальной переменной
         await loadImagesFromGlobal();
-        console.log('✅ Изображения загружены');
         
-        console.log('✅ TreeManager (данные) готов');
         return window.treeApp;
         
     } catch (error) {
