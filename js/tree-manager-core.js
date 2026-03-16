@@ -229,7 +229,15 @@ async initialize() {
         }, 300);
     }
 setupSearch() {
-    this.searchInput = document.getElementById('searchInput');
+    const treeContainer = document.getElementById('tree');
+    if (!treeContainer) return;
+    
+    this.searchInput = treeContainer.querySelector('#searchInput');
+    if (!this.searchInput) {
+        console.warn('Поле поиска не найдено в дереве');
+        return;
+    }
+    
     this.searchSuggestions = document.getElementById('searchSuggestions');
 
     this.injectMinimalistSearchClearButtonStyles(); 
