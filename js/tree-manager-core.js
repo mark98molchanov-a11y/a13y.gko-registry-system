@@ -229,23 +229,37 @@ async initialize() {
         }, 300);
     }
 setupSearch() {
+    console.log('🔍 setupSearch: инициализация поиска для дерева');
+    
+    // Ищем поле поиска внутри контейнера дерева, а не глобально
     const treeContainer = document.getElementById('tree');
-    if (!treeContainer) return;
+    if (!treeContainer) {
+        console.warn('⚠️ setupSearch: контейнер дерева не найден');
+        return;
+    }
     
     this.searchInput = treeContainer.querySelector('#searchInput');
     if (!this.searchInput) {
-        console.warn('Поле поиска не найдено в дереве');
+        console.warn('⚠️ setupSearch: поле поиска не найдено в дереве');
         return;
     }
     
     this.searchSuggestions = document.getElementById('searchSuggestions');
+    if (!this.searchSuggestions) {
+        console.warn('⚠️ setupSearch: контейнер подсказок не найден');
+    }
 
     this.injectMinimalistSearchClearButtonStyles(); 
 
+    // Создаем контейнер для поиска с кнопкой очистки
     const searchContainer = document.createElement('div');
     searchContainer.className = 'search-container';
-    this.searchInput.parentNode.insertBefore(searchContainer, this.searchInput);
-    searchContainer.appendChild(this.searchInput);
+    
+    // Вставляем контейнер перед полем поиска и перемещаем поле внутрь
+    if (this.searchInput.parentNode) {
+        this.searchInput.parentNode.insertBefore(searchContainer, this.searchInput);
+        searchContainer.appendChild(this.searchInput);
+    }
 
     const clearButton = document.createElement('button');
     clearButton.id = 'search-clear-btn';
@@ -253,9 +267,19 @@ setupSearch() {
     clearButton.setAttribute('aria-label', 'Очистить поиск'); 
     searchContainer.appendChild(clearButton);
 
+    // Обработчик ввода текста
     this.searchInput.addEventListener('input', (e) => {
         this.searchQuery = e.target.value.toLowerCase().trim();
         clearButton.style.display = this.searchQuery ? 'block' : 'none';
+        
+        // Показываем подсказки если есть
+        if (this.searchQuery.length > 0) {
+            this.showSuggestions(this.searchQuery);
+        } else {
+            if (this.searchSuggestions) {
+                this.searchSuggestions.style.display = 'none';
+            }
+        }
         
         // Вызываем обновление дерева через debounce для производительности
         if (this.debounceTimer) clearTimeout(this.debounceTimer);
@@ -265,13 +289,30 @@ setupSearch() {
         }, 300);
     });
     
+    // Обработчик клика по кнопке очистки
     clearButton.addEventListener('click', () => {
         this.searchInput.value = '';
         this.searchQuery = '';
         clearButton.style.display = 'none';
+        
+        if (this.searchSuggestions) {
+            this.searchSuggestions.style.display = 'none';
+        }
+        
         this.updateTree();
         this.searchInput.focus(); 
     });
+    
+    // Закрываем подсказки при клике вне поля
+    document.addEventListener('click', (e) => {
+        if (this.searchSuggestions && 
+            !this.searchInput.contains(e.target) && 
+            !this.searchSuggestions.contains(e.target)) {
+            this.searchSuggestions.style.display = 'none';
+        }
+    });
+    
+    console.log('✅ setupSearch: поиск инициализирован');
 }
 injectMinimalistSearchClearButtonStyles() {
     if (document.getElementById('search-clear-styles')) return;
