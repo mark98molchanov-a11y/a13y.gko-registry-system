@@ -2512,8 +2512,8 @@ function hardResetCurrent() {
 }
 
     function renderGrid() {
-        const search = document.getElementById('searchInputNPA').value.toLowerCase();
-        const sortMode = document.getElementById('sortSelect').value;
+    const search = document.getElementById('searchInputNPA').value.toLowerCase();
+    const sortMode = document.getElementById('sortSelect').value;
         
         let filtered = appData.filter(item => {
             const matchesDoc = !currentDocFilter || item.doc === currentDocFilter;
@@ -2824,27 +2824,27 @@ function hardResetCurrent() {
             loadData();
         } 
     }
-    function exportToExcelNPA() {
-        const search = document.getElementById('searchInput').value.toLowerCase();
-        const sortMode = document.getElementById('sortSelect').value;
-        
-        let filtered = appData.filter(item => {
-            const matchesDoc = !currentDocFilter || item.doc === currentDocFilter;
-            const matchesType = !currentTypeFilter || item.type === currentTypeFilter;
-            const matchesTarget = !currentTargetFilter || (item.target && item.target.includes(currentTargetFilter));
-            const matchesSearch = 
-                (item.human && item.human.toLowerCase().includes(search)) || 
-                (item.norm && item.norm.toLowerCase().includes(search)) || 
-                (item.doc && item.doc.toLowerCase().includes(search));
-            return matchesDoc && matchesType && matchesTarget && matchesSearch;
-        });
+function exportToExcelNPA() {
+    const search = document.getElementById('searchInputNPA').value.toLowerCase();
+    const sortMode = document.getElementById('sortSelect').value;
+    
+    let filtered = appData.filter(item => {
+        const matchesDoc = !currentDocFilter || item.doc === currentDocFilter;
+        const matchesType = !currentTypeFilter || item.type === currentTypeFilter;
+        const matchesTarget = !currentTargetFilter || (item.target && item.target.includes(currentTargetFilter));
+        const matchesSearch = 
+            (item.human && item.human.toLowerCase().includes(search)) || 
+            (item.norm && item.norm.toLowerCase().includes(search)) || 
+            (item.doc && item.doc.toLowerCase().includes(search));
+        return matchesDoc && matchesType && matchesTarget && matchesSearch;
+    });
 
-        filtered.sort((a, b) => {
-            if (sortMode === 'dateDesc') return parseDate(b.date) - parseDate(a.date);
-            if (sortMode === 'dateAsc') return parseDate(a.date) - parseDate(b.date);
-            if (sortMode === 'lastUpdated') return (b.updated || 0) - (a.updated || 0);
-            return a.id - b.id;
-        });
+    filtered.sort((a, b) => {
+        if (sortMode === 'dateDesc') return parseDate(b.date) - parseDate(a.date);
+        if (sortMode === 'dateAsc') return parseDate(a.date) - parseDate(b.date);
+        if (sortMode === 'lastUpdated') return (b.updated || 0) - (a.updated || 0);
+        return a.id - b.id;
+    });
         const data = filtered.map(item => ({
             'Документ': item.doc || '',
             'Норма/Статья': item.norm || '',
