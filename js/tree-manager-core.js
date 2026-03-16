@@ -229,108 +229,34 @@ async initialize() {
         }, 300);
     }
 setupSearch() {
-    console.log('🔍 ===== НАЧАЛО setupSearch =====');
-    console.log('1. Пытаемся найти searchInput...');
-    
     this.searchInput = document.getElementById('searchInput');
     this.searchSuggestions = document.getElementById('searchSuggestions');
-    
-    console.log('   - searchInput найден:', !!this.searchInput);
-    console.log('   - searchSuggestions найден:', !!this.searchSuggestions);
-    
-    if (!this.searchInput) {
-        console.error('❌ searchInput НЕ НАЙДЕН! Поиск не будет работать');
-        console.log('🔍 ===== КОНЕЦ setupSearch (с ошибкой) =====');
-        return;
-    }
-    
-    console.log('2. searchInput.parentNode:', !!this.searchInput.parentNode);
-    if (!this.searchInput.parentNode) {
-        console.error('❌ searchInput не имеет родителя');
-        console.log('🔍 ===== КОНЕЦ setupSearch (с ошибкой) =====');
-        return;
-    }
-    
+
     this.injectMinimalistSearchClearButtonStyles(); 
-    
-    console.log('3. Очищаем старую структуру...');
-    const oldContainer = document.querySelector('.search-container');
-    console.log('   - старый контейнер найден:', !!oldContainer);
-    if (oldContainer && this.searchInput) {
-        const parent = oldContainer.parentNode;
-        if (parent) {
-            parent.insertBefore(this.searchInput, oldContainer);
-            oldContainer.remove();
-            console.log('   ✅ старый контейнер удален');
-        }
-    }
-    
-    const oldClearButton = document.getElementById('search-clear-btn');
-    console.log('   - старая кнопка найдена:', !!oldClearButton);
-    if (oldClearButton) {
-        oldClearButton.remove();
-        console.log('   ✅ старая кнопка удалена');
-    }
-    
-    console.log('4. Создаем новый контейнер...');
+
     const searchContainer = document.createElement('div');
     searchContainer.className = 'search-container';
     this.searchInput.parentNode.insertBefore(searchContainer, this.searchInput);
     searchContainer.appendChild(this.searchInput);
-    console.log('   ✅ контейнер создан');
 
     const clearButton = document.createElement('button');
     clearButton.id = 'search-clear-btn';
     clearButton.textContent = '×';
     clearButton.setAttribute('aria-label', 'Очистить поиск'); 
     searchContainer.appendChild(clearButton);
-    console.log('   ✅ кнопка создана');
 
-    console.log('5. Удаляем старые обработчики...');
-    if (this._searchHandler) {
-        console.log('   - удаляем старый input обработчик');
-        this.searchInput.removeEventListener('input', this._searchHandler);
-    }
-    if (this._clearHandler) {
-        console.log('   - удаляем старый click обработчик');
-        // Находим старую кнопку (она уже удалена, но на всякий случай)
-        const oldBtn = document.getElementById('search-clear-btn');
-        if (oldBtn) oldBtn.removeEventListener('click', this._clearHandler);
-    }
-
-    console.log('6. Создаем новые обработчики...');
-    this._searchHandler = (e) => {
-        console.log('🔍 input event:', e.target.value);
+    this.searchInput.addEventListener('input', (e) => {
         this.searchQuery = e.target.value.toLowerCase().trim();
         clearButton.style.display = this.searchQuery ? 'block' : 'none';
-        console.log('   - searchQuery:', this.searchQuery);
-        console.log('   - вызываем updateTree()');
         this.updateTree();
-    };
-    
-    this._clearHandler = () => {
-        console.log('🧹 clear button clicked');
+    });
+    clearButton.addEventListener('click', () => {
         this.searchInput.value = '';
         this.searchQuery = '';
         clearButton.style.display = 'none';
-        console.log('   - searchQuery очищен');
-        console.log('   - вызываем updateTree()');
         this.updateTree();
         this.searchInput.focus(); 
-    };
-    
-    this.searchInput.addEventListener('input', this._searchHandler);
-    clearButton.addEventListener('click', this._clearHandler);
-    console.log('   ✅ обработчики добавлены');
-    
-    console.log('7. Восстанавливаем состояние...');
-    if (this.searchQuery) {
-        console.log('   - восстанавливаем searchQuery:', this.searchQuery);
-        this.searchInput.value = this.searchQuery;
-        clearButton.style.display = 'block';
-    }
-    
-    console.log('✅ ===== setupSearch ЗАВЕРШЕН УСПЕШНО =====');
+    });
 }
 injectMinimalistSearchClearButtonStyles() {
     if (document.getElementById('search-clear-styles')) return;
@@ -6441,58 +6367,20 @@ findParent(root, nodeId, parent = null) {
     return null;
 }
 updateTree() {
-    console.log('🌳 updateTree() вызван');
-    console.log('   - this.searchQuery =', this.searchQuery ? `"${this.searchQuery}"` : '(пусто)');
-    
-    // Проверяем treeContainer
-    if (!this.elements) {
-        console.error('❌ this.elements не существует!');
-        return;
-    }
-    
     const treeContainer = this.elements.treeContainer;
-    if (!treeContainer) {
-        console.error('❌ treeContainer не найден в this.elements!');
-        console.log('   - this.elements:', Object.keys(this.elements));
-        return;
-    }
-    
-    console.log('   - treeContainer найден, сохраняем состояние скролла');
-    
     this.scrollState = {
         scrollLeft: treeContainer.scrollLeft,
         scrollTop: treeContainer.scrollTop,
         transform: treeContainer.style.transform || 'translate(0px, 0px) scale(1)'
     };
-    
-    console.log('   - очищаем treeContainer и создаем новый элемент');
     treeContainer.innerHTML = '';
-    
-    // Проверяем this.treeData
-    if (!this.treeData) {
-        console.error('❌ this.treeData не существует!');
-        return;
-    }
-    
-    const nodeElement = this.createNodeElement(this.treeData);
-    if (!nodeElement) {
-        console.error('❌ createNodeElement вернул null');
-        return;
-    }
-    
-    treeContainer.appendChild(nodeElement);
-    console.log('   ✅ новый элемент добавлен в treeContainer');
+    treeContainer.appendChild(this.createNodeElement(this.treeData));
     
     requestAnimationFrame(() => {
         treeContainer.scrollLeft = this.scrollState.scrollLeft;
         treeContainer.scrollTop = this.scrollState.scrollTop;
         treeContainer.style.transform = this.scrollState.transform;
-        console.log('   - состояние скролла восстановлено');
     });
-    
-    // Подсчет видимых узлов для отладки
-    const visibleNodes = treeContainer.querySelectorAll('.node').length;
-    console.log(`   - видимых узлов в дереве: ${visibleNodes}`);
     
     document.querySelectorAll('.node-content.subordinate').forEach(subNode => {
         const childrenContainer = subNode.nextElementSibling;
@@ -6500,19 +6388,8 @@ updateTree() {
             childrenContainer.classList.add('compact-children');
         }
     });
-    
-    console.log('✅ updateTree() завершен');
 }
 shouldShowNode(node) {
-        if (this.searchQuery) {
-        const matches = this.nodeMatchesSearch(node);
-        const isParent = this.isParentOfMatch(node);
-        const isDescendant = this.isDescendantOfMatch(node);
-        
-        if (matches || isParent || isDescendant) {
-            console.log(`     ✓ "${node.content.text}" показывается (matches:${matches}, parent:${isParent}, descendant:${isDescendant})`);
-        }
-    }
     if (this.activeCluster) {
         const inCluster = this.isInCluster(node) || 
                         this.isParentOfCluster(node) || 
@@ -6636,10 +6513,7 @@ shouldUseGridLayout(node) {
     return false;
 }
 createNodeElement(node) {
-    if (this.searchQuery) {
-        const shouldShow = this.shouldShowNode(node);
-        console.log(`   - узел "${node.content.text}": shouldShowNode = ${shouldShow}`);
-    }
+
     if (node === this.treeData) {
         node.isExpanded = true;
     }
