@@ -229,34 +229,98 @@ async initialize() {
         }, 300);
     }
 setupSearch() {
+    console.log('🔍 setupSearch() вызван');
+    
+    // ========== МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ 1: Проверка существования ==========
     this.searchInput = document.getElementById('searchInput');
     this.searchSuggestions = document.getElementById('searchSuggestions');
-
+    
+    if (!this.searchInput) {
+        console.error('❌ searchInput не найден в DOM! Поиск не будет работать');
+        return; // ВАЖНО: выходим, чтобы не было ошибок
+    }
+    
+    console.log('✅ searchInput найден');
+    // =====================================================================
+    
     this.injectMinimalistSearchClearButtonStyles(); 
 
+    // ========== МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ 2: Проверка parentNode ==========
+    if (!this.searchInput.parentNode) {
+        console.error('❌ searchInput не имеет родителя');
+        return;
+    }
+    // ===================================================================
+    
+    // ========== МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ 3: Очищаем старую структуру ==========
+    // Удаляем старый контейнер, если он есть
+    const oldContainer = document.querySelector('.search-container');
+    if (oldContainer && this.searchInput) {
+        const parent = oldContainer.parentNode;
+        if (parent) {
+            parent.insertBefore(this.searchInput, oldContainer);
+            oldContainer.remove();
+        }
+    }
+    
+    // Удаляем старую кнопку, если она есть
+    const oldClearButton = document.getElementById('search-clear-btn');
+    if (oldClearButton) {
+        oldClearButton.remove();
+    }
+    // =====================================================================
+    
+    // Создаем новый контейнер
     const searchContainer = document.createElement('div');
     searchContainer.className = 'search-container';
     this.searchInput.parentNode.insertBefore(searchContainer, this.searchInput);
     searchContainer.appendChild(this.searchInput);
 
+    // Создаем новую кнопку
     const clearButton = document.createElement('button');
     clearButton.id = 'search-clear-btn';
     clearButton.textContent = '×';
     clearButton.setAttribute('aria-label', 'Очистить поиск'); 
     searchContainer.appendChild(clearButton);
 
-    this.searchInput.addEventListener('input', (e) => {
+    // ========== МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ 4: Удаляем старые обработчики ==========
+    if (this._searchHandler) {
+        this.searchInput.removeEventListener('input', this._searchHandler);
+    }
+    if (this._clearHandler) {
+        // Находим старую кнопку (она уже удалена, но на всякий случай)
+        const oldBtn = document.getElementById('search-clear-btn');
+        if (oldBtn) oldBtn.removeEventListener('click', this._clearHandler);
+    }
+    // =======================================================================
+
+    // ========== МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ 5: Сохраняем обработчики ==========
+    this._searchHandler = (e) => {
         this.searchQuery = e.target.value.toLowerCase().trim();
         clearButton.style.display = this.searchQuery ? 'block' : 'none';
         this.updateTree();
-    });
-    clearButton.addEventListener('click', () => {
+    };
+    
+    this._clearHandler = () => {
         this.searchInput.value = '';
         this.searchQuery = '';
         clearButton.style.display = 'none';
         this.updateTree();
         this.searchInput.focus(); 
-    });
+    };
+    // ===================================================================
+    
+    this.searchInput.addEventListener('input', this._searchHandler);
+    clearButton.addEventListener('click', this._clearHandler);
+    
+    // ========== МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ 6: Восстанавливаем состояние ==========
+    if (this.searchQuery) {
+        this.searchInput.value = this.searchQuery;
+        clearButton.style.display = 'block';
+    }
+    // =====================================================================
+    
+    console.log('✅ setupSearch() завершен');
 }
 injectMinimalistSearchClearButtonStyles() {
     if (document.getElementById('search-clear-styles')) return;
