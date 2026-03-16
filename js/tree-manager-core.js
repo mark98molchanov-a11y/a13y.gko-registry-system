@@ -248,8 +248,15 @@ setupSearch() {
     this.searchInput.addEventListener('input', (e) => {
         this.searchQuery = e.target.value.toLowerCase().trim();
         clearButton.style.display = this.searchQuery ? 'block' : 'none';
-        this.updateTree();
+        
+        // Вызываем обновление дерева через debounce для производительности
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            this.updateTree();
+            this.debounceTimer = null;
+        }, 300);
     });
+    
     clearButton.addEventListener('click', () => {
         this.searchInput.value = '';
         this.searchQuery = '';
