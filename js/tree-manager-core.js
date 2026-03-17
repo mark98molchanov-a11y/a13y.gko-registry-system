@@ -6444,6 +6444,8 @@ updateTree() {
             childrenContainer.classList.add('compact-children');
         }
     });
+
+    this.reattachClusterEvents();
 }
 shouldShowNode(node) {
     if (this.activeCluster) {
@@ -6639,10 +6641,22 @@ if (node.content.isAuthority) {
 if (node.content.isOKR) {
     content.classList.add('okr-node');
     content.setAttribute('data-label', 'OKR (Цели и ключевые результаты)');
+    // ДОБАВЛЕНО: делаем кликабельным
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleOKRMark();
+    });
 }
 if (node.content.isIndicator) {
     content.classList.add('indicator-node');
     content.setAttribute('data-label', 'Государственная программа');
+    // ДОБАВЛЕНО: делаем кликабельным
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleIndicatorMark();
+    });
 }
 if (node.content.absent269 && node.children.length > 0) {
     content.classList.add('absent-269');
@@ -6677,11 +6691,23 @@ if (node.content.isAuthority && node.children.length > 0) {
 if (node.content.isOKR && node.children.length > 0) {
     content.classList.add('okr-node');
     content.setAttribute('data-label', 'OKR (Цели и ключевые результаты)');
+    // ДОБАВЛЕНО: делаем кликабельным
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleOKRMark();
+    });
 }
 
 if (node.content.isIndicator && node.children.length > 0) {
     content.classList.add('indicator-node');
     content.setAttribute('data-label', 'Государственная программа');
+    // ДОБАВЛЕНО: делаем кликабельным
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleIndicatorMark();
+    });
 }
 if (this.clusters.has(node.id)) {
     const clusterMarker = document.createElement('div');
@@ -6827,12 +6853,24 @@ if (node.content.isForAll) {
   setTimeout(() => nodeEffects.addEffect(content, 'forAll'), 100);
 }
 if (node.content.isOKR) {
-  content.classList.add('okr-node');
-  content.setAttribute('data-label', 'OKR (Цели и ключевые результаты)');
+    content.classList.add('okr-node');
+    content.setAttribute('data-label', 'OKR (Цели и ключевые результаты)');
+    // ДОБАВЛЕНО: делаем кликабельным
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleOKRMark();
+    });
 }
 if (node.content.isIndicator) {
     content.classList.add('indicator-node');
     content.setAttribute('data-label', 'Государственная программа');
+    // ДОБАВЛЕНО: делаем кликабельным
+    content.style.cursor = 'pointer';
+    content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleIndicatorMark();
+    });
 }
 if (node.content.isPower269) {
   content.classList.add('power-269');
@@ -7750,6 +7788,9 @@ selectNode(node, element) {
         this.selectedNodeId = node.id;
         this.updateSelectionCounter();
     }
+
+    // ВАЖНО: обновляем состояние кнопки "Удалить из отдела" при выборе узла
+    this.updateClusterRemoveButton();
 }
 updateClusterRemoveButton() {
     const removeBtn = this.elements.clusterSelect.parentNode.querySelector('.remove-from-cluster-btn');
@@ -9466,7 +9507,27 @@ setupClusterControls() {
     
     this.updateClusterSelect();
 }
+reattachClusterEvents() {
+    // Находим скрытый select, который хранит значение
+    const hiddenSelect = this.elements.clusterSelect;
+    if (!hiddenSelect) return;
 
+    // Убираем старый обработчик, чтобы не было дублей
+    hiddenSelect.removeEventListener('change', this.boundClusterChangeHandler);
+    
+    // Создаем и сохраняем привязанную версию функции, если еще не сделали
+    if (!this.boundClusterChangeHandler) {
+        this.boundClusterChangeHandler = (e) => {
+            this.activeCluster = e.target.value || null;
+            this.updateTree();
+            this.saveData();
+        };
+    }
+    hiddenSelect.addEventListener('change', this.boundClusterChangeHandler);
+
+    // Также нужно убедиться, что кастомный заголовок правильно обновляется
+    this.updateClusterSelect();
+}
 
 createCustomSelectContainer() {
     const customSelect = document.createElement('div');
