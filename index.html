@@ -2360,11 +2360,17 @@ function switchTab(tabName) {
     });
     document.getElementById(`${tabName}Tab`).classList.add('active');
     
+    // Находим кнопку сброса
+    const resetButton = document.querySelector('button[onclick="hardResetCurrent()"]');
+    
     if (tabName === 'dio') {
         // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden'); // Полностью скрываем кнопку "Добавить"
+        
+        // 👇 СКРЫВАЕМ КНОПКУ СБРОСА
+        if (resetButton) resetButton.style.display = 'none';
         
         // Меняем текст сброса (опционально)
         document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
@@ -2386,6 +2392,10 @@ function switchTab(tabName) {
         document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Добавить запись';
         document.getElementById('resetBtnText').textContent = 'Сброс НПА';
+        
+        // 👇 ПОКАЗЫВАЕМ КНОПКУ СБРОСА (возвращаем стандартное отображение)
+        if (resetButton) resetButton.style.display = 'flex'; // или 'inline-block', в зависимости от изначального стиля
+        
         currentTab = 'npas';
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         if (selectedIds.size > 0) {
@@ -2398,6 +2408,10 @@ function switchTab(tabName) {
         document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Новый дашборд';
         document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
+        
+        // 👇 ПОКАЗЫВАЕМ КНОПКУ СБРОСА
+        if (resetButton) resetButton.style.display = 'flex';
+        
         currentTab = 'dashboards';
         document.getElementById('bulkToolbar').classList.add('hidden');
         if (selectedIdsDashboards.size > 0) {
@@ -2423,6 +2437,10 @@ function switchTab(tabName) {
         document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Новый расчет';
         document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
+        
+        // 👇 ПОКАЗЫВАЕМ КНОПКУ СБРОСА
+        if (resetButton) resetButton.style.display = 'flex';
+        
         currentTab = 'calculator';
         
         document.getElementById('bulkToolbar').classList.add('hidden');
