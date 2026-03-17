@@ -2332,7 +2332,6 @@ function importJson() {
     };
     input.click();
 }
-
 function switchTab(tabName) {
     // Убрать активность со всех пунктов навигации
     document.querySelectorAll('.book-section.main, .book-subsection, .book-subsubsection').forEach(el => {
@@ -2368,14 +2367,29 @@ function switchTab(tabName) {
     });
     document.getElementById(`${tabName}Tab`).classList.add('active');
     
+    // ===== УПРАВЛЕНИЕ ВИДИМОСТЬЮ КНОПКИ СБРОСА =====
+    const resetBtn = document.querySelector('button[onclick="hardResetCurrent()"]');
+    const resetBtnText = document.getElementById('resetBtnText');
+    
+    if (resetBtn) {
+        if (tabName === 'dio') {
+            // Полностью скрываем кнопку на вкладке ДИО
+            resetBtn.style.display = 'none';
+        } else {
+            // Показываем кнопку на остальных вкладках
+            resetBtn.style.display = 'inline-flex'; // или 'flex', в зависимости от вашего CSS
+        }
+    }
+    // ===== КОНЕЦ УПРАВЛЕНИЯ КНОПКОЙ СБРОСА =====
+    
     if (tabName === 'dio') {
         // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden'); // Полностью скрываем кнопку "Добавить"
         
-        // Меняем текст сброса (опционально)
-        document.getElementById('resetBtnText').textContent = 'Сброс ДИО';
+        // Текст сброса (не влияет, так как кнопка скрыта, но оставим для порядка)
+        if (resetBtnText) resetBtnText.textContent = '';
         
         currentTab = 'dio';
         document.getElementById('bulkToolbar').classList.add('hidden');
@@ -2393,7 +2407,8 @@ function switchTab(tabName) {
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Добавить запись';
-        document.getElementById('resetBtnText').textContent = 'Сброс НПА';
+        if (resetBtnText) resetBtnText.textContent = 'Сброс НПА';
+        
         currentTab = 'npas';
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         if (selectedIds.size > 0) {
@@ -2405,7 +2420,8 @@ function switchTab(tabName) {
         document.getElementById('dashboardsImportButtons').classList.remove('hidden');
         document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Новый дашборд';
-        document.getElementById('resetBtnText').textContent = 'Сброс дашбордов';
+        if (resetBtnText) resetBtnText.textContent = 'Сброс дашбордов';
+        
         currentTab = 'dashboards';
         document.getElementById('bulkToolbar').classList.add('hidden');
         if (selectedIdsDashboards.size > 0) {
@@ -2430,7 +2446,8 @@ function switchTab(tabName) {
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
         document.getElementById('addButtonText').textContent = 'Новый расчет';
-        document.getElementById('resetBtnText').textContent = 'Сброс калькулятора';
+        if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
+        
         currentTab = 'calculator';
         
         document.getElementById('bulkToolbar').classList.add('hidden');
