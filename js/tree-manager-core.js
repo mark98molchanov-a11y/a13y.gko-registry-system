@@ -6446,6 +6446,9 @@ updateTree() {
     });
 
     this.reattachClusterEvents();
+
+    // *** ДОБАВЛЯЕМ ЭТУ СТРОКУ ***
+    this.updateClusterRemoveButton();
 }
 shouldShowNode(node) {
     if (this.activeCluster) {
@@ -9459,6 +9462,9 @@ addNodeToCluster(nodeId, clusterName) {
     this.renderDepartmentManagement();
     this.saveData();
 
+    // *** ДОБАВЛЯЕМ ЭТУ СТРОКУ ***
+    this.updateClusterRemoveButton();
+
     this.showNotification(`Узел добавлен в отдел "${clusterName}"`);
 }
 setupClusterControls() {
@@ -9926,6 +9932,9 @@ removeFromCluster() {
     this.saveData();
     this.showNotification(`Удалено ${removedNodesInfo.length} узл(а/ов) из отдела.`);
     this.clearMultiSelection();
+
+    // *** ДОБАВЛЯЕМ ЭТУ СТРОКУ ***
+    this.updateClusterRemoveButton();
 }
 editClusterName(oldName) {
     const newName = prompt('Введите новое название кластера:', oldName);
