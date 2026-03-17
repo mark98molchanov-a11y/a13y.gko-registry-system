@@ -1,4 +1,3 @@
-
 console.log('=== НАЧАЛО main-tree.js ===');
 console.log('1. Проверка зависимостей:');
 console.log('   - LZString:', typeof LZString);
@@ -48,6 +47,8 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         // Загружаем файлы из глобальной переменной
         await loadFilesFromGlobal();
         
+        // ===== ИСПРАВЛЕНИЕ: Добавляем обработчик для кнопки загрузки файлов =====
+        setupFileUploadButtonHandler();
         
         window.treeInitialized = true;
         console.log('✅ Дерево успешно инициализировано');
@@ -74,6 +75,54 @@ async function initTreeInTab(containerId = 'dioTabContent') {
         }
     }
 }
+
+// НОВАЯ ФУНКЦИЯ: настройка обработчика кнопки загрузки файлов
+function setupFileUploadButtonHandler() {
+    console.log('🔧 Настройка обработчика кнопки "Загрузить файлы"...');
+    
+    // Даем небольшую задержку, чтобы DOM точно был готов
+    setTimeout(() => {
+        const uploadBtn = document.getElementById('uploadFileBtn');
+        
+        if (!uploadBtn) {
+            console.warn('⚠️ Кнопка "Загрузить файлы" (uploadFileBtn) не найдена в DOM');
+            return;
+        }
+        
+        if (!window.treeApp) {
+            console.warn('⚠️ treeApp не инициализирован, обработчик не добавлен');
+            return;
+        }
+        
+        if (typeof window.treeApp.uploadFile !== 'function') {
+            console.warn('⚠️ Метод uploadFile() не найден в treeApp');
+            return;
+        }
+        
+        // Удаляем старый обработчик, если он был добавлен ранее
+        if (window.treeApp._uploadFileHandler) {
+            uploadBtn.removeEventListener('click', window.treeApp._uploadFileHandler);
+        }
+        
+        // Создаем новый обработчик с проверкой выбранного узла
+        window.treeApp._uploadFileHandler = () => {
+            if (!window.treeApp.selectedNode) {
+                alert('Сначала выберите узел, к которому нужно прикрепить файл');
+                return;
+            }
+            window.treeApp.uploadFile();
+        };
+        
+        // Добавляем обработчик
+        uploadBtn.addEventListener('click', window.treeApp._uploadFileHandler);
+        console.log('✅ Обработчик для кнопки "Загрузить файлы" успешно добавлен');
+        
+        // Добавляем подсказку при наведении
+        uploadBtn.title = 'Загрузить файл в выбранный узел';
+        
+    }, 500); // Задержка 500мс для гарантии готовности DOM
+}
+
 async function initializeTreeManagerInTab() {
     console.log('=== ИНИЦИАЛИЗАЦИЯ TREE MANAGER ВО ВКЛАДКЕ ===');
     
