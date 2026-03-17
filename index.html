@@ -2104,21 +2104,10 @@ function exportJson() {
     // Получаем данные дерева и изображения
     let treeData = null;
     let imagesData = {};
-    let clustersData = []; // +++ ДОБАВЛЕНО
-    let availableClustersData = []; // +++ ДОБАВЛЕНО
     
     if (window.treeApp && window.treeApp.treeData) {
         treeData = window.treeApp.serializeTree(window.treeApp.treeData);
         imagesData = window.treeApp.imagesData || {};
-        
-        // +++ ДОБАВЛЕНО: сохраняем данные кластеров +++
-        clustersData = Array.from(window.treeApp.clusters.entries());
-        availableClustersData = Array.from(window.treeApp.availableClusters);
-        
-        console.log('📊 Экспорт кластеров:', {
-            clustersCount: clustersData.length,
-            availableClustersCount: availableClustersData.length
-        });
     } else {
         try {
             const savedTree = localStorage.getItem('treeData');
@@ -2126,10 +2115,6 @@ function exportJson() {
                 const parsed = JSON.parse(savedTree);
                 treeData = parsed.tree || null;
                 imagesData = parsed.images || {};
-                
-                // +++ ДОБАВЛЕНО: загружаем кластеры из localStorage +++
-                clustersData = parsed.clusters || [];
-                availableClustersData = parsed.availableClusters || [];
             }
         } catch (e) {}
     }
@@ -2142,17 +2127,10 @@ function exportJson() {
         tree: treeData,
         images: imagesData,
         calculator: calculatorData,
-        // +++ ДОБАВЛЕНО: данные кластеров +++
-        clusters: clustersData,
-        availableClusters: availableClustersData,
-        activeCluster: window.treeApp?.activeCluster || null,
         metadata: {
             npaCount: appData.length,
             dashboardsCount: dashboardsData.length,
             hasTree: !!treeData,
-            imageCount: Object.keys(imagesData).length,
-            // +++ ДОБАВЛЕНО +++
-            clustersCount: clustersData.length,
             exportFormat: "combined"
         }
     };
@@ -2163,6 +2141,7 @@ function exportJson() {
     a.download = `gko_all_data_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
 }
+
 function importJson() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -2183,7 +2162,6 @@ function importJson() {
                 let hasImages = false;
                 let hasFiles = false;
                 let hasCalculator = false;
-                let hasClusters = false; // +++ ДОБАВЛЕНО
                 
                 if (json.npas && Array.isArray(json.npas)) {
                     confirmMessage += `НПА: ${json.npas.length} записей\n`;
@@ -2212,17 +2190,6 @@ function importJson() {
                     hasFiles = true;
                 }
                 
-                // +++ ДОБАВЛЕНО: проверка наличия кластеров +++
-                if (json.clusters && json.clusters.length > 0) {
-                    confirmMessage += `Отделы (кластеры): ${json.clusters.length} шт.\n`;
-                    hasClusters = true;
-                } else if (json.tree && json.tree.clusters) {
-                    // Для обратной совместимости со старым форматом
-                    const clusterCount = json.tree.clusters ? json.tree.clusters.length : 0;
-                    confirmMessage += `Отделы (кластеры): ${clusterCount} шт. (в старом формате)\n`;
-                    hasClusters = clusterCount > 0;
-                }
-                
                 if (json.calculator) {
                     confirmMessage += `Калькулятор: данные настроек\n`;
                     hasCalculator = true;
@@ -2247,17 +2214,20 @@ function importJson() {
                         saveDashboardsData();
                     }
                     
-                    // Загружаем файлы в IndexedDB
+                    // ✅ ЗАГРУЖАЕМ ФАЙЛЫ В INDEXEDDB
                     if (hasFiles && json.filesData) {
                         console.log('📁 Загрузка файлов в IndexedDB...');
                         const filesData = json.filesData;
                         let loadedCount = 0;
                         
+                        // Проверяем, инициализирована ли база данных
                         if (window.treeApp && window.treeApp.db) {
                             for (const [fileId, fileMeta] of Object.entries(filesData)) {
                                 try {
+                                    // Проверяем, есть ли уже файл
                                     const existingFile = await window.treeApp.db.getFile(fileId);
                                     if (!existingFile) {
+                                        // Если файла нет, сохраняем
                                         await window.treeApp.db.saveFile(fileId, fileMeta);
                                         loadedCount++;
                                     }
@@ -2272,59 +2242,41 @@ function importJson() {
                         }
                     }
                     
-                    // Загружаем дерево с поддержкой кластеров
+                    // Загружаем дерево - 🔥 ИСПРАВЛЕНО: добавляем обработку ошибок localStorage
                     if (hasTree) {
                         console.log('🌳 Данные дерева найдены в JSON');
                         
-                        // +++ ДОБАВЛЕНО: логируем наличие кластеров +++
-                        if (json.clusters) {
-                            console.log('🏷️ Найдены кластеры в JSON:', {
-                                clustersCount: json.clusters.length,
-                                availableClustersCount: json.availableClusters?.length,
-                                activeCluster: json.activeCluster
-                            });
-                        }
-                        
-                        // Сохраняем в глобальные переменные (включая кластеры)
+                        // ВСЕГДА сохраняем в глобальные переменные (это главное!)
                         window.pendingTree = json.tree;
                         window.pendingTreeImages = json.images || {};
                         window.pendingTreeFiles = json.filesData || {};
                         
-                        // +++ ДОБАВЛЕНО: сохраняем кластеры в глобальные переменные +++
-                        window.pendingClusters = json.clusters || [];
-                        window.pendingAvailableClusters = json.availableClusters || [];
-                        window.pendingActiveCluster = json.activeCluster || null;
-                        
                         console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
                         console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
-                        console.log('🏷️ Кластеры сохранены в window.pendingClusters, количество:', window.pendingClusters.length);
                         
-                        // Сохраняем в localStorage (с обработкой ошибок)
+                        // Пытаемся сохранить в localStorage, но не падаем при ошибке
                         try {
                             const treeDataToSave = { 
                                 tree: json.tree,
                                 images: json.images || {},
-                                filesData: json.filesData || {},
-                                // +++ ДОБАВЛЕНО: кластеры в localStorage +++
-                                clusters: json.clusters || [],
-                                availableClusters: json.availableClusters || [],
-                                activeCluster: json.activeCluster || null
+                                filesData: json.filesData || {}
                             };
                             
+                            // Проверяем примерный размер перед сохранением
                             const size = new Blob([JSON.stringify(treeDataToSave)]).size;
                             console.log('📦 Размер данных дерева:', Math.round(size / 1024), 'KB');
                             
+                            // Если размер меньше 4MB (примерный лимит localStorage), сохраняем полные данные
                             if (size < 4 * 1024 * 1024) {
                                 localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
-                                console.log('📦 Полные данные дерева сохранены в localStorage (с кластерами)');
+                                console.log('📦 Полные данные дерева сохранены в localStorage');
                             } else {
+                                // Иначе сохраняем только структуру без изображений
                                 console.log('📦 Данные дерева слишком большие, сохраняем только структуру');
-                                localStorage.setItem('treeData', JSON.stringify({ 
-                                    tree: json.tree,
-                                    clusters: json.clusters || [] // +++ сохраняем кластеры даже если изображения не сохраняются +++
-                                }));
+                                localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
                             }
                         } catch (e) {
+                            // Если все равно ошибка - игнорируем, данные уже в памяти
                             console.log('⚠️ Не удалось сохранить в localStorage, но данные уже в памяти:', e.message);
                         }
                         
@@ -2333,26 +2285,15 @@ function importJson() {
                             console.log('🔄 Дерево уже инициализировано, загружаем данные...');
                             
                             try {
-                                // +++ ДОБАВЛЕНО: передаем все данные, включая кластеры +++
-                                const importData = {
+                                await window.treeApp.importData({
                                     tree: json.tree,
                                     images: json.images || {},
-                                    filesData: json.filesData || {},
-                                    clusters: json.clusters || [],
-                                    availableClusters: json.availableClusters || [],
-                                    activeCluster: json.activeCluster || null
-                                };
-                                
-                                await window.treeApp.importData(importData);
-                                console.log('✅ Данные загружены в дерево (включая кластеры)');
+                                    filesData: json.filesData || {}
+                                });
+                                console.log('✅ Данные загружены в дерево');
                                 
                                 if (window.treeApp.updateTree) {
                                     window.treeApp.updateTree();
-                                }
-                                
-                                // +++ ДОБАВЛЕНО: обновляем селект кластеров +++
-                                if (window.treeApp.updateClusterSelect) {
-                                    window.treeApp.updateClusterSelect();
                                 }
                             } catch (importError) {
                                 console.error('❌ Ошибка импорта в дерево:', importError);
@@ -2381,20 +2322,9 @@ function importJson() {
                     
                     if (hasTree && window.treeApp) {
                         window.treeApp.updateTree();
-                        
-                        // +++ ДОБАВЛЕНО: обновляем управление отделами, если открыто +++
-                        if (window.treeApp.departmentManagement?.active) {
-                            window.treeApp.renderDepartmentManagement();
-                        }
-                    }
-                    
-                    // +++ ДОБАВЛЕНО: показываем уведомление о кластерах +++
-                    if (hasClusters) {
-                        showNotification(`✅ Импортировано ${json.clusters?.length || 0} отделов`, 'success');
                     }
                 }
             } catch(e) {
-                console.error('❌ Ошибка импорта:', e);
                 alert("Ошибка чтения JSON файла: " + e.message);
             }
         };
