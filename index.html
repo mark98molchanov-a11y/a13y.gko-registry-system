@@ -1716,65 +1716,239 @@ function EfficiencyCalculator() {
  function PowersImport() {
         const [uploadedFile, setUploadedFile] = useState(null);
         const [showMainContent, setShowMainContent] = useState(false);
-        const [recognizedRecords, setRecognizedRecords] = useState([
-            {
-                id: 1,
-                fio: "Иванов Иван Иванович",
-                position: "инженер",
-                power: "Пожарная безопасность",
-                status: "match",
-                systemUser: "Иванов И.И. (Инженер)",
-                selected: true
-            },
-            {
-                id: 2,
-                fio: "Петрова Анна Сергеевна",
-                position: "бухгалтер",
-                power: "Право подписи ЭЦП",
-                status: "notfound",
-                systemUser: "",
-                selected: true
-            },
-            {
-                id: 3,
-                fio: "Сидоров Павел Алексеевич",
-                position: "кладовщик",
-                power: "Администратор склада",
-                status: "conflict",
-                systemUser: "Петров П.А. (Менеджер)",
-                selected: true
-            },
-            {
-                id: 4,
-                fio: "Козлова Елена Дмитриевна",
-                position: "менеджер",
-                power: "Работа с клиентами",
-                status: "new",
-                systemUser: "",
-                selected: true
-            }
-        ]);
+        const [recognizedRecords, setRecognizedRecords] = useState([]);
+        const [isProcessing, setIsProcessing] = useState(false);
+        const [uploadError, setUploadError] = useState(null);
+        const [documentText, setDocumentText] = useState('');
+        const [documentInfo, setDocumentInfo] = useState({
+            number: '',
+            date: '',
+            title: ''
+        });
 
-        const handleFileUpload = (file) => {
-            setUploadedFile(file);
-            setShowMainContent(true);
+        // Функция для парсинга PDF
+        const parsePDF = async (file) => {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += pageText + '\n';
+            }
+            
+            return fullText;
         };
 
+        // Функция для парсинга DOCX
+        const parseDOCX = async (file) => {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            return result.value;
+        };
+
+        // Функция для извлечения информации о приказе
+        const extractOrderInfo = (text) => {
+            const info = {
+                number: '',
+                date: '',
+                title: ''
+            };
+            
+            // Поиск номера приказа
+            const numberMatch = text.match(/приказ\s*№?\s*([\d-]+)/i);
+            if (numberMatch) info.number = numberMatch[1];
+            
+            // Поиск даты
+            const dateMatch = text.match(/(\d{1,2})\s*[\.\s]\s*(\d{1,2})\s*[\.\s]\s*(\d{4})/);
+            if (dateMatch) {
+                info.date = `${dateMatch[1]}.${dateMatch[2]}.${dateMatch[3]}`;
+            }
+            
+            // Поиск названия
+            const titleMatch = text.match(/приказ\s*№?[\d-]*\s*["']?([^"'\n]+)["']?/i);
+            if (titleMatch) info.title = titleMatch[1].trim();
+            
+            return info;
+        };
+
+        // Функция для парсинга полномочий из текста
+        const parsePowersFromText = (text) => {
+            const records = [];
+            
+            // Паттерны для поиска
+            const patterns = [
+                // Назначить ответственным за (что) (ФИО)
+                {
+                    regex: /назначить\s+ответственным\s+за\s+([^.]+?)\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+                    powerIndex: 1,
+                    nameIndex: 2
+                },
+                // Предоставить право подписи (кому)
+                {
+                    regex: /предоставить\s+право\s+подписи\s+([^.]+?)\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+                    powerIndex: 1,
+                    nameIndex: 2
+                },
+                // Назначить администратором (чего) (кого)
+                {
+                    regex: /назначить\s+администратором\s+([^.]+?)\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+                    powerIndex: 1,
+                    nameIndex: 2
+                },
+                // Ответственным за (что) назначить (кого)
+                {
+                    regex: /ответственным\s+за\s+([^.]+?)\s+назначить\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+                    powerIndex: 1,
+                    nameIndex: 2
+                }
+            ];
+
+            // Поиск должностей
+            const positionRegex = /должность[:\s]*([а-яА-Я\s-]+)/gi;
+
+            patterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.regex.exec(text)) !== null) {
+                    const fullMatch = match[0];
+                    const power = match[pattern.powerIndex].trim();
+                    const fullName = match[pattern.nameIndex].trim();
+                    
+                    // Ищем должность в контексте
+                    let position = '';
+                    const context = fullMatch.substring(0, 200);
+                    const posMatch = positionRegex.exec(context);
+                    if (posMatch) {
+                        position = posMatch[1].trim();
+                    }
+                    
+                    // Проверяем, нет ли уже такой записи
+                    if (!records.some(r => r.fio === fullName && r.power === power)) {
+                        // Определяем статус (имитация проверки в системе)
+                        const status = determineStatus(fullName, position);
+                        
+                        records.push({
+                            id: Date.now() + records.length,
+                            fio: fullName,
+                            position: position || 'сотрудник',
+                            power: power,
+                            status: status,
+                            systemUser: getSystemUserSuggestion(fullName, position, status),
+                            selected: true
+                        });
+                    }
+                }
+            });
+
+            return records;
+        };
+
+        // Функция для определения статуса (имитация проверки в системе)
+        const determineStatus = (fio, position) => {
+            // Здесь должна быть реальная проверка в вашей системе
+            // Пока имитируем разные статусы для демонстрации
+            const random = Math.random();
+            if (random < 0.3) return 'match';
+            if (random < 0.6) return 'notfound';
+            if (random < 0.8) return 'conflict';
+            return 'new';
+        };
+
+        // Функция для предложения пользователя в системе
+        const getSystemUserSuggestion = (fio, position, status) => {
+            const nameParts = fio.split(' ');
+            const initials = nameParts.length >= 2 ? 
+                `${nameParts[0]} ${nameParts[1][0]}.` : fio;
+            
+            switch(status) {
+                case 'match':
+                    return `${initials} (${position || 'Сотрудник'})`;
+                case 'conflict':
+                    const otherNames = ['Петров', 'Сидоров', 'Иванов'];
+                    const otherName = otherNames[Math.floor(Math.random() * otherNames.length)];
+                    return `${otherName} ${nameParts[0]?.[0] || ''}. (Сотрудник)`;
+                default:
+                    return '';
+            }
+        };
+
+        // Обработка загруженного файла
+        const handleFileUpload = async (file) => {
+            setUploadedFile(file);
+            setIsProcessing(true);
+            setUploadError(null);
+            
+            try {
+                let extractedText = '';
+                
+                // Определяем тип файла и парсим
+                if (file.name.toLowerCase().endsWith('.pdf')) {
+                    extractedText = await parsePDF(file);
+                } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
+                    extractedText = await parseDOCX(file);
+                } else {
+                    throw new Error('Неподдерживаемый формат файла');
+                }
+                
+                setDocumentText(extractedText);
+                
+                // Извлекаем информацию о приказе
+                const orderInfo = extractOrderInfo(extractedText);
+                setDocumentInfo(orderInfo);
+                
+                // Парсим полномочия
+                const records = parsePowersFromText(extractedText);
+                
+                if (records.length === 0) {
+                    setUploadError('Не удалось найти назначения в документе. Проверьте формат документа.');
+                } else {
+                    setRecognizedRecords(records);
+                    setShowMainContent(true);
+                }
+                
+            } catch (error) {
+                console.error('Ошибка парсинга:', error);
+                setUploadError('Ошибка при обработке файла: ' + error.message);
+            } finally {
+                setIsProcessing(false);
+            }
+        };
+
+        // Сброс загрузки
         const resetFileUpload = () => {
             setUploadedFile(null);
             setShowMainContent(false);
+            setRecognizedRecords([]);
+            setDocumentText('');
+            setDocumentInfo({ number: '', date: '', title: '' });
+            setUploadError(null);
+        };
+
+        // Ручной ввод/редактирование текста документа
+        const handleManualTextInput = () => {
+            const manualText = prompt('Вставьте текст документа для распознавания:', documentText);
+            if (manualText !== null) {
+                setDocumentText(manualText);
+                const records = parsePowersFromText(manualText);
+                const orderInfo = extractOrderInfo(manualText);
+                setDocumentInfo(orderInfo);
+                setRecognizedRecords(records);
+                setShowMainContent(true);
+            }
         };
 
         const getStatusBadge = (status) => {
             switch(status) {
                 case 'match':
-                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800"><i className="fas fa-check-circle mr-1 text-xs mt-0.5"></i>Совпадает</span>;
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Совпадает</span>;
                 case 'notfound':
-                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"><i className="fas fa-exclamation-triangle mr-1 text-xs mt-0.5"></i>Не найдено</span>;
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Не найдено</span>;
                 case 'conflict':
-                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"><i className="fas fa-exclamation-circle mr-1 text-xs mt-0.5"></i>Конфликт</span>;
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Конфликт</span>;
                 case 'new':
-                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"><i className="fas fa-plus-circle mr-1 text-xs mt-0.5"></i>Будет создан</span>;
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Будет создан</span>;
                 default:
                     return null;
             }
@@ -1786,7 +1960,9 @@ function EfficiencyCalculator() {
                 <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-purple-600 rounded-lg">
-                            <i className="fas fa-file-import text-white text-xl"></i>
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-900">Импорт полномочий из приказа</h1>
@@ -1801,10 +1977,11 @@ function EfficiencyCalculator() {
                         className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
                             showMainContent ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-purple-500 bg-gray-50'
                         }`}
-                        onClick={() => document.getElementById('powersFileInput').click()}
+                        onClick={() => !isProcessing && document.getElementById('powersFileInput').click()}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                             e.preventDefault();
+                            if (isProcessing) return;
                             const file = e.dataTransfer.files[0];
                             if (file) handleFileUpload(file);
                         }}
@@ -1819,52 +1996,107 @@ function EfficiencyCalculator() {
                                 if (file) handleFileUpload(file);
                             }}
                         />
-                        <div className="space-y-3">
-                            <div className="flex justify-center">
-                                <div className={`p-3 rounded-full ${showMainContent ? 'bg-purple-200' : 'bg-purple-100'}`}>
-                                    <i className={`fas fa-cloud-upload-alt text-3xl ${showMainContent ? 'text-purple-600' : 'text-purple-500'}`}></i>
+                        
+                        {isProcessing ? (
+                            <div className="space-y-3">
+                                <div className="flex justify-center">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
                                 </div>
+                                <p className="text-lg font-medium text-gray-700">Обработка документа...</p>
+                                <p className="text-sm text-gray-500">Пожалуйста, подождите</p>
                             </div>
-                            {!showMainContent ? (
-                                <>
-                                    <p className="text-lg font-medium text-gray-700">Перетащите файл сюда или <span className="text-purple-600 underline cursor-pointer">выберите</span></p>
-                                    <p className="text-sm text-gray-500">Поддерживаются форматы PDF, DOCX (до 10 МБ)</p>
-                                </>
-                            ) : (
-                                <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
-                                    <div className="flex items-center space-x-3">
-                                        <i className={`fas fa-file-pdf text-red-500 text-xl`}></i>
-                                        <span className="text-sm font-medium text-gray-700">{uploadedFile?.name || 'Приказ_№55_от_12.03.2024.pdf'}</span>
+                        ) : !showMainContent ? (
+                            <div className="space-y-3">
+                                <div className="flex justify-center">
+                                    <div className="p-3 rounded-full bg-purple-100">
+                                        <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
                                     </div>
-                                    <button onClick={(e) => { e.stopPropagation(); resetFileUpload(); }} className="text-gray-500 hover:text-red-500">
-                                        <i className="fas fa-times"></i>
+                                </div>
+                                <p className="text-lg font-medium text-gray-700">
+                                    Перетащите файл сюда или <span className="text-purple-600 underline cursor-pointer">выберите</span>
+                                </p>
+                                <p className="text-sm text-gray-500">Поддерживаются форматы PDF, DOCX, DOC (до 10 МБ)</p>
+                                
+                                <div className="pt-4">
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleManualTextInput();
+                                        }}
+                                        className="text-sm text-purple-600 hover:text-purple-800 underline"
+                                    >
+                                        Или введите текст вручную
                                     </button>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+                                <div className="flex items-center space-x-3">
+                                    <svg className={`w-8 h-8 ${uploadedFile?.name?.toLowerCase().includes('.pdf') ? 'text-red-500' : 'text-blue-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <div className="text-left">
+                                        <p className="text-sm font-medium text-gray-700">{uploadedFile?.name}</p>
+                                        <p className="text-xs text-gray-500">
+                                            {(uploadedFile?.size / 1024).toFixed(2)} KB • Распознано записей: {recognizedRecords.length}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); resetFileUpload(); }} className="text-gray-500 hover:text-red-500">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                        
+                        {uploadError && (
+                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <p className="text-sm text-red-600">{uploadError}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Основная область с данными */}
-                {showMainContent && (
+                {showMainContent && recognizedRecords.length > 0 && (
                     <div className="space-y-6">
                         {/* Заголовок документа */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                                 <div className="p-2 bg-gray-100 rounded-lg">
-                                    <i className="fas fa-file-alt text-gray-600 text-xl"></i>
+                                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-800">Приказ №55 от 12.03.2024 "О назначении ответственных"</h2>
-                                    <p className="text-sm text-gray-500">Загружен: только что • {recognizedRecords.length} распознанных записей</p>
+                                    <h2 className="text-lg font-semibold text-gray-800">
+                                        Приказ {documentInfo.number ? `№${documentInfo.number}` : ''} 
+                                        {documentInfo.date ? ` от ${documentInfo.date}` : ''}
+                                        {documentInfo.title ? ` "${documentInfo.title}"` : ''}
+                                    </h2>
+                                    <p className="text-sm text-gray-500">
+                                        Загружен: только что • {recognizedRecords.length} распознанных записей
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex space-x-2">
-                                <button className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center">
-                                    <i className="fas fa-sync-alt mr-2"></i>Перезагрузить
+                                <button 
+                                    onClick={() => parsePowersFromText(documentText)}
+                                    className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
+                                >
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Перераспознать
                                 </button>
                                 <button className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center">
-                                    <i className="fas fa-search mr-2"></i>Проверить автоматически
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    Проверить в системе
                                 </button>
                             </div>
                         </div>
@@ -1875,39 +2107,20 @@ function EfficiencyCalculator() {
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
                                     <span className="font-medium text-gray-700 flex items-center">
-                                        <i className="fas fa-file-pdf text-red-500 mr-2"></i>Превью документа
+                                        <svg className="w-4 h-4 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Превью документа
                                     </span>
-                                    <span className="text-xs text-gray-500">стр. 1/3</span>
+                                    <span className="text-xs text-gray-500">
+                                        {uploadedFile?.name?.toLowerCase().includes('.pdf') ? 'PDF' : 'DOCX'}
+                                    </span>
                                 </div>
                                 <div className="p-4 bg-gray-50 font-mono text-sm h-96 overflow-y-auto">
-                                    <div className="space-y-4">
-                                        <p className="font-bold">ПРИКАЗ №55</p>
-                                        <p>г. Москва «12» марта 2024 г.</p>
-                                        <p className="font-bold mt-4">О назначении ответственных лиц</p>
-                                        <p className="mt-4">ПРИКАЗЫВАЮ:</p>
-                                        <ol className="list-decimal pl-5 space-y-3 mt-2">
-                                            <li className="pl-2">
-                                                <span className="bg-yellow-100 px-1">Назначить ответственным за пожарную безопасность</span><br/>
-                                                <span className="bg-blue-100 px-1 font-medium">Иванова Ивана Ивановича</span>, 
-                                                <span className="text-gray-600"> должность: инженер</span>
-                                            </li>
-                                            <li className="pl-2">
-                                                <span className="bg-yellow-100 px-1">Предоставить право подписи ЭЦП для сдачи отчетности</span><br/>
-                                                <span className="bg-blue-100 px-1 font-medium">Петровой Анне Сергеевне</span>, 
-                                                <span className="text-gray-600"> должность: бухгалтер</span>
-                                            </li>
-                                            <li className="pl-2">
-                                                <span className="bg-yellow-100 px-1">Назначить администратором системы "Склад-учет"</span><br/>
-                                                <span className="bg-blue-100 px-1 font-medium">Сидорова Павла Алексеевича</span>, 
-                                                <span className="text-gray-600"> должность: кладовщик</span>
-                                            </li>
-                                            <li className="pl-2">
-                                                <span className="bg-yellow-100 px-1">Ответственным за работу с клиентами назначить</span><br/>
-                                                <span className="bg-blue-100 px-1 font-medium">Козлову Елену Дмитриевну</span>
-                                            </li>
-                                        </ol>
-                                        <p className="mt-4">Директор _______________ А.В. Смирнов</p>
-                                    </div>
+                                    <pre className="whitespace-pre-wrap font-sans">
+                                        {documentText.substring(0, 2000)}
+                                        {documentText.length > 2000 && '...'}
+                                    </pre>
                                 </div>
                             </div>
 
@@ -1915,13 +2128,15 @@ function EfficiencyCalculator() {
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
                                     <span className="font-medium text-gray-700 flex items-center">
-                                        <i className="fas fa-users-cog text-purple-600 mr-2"></i>Распознанные полномочия
+                                        <svg className="w-4 h-4 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                        Распознанные полномочия
                                     </span>
                                     <div className="flex items-center space-x-2">
-                                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">{recognizedRecords.length} записи</span>
-                                        <button className="text-gray-500 hover:text-purple-600">
-                                            <i className="fas fa-redo-alt text-sm"></i>
-                                        </button>
+                                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                                            {recognizedRecords.length} записей
+                                        </span>
                                     </div>
                                 </div>
                                 
@@ -1930,7 +2145,18 @@ function EfficiencyCalculator() {
                                         <thead className="bg-gray-50 sticky top-0">
                                             <tr>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    <input type="checkbox" className="rounded border-gray-300" checked readOnly/>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="rounded border-gray-300"
+                                                        checked={recognizedRecords.every(r => r.selected)}
+                                                        onChange={() => {
+                                                            const allSelected = recognizedRecords.every(r => r.selected);
+                                                            setRecognizedRecords(recognizedRecords.map(r => ({
+                                                                ...r,
+                                                                selected: !allSelected
+                                                            })));
+                                                        }}
+                                                    />
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ФИО из приказа</th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Полномочие</th>
@@ -1947,10 +2173,9 @@ function EfficiencyCalculator() {
                                                             className="rounded border-gray-300" 
                                                             checked={record.selected}
                                                             onChange={() => {
-                                                                const newRecords = recognizedRecords.map(r => 
+                                                                setRecognizedRecords(recognizedRecords.map(r => 
                                                                     r.id === record.id ? {...r, selected: !r.selected} : r
-                                                                );
-                                                                setRecognizedRecords(newRecords);
+                                                                ));
                                                             }}
                                                         />
                                                     </td>
@@ -1968,10 +2193,9 @@ function EfficiencyCalculator() {
                                                             }`}
                                                             value={record.systemUser}
                                                             onChange={(e) => {
-                                                                const newRecords = recognizedRecords.map(r => 
+                                                                setRecognizedRecords(recognizedRecords.map(r => 
                                                                     r.id === record.id ? {...r, systemUser: e.target.value} : r
-                                                                );
-                                                                setRecognizedRecords(newRecords);
+                                                                ));
                                                             }}
                                                         >
                                                             {record.status === 'notfound' && (
@@ -1982,21 +2206,18 @@ function EfficiencyCalculator() {
                                                             )}
                                                             {record.status === 'match' && (
                                                                 <>
-                                                                    <option value="Иванов И.И. (Инженер)">Иванов И.И. (Инженер)</option>
-                                                                    <option value="Иванов И.И. (Совпадение)">Иванов И.И. (Совпадение)</option>
+                                                                    <option value={record.systemUser}>{record.systemUser}</option>
+                                                                    <option value="new">+ Создать как нового</option>
                                                                 </>
                                                             )}
                                                             {record.status === 'conflict' && (
                                                                 <>
-                                                                    <option value="Петров П.А. (Менеджер)">Петров П.А. (Менеджер) ⚠️</option>
-                                                                    <option value="Сидоров Павел (Кладовщик)" selected>⚠️ Сидоров Павел (Кладовщик)</option>
+                                                                    <option value={record.systemUser}>{record.systemUser} ⚠️</option>
+                                                                    <option value="new">+ Создать нового сотрудника</option>
                                                                 </>
                                                             )}
                                                             {record.status === 'new' && (
-                                                                <>
-                                                                    <option value="">+ Создать нового сотрудника</option>
-                                                                    <option value="Козлова Е. (существующий)">Козлова Е. (существующий)</option>
-                                                                </>
+                                                                <option value="">+ Создать нового сотрудника</option>
                                                             )}
                                                         </select>
                                                     </td>
@@ -2009,41 +2230,82 @@ function EfficiencyCalculator() {
                                     </table>
                                 </div>
                                 
-                                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-between items-center text-sm">
-                                    <div className="flex items-center space-x-4">
-                                        <span className="text-gray-600">Выбрано: <span className="font-bold">{recognizedRecords.filter(r => r.selected).length}</span> из {recognizedRecords.length}</span>
-                                        <span className="text-gray-600">
+                                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <div className="text-gray-600">
+                                            Выбрано: <span className="font-bold">
+                                                {recognizedRecords.filter(r => r.selected).length}
+                                            </span> из {recognizedRecords.length}
+                                        </div>
+                                        <div className="text-gray-600">
                                             С сотрудниками: 
-                                            <span className="font-bold text-green-600 ml-1">{recognizedRecords.filter(r => r.status === 'match').length} совпадение</span>,
-                                            <span className="font-bold text-red-600 ml-1">{recognizedRecords.filter(r => r.status === 'notfound').length} не найдено</span>,
-                                            <span className="font-bold text-yellow-600 ml-1">{recognizedRecords.filter(r => r.status === 'conflict').length} конфликт</span>
-                                        </span>
+                                            <span className="font-bold text-green-600 ml-1">
+                                                {recognizedRecords.filter(r => r.status === 'match').length} совпад.
+                                            </span>,
+                                            <span className="font-bold text-red-600 ml-1">
+                                                {recognizedRecords.filter(r => r.status === 'notfound').length} не найдено
+                                            </span>,
+                                            <span className="font-bold text-yellow-600 ml-1">
+                                                {recognizedRecords.filter(r => r.status === 'conflict').length} конфликт
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Блок действий */}
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                                <label className="flex items-center space-x-2 text-sm text-gray-600">
-                                    <input type="checkbox" className="rounded border-gray-300" defaultChecked/>
-                                    <span>Сохранить приказ в архиве документов</span>
-                                </label>
-                                <label className="flex items-center space-x-2 text-sm text-gray-600">
-                                    <input type="checkbox" className="rounded border-gray-300"/>
-                                    <span>Отправить уведомления сотрудникам</span>
-                                </label>
-                            </div>
-                            <div className="flex space-x-3">
-                                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
-                                    <i className="fas fa-times mr-2"></i>Отмена
-                                </button>
-                                <button className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center font-medium">
-                                    <i className="fas fa-check-circle mr-2"></i>Применить полномочия
-                                </button>
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <label className="flex items-center space-x-2 text-sm text-gray-600">
+                                        <input type="checkbox" className="rounded border-gray-300" defaultChecked/>
+                                        <span>Сохранить приказ в архиве документов</span>
+                                    </label>
+                                    <label className="flex items-center space-x-2 text-sm text-gray-600">
+                                        <input type="checkbox" className="rounded border-gray-300"/>
+                                        <span>Отправить уведомления сотрудникам</span>
+                                    </label>
+                                </div>
+                                <div className="flex space-x-3">
+                                    <button 
+                                        onClick={resetFileUpload}
+                                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Отмена
+                                    </button>
+                                    <button 
+                                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center"
+                                        onClick={() => {
+                                            const selectedRecords = recognizedRecords.filter(r => r.selected);
+                                            alert(`Применены полномочия для ${selectedRecords.length} сотрудников`);
+                                        }}
+                                    >
+                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Применить полномочия
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                )}
+                
+                {/* Сообщение если нет распознанных записей */}
+                {showMainContent && recognizedRecords.length === 0 && !isProcessing && (
+                    <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+                        <svg className="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p className="text-lg font-medium text-slate-700">Не удалось распознать назначения</p>
+                        <p className="text-sm text-slate-500 mt-2">Попробуйте другой файл или введите текст вручную</p>
+                        <button 
+                            onClick={handleManualTextInput}
+                            className="mt-4 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                        >
+                            Ввести текст вручную
+                        </button>
                     </div>
                 )}
             </div>
