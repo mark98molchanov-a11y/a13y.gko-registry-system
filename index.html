@@ -1750,129 +1750,187 @@ function EfficiencyCalculator() {
         };
 
         // Функция для извлечения информации о приказе
-        const extractOrderInfo = (text) => {
-            const info = {
-                number: '',
-                date: '',
-                title: ''
-            };
-            
-            // Поиск номера приказа
-            const numberMatch = text.match(/приказ\s*№?\s*([\d-]+)/i);
-            if (numberMatch) info.number = numberMatch[1];
-            
-            // Поиск даты
-            const dateMatch = text.match(/(\d{1,2})\s*[\.\s]\s*(\d{1,2})\s*[\.\s]\s*(\d{4})/);
-            if (dateMatch) {
-                info.date = `${dateMatch[1]}.${dateMatch[2]}.${dateMatch[3]}`;
-            }
-            
-            // Поиск названия
-            const titleMatch = text.match(/приказ\s*№?[\d-]*\s*["']?([^"'\n]+)["']?/i);
-            if (titleMatch) info.title = titleMatch[1].trim();
-            
-            return info;
-        };
+const extractOrderInfo = (text) => {
+    const info = {
+        number: '',
+        date: '',
+        title: ''
+    };
+    
+    // Поиск номера приказа
+    const numberMatch = text.match(/приказ\s*№?\s*([\d-]+)/i);
+    if (numberMatch) info.number = numberMatch[1];
+    
+    // Поиск даты
+    const dateMatch = text.match(/(\d{1,2})\s*[\.\s]\s*(\d{1,2})\s*[\.\s]\s*(\d{4})/);
+    if (dateMatch) {
+        info.date = `${dateMatch[1]}.${dateMatch[2]}.${dateMatch[3]}`;
+    }
+    
+    // Поиск названия
+    const titleMatch = text.match(/приказ\s*№?[\d-]*\s*["'«]?([^"'\n]+)["'»]?/i);
+    if (titleMatch) info.title = titleMatch[1].trim();
+    
+    return info;
+};
 
-        // Функция для парсинга полномочий из текста
-        const parsePowersFromText = (text) => {
-            const records = [];
-            
-            // Паттерны для поиска
-            const patterns = [
-                // Назначить ответственным за (что) (ФИО)
-                {
-                    regex: /назначить\s+ответственным\s+за\s+([^.]+?)\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
-                    powerIndex: 1,
-                    nameIndex: 2
-                },
-                // Предоставить право подписи (кому)
-                {
-                    regex: /предоставить\s+право\s+подписи\s+([^.]+?)\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
-                    powerIndex: 1,
-                    nameIndex: 2
-                },
-                // Назначить администратором (чего) (кого)
-                {
-                    regex: /назначить\s+администратором\s+([^.]+?)\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
-                    powerIndex: 1,
-                    nameIndex: 2
-                },
-                // Ответственным за (что) назначить (кого)
-                {
-                    regex: /ответственным\s+за\s+([^.]+?)\s+назначить\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
-                    powerIndex: 1,
-                    nameIndex: 2
-                }
-            ];
-
-            // Поиск должностей
-            const positionRegex = /должность[:\s]*([а-яА-Я\s-]+)/gi;
-
-            patterns.forEach(pattern => {
-                let match;
-                while ((match = pattern.regex.exec(text)) !== null) {
-                    const fullMatch = match[0];
-                    const power = match[pattern.powerIndex].trim();
-                    const fullName = match[pattern.nameIndex].trim();
-                    
-                    // Ищем должность в контексте
-                    let position = '';
-                    const context = fullMatch.substring(0, 200);
-                    const posMatch = positionRegex.exec(context);
-                    if (posMatch) {
-                        position = posMatch[1].trim();
-                    }
-                    
-                    // Проверяем, нет ли уже такой записи
-                    if (!records.some(r => r.fio === fullName && r.power === power)) {
-                        // Определяем статус (имитация проверки в системе)
-                        const status = determineStatus(fullName, position);
+       const parsePowersFromText = (text) => {
+    const records = [];
+    
+    // Паттерны для поиска бюджетных полномочий и доступов
+    const patterns = [
+        // Право подписи
+        {
+            regex: /право\s+подписи\s+возложено\s+на:\s*([^]+?)(?=\n\n|\n\d\.|\n[А-Я]|$)/gi,
+            process: (match) => {
+                const context = match[1];
+                const lines = context.split('\n');
+                let currentType = '';
+                
+                lines.forEach(line => {
+                    if (line.includes('первой подписи')) currentType = 'Право первой подписи';
+                    else if (line.includes('второй подписи')) currentType = 'Право второй подписи';
+                    else if (line.includes('--')) {
+                        const nameMatch = line.match(/--\s*([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/);
+                        const positionMatch = line.match(/[—–-]\s*(.+?)(?:\s*[—–-]|$)/);
                         
+                        if (nameMatch) {
+                            records.push({
+                                id: Date.now() + records.length,
+                                fio: nameMatch[1],
+                                position: extractPosition(line) || 'должностное лицо',
+                                power: currentType,
+                                status: determineStatus(nameMatch[1]),
+                                systemUser: getSystemUserSuggestion(nameMatch[1], currentType),
+                                selected: true
+                            });
+                        }
+                    }
+                });
+            }
+        },
+        
+        // Доступ в информационные системы
+        {
+            regex: /доступ\s+в\s+([^\n]+?)\s+имеют\s*:\s*([^]+?)(?=\n\n|\n\d\.|\n[А-Я]|$)/gi,
+            powerIndex: 1,
+            namesIndex: 2
+        },
+        {
+            regex: /наделяет\s+правом\s+доступа\s+([^]+?)(?=\n\n|\n\d\.|\n[А-Я]|$)/gi,
+            process: (match) => {
+                const context = match[1];
+                const lines = context.split('\n');
+                
+                lines.forEach(line => {
+                    const nameMatch = line.match(/([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/);
+                    const systemMatch = context.match(/в\s+([А-Я\s]+)/i);
+                    
+                    if (nameMatch) {
                         records.push({
                             id: Date.now() + records.length,
-                            fio: fullName,
-                            position: position || 'сотрудник',
-                            power: power,
-                            status: status,
-                            systemUser: getSystemUserSuggestion(fullName, position, status),
+                            fio: nameMatch[1],
+                            position: extractPosition(line) || 'сотрудник',
+                            power: systemMatch ? `Доступ в ${systemMatch[1]}` : 'Доступ в информационные системы',
+                            status: determineStatus(nameMatch[1]),
+                            systemUser: getSystemUserSuggestion(nameMatch[1], 'доступ'),
                             selected: true
                         });
                     }
-                }
-            });
-
-            return records;
-        };
-
-        // Функция для определения статуса (имитация проверки в системе)
-        const determineStatus = (fio, position) => {
-            // Здесь должна быть реальная проверка в вашей системе
-            // Пока имитируем разные статусы для демонстрации
-            const random = Math.random();
-            if (random < 0.3) return 'match';
-            if (random < 0.6) return 'notfound';
-            if (random < 0.8) return 'conflict';
-            return 'new';
-        };
-
-        // Функция для предложения пользователя в системе
-        const getSystemUserSuggestion = (fio, position, status) => {
-            const nameParts = fio.split(' ');
-            const initials = nameParts.length >= 2 ? 
-                `${nameParts[0]} ${nameParts[1][0]}.` : fio;
-            
-            switch(status) {
-                case 'match':
-                    return `${initials} (${position || 'Сотрудник'})`;
-                case 'conflict':
-                    const otherNames = ['Петров', 'Сидоров', 'Иванов'];
-                    const otherName = otherNames[Math.floor(Math.random() * otherNames.length)];
-                    return `${otherName} ${nameParts[0]?.[0] || ''}. (Сотрудник)`;
-                default:
-                    return '';
+                });
             }
-        };
+        },
+        
+        // Ответственные исполнители (из приложений)
+        {
+            regex: /ответственный\s+исполнитель\s*[:\s]+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+            nameIndex: 1
+        },
+        {
+            regex: /начальник\s+отдела\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+            nameIndex: 1
+        },
+        {
+            regex: /заместитель\s+начальника\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+            nameIndex: 1
+        },
+        {
+            regex: /главный\s+специалист\s+([А-Я][а-я]+\s+[А-Я][а-я]+\s+[А-Я][а-я]+)/gi,
+            nameIndex: 1
+        }
+    ];
+
+    // Функция для извлечения должности из строки
+    const extractPosition = (line) => {
+        const posMatch = line.match(/[—–-]\s*([^—–-]+?)(?=\s*[—–-]|$)/);
+        if (posMatch) {
+            return posMatch[1].trim();
+        }
+        return '';
+    };
+
+    // Обработка всех паттернов
+    patterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.regex.exec(text)) !== null) {
+            if (pattern.process) {
+                pattern.process(match);
+            } else if (pattern.nameIndex) {
+                const fullName = match[pattern.nameIndex].trim();
+                if (fullName && !records.some(r => r.fio === fullName)) {
+                    records.push({
+                        id: Date.now() + records.length,
+                        fio: fullName,
+                        position: extractPosition(match[0]) || 'сотрудник',
+                        power: pattern.powerIndex ? match[pattern.powerIndex].trim() : 'Полномочие',
+                        status: determineStatus(fullName),
+                        systemUser: getSystemUserSuggestion(fullName, 'полномочие'),
+                        selected: true
+                    });
+                }
+            }
+        }
+    });
+
+    // Удаляем дубликаты по ФИО
+    const uniqueRecords = [];
+    const seen = new Set();
+    records.forEach(record => {
+        if (!seen.has(record.fio)) {
+            seen.add(record.fio);
+            uniqueRecords.push(record);
+        }
+    });
+
+    return uniqueRecords;
+};
+
+// Обновленная функция для определения статуса
+const determineStatus = (fio) => {
+    // Здесь можно добавить логику проверки в реальной системе
+    // Пока имитируем разные статусы для демонстрации
+    const random = Math.random();
+    if (random < 0.4) return 'match';
+    if (random < 0.7) return 'notfound';
+    return 'conflict';
+};
+
+// Обновленная функция для предложения пользователя
+const getSystemUserSuggestion = (fio, power) => {
+    const nameParts = fio.split(' ');
+    const initials = nameParts.length >= 2 ? 
+        `${nameParts[0]} ${nameParts[1][0]}.` : fio;
+    
+    // Имитация разных статусов
+    const random = Math.random();
+    if (random < 0.4) {
+        return `${initials} (в системе)`;
+    } else if (random < 0.7) {
+        return '';
+    } else {
+        return `${nameParts[0]} П. (конфликт)`;
+    }
+};
 
         // Обработка загруженного файла
         const handleFileUpload = async (file) => {
