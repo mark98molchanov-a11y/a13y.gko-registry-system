@@ -2052,36 +2052,6 @@ function EfficiencyCalculator() {
             root.render(<PowersImport />);
         }
     }
-    } else if (tabName === 'dio') {
-        // Скрываем все кнопки и надписи
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.add('hidden');
-        
-        if (resetBtnText) resetBtnText.textContent = '';
-        
-        currentTab = 'dio';
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        
-        if (typeof window.initTreeInTab === 'function' && !window.treeInitialized) {
-            setTimeout(() => {
-                window.initTreeInTab('dioTabContent');
-            }, 100);
-        }
-    } else if (tabName === 'powers') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.add('hidden');
-        
-        if (resetBtnText) resetBtnText.textContent = 'Сброс полномочий';
-        
-        currentTab = 'powers';
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        
-        initPowersTab();
-    }
 function initCalculator() {
     const calculatorRoot = document.getElementById('calculatorRoot');
     if (calculatorRoot) {
