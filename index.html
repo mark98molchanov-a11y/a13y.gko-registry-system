@@ -463,13 +463,17 @@
         <div id="dioCollapseIcon" class="ml-auto transition-transform">▼</div>
     </div>
 
-    <!-- Подразделы Базы ДИО -->
-    <div id="dioSubsectionsContainer" style="display: block;">
-        <div class="book-subsection" onclick="switchTab('dio')" id="navDIO">
-            <div class="section-icon">🌳</div>
-            <span>Структура ДИО</span>
-        </div>
-    </div>
+            <div id="dioSubsectionsContainer" style="display: block;">
+                <div class="book-subsection" onclick="switchTab('dio')" id="navDIO">
+                    <div class="section-icon">🌳</div>
+                    <span>Структура ДИО</span>
+                </div>
+                <!-- НОВАЯ ПОДВКЛАДКА: Импорт полномочий -->
+                <div class="book-subsection" onclick="switchTab('powers')" id="navPowers">
+                    <div class="section-icon">📋</div>
+                    <span>Импорт полномочий</span>
+                </div>
+            </div>
 </aside>
 
         <main class="book-content">
@@ -737,10 +741,12 @@
             </div>
 <div class="tab-content" id="dioTab">
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="dioTabContent">
-        <!-- Контейнер для дерева будет заполнен динамически -->
-        <!-- Надпись "Добавить в ДИО" удалена, так как не нужна -->
-    </div>
-</div>
+                </div>
+            </div>
+            <!-- НОВАЯ ВКЛАДКА: Импорт полномочий -->
+            <div class="tab-content" id="powersTab">
+                <div id="powersRoot"></div>
+            </div>
         </main>
     </div>
     <footer class="bg-white border-t border-slate-200 mt-auto py-4">
@@ -1702,7 +1708,403 @@ function EfficiencyCalculator() {
             </div>
         );
     }
+ function PowersImport() {
+        const [uploadedFile, setUploadedFile] = useState(null);
+        const [showMainContent, setShowMainContent] = useState(false);
+        const [recognizedRecords, setRecognizedRecords] = useState([
+            {
+                id: 1,
+                fio: "Иванов Иван Иванович",
+                position: "инженер",
+                power: "Пожарная безопасность",
+                status: "match",
+                systemUser: "Иванов И.И. (Инженер)",
+                selected: true
+            },
+            {
+                id: 2,
+                fio: "Петрова Анна Сергеевна",
+                position: "бухгалтер",
+                power: "Право подписи ЭЦП",
+                status: "notfound",
+                systemUser: "",
+                selected: true
+            },
+            {
+                id: 3,
+                fio: "Сидоров Павел Алексеевич",
+                position: "кладовщик",
+                power: "Администратор склада",
+                status: "conflict",
+                systemUser: "Петров П.А. (Менеджер)",
+                selected: true
+            },
+            {
+                id: 4,
+                fio: "Козлова Елена Дмитриевна",
+                position: "менеджер",
+                power: "Работа с клиентами",
+                status: "new",
+                systemUser: "",
+                selected: true
+            }
+        ]);
 
+        const handleFileUpload = (file) => {
+            setUploadedFile(file);
+            setShowMainContent(true);
+        };
+
+        const resetFileUpload = () => {
+            setUploadedFile(null);
+            setShowMainContent(false);
+        };
+
+        const getStatusBadge = (status) => {
+            switch(status) {
+                case 'match':
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800"><i className="fas fa-check-circle mr-1 text-xs mt-0.5"></i>Совпадает</span>;
+                case 'notfound':
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"><i className="fas fa-exclamation-triangle mr-1 text-xs mt-0.5"></i>Не найдено</span>;
+                case 'conflict':
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"><i className="fas fa-exclamation-circle mr-1 text-xs mt-0.5"></i>Конфликт</span>;
+                case 'new':
+                    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"><i className="fas fa-plus-circle mr-1 text-xs mt-0.5"></i>Будет создан</span>;
+                default:
+                    return null;
+            }
+        };
+
+        return (
+            <div className="max-w-7xl mx-auto p-2 md:p-6">
+                {/* Шапка вкладки */}
+                <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-600 rounded-lg">
+                            <i className="fas fa-file-import text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-900">Импорт полномочий из приказа</h1>
+                            <p className="text-sm text-slate-500 mt-1">Загрузите приказ в формате PDF или Word для автоматического назначения прав сотрудникам</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Область загрузки файла */}
+                <div className="mb-6 p-6 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div 
+                        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                            showMainContent ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-purple-500 bg-gray-50'
+                        }`}
+                        onClick={() => document.getElementById('powersFileInput').click()}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files[0];
+                            if (file) handleFileUpload(file);
+                        }}
+                    >
+                        <input 
+                            type="file" 
+                            id="powersFileInput" 
+                            className="hidden" 
+                            accept=".pdf,.docx,.doc"
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) handleFileUpload(file);
+                            }}
+                        />
+                        <div className="space-y-3">
+                            <div className="flex justify-center">
+                                <div className={`p-3 rounded-full ${showMainContent ? 'bg-purple-200' : 'bg-purple-100'}`}>
+                                    <i className={`fas fa-cloud-upload-alt text-3xl ${showMainContent ? 'text-purple-600' : 'text-purple-500'}`}></i>
+                                </div>
+                            </div>
+                            {!showMainContent ? (
+                                <>
+                                    <p className="text-lg font-medium text-gray-700">Перетащите файл сюда или <span className="text-purple-600 underline cursor-pointer">выберите</span></p>
+                                    <p className="text-sm text-gray-500">Поддерживаются форматы PDF, DOCX (до 10 МБ)</p>
+                                </>
+                            ) : (
+                                <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+                                    <div className="flex items-center space-x-3">
+                                        <i className={`fas fa-file-pdf text-red-500 text-xl`}></i>
+                                        <span className="text-sm font-medium text-gray-700">{uploadedFile?.name || 'Приказ_№55_от_12.03.2024.pdf'}</span>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); resetFileUpload(); }} className="text-gray-500 hover:text-red-500">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Основная область с данными */}
+                {showMainContent && (
+                    <div className="space-y-6">
+                        {/* Заголовок документа */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                                <div className="p-2 bg-gray-100 rounded-lg">
+                                    <i className="fas fa-file-alt text-gray-600 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-800">Приказ №55 от 12.03.2024 "О назначении ответственных"</h2>
+                                    <p className="text-sm text-gray-500">Загружен: только что • {recognizedRecords.length} распознанных записей</p>
+                                </div>
+                            </div>
+                            <div className="flex space-x-2">
+                                <button className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center">
+                                    <i className="fas fa-sync-alt mr-2"></i>Перезагрузить
+                                </button>
+                                <button className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center">
+                                    <i className="fas fa-search mr-2"></i>Проверить автоматически
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Две колонки */}
+                        <div className="grid grid-cols-2 gap-6">
+                            {/* Левая колонка: Превью документа */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                                    <span className="font-medium text-gray-700 flex items-center">
+                                        <i className="fas fa-file-pdf text-red-500 mr-2"></i>Превью документа
+                                    </span>
+                                    <span className="text-xs text-gray-500">стр. 1/3</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 font-mono text-sm h-96 overflow-y-auto">
+                                    <div className="space-y-4">
+                                        <p className="font-bold">ПРИКАЗ №55</p>
+                                        <p>г. Москва «12» марта 2024 г.</p>
+                                        <p className="font-bold mt-4">О назначении ответственных лиц</p>
+                                        <p className="mt-4">ПРИКАЗЫВАЮ:</p>
+                                        <ol className="list-decimal pl-5 space-y-3 mt-2">
+                                            <li className="pl-2">
+                                                <span className="bg-yellow-100 px-1">Назначить ответственным за пожарную безопасность</span><br/>
+                                                <span className="bg-blue-100 px-1 font-medium">Иванова Ивана Ивановича</span>, 
+                                                <span className="text-gray-600"> должность: инженер</span>
+                                            </li>
+                                            <li className="pl-2">
+                                                <span className="bg-yellow-100 px-1">Предоставить право подписи ЭЦП для сдачи отчетности</span><br/>
+                                                <span className="bg-blue-100 px-1 font-medium">Петровой Анне Сергеевне</span>, 
+                                                <span className="text-gray-600"> должность: бухгалтер</span>
+                                            </li>
+                                            <li className="pl-2">
+                                                <span className="bg-yellow-100 px-1">Назначить администратором системы "Склад-учет"</span><br/>
+                                                <span className="bg-blue-100 px-1 font-medium">Сидорова Павла Алексеевича</span>, 
+                                                <span className="text-gray-600"> должность: кладовщик</span>
+                                            </li>
+                                            <li className="pl-2">
+                                                <span className="bg-yellow-100 px-1">Ответственным за работу с клиентами назначить</span><br/>
+                                                <span className="bg-blue-100 px-1 font-medium">Козлову Елену Дмитриевну</span>
+                                            </li>
+                                        </ol>
+                                        <p className="mt-4">Директор _______________ А.В. Смирнов</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Правая колонка: Таблица полномочий */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                                    <span className="font-medium text-gray-700 flex items-center">
+                                        <i className="fas fa-users-cog text-purple-600 mr-2"></i>Распознанные полномочия
+                                    </span>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">{recognizedRecords.length} записи</span>
+                                        <button className="text-gray-500 hover:text-purple-600">
+                                            <i className="fas fa-redo-alt text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <input type="checkbox" className="rounded border-gray-300" checked readOnly/>
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ФИО из приказа</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Полномочие</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Сотрудник в системе</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {recognizedRecords.map((record) => (
+                                                <tr key={record.id} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-3">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="rounded border-gray-300" 
+                                                            checked={record.selected}
+                                                            onChange={() => {
+                                                                const newRecords = recognizedRecords.map(r => 
+                                                                    r.id === record.id ? {...r, selected: !r.selected} : r
+                                                                );
+                                                                setRecognizedRecords(newRecords);
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="text-sm font-medium text-gray-900">{record.fio}</div>
+                                                        <div className="text-xs text-gray-500">{record.position}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-700">{record.power}</td>
+                                                    <td className="px-4 py-3">
+                                                        <select 
+                                                            className={`text-sm border rounded-lg w-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                                                                record.status === 'notfound' ? 'border-red-300 bg-red-50' :
+                                                                record.status === 'conflict' ? 'border-yellow-300 bg-yellow-50' :
+                                                                'border-gray-300'
+                                                            }`}
+                                                            value={record.systemUser}
+                                                            onChange={(e) => {
+                                                                const newRecords = recognizedRecords.map(r => 
+                                                                    r.id === record.id ? {...r, systemUser: e.target.value} : r
+                                                                );
+                                                                setRecognizedRecords(newRecords);
+                                                            }}
+                                                        >
+                                                            {record.status === 'notfound' && (
+                                                                <>
+                                                                    <option value="">❌ Не найдено в системе</option>
+                                                                    <option value="new">+ Создать нового сотрудника</option>
+                                                                </>
+                                                            )}
+                                                            {record.status === 'match' && (
+                                                                <>
+                                                                    <option value="Иванов И.И. (Инженер)">Иванов И.И. (Инженер)</option>
+                                                                    <option value="Иванов И.И. (Совпадение)">Иванов И.И. (Совпадение)</option>
+                                                                </>
+                                                            )}
+                                                            {record.status === 'conflict' && (
+                                                                <>
+                                                                    <option value="Петров П.А. (Менеджер)">Петров П.А. (Менеджер) ⚠️</option>
+                                                                    <option value="Сидоров Павел (Кладовщик)" selected>⚠️ Сидоров Павел (Кладовщик)</option>
+                                                                </>
+                                                            )}
+                                                            {record.status === 'new' && (
+                                                                <>
+                                                                    <option value="">+ Создать нового сотрудника</option>
+                                                                    <option value="Козлова Е. (существующий)">Козлова Е. (существующий)</option>
+                                                                </>
+                                                            )}
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {getStatusBadge(record.status)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-between items-center text-sm">
+                                    <div className="flex items-center space-x-4">
+                                        <span className="text-gray-600">Выбрано: <span className="font-bold">{recognizedRecords.filter(r => r.selected).length}</span> из {recognizedRecords.length}</span>
+                                        <span className="text-gray-600">
+                                            С сотрудниками: 
+                                            <span className="font-bold text-green-600 ml-1">{recognizedRecords.filter(r => r.status === 'match').length} совпадение</span>,
+                                            <span className="font-bold text-red-600 ml-1">{recognizedRecords.filter(r => r.status === 'notfound').length} не найдено</span>,
+                                            <span className="font-bold text-yellow-600 ml-1">{recognizedRecords.filter(r => r.status === 'conflict').length} конфликт</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Блок действий */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                                <label className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <input type="checkbox" className="rounded border-gray-300" defaultChecked/>
+                                    <span>Сохранить приказ в архиве документов</span>
+                                </label>
+                                <label className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <input type="checkbox" className="rounded border-gray-300"/>
+                                    <span>Отправить уведомления сотрудникам</span>
+                                </label>
+                            </div>
+                            <div className="flex space-x-3">
+                                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
+                                    <i className="fas fa-times mr-2"></i>Отмена
+                                </button>
+                                <button className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center font-medium">
+                                    <i className="fas fa-check-circle mr-2"></i>Применить полномочия
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Функция инициализации для вкладки полномочий
+    function initPowersTab() {
+        const powersRoot = document.getElementById('powersRoot');
+        if (powersRoot) {
+            const root = ReactDOM.createRoot(powersRoot);
+            root.render(<PowersImport />);
+        }
+    }
+ШАГ 4: Обновите функцию switchTab
+Найдите функцию switchTab (примерно после строки 1580). Добавьте обработку нового таба powers внутри функции:
+
+Найдите блок if (tabName === 'dio') и после него, но перед закрывающей фигурной скобкой функции, добавьте новый блок else if (tabName === 'powers'):
+
+javascript
+    } else if (tabName === 'powers') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden'); // Скрываем кнопку "Добавить"
+        
+        if (resetBtnText) resetBtnText.textContent = 'Сброс полномочий';
+        
+        currentTab = 'powers';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        initPowersTab();
+    }
+В итоге блок switchTab должен выглядеть так (показана только нужная часть):
+
+javascript
+    } else if (tabName === 'dio') {
+        // Скрываем все кнопки и надписи
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = '';
+        
+        currentTab = 'dio';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        if (typeof window.initTreeInTab === 'function' && !window.treeInitialized) {
+            setTimeout(() => {
+                window.initTreeInTab('dioTabContent');
+            }, 100);
+        }
+    } else if (tabName === 'powers') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = 'Сброс полномочий';
+        
+        currentTab = 'powers';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        initPowersTab();
+    }
 function initCalculator() {
     const calculatorRoot = document.getElementById('calculatorRoot');
     if (calculatorRoot) {
