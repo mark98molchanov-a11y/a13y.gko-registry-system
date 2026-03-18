@@ -10,7 +10,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+<script>
+    // Инициализация PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+</script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
@@ -2045,13 +2050,17 @@ function EfficiencyCalculator() {
         );
     }
 
-    function initPowersTab() {
-        const powersRoot = document.getElementById('powersRoot');
-        if (powersRoot) {
-            const root = ReactDOM.createRoot(powersRoot);
-            root.render(<PowersImport />);
+function initPowersTab() {
+    const powersRoot = document.getElementById('powersRoot');
+    if (powersRoot) {
+        // Очищаем предыдущий рендер, если был
+        if (window.powersRoot && window.powersRoot.unmount) {
+            window.powersRoot.unmount();
         }
+        window.powersRoot = ReactDOM.createRoot(powersRoot);
+        window.powersRoot.render(<PowersImport />);
     }
+}
 function initCalculator() {
     const calculatorRoot = document.getElementById('calculatorRoot');
     if (calculatorRoot) {
