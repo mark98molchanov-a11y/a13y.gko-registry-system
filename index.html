@@ -2045,7 +2045,6 @@ function EfficiencyCalculator() {
         );
     }
 
-    // Функция инициализации для вкладки полномочий
     function initPowersTab() {
         const powersRoot = document.getElementById('powersRoot');
         if (powersRoot) {
@@ -2053,28 +2052,6 @@ function EfficiencyCalculator() {
             root.render(<PowersImport />);
         }
     }
-ШАГ 4: Обновите функцию switchTab
-Найдите функцию switchTab (примерно после строки 1580). Добавьте обработку нового таба powers внутри функции:
-
-Найдите блок if (tabName === 'dio') и после него, но перед закрывающей фигурной скобкой функции, добавьте новый блок else if (tabName === 'powers'):
-
-javascript
-    } else if (tabName === 'powers') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.add('hidden'); // Скрываем кнопку "Добавить"
-        
-        if (resetBtnText) resetBtnText.textContent = 'Сброс полномочий';
-        
-        currentTab = 'powers';
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        
-        initPowersTab();
-    }
-В итоге блок switchTab должен выглядеть так (показана только нужная часть):
-
-javascript
     } else if (tabName === 'dio') {
         // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
@@ -2784,7 +2761,7 @@ function switchTab(tabName) {
     }
     // ===== КОНЕЦ УПРАВЛЕНИЯ КНОПКОЙ СБРОСА =====
     
-    if (tabName === 'dio') {
+   } else if (tabName === 'dio') {
         // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
@@ -2803,6 +2780,19 @@ function switchTab(tabName) {
                 window.initTreeInTab('dioTabContent');
             }, 100);
         }
+    } else if (tabName === 'powers') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        const resetBtnText = document.getElementById('resetBtnText');
+        if (resetBtnText) resetBtnText.textContent = 'Сброс полномочий';
+        
+        currentTab = 'powers';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        initPowersTab();
     } else if (tabName === 'npas') {
         // Для других вкладок показываем кнопки обратно
         document.getElementById('npaImportButtons').classList.remove('hidden');
