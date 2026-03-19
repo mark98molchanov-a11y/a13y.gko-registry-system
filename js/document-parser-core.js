@@ -28,7 +28,7 @@ if (typeof window.DocumentParser === 'undefined') {
             const employees = [];
             this.positionMap.clear();
             
-            const findEmployees = (node, path = []) => {
+            const findEmployees = (node) => {
                 // Проверяем, является ли узел сотрудником (содержит ФИО)
                 if (node.content && typeof node.content.text === 'string') {
                     const text = node.content.text;
@@ -80,7 +80,7 @@ if (typeof window.DocumentParser === 'undefined') {
                 
                 // Рекурсивно обходим детей
                 if (node.children) {
-                    node.children.forEach(child => findEmployees(child, [...path, node]));
+                    node.children.forEach(child => findEmployees(child));
                 }
             };
             
@@ -98,7 +98,6 @@ if (typeof window.DocumentParser === 'undefined') {
          */
         getParentNames(node) {
             const names = [];
-            let current = node;
             let parent = this.findParent(window.treeApp.treeData, node.id);
             
             while (parent) {
@@ -131,8 +130,10 @@ if (typeof window.DocumentParser === 'undefined') {
          * Индексирует сотрудника по ключевым словам из должности
          */
         indexByPosition(text, employee) {
+            if (!text) return;
+            
             // Разбиваем на слова и индексируем
-            const words = text.split(/[\s,.-]+/).filter(w => w.length > 2);
+            const words = text.split(/[\s,.-]+/).filter(w => w && w.length > 2);
             
             words.forEach(word => {
                 if (!this.positionMap.has(word)) {
@@ -167,6 +168,7 @@ if (typeof window.DocumentParser === 'undefined') {
          * Преобразует полное ФИО в формат "Фамилия И.О."
          */
         getShortName(fullName) {
+            if (!fullName) return '';
             const parts = fullName.split(' ');
             if (parts.length >= 3) {
                 return `${parts[0]} ${parts[1][0]}.${parts[2][0]}.`;
@@ -178,6 +180,7 @@ if (typeof window.DocumentParser === 'undefined') {
          * Преобразует полное ФИО в формат "Фамилия И.О." (с пробелами)
          */
         getInitials(fullName) {
+            if (!fullName) return '';
             const parts = fullName.split(' ');
             if (parts.length >= 3) {
                 return `${parts[0]} ${parts[1][0]}. ${parts[2][0]}.`;
@@ -217,24 +220,37 @@ if (typeof window.DocumentParser === 'undefined') {
          * Проверяет, совпадает ли имя сотрудника с фрагментом текста
          */
         matchesEmployeeName(employee, text) {
-            if (!text) return false;
+            if (!text || !employee) return false;
             
             const textLower = text.toLowerCase();
             
-            // Проверяем разные форматы ФИО
-            if (textLower.includes(employee.name.toLowerCase())) return true;
-            
-            const shortWithSpaces = employee.shortName.replace(/\./g, '.?').toLowerCase();
-            const shortWithoutSpaces = employee.shortName.replace(/\./g, '').replace(/\s+/g, '').toLowerCase();
-            
-            if (textLower.includes(shortWithSpaces) || textLower.includes(shortWithoutSpaces)) {
+            // Проверяем по полному имени
+            if (employee.name && textLower.includes(employee.name.toLowerCase())) {
                 return true;
             }
             
-            if (textLower.includes(employee.lastName.toLowerCase())) return true;
+            // Проверяем по фамилии
+            if (employee.lastName && textLower.includes(employee.lastName.toLowerCase())) {
+                return true;
+            }
             
-            const initialsFirst = employee.initials.split(' ').reverse().join(' ').toLowerCase();
-            if (textLower.includes(initialsFirst)) return true;
+            // Проверяем по короткому имени (Фамилия И.О.)
+            if (employee.shortName) {
+                const shortWithSpaces = employee.shortName.replace(/\./g, '.?').toLowerCase();
+                const shortWithoutSpaces = employee.shortName.replace(/\./g, '').replace(/\s+/g, '').toLowerCase();
+                
+                if (textLower.includes(shortWithSpaces) || textLower.includes(shortWithoutSpaces)) {
+                    return true;
+                }
+            }
+            
+            // Проверяем по инициалам
+            if (employee.initials) {
+                const initialsFirst = employee.initials.split(' ').reverse().join(' ').toLowerCase();
+                if (textLower.includes(initialsFirst)) {
+                    return true;
+                }
+            }
             
             return false;
         }
@@ -243,21 +259,23 @@ if (typeof window.DocumentParser === 'undefined') {
          * Проверяет, совпадает ли должность сотрудника с текстом
          */
         matchesEmployeePosition(employee, text) {
-            if (!text || !employee.positions) return false;
+            if (!text || !employee || !employee.positions) return false;
             
             const textLower = text.toLowerCase();
             
             // Проверяем по сохраненным должностям сотрудника
             for (const position of employee.positions) {
-                if (typeof position === 'string' && textLower.includes(position.toLowerCase())) {
+                if (position && typeof position === 'string' && textLower.includes(position.toLowerCase())) {
                     return true;
                 }
             }
             
             // Проверяем по названиям отделов
-            for (const parentName of employee.parentNames) {
-                if (textLower.includes(parentName.toLowerCase())) {
-                    return true;
+            if (employee.parentNames) {
+                for (const parentName of employee.parentNames) {
+                    if (parentName && textLower.includes(parentName.toLowerCase())) {
+                        return true;
+                    }
                 }
             }
             
@@ -272,14 +290,11 @@ if (typeof window.DocumentParser === 'undefined') {
             const matchedIds = new Set();
             const textLower = text.toLowerCase();
             
-            // Извлекаем должности из текста
-            const positionsInText = this.extractPositionsFromText(text);
-            
             // Ищем по индексу должностей
             this.positionMap.forEach((employees, positionKey) => {
                 if (textLower.includes(positionKey)) {
                     employees.forEach(emp => {
-                        if (!matchedIds.has(emp.id)) {
+                        if (emp && emp.id && !matchedIds.has(emp.id)) {
                             matchedEmployees.push(emp);
                             matchedIds.add(emp.id);
                         }
@@ -289,7 +304,7 @@ if (typeof window.DocumentParser === 'undefined') {
             
             // Также ищем по прямым упоминаниям в должностях сотрудников
             this.employeesFromTree.forEach(employee => {
-                if (this.matchesEmployeePosition(employee, text)) {
+                if (employee && this.matchesEmployeePosition(employee, text)) {
                     if (!matchedIds.has(employee.id)) {
                         matchedEmployees.push(employee);
                         matchedIds.add(employee.id);
@@ -336,7 +351,7 @@ if (typeof window.DocumentParser === 'undefined') {
                 // 6. Объединяем результаты (убираем дубликаты)
                 const allMatches = new Map();
                 [...nameMatches, ...positionMatches].forEach(emp => {
-                    if (!allMatches.has(emp.id)) {
+                    if (emp && emp.id && !allMatches.has(emp.id)) {
                         allMatches.set(emp.id, emp);
                     }
                 });
@@ -354,7 +369,7 @@ if (typeof window.DocumentParser === 'undefined') {
                 
                 // Логируем найденных сотрудников для отладки
                 this.parsedData.employees.forEach(emp => {
-                    console.log(`   👤 ${emp.name} (должности: ${emp.positions.join(', ') || 'не указаны'})`);
+                    console.log(`   👤 ${emp.name} (должности: ${emp.positions ? emp.positions.join(', ') : 'не указаны'})`);
                 });
 
                 return this.parsedData;
@@ -375,7 +390,7 @@ if (typeof window.DocumentParser === 'undefined') {
             const matchedIds = new Set();
 
             this.employeesFromTree.forEach(employee => {
-                if (this.matchesEmployeeName(employee, text)) {
+                if (employee && this.matchesEmployeeName(employee, text)) {
                     if (!matchedIds.has(employee.id)) {
                         matchedEmployees.push(employee);
                         matchedIds.add(employee.id);
@@ -439,7 +454,7 @@ if (typeof window.DocumentParser === 'undefined') {
             
             for (const pattern of numberPatterns) {
                 const match = text.match(pattern);
-                if (match) {
+                if (match && match[1]) {
                     docNumber = match[1];
                     break;
                 }
@@ -475,14 +490,13 @@ if (typeof window.DocumentParser === 'undefined') {
 
         extractAuthorities(text, docNumber) {
             const authorities = [];
-            const lines = text.split('\n');
             
             const startIndex = text.toLowerCase().indexOf('п р и к а з ы в а ю');
             if (startIndex > -1) {
                 const relevantText = text.substring(startIndex);
                 const lines = relevantText.split('\n');
                 
-                lines.forEach((line, index) => {
+                lines.forEach((line) => {
                     line = line.trim();
                     if (line.length > 30 && 
                         (line.includes('осуществляет') || 
@@ -494,7 +508,7 @@ if (typeof window.DocumentParser === 'undefined') {
                         
                         authorities.push({
                             text: line,
-                            sourceDoc: docNumber,
+                            sourceDoc: docNumber || 'не указан',
                             employeeId: null,
                             employee: null
                         });
@@ -503,12 +517,13 @@ if (typeof window.DocumentParser === 'undefined') {
             }
             
             if (authorities.length === 0) {
+                const lines = text.split('\n');
                 lines.forEach(line => {
                     line = line.trim();
                     if (line.length > 50 && line.includes('.')) {
                         authorities.push({
                             text: line,
-                            sourceDoc: docNumber,
+                            sourceDoc: docNumber || 'не указан',
                             employeeId: null,
                             employee: null
                         });
@@ -529,7 +544,7 @@ if (typeof window.DocumentParser === 'undefined') {
                 
                 // Сначала ищем по имени
                 for (const emp of this.parsedData.employees) {
-                    if (this.matchesEmployeeName(emp, auth.text)) {
+                    if (emp && this.matchesEmployeeName(emp, auth.text)) {
                         linkedEmployeeId = emp.id;
                         linkedEmployee = emp;
                         break;
@@ -539,7 +554,7 @@ if (typeof window.DocumentParser === 'undefined') {
                 // Если не нашли по имени, ищем по должности
                 if (!linkedEmployee) {
                     for (const emp of this.parsedData.employees) {
-                        if (this.matchesEmployeePosition(emp, auth.text)) {
+                        if (emp && this.matchesEmployeePosition(emp, auth.text)) {
                             linkedEmployeeId = emp.id;
                             linkedEmployee = emp;
                             break;
@@ -568,7 +583,7 @@ if (typeof window.DocumentParser === 'undefined') {
                     img: null,
                     hideIcon: false,
                     isTextOnly: true,
-                    subBlocks: [`Основание: ${sourceDoc}`],
+                    subBlocks: [`Основание: ${sourceDoc || 'не указано'}`],
                     isHorizontal: false,
                     metricBlocks: [],
                     isAuthority: true,
