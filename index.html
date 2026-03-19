@@ -356,7 +356,60 @@
 .border-dio-600 {
     border-color: #7c3aed;
 }
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+.border-dio-600 {
+    border-color: #7c3aed;
+}
 
+/* Минималистичные стили для парсера */
+#parser-root .employee-tag {
+    background-color: #e6f7e6;
+    color: #2e7d32;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid #c8e6c9;
+}
+
+#parser-root .warning-tag {
+    background-color: #fff3e0;
+    color: #b85c00;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid #ffe0b2;
+}
+
+#parser-root .add-button {
+    background-color: #0284c7;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+#parser-root .add-button:hover {
+    background-color: #0369a1;
+}
+
+#parser-root .add-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#parser-root .animate-spin {
+    animation: spin 1s linear infinite;
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
@@ -464,12 +517,18 @@
     </div>
 
     <!-- Подразделы Базы ДИО -->
-    <div id="dioSubsectionsContainer" style="display: block;">
-        <div class="book-subsection" onclick="switchTab('dio')" id="navDIO">
-            <div class="section-icon">🌳</div>
-            <span>Структура ДИО</span>
-        </div>
+<div id="dioSubsectionsContainer" style="display: block;">
+    <div class="book-subsection" onclick="switchTab('dio')" id="navDIO">
+        <div class="section-icon">🌳</div>
+        <span>Структура ДИО</span>
     </div>
+    <!-- ===== НОВЫЙ ПУНКТ ===== -->
+    <div class="book-subsection" onclick="switchTab('parser')" id="navParser">
+        <div class="section-icon">📄🔍</div>
+        <span>Парсер приказов</span>
+    </div>
+    <!-- ======================= -->
+</div>
 </aside>
 
         <main class="book-content">
@@ -737,8 +796,11 @@
             </div>
 <div class="tab-content" id="dioTab">
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="dioTabContent">
-        <!-- Контейнер для дерева будет заполнен динамически -->
-        <!-- Надпись "Добавить в ДИО" удалена, так как не нужна -->
+ 
+    </div>
+    <div class="tab-content" id="parserTab">
+    <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="parserTabContent">
+        <div id="parser-root"></div>
     </div>
 </div>
         </main>
@@ -2354,7 +2416,8 @@ function switchTab(tabName) {
         'npas': 'navNPA',
         'dashboards': 'navDashboards', 
         'calculator': 'navCalculator',
-        'dio': 'navDIO'
+        'dio': 'navDIO',
+        'parser': 'navParser' // 👈 ДОБАВЛЕНО
     };
     
     const navId = navIdMap[tabName];
@@ -2389,7 +2452,7 @@ function switchTab(tabName) {
             resetBtn.style.display = 'none';
         } else {
             // Показываем кнопку на остальных вкладках
-            resetBtn.style.display = 'inline-flex'; // или 'flex', в зависимости от вашего CSS
+            resetBtn.style.display = 'inline-flex';
         }
     }
     // ===== КОНЕЦ УПРАВЛЕНИЯ КНОПКОЙ СБРОСА =====
@@ -2398,26 +2461,23 @@ function switchTab(tabName) {
         // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.add('hidden'); // Полностью скрываем кнопку "Добавить"
+        document.getElementById('addButton').classList.add('hidden');
         
-        // Текст сброса (не влияет, так как кнопка скрыта, но оставим для порядка)
         if (resetBtnText) resetBtnText.textContent = '';
         
         currentTab = 'dio';
         document.getElementById('bulkToolbar').classList.add('hidden');
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
-        // Инициализируем дерево, если оно еще не инициализировано
         if (typeof window.initTreeInTab === 'function' && !window.treeInitialized) {
             setTimeout(() => {
                 window.initTreeInTab('dioTabContent');
             }, 100);
         }
     } else if (tabName === 'npas') {
-        // Для других вкладок показываем кнопки обратно
         document.getElementById('npaImportButtons').classList.remove('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
+        document.getElementById('addButton').classList.remove('hidden');
         document.getElementById('addButtonText').textContent = 'Добавить запись';
         if (resetBtnText) resetBtnText.textContent = 'Сброс НПА';
         
@@ -2430,7 +2490,7 @@ function switchTab(tabName) {
     } else if (tabName === 'dashboards') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.remove('hidden');
-        document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
+        document.getElementById('addButton').classList.remove('hidden');
         document.getElementById('addButtonText').textContent = 'Новый дашборд';
         if (resetBtnText) resetBtnText.textContent = 'Сброс дашбордов';
         
@@ -2456,7 +2516,7 @@ function switchTab(tabName) {
     } else if (tabName === 'calculator') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.remove('hidden'); // Показываем кнопку
+        document.getElementById('addButton').classList.remove('hidden');
         document.getElementById('addButtonText').textContent = 'Новый расчет';
         if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
         
@@ -2466,7 +2526,27 @@ function switchTab(tabName) {
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
         initCalculator();
+    } 
+    // 👇 ДОБАВЛЕН НОВЫЙ БЛОК ДЛЯ ПАРСЕРА 👇
+    else if (tabName === 'parser') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = 'Сброс парсера';
+        
+        currentTab = 'parser';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        // Инициализируем парсер
+        if (typeof window.initParserTab === 'function') {
+            setTimeout(() => {
+                window.initParserTab('parser-root');
+            }, 100);
+        }
     }
+    // 👆 КОНЕЦ НОВОГО БЛОКА 👆
     
     // Триггерим событие для внешних скриптов
     window.dispatchEvent(new CustomEvent('tabChanged', { detail: { tab: tabName } }));
@@ -2494,7 +2574,17 @@ function hardResetCurrent() {
                 showNotification('Данные ДИО очищены', 'success');
             }
         }
+    } 
+    // ===== ДОБАВЬТЕ ЭТОТ БЛОК =====
+    else if (currentTab === 'parser') {
+        if (confirm("Сбросить состояние парсера?")) {
+            if (typeof window.initParserTab === 'function') {
+                window.initParserTab('parser-root');
+                showNotification('Парсер сброшен', 'success');
+            }
+        }
     }
+    // ==============================
 }
 
     
