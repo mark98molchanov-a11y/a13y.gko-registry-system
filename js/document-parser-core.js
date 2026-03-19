@@ -13,86 +13,126 @@ if (typeof window.DocumentParser === 'undefined') {
                 documentMeta: {}    // Метаданные документа (номер, дата)
             };
             this.employeesFromTree = [];
-            this.positionMap = new Map(); // Должность -> массив сотрудников
+            this.positionMap = new Map();
+            this.orderMap = new Map(); 
         }
 
-        /**
-         * Загружает список всех сотрудников из дерева с их должностями
-         */
-        loadEmployeesFromTree() {
-            if (!window.treeApp || !window.treeApp.treeData) {
-                console.warn('Дерево не инициализировано');
-                return [];
-            }
+      loadEmployeesFromTree() {
+    if (!window.treeApp || !window.treeApp.treeData) {
+        console.warn('Дерево не инициализировано');
+        return [];
+    }
 
-            const employees = [];
-            this.positionMap.clear();
+    const employees = [];
+    this.positionMap.clear();
+    this.orderMap.clear(); // Очищаем карту приказов
+    
+    const findEmployees = (node) => {
+        // Проверяем, является ли узел сотрудником (содержит ФИО)
+        if (node.content && typeof node.content.text === 'string') {
+            const text = node.content.text;
+            const isFullName = /^[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+$/.test(text);
             
-            const findEmployees = (node) => {
-                // Проверяем, является ли узел сотрудником (содержит ФИО)
-                if (node.content && typeof node.content.text === 'string') {
-                    const text = node.content.text;
-                    const isFullName = /^[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+$/.test(text);
-                    
-                    if (isFullName) {
-                        // Извлекаем должности из subBlocks
-                        const positions = [];
-                        if (node.content.subBlocks && Array.isArray(node.content.subBlocks)) {
-                            node.content.subBlocks.forEach(block => {
-                                if (typeof block === 'string') {
-                                    positions.push(block);
-                                    
-                                    // Индексируем по должности
-                                    const lowerBlock = block.toLowerCase();
-                                    this.indexByPosition(lowerBlock, {
-                                        id: node.id,
-                                        name: text,
-                                        node: node,
-                                        positions: positions
-                                    });
-                                }
-                            });
-                        }
-                        
-                        // Также индексируем по названию отдела/родительским узлам
-                        const parentNames = this.getParentNames(node);
-                        parentNames.forEach(parentName => {
-                            this.indexByPosition(parentName.toLowerCase(), {
+            if (isFullName) {
+                // Извлекаем должности из subBlocks
+                const positions = [];
+                const orders = []; // Номера приказов
+                
+                if (node.content.subBlocks && Array.isArray(node.content.subBlocks)) {
+                    node.content.subBlocks.forEach(block => {
+                        if (typeof block === 'string') {
+                            positions.push(block);
+                            
+                            // Ищем номера приказов в subBlocks
+                            const orderMatch = block.match(/приказ[а-я]*\s*[№#]?\s*(\d+)/i) || 
+                                              block.match(/(\d+)\s*[-\/]?[А-Я]/);
+                            if (orderMatch && orderMatch[1]) {
+                                orders.push(orderMatch[1]);
+                            }
+                            
+                            // Индексируем по должности
+                            const lowerBlock = block.toLowerCase();
+                            this.indexByPosition(lowerBlock, {
                                 id: node.id,
                                 name: text,
                                 node: node,
                                 positions: positions
                             });
-                        });
-                        
-                        employees.push({
-                            id: node.id,
-                            name: text,
-                            shortName: this.getShortName(text),
-                            lastName: text.split(' ')[0],
-                            initials: this.getInitials(text),
-                            positions: positions,
-                            parentNames: parentNames,
-                            node: node
-                        });
-                    }
+                        }
+                    });
                 }
                 
-                // Рекурсивно обходим детей
+                // Также ищем в дочерних узлах (полномочиях)
                 if (node.children) {
-                    node.children.forEach(child => findEmployees(child));
+                    node.children.forEach(child => {
+                        if (child.content && child.content.subBlocks) {
+                            child.content.subBlocks.forEach(block => {
+                                if (typeof block === 'string') {
+                                    // Ищем номера приказов в полномочиях
+                                    const orderMatch = block.match(/приказ[а-я]*\s*[№#]?\s*(\d+)/i) || 
+                                                      block.match(/(\d+)\s*[-\/]?[А-Я]/);
+                                    if (orderMatch && orderMatch[1]) {
+                                        orders.push(orderMatch[1]);
+                                    }
+                                }
+                            });
+                        }
+                    });
                 }
-            };
-            
-            findEmployees(window.treeApp.treeData);
-            this.employeesFromTree = employees;
-            
-            console.log('✅ Загружено сотрудников из дерева:', employees.length);
-            console.log('📊 Индекс должностей:', Array.from(this.positionMap.keys()));
-            
-            return employees;
+                
+                // Индексируем по номерам приказов
+                orders.forEach(orderNum => {
+                    if (!this.orderMap.has(orderNum)) {
+                        this.orderMap.set(orderNum, []);
+                    }
+                    this.orderMap.get(orderNum).push({
+                        id: node.id,
+                        name: text,
+                        node: node,
+                        positions: positions
+                    });
+                });
+                
+                // Также индексируем по названию отдела/родительским узлам
+                const parentNames = this.getParentNames(node);
+                parentNames.forEach(parentName => {
+                    this.indexByPosition(parentName.toLowerCase(), {
+                        id: node.id,
+                        name: text,
+                        node: node,
+                        positions: positions
+                    });
+                });
+                
+                employees.push({
+                    id: node.id,
+                    name: text,
+                    shortName: this.getShortName(text),
+                    lastName: text.split(' ')[0],
+                    initials: this.getInitials(text),
+                    positions: positions,
+                    orders: orders, // Добавляем найденные приказы
+                    parentNames: parentNames,
+                    node: node
+                });
+            }
         }
-
+        
+        // Рекурсивно обходим детей
+        if (node.children) {
+            node.children.forEach(child => findEmployees(child));
+        }
+    };
+    
+    findEmployees(window.treeApp.treeData);
+    this.employeesFromTree = employees;
+    
+    console.log('✅ Загружено сотрудников из дерева:', employees.length);
+    console.log('📊 Индекс должностей:', Array.from(this.positionMap.keys()));
+    console.log('📋 Индекс приказов:', Array.from(this.orderMap.keys()));
+    
+    return employees;
+}
         /**
          * Получает названия родительских узлов (отделы)
          */
@@ -314,72 +354,97 @@ if (typeof window.DocumentParser === 'undefined') {
             
             return matchedEmployees;
         }
-
-        /**
-         * Главная функция для запуска парсинга из файла
-         */
-        async parseDocument(file) {
-            this.parsedData = { employees: [], authorities: [], documentMeta: {} };
-            let fullText = '';
-
-            try {
-                console.log('📄 Начинаем парсинг файла:', file.name);
-                
-                // 1. Извлечение текста
-                if (file.name.endsWith('.docx')) {
-                    fullText = await this.extractTextFromDocx(file);
-                } else if (file.name.endsWith('.pdf')) {
-                    fullText = await this.extractTextFromPdf(file);
-                } else {
-                    throw new Error('Неподдерживаемый формат файла. Используйте DOCX или PDF.');
+findEmployeesByOrder(text) {
+    const matchedEmployees = [];
+    const matchedIds = new Set();
+    
+    // Ищем номера приказов в тексте (например: "№ 874", "№874", "№874/1")
+    const orderMatches = text.match(/№\s*(\d+)/g) || [];
+    
+    orderMatches.forEach(match => {
+        const orderNum = match.replace('№', '').trim();
+        
+        if (this.orderMap.has(orderNum)) {
+            this.orderMap.get(orderNum).forEach(emp => {
+                if (emp && emp.id && !matchedIds.has(emp.id)) {
+                    matchedEmployees.push(emp);
+                    matchedIds.add(emp.id);
                 }
+            });
+        }
+    });
+    
+    return matchedEmployees;
+}
+      
+/**
+ * Главная функция для запуска парсинга из файла
+ */
+async parseDocument(file) {
+    this.parsedData = { employees: [], authorities: [], documentMeta: {} };
+    let fullText = '';
 
-                console.log('📝 Извлечен текст (первые 500 символов):', fullText.substring(0, 500));
-
-                // 2. Извлечение метаданных
-                this.parsedData.documentMeta = this.extractDocumentMeta(fullText, file.name);
-
-                // 3. Загружаем сотрудников из дерева
-                this.loadEmployeesFromTree();
-
-                // 4. Поиск сотрудников по ФИО
-                const nameMatches = this.matchEmployeesByName(fullText);
-                
-                // 5. Поиск сотрудников по должности
-                const positionMatches = this.findEmployeesByPosition(fullText);
-                
-                // 6. Объединяем результаты (убираем дубликаты)
-                const allMatches = new Map();
-                [...nameMatches, ...positionMatches].forEach(emp => {
-                    if (emp && emp.id && !allMatches.has(emp.id)) {
-                        allMatches.set(emp.id, emp);
-                    }
-                });
-                
-                this.parsedData.employees = Array.from(allMatches.values());
-
-                // 7. Извлечение полномочий
-                this.parsedData.authorities = this.extractAuthorities(fullText, this.parsedData.documentMeta.docNumber);
-
-                // 8. Связывание полномочий с сотрудниками
-                this.linkAuthoritiesToEmployees();
-
-                console.log('✅ Парсинг завершен. Найдено сотрудников (по имени+должности):', this.parsedData.employees.length);
-                console.log('✅ Найдено полномочий:', this.parsedData.authorities.length);
-                
-                // Логируем найденных сотрудников для отладки
-                this.parsedData.employees.forEach(emp => {
-                    console.log(`   👤 ${emp.name} (должности: ${emp.positions ? emp.positions.join(', ') : 'не указаны'})`);
-                });
-
-                return this.parsedData;
-
-            } catch (error) {
-                console.error('❌ Ошибка при парсинге документа:', error);
-                throw error;
-            }
+    try {
+        console.log('📄 Начинаем парсинг файла:', file.name);
+        
+        // 1. Извлечение текста
+        if (file.name.endsWith('.docx')) {
+            fullText = await this.extractTextFromDocx(file);
+        } else if (file.name.endsWith('.pdf')) {
+            fullText = await this.extractTextFromPdf(file);
+        } else {
+            throw new Error('Неподдерживаемый формат файла. Используйте DOCX или PDF.');
         }
 
+        console.log('📝 Извлечен текст (первые 500 символов):', fullText.substring(0, 500));
+
+        // 2. Извлечение метаданных
+        this.parsedData.documentMeta = this.extractDocumentMeta(fullText, file.name);
+
+        // 3. Загружаем сотрудников из дерева
+        this.loadEmployeesFromTree();
+
+        // 4. Поиск сотрудников по ФИО
+        const nameMatches = this.matchEmployeesByName(fullText);
+        
+        // 5. Поиск сотрудников по должности
+        const positionMatches = this.findEmployeesByPosition(fullText);
+        
+        // 👇 НОВОЕ: Поиск сотрудников по номеру приказа
+        const orderMatches = this.findEmployeesByOrder(fullText);
+        
+        // 6. Объединяем результаты (убираем дубликаты)
+        const allMatches = new Map();
+        [...nameMatches, ...positionMatches, ...orderMatches].forEach(emp => {
+            if (emp && emp.id && !allMatches.has(emp.id)) {
+                allMatches.set(emp.id, emp);
+            }
+        });
+        
+        this.parsedData.employees = Array.from(allMatches.values());
+
+        // 7. Извлечение полномочий
+        this.parsedData.authorities = this.extractAuthorities(fullText, this.parsedData.documentMeta.docNumber);
+
+        // 8. Связывание полномочий с сотрудниками
+        this.linkAuthoritiesToEmployees();
+
+        console.log('✅ Парсинг завершен. Найдено сотрудников (по имени+должности+приказам):', this.parsedData.employees.length);
+        console.log('✅ Найдено полномочий:', this.parsedData.authorities.length);
+        console.log('📋 Найдено по приказам:', orderMatches.length);
+        
+        // Логируем найденных сотрудников для отладки
+        this.parsedData.employees.forEach(emp => {
+            console.log(`   👤 ${emp.name} (должности: ${emp.positions ? emp.positions.join(', ') : 'не указаны'}, приказы: ${emp.orders ? emp.orders.join(', ') : 'нет'})`);
+        });
+
+        return this.parsedData;
+
+    } catch (error) {
+        console.error('❌ Ошибка при парсинге документа:', error);
+        throw error;
+    }
+}
         /**
          * Поиск сотрудников по имени (старый метод)
          */
