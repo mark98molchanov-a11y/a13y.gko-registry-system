@@ -2631,7 +2631,22 @@ function hardResetCurrent() {
         });
         updateBulkToolbar();
     }
-
+function toggleCardText(itemId) {
+    const legalBlock = document.getElementById(`legal-${itemId}`);
+    if (legalBlock) {
+        legalBlock.classList.toggle('hidden');
+        
+        // Меняем текст кнопки
+        const button = document.querySelector(`button[onclick="toggleCardText('${itemId}')"]`);
+        if (button) {
+            if (legalBlock.classList.contains('hidden')) {
+                button.innerHTML = 'Юридический текст ▼';
+            } else {
+                button.innerHTML = 'Юридический текст ▲';
+            }
+        }
+    }
+}
     function updateDashboard(dataSource) {
         const data = dataSource || appData;
         const total = data.length;
