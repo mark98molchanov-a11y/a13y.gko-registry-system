@@ -204,12 +204,12 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         /**
-         * Генерирует возможные аббревиатуры из текста
+         * Генерирует возможные аббревиатуры из текста - ИСПРАВЛЕНО
          */
         generateAbbreviations(text) {
             const abbreviations = [];
             
-            // Ищем аббревиатуры в скобках, например "ЭО", "УФ"
+            // Ищем аббревиатуры в скобках, например "(ЭО)", "(УФ)"
             const parenMatch = text.match(/\(([А-ЯЁ]{2,})\)/g);
             if (parenMatch) {
                 parenMatch.forEach(match => {
@@ -221,7 +221,7 @@ if (typeof window.DocumentParser === 'undefined') {
             // Создаем аббревиатуры из заглавных букв слов
             const words = text.split(/[\s,.-]+/);
             const capitalLetters = words
-                .filter(w => w.length > 0 && w[0] === w[0].toUpperCase())
+                .filter(w => w && w.length > 0 && w[0] === w[0].toUpperCase() && /[А-ЯЁ]/.test(w[0]))
                 .map(w => w[0].toLowerCase())
                 .join('');
             
@@ -249,7 +249,7 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         /**
-         * Находит ВСЕХ сотрудников, соответствующих тексту
+         * Находит ВСЕХ сотрудников, соответствующих тексту - ИСПРАВЛЕНО
          */
         findAllEmployeesByText(text) {
             if (!text) return [];
@@ -259,7 +259,7 @@ if (typeof window.DocumentParser === 'undefined') {
             
             // 1. Поиск по фамилии (самый надежный)
             for (const [lastName, employees] of this.lastNameIndex) {
-                if (textLower.includes(lastName.toLowerCase())) {
+                if (lastName && textLower.includes(lastName.toLowerCase())) {
                     employees.forEach(emp => {
                         matchedEmployees.set(emp.id, emp);
                     });
@@ -268,7 +268,7 @@ if (typeof window.DocumentParser === 'undefined') {
             
             // 2. Поиск по полному ФИО
             for (const [fullName, employees] of this.fullNameIndex) {
-                if (textLower.includes(fullName.toLowerCase())) {
+                if (fullName && textLower.includes(fullName.toLowerCase())) {
                     employees.forEach(emp => {
                         matchedEmployees.set(emp.id, emp);
                     });
@@ -295,27 +295,28 @@ if (typeof window.DocumentParser === 'undefined') {
             
             // 5. Поиск по должности (ключевые слова)
             for (const [position, employees] of this.positionIndex) {
-                if (textLower.includes(position)) {
+                if (position && textLower.includes(position)) {
                     employees.forEach(emp => {
                         matchedEmployees.set(emp.id, emp);
                     });
                 }
             }
             
-            // 6. Поиск по аббревиатурам (НОВОЕ)
+            // 6. Поиск по аббревиатурам (НОВОЕ) - ИСПРАВЛЕНО
             for (const [abbr, employees] of this.abbrevIndex) {
-                // Ищем отдельно стоящие аббревиатуры (окруженные пробелами или знаками препинания)
-                const abbrPattern = new RegExp(`(^|\\s)${abbr}(\\s|$|[.,;:!?])`, 'i');
-                if (abbrPattern.test(textLower)) {
-                    employees.forEach(emp => {
-                        matchedEmployees.set(emp.id, emp);
-                    });
+                if (abbr) {
+                    // Простая проверка на наличие аббревиатуры в тексте
+                    if (textLower.includes(abbr)) {
+                        employees.forEach(emp => {
+                            matchedEmployees.set(emp.id, emp);
+                        });
+                    }
                 }
             }
             
             // 7. Поиск по отделам (НОВОЕ)
             for (const [dept, employees] of this.deptIndex) {
-                if (textLower.includes(dept.toLowerCase())) {
+                if (dept && textLower.includes(dept.toLowerCase())) {
                     employees.forEach(emp => {
                         matchedEmployees.set(emp.id, emp);
                     });
@@ -623,14 +624,14 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         /**
-         * Рассчитывает уверенность привязки с учетом аббревиатур
+         * Рассчитывает уверенность привязки с учетом аббревиатур - ИСПРАВЛЕНО
          */
         calculateConfidence(employee, text) {
             let confidence = 0;
             const textLower = text.toLowerCase();
             
             // Полное совпадение ФИО
-            if (textLower.includes(employee.name.toLowerCase())) {
+            if (employee.name && textLower.includes(employee.name.toLowerCase())) {
                 confidence = 1.0;
             }
             // Совпадение по короткому имени (Иванов И.И.)
@@ -638,53 +639,55 @@ if (typeof window.DocumentParser === 'undefined') {
                 confidence = 0.95;
             }
             // Совпадение по фамилии
-            else if (textLower.includes(employee.lastName.toLowerCase())) {
+            else if (employee.lastName && textLower.includes(employee.lastName.toLowerCase())) {
                 confidence = 0.8;
             }
             
             // Проверяем по должностям и аббревиатурам
-            employee.positions.forEach(position => {
-                const positionLower = position.toLowerCase();
-                
-                // Проверяем полное совпадение должности
-                if (textLower.includes(positionLower)) {
-                    confidence = Math.max(confidence, 0.9);
-                }
-                
-                // Проверяем аббревиатуры
-                const abbreviations = this.generateAbbreviations(position);
-                abbreviations.forEach(abbr => {
-                    const abbrPattern = new RegExp(`(^|\\s)${abbr}(\\s|$|[.,;:!?])`, 'i');
-                    if (abbrPattern.test(textLower)) {
-                        confidence = Math.max(confidence, 0.85);
+            if (employee.positions) {
+                employee.positions.forEach(position => {
+                    const positionLower = position.toLowerCase();
+                    
+                    // Проверяем полное совпадение должности
+                    if (textLower.includes(positionLower)) {
+                        confidence = Math.max(confidence, 0.9);
                     }
+                    
+                    // Проверяем аббревиатуры - ИСПРАВЛЕНО
+                    const abbreviations = this.generateAbbreviations(position);
+                    abbreviations.forEach(abbr => {
+                        if (abbr && textLower.includes(abbr)) {
+                            confidence = Math.max(confidence, 0.85);
+                        }
+                    });
+                    
+                    // Проверяем ключевые слова
+                    const words = positionLower.split(/[\s,.-]+/).filter(w => w && w.length > 2);
+                    words.forEach(word => {
+                        if (textLower.includes(word)) {
+                            confidence = Math.max(confidence, 0.7);
+                        }
+                    });
                 });
-                
-                // Проверяем ключевые слова
-                const words = positionLower.split(/[\s,.-]+/).filter(w => w && w.length > 2);
-                words.forEach(word => {
-                    if (textLower.includes(word)) {
-                        confidence = Math.max(confidence, 0.7);
-                    }
-                });
-            });
+            }
             
             // Проверяем по названиям отделов
-            employee.parentNames.forEach(parentName => {
-                const parentLower = parentName.toLowerCase();
-                if (textLower.includes(parentLower)) {
-                    confidence = Math.max(confidence, 0.75);
-                }
-                
-                // Проверяем аббревиатуры отделов
-                const deptAbbr = this.generateAbbreviations(parentName);
-                deptAbbr.forEach(abbr => {
-                    const abbrPattern = new RegExp(`(^|\\s)${abbr}(\\s|$|[.,;:!?])`, 'i');
-                    if (abbrPattern.test(textLower)) {
-                        confidence = Math.max(confidence, 0.7);
+            if (employee.parentNames) {
+                employee.parentNames.forEach(parentName => {
+                    const parentLower = parentName.toLowerCase();
+                    if (textLower.includes(parentLower)) {
+                        confidence = Math.max(confidence, 0.75);
                     }
+                    
+                    // Проверяем аббревиатуры отделов - ИСПРАВЛЕНО
+                    const deptAbbr = this.generateAbbreviations(parentName);
+                    deptAbbr.forEach(abbr => {
+                        if (abbr && textLower.includes(abbr)) {
+                            confidence = Math.max(confidence, 0.7);
+                        }
+                    });
                 });
-            });
+            }
             
             return confidence;
         }
