@@ -7,8 +7,8 @@ if (typeof window.DocumentParser === 'undefined') {
     class DocumentParser {
         constructor() {
             this.parsedData = {
-                employees: [],           // Все найденные сотрудники
-                authorities: [],         // Найденные полномочия с привязкой ко всем совпадающим сотрудникам
+                tables: [],              // Найденные таблицы
+                employees: new Set(),     // Упомянутые сотрудники
                 documentMeta: {}          // Метаданные документа (номер, дата)
             };
             this.employeesFromTree = [];
@@ -208,12 +208,12 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         /**
-         * Главная функция для запуска парсинга из файла
+         * Главная функция для запуска парсинга из файла - ЭТАП 1: извлечение таблиц
          */
         async parseDocument(file) {
             this.parsedData = { 
-                employees: [], 
-                authorities: [], 
+                tables: [], 
+                employees: new Set(),
                 documentMeta: {} 
             };
             let fullText = '';
@@ -235,65 +235,15 @@ if (typeof window.DocumentParser === 'undefined') {
                 // 2. Извлечение метаданных
                 this.parsedData.documentMeta = this.extractDocumentMeta(fullText, file.name);
 
-                // 3. Загружаем всех сотрудников из дерева
-                this.loadEmployeesFromTree();
+                // 3. Поиск табличных структур в тексте
+                this.parsedData.tables = this.extractTables(fullText);
 
-                // 4. Извлекаем полномочия из текста приказа
-                const extractedAuthorities = this.extractAuthorities(fullText, this.parsedData.documentMeta.docNumber);
-                
-                // 5. Для КАЖДОГО полномочия ищем ВСЕХ подходящих сотрудников
-                extractedAuthorities.forEach(auth => {
-                    const matchingEmployees = this.findAllEmployeesByText(auth.text);
-                    
-                    if (matchingEmployees.length > 0) {
-                        // Привязываем полномочие ко ВСЕМ найденным сотрудникам
-                        matchingEmployees.forEach(emp => {
-                            this.parsedData.authorities.push({
-                                ...auth,
-                                employeeId: emp.id,
-                                employeeName: emp.name,
-                                allMatches: matchingEmployees.map(e => e.name) // Для отладки
-                            });
-                            
-                            // Добавляем сотрудника в общий список (если еще нет)
-                            if (!this.parsedData.employees.some(e => e.id === emp.id)) {
-                                this.parsedData.employees.push(emp);
-                            }
-                        });
-                    } else {
-                        // Если не нашли ни одного сотрудника, добавляем как непривязанное
-                        this.parsedData.authorities.push({
-                            ...auth,
-                            employeeId: null,
-                            employeeName: null,
-                            allMatches: []
-                        });
-                    }
-                });
+                // 4. Извлечение всех ФИО из таблиц
+                this.extractEmployeesFromTables();
 
                 console.log('✅ Парсинг завершен');
-                console.log('👥 Найдено уникальных сотрудников:', this.parsedData.employees.length);
-                console.log('📝 Найдено полномочий:', this.parsedData.authorities.length);
-                
-                // Логируем статистику по привязкам
-                const boundCount = this.parsedData.authorities.filter(a => a.employeeId).length;
-                const unboundCount = this.parsedData.authorities.filter(a => !a.employeeId).length;
-                console.log('🔗 Привязано полномочий:', boundCount);
-                console.log('❌ Не привязано полномочий:', unboundCount);
-                
-                // Логируем найденных сотрудников
-                this.parsedData.employees.forEach(emp => {
-                    console.log(`   👤 ${emp.name}`);
-                });
-                
-                // Логируем полномочия с привязкой
-                this.parsedData.authorities.forEach((auth, index) => {
-                    if (auth.employeeName) {
-                        console.log(`   📋 [${index}] "${auth.text.substring(0, 50)}..." → ${auth.employeeName} (и еще ${auth.allMatches.length - 1} совпадений)`);
-                    } else {
-                        console.log(`   📋 [${index}] "${auth.text.substring(0, 50)}..." → ❌ не привязано`);
-                    }
-                });
+                console.log('📊 Найдено таблиц:', this.parsedData.tables.length);
+                console.log('👥 Найдено сотрудников в таблицах:', this.parsedData.employees.size);
 
                 return this.parsedData;
 
@@ -301,6 +251,215 @@ if (typeof window.DocumentParser === 'undefined') {
                 console.error('❌ Ошибка при парсинге документа:', error);
                 throw error;
             }
+        }
+
+        /**
+         * ЭТАП 2: Привязка табличных данных к сотрудникам из дерева
+         */
+        async bindTablesToEmployees(tables) {
+            // Загружаем сотрудников из дерева, если еще не загружены
+            if (this.employeesFromTree.length === 0) {
+                this.loadEmployeesFromTree();
+            }
+
+            const boundTables = [];
+
+            for (const table of tables) {
+                const boundTable = {
+                    ...table,
+                    assignments: [] // Привязки для каждой строки
+                };
+
+                // Анализируем структуру таблицы, если еще не сделано
+                if (!table.structure) {
+                    table.structure = this.analyzeTableStructure(table);
+                }
+
+                // Для каждой строки таблицы ищем подходящих сотрудников
+                table.rows.forEach((row, rowIndex) => {
+                    const rowText = row.join(' ').toLowerCase();
+                    const matchedEmployees = this.findAllEmployeesByText(rowText);
+                    
+                    boundTable.assignments.push({
+                        rowIndex,
+                        rowData: row,
+                        matchedEmployees: matchedEmployees.map(emp => ({
+                            id: emp.id,
+                            name: emp.name,
+                            confidence: this.calculateConfidence(emp, rowText)
+                        })),
+                        selectedEmployeeId: matchedEmployees.length > 0 ? matchedEmployees[0].id : null
+                    });
+                });
+
+                boundTables.push(boundTable);
+            }
+
+            return boundTables;
+        }
+
+        /**
+         * Анализирует структуру таблицы (определяет колонки)
+         */
+        analyzeTableStructure(table) {
+            const structure = {
+                hasNumber: false,      // Есть ли колонка с номером
+                hasSystem: false,      // Есть ли колонка с системой
+                hasDepartment: false,  // Есть ли колонка с отделом
+                hasEmployee: false,    // Есть ли колонка с сотрудником
+                columns: []
+            };
+            
+            // Анализируем заголовки
+            if (table.headers && table.headers.length > 0) {
+                table.headers.forEach(header => {
+                    const headerLower = header.toLowerCase();
+                    
+                    if (headerLower.includes('п/п') || headerLower.includes('№')) {
+                        structure.hasNumber = true;
+                        structure.columns.push('number');
+                    }
+                    if (headerLower.includes('систем') || headerLower.includes('подсистем')) {
+                        structure.hasSystem = true;
+                        structure.columns.push('system');
+                    }
+                    if (headerLower.includes('структурн') || headerLower.includes('подраздел')) {
+                        structure.hasDepartment = true;
+                        structure.columns.push('department');
+                    }
+                    if (headerLower.includes('ответствен') || headerLower.includes('исполнител')) {
+                        structure.hasEmployee = true;
+                        structure.columns.push('employee');
+                    }
+                });
+            }
+            
+            return structure;
+        }
+
+        /**
+         * Рассчитывает уверенность привязки
+         */
+        calculateConfidence(employee, text) {
+            let confidence = 0;
+            const textLower = text.toLowerCase();
+            
+            if (textLower.includes(employee.name.toLowerCase())) {
+                confidence = 1.0; // Полное совпадение ФИО
+            } else if (textLower.includes(employee.lastName.toLowerCase())) {
+                confidence = 0.8; // Совпадение по фамилии
+            } else if (employee.shortName && textLower.includes(employee.shortName.toLowerCase())) {
+                confidence = 0.9; // Совпадение по короткому имени
+            } else {
+                // Проверяем по должностям
+                employee.positions.forEach(position => {
+                    if (textLower.includes(position.toLowerCase())) {
+                        confidence = Math.max(confidence, 0.7);
+                    }
+                });
+            }
+            
+            return confidence;
+        }
+
+        /**
+         * Извлекает табличные структуры из текста
+         */
+        extractTables(text) {
+            const tables = [];
+            const lines = text.split('\n');
+            
+            let currentTable = null;
+            let inTable = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Проверяем, похоже ли это на строку таблицы
+                const isTableRow = line.includes('|') || line.includes('+---') || line.includes('+===');
+                const isTableHeader = line.includes('п/п') || 
+                                      line.includes('Системы') || 
+                                      line.includes('Ответственное') ||
+                                      line.includes('Ответственный');
+                
+                if (isTableRow || isTableHeader) {
+                    if (!inTable) {
+                        inTable = true;
+                        currentTable = {
+                            headers: [],
+                            rows: [],
+                            raw: []
+                        };
+                    }
+                    currentTable.raw.push(line);
+                    
+                    // Пытаемся распарсить строку таблицы
+                    if (line.includes('|')) {
+                        const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
+                        
+                        if (currentTable.headers.length === 0 && 
+                            (line.includes('п/п') || line.includes('№'))) {
+                            currentTable.headers = cells;
+                        } else {
+                            currentTable.rows.push(cells);
+                        }
+                    }
+                } else {
+                    if (inTable && line === '') {
+                        // Конец таблицы
+                        if (currentTable && currentTable.rows.length > 0) {
+                            // Анализируем структуру
+                            currentTable.structure = this.analyzeTableStructure(currentTable);
+                            tables.push(currentTable);
+                        }
+                        inTable = false;
+                        currentTable = null;
+                    }
+                }
+            }
+            
+            // Добавляем последнюю таблицу
+            if (inTable && currentTable && currentTable.rows.length > 0) {
+                currentTable.structure = this.analyzeTableStructure(currentTable);
+                tables.push(currentTable);
+            }
+            
+            return tables;
+        }
+
+        /**
+         * Извлекает ФИО из таблиц
+         */
+        extractEmployeesFromTables() {
+            const namePattern = /^[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+$/;
+            
+            this.parsedData.tables.forEach(table => {
+                table.rows.forEach(row => {
+                    row.forEach(cell => {
+                        // Ищем ФИО в ячейках
+                        const possibleNames = cell.split(/[,\n]/).map(part => part.trim());
+                        possibleNames.forEach(name => {
+                            if (namePattern.test(name)) {
+                                this.parsedData.employees.add(name);
+                            }
+                        });
+                        
+                        // Ищем ФИО в скобках (замещающие)
+                        const parenMatch = cell.match(/\(([^)]+)\)/g);
+                        if (parenMatch) {
+                            parenMatch.forEach(match => {
+                                const innerText = match.replace(/[()]/g, '');
+                                const names = innerText.split(/[,\n]/).map(n => n.trim());
+                                names.forEach(name => {
+                                    if (namePattern.test(name)) {
+                                        this.parsedData.employees.add(name);
+                                    }
+                                });
+                            });
+                        }
+                    });
+                });
+            });
         }
 
         /**
@@ -428,48 +587,6 @@ if (typeof window.DocumentParser === 'undefined') {
             }
 
             return { docNumber, docDate };
-        }
-
-        extractAuthorities(text, docNumber) {
-            const authorities = [];
-            const lines = text.split('\n');
-            
-            const startIndex = text.toLowerCase().indexOf('п р и к а з ы в а ю');
-            if (startIndex > -1) {
-                const relevantText = text.substring(startIndex);
-                const lines = relevantText.split('\n');
-                
-                lines.forEach((line) => {
-                    line = line.trim();
-                    if (line.length > 30 && 
-                        (line.includes('осуществляет') || 
-                         line.includes('ведет') || 
-                         line.includes('обеспечивает') ||
-                         line.includes('назначает') ||
-                         /^\d+\.\d+/.test(line) ||
-                         /^\d+\./.test(line))) {
-                        
-                        authorities.push({
-                            text: line,
-                            sourceDoc: docNumber || 'не указан'
-                        });
-                    }
-                });
-            }
-            
-            if (authorities.length === 0) {
-                lines.forEach(line => {
-                    line = line.trim();
-                    if (line.length > 50 && line.includes('.')) {
-                        authorities.push({
-                            text: line,
-                            sourceDoc: docNumber || 'не указан'
-                        });
-                    }
-                });
-            }
-
-            return authorities;
         }
 
         /**
