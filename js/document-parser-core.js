@@ -221,29 +221,27 @@ if (typeof window.DocumentParser === 'undefined') {
             try {
                 console.log('📄 Начинаем парсинг файла:', file.name);
                 
-                // 1. Извлечение текста
+                // 1. Извлечение текста и таблиц
                 if (file.name.endsWith('.docx')) {
-                    fullText = await this.extractTextFromDocx(file);
+                    const result = await this.extractFromDocx(file);
+                    fullText = result.text;
+                    this.parsedData.tables = result.tables;
                 } else if (file.name.endsWith('.pdf')) {
                     fullText = await this.extractTextFromPdf(file);
+                    // Для PDF пытаемся найти таблицы в тексте
+                    this.parsedData.tables = this.extractTablesFromText(fullText);
                 } else {
                     throw new Error('Неподдерживаемый формат файла. Используйте DOCX или PDF.');
                 }
 
                 console.log('📝 Извлечен текст (первые 500 символов):', fullText.substring(0, 500));
+                console.log('📊 Найдено таблиц:', this.parsedData.tables.length);
 
                 // 2. Извлечение метаданных
                 this.parsedData.documentMeta = this.extractDocumentMeta(fullText, file.name);
 
-                // 3. Поиск табличных структур в тексте
-                this.parsedData.tables = this.extractTables(fullText);
-
-                // 4. Извлечение всех ФИО из таблиц
+                // 3. Извлечение всех ФИО из таблиц
                 this.extractEmployeesFromTables();
-
-                console.log('✅ Парсинг завершен');
-                console.log('📊 Найдено таблиц:', this.parsedData.tables.length);
-                console.log('👥 Найдено сотрудников в таблицах:', this.parsedData.employees.size);
 
                 return this.parsedData;
 
@@ -251,6 +249,175 @@ if (typeof window.DocumentParser === 'undefined') {
                 console.error('❌ Ошибка при парсинге документа:', error);
                 throw error;
             }
+        }
+
+        /**
+         * Извлечение из DOCX с поддержкой таблиц через mammoth
+         */
+        async extractFromDocx(file) {
+            if (typeof mammoth === 'undefined') {
+                throw new Error('Библиотека mammoth не загружена');
+            }
+            
+            const arrayBuffer = await file.arrayBuffer();
+            
+            // Используем mammoth с опцией преобразования таблиц
+            const result = await mammoth.extractRawText({ 
+                arrayBuffer: arrayBuffer,
+                includeDefaultStyleMap: true
+            });
+            
+            // Дополнительно пытаемся найти таблицы в HTML-представлении
+            const htmlResult = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+            const tables = this.extractTablesFromHtml(htmlResult.value);
+            
+            return {
+                text: result.value,
+                tables: tables
+            };
+        }
+
+        /**
+         * Извлекает таблицы из HTML, полученного от mammoth
+         */
+        extractTablesFromHtml(html) {
+            const tables = [];
+            
+            // Создаем временный DOM элемент для парсинга HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // Ищем все таблицы
+            const htmlTables = tempDiv.querySelectorAll('table');
+            
+            htmlTables.forEach((table, tableIndex) => {
+                const extractedTable = {
+                    headers: [],
+                    rows: [],
+                    raw: []
+                };
+                
+                // Извлекаем заголовки из thead
+                const thead = table.querySelector('thead');
+                if (thead) {
+                    const headerRow = thead.querySelector('tr');
+                    if (headerRow) {
+                        const headerCells = headerRow.querySelectorAll('th, td');
+                        headerCells.forEach(cell => {
+                            extractedTable.headers.push(cell.textContent.trim());
+                        });
+                    }
+                }
+                
+                // Извлекаем строки из tbody
+                const tbody = table.querySelector('tbody');
+                if (tbody) {
+                    const rows = tbody.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll('td');
+                        const rowData = [];
+                        cells.forEach(cell => {
+                            rowData.push(cell.textContent.trim());
+                        });
+                        if (rowData.length > 0) {
+                            extractedTable.rows.push(rowData);
+                        }
+                    });
+                }
+                
+                // Если не нашли через thead/tbody, пробуем все строки
+                if (extractedTable.rows.length === 0) {
+                    const rows = table.querySelectorAll('tr');
+                    rows.forEach((row, rowIndex) => {
+                        const cells = row.querySelectorAll('td, th');
+                        const rowData = [];
+                        cells.forEach(cell => {
+                            rowData.push(cell.textContent.trim());
+                        });
+                        
+                        if (rowData.length > 0) {
+                            if (rowIndex === 0 && extractedTable.headers.length === 0) {
+                                // Первая строка может быть заголовком
+                                extractedTable.headers = rowData;
+                            } else {
+                                extractedTable.rows.push(rowData);
+                            }
+                        }
+                    });
+                }
+                
+                if (extractedTable.rows.length > 0) {
+                    // Анализируем структуру
+                    extractedTable.structure = this.analyzeTableStructure(extractedTable);
+                    tables.push(extractedTable);
+                }
+            });
+            
+            return tables;
+        }
+
+        /**
+         * Извлекает таблицы из текста (для PDF)
+         */
+        extractTablesFromText(text) {
+            const tables = [];
+            const lines = text.split('\n');
+            
+            let currentTable = null;
+            let inTable = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Проверяем, похоже ли это на строку таблицы
+                const isTableRow = line.includes('|') || line.includes('+---') || line.includes('+===');
+                const isTableHeader = line.includes('п/п') || 
+                                      line.includes('Системы') || 
+                                      line.includes('Ответственное') ||
+                                      line.includes('Ответственный');
+                
+                if (isTableRow || isTableHeader) {
+                    if (!inTable) {
+                        inTable = true;
+                        currentTable = {
+                            headers: [],
+                            rows: [],
+                            raw: []
+                        };
+                    }
+                    currentTable.raw.push(line);
+                    
+                    // Пытаемся распарсить строку таблицы
+                    if (line.includes('|')) {
+                        const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
+                        
+                        if (currentTable.headers.length === 0 && 
+                            (line.includes('п/п') || line.includes('№'))) {
+                            currentTable.headers = cells;
+                        } else {
+                            currentTable.rows.push(cells);
+                        }
+                    }
+                } else {
+                    if (inTable && line === '') {
+                        // Конец таблицы
+                        if (currentTable && currentTable.rows.length > 0) {
+                            currentTable.structure = this.analyzeTableStructure(currentTable);
+                            tables.push(currentTable);
+                        }
+                        inTable = false;
+                        currentTable = null;
+                    }
+                }
+            }
+            
+            // Добавляем последнюю таблицу
+            if (inTable && currentTable && currentTable.rows.length > 0) {
+                currentTable.structure = this.analyzeTableStructure(currentTable);
+                tables.push(currentTable);
+            }
+            
+            return tables;
         }
 
         /**
@@ -363,71 +530,6 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         /**
-         * Извлекает табличные структуры из текста
-         */
-        extractTables(text) {
-            const tables = [];
-            const lines = text.split('\n');
-            
-            let currentTable = null;
-            let inTable = false;
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                
-                // Проверяем, похоже ли это на строку таблицы
-                const isTableRow = line.includes('|') || line.includes('+---') || line.includes('+===');
-                const isTableHeader = line.includes('п/п') || 
-                                      line.includes('Системы') || 
-                                      line.includes('Ответственное') ||
-                                      line.includes('Ответственный');
-                
-                if (isTableRow || isTableHeader) {
-                    if (!inTable) {
-                        inTable = true;
-                        currentTable = {
-                            headers: [],
-                            rows: [],
-                            raw: []
-                        };
-                    }
-                    currentTable.raw.push(line);
-                    
-                    // Пытаемся распарсить строку таблицы
-                    if (line.includes('|')) {
-                        const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
-                        
-                        if (currentTable.headers.length === 0 && 
-                            (line.includes('п/п') || line.includes('№'))) {
-                            currentTable.headers = cells;
-                        } else {
-                            currentTable.rows.push(cells);
-                        }
-                    }
-                } else {
-                    if (inTable && line === '') {
-                        // Конец таблицы
-                        if (currentTable && currentTable.rows.length > 0) {
-                            // Анализируем структуру
-                            currentTable.structure = this.analyzeTableStructure(currentTable);
-                            tables.push(currentTable);
-                        }
-                        inTable = false;
-                        currentTable = null;
-                    }
-                }
-            }
-            
-            // Добавляем последнюю таблицу
-            if (inTable && currentTable && currentTable.rows.length > 0) {
-                currentTable.structure = this.analyzeTableStructure(currentTable);
-                tables.push(currentTable);
-            }
-            
-            return tables;
-        }
-
-        /**
          * Извлекает ФИО из таблиц
          */
         extractEmployeesFromTables() {
@@ -519,17 +621,6 @@ if (typeof window.DocumentParser === 'undefined') {
             return fullName;
         }
 
-        // --- Методы для извлечения текста ---
-
-        async extractTextFromDocx(file) {
-            if (typeof mammoth === 'undefined') {
-                throw new Error('Библиотека mammoth не загружена');
-            }
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.extractRawText({ arrayBuffer });
-            return result.value;
-        }
-
         async extractTextFromPdf(file) {
             if (typeof pdfjsLib === 'undefined') {
                 throw new Error('Библиотека pdf.js не загружена');
@@ -548,7 +639,7 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         extractDocumentMeta(text, filename) {
-            let docNumber = filename;
+            let docNumber = filename.replace(/[^0-9]/g, '');
             const numberPatterns = [
                 /приказ\s+от\s+\d{1,2}\.\d{1,2}\.\d{4}\s+№\s*(\d+)/i,
                 /приказ\s+№\s*(\d+)/i,
