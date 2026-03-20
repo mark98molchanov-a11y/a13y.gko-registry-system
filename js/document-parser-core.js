@@ -18,7 +18,11 @@ if (typeof window.DocumentParser === 'undefined') {
             this.lastNameIndex = new Map();     // Фамилия -> массив сотрудников
             this.shortNameIndex = new Map();    // "Иванов И.И." -> массив сотрудников
             this.initialsIndex = new Map();     // "Иванов И. И." -> массив сотрудников
+            
+            // Расширенные индексы для должностей и аббревиатур
             this.positionIndex = new Map();     // Должность (ключевые слова) -> массив сотрудников
+            this.abbrevIndex = new Map();       // Аббревиатуры (ЭО, УФ и т.д.) -> массив сотрудников
+            this.deptIndex = new Map();         // Названия отделов -> массив сотрудников
         }
 
         /**
@@ -38,6 +42,8 @@ if (typeof window.DocumentParser === 'undefined') {
             this.shortNameIndex.clear();
             this.initialsIndex.clear();
             this.positionIndex.clear();
+            this.abbrevIndex.clear();
+            this.deptIndex.clear();
             
             const findEmployees = (node) => {
                 if (node.content && typeof node.content.text === 'string') {
@@ -98,38 +104,23 @@ if (typeof window.DocumentParser === 'undefined') {
                         }
                         this.initialsIndex.get(initials).push(employee);
                         
-                        // 5. Индексируем по должностям
-                        positions.forEach(position => {
-                            // Разбиваем должность на ключевые слова
-                            const words = position.toLowerCase().split(/[\s,.-]+/).filter(w => w && w.length > 2);
+                        // 5. Индексируем по должностям и аббревиатурам
+                        this.indexEmployeePositions(employee, positions);
+                        
+                        // 6. Индексируем по названиям отделов
+                        employee.parentNames.forEach(parentName => {
+                            if (!this.deptIndex.has(parentName)) {
+                                this.deptIndex.set(parentName, []);
+                            }
+                            this.deptIndex.get(parentName).push(employee);
                             
+                            // Индексируем также по словам из названия отдела
+                            const words = parentName.toLowerCase().split(/[\s,.-]+/).filter(w => w && w.length > 2);
                             words.forEach(word => {
-                                if (!this.positionIndex.has(word)) {
-                                    this.positionIndex.set(word, []);
+                                if (!this.deptIndex.has(word)) {
+                                    this.deptIndex.set(word, []);
                                 }
-                                this.positionIndex.get(word).push(employee);
-                            });
-                            
-                            // Индексируем целые фразы
-                            const phrases = [
-                                'заместитель директора',
-                                'начальник управления',
-                                'начальник отдела',
-                                'главный специалист',
-                                'ведущий консультант',
-                                'заведующий сектором',
-                                'эксперт',
-                                'аналитик',
-                                'руководитель'
-                            ];
-                            
-                            phrases.forEach(phrase => {
-                                if (position.toLowerCase().includes(phrase)) {
-                                    if (!this.positionIndex.has(phrase)) {
-                                        this.positionIndex.set(phrase, []);
-                                    }
-                                    this.positionIndex.get(phrase).push(employee);
-                                }
+                                this.deptIndex.get(word).push(employee);
                             });
                         });
                     }
@@ -146,8 +137,115 @@ if (typeof window.DocumentParser === 'undefined') {
             console.log('✅ Загружено сотрудников из дерева:', employees.length);
             console.log('📊 Индекс фамилий:', Array.from(this.lastNameIndex.keys()));
             console.log('📊 Индекс должностей:', Array.from(this.positionIndex.keys()));
+            console.log('📊 Индекс аббревиатур:', Array.from(this.abbrevIndex.keys()));
             
             return employees;
+        }
+
+        /**
+         * Индексирует должности сотрудника, включая аббревиатуры
+         */
+        indexEmployeePositions(employee, positions) {
+            positions.forEach(position => {
+                // Исходная должность
+                const positionLower = position.toLowerCase();
+                
+                // 1. Индексируем по полной должности
+                if (!this.positionIndex.has(positionLower)) {
+                    this.positionIndex.set(positionLower, []);
+                }
+                this.positionIndex.get(positionLower).push(employee);
+                
+                // 2. Разбиваем на слова и индексируем
+                const words = positionLower.split(/[\s,.-]+/).filter(w => w && w.length > 2);
+                words.forEach(word => {
+                    if (!this.positionIndex.has(word)) {
+                        this.positionIndex.set(word, []);
+                    }
+                    this.positionIndex.get(word).push(employee);
+                });
+                
+                // 3. Создаем и индексируем аббревиатуры
+                const abbreviations = this.generateAbbreviations(position);
+                abbreviations.forEach(abbr => {
+                    if (!this.abbrevIndex.has(abbr)) {
+                        this.abbrevIndex.set(abbr, []);
+                    }
+                    this.abbrevIndex.get(abbr).push(employee);
+                });
+                
+                // 4. Индексируем целые фразы из словаря
+                const phraseMap = {
+                    'начальник экономического отдела': ['начальник эо', 'нач эо', 'эо'],
+                    'начальник управления финансов': ['начальник уф', 'нач уф', 'уф'],
+                    'заместитель начальника управления': ['зам нач управления', 'зам нач упр'],
+                    'главный специалист': ['гл специалист', 'гл спец'],
+                    'ведущий консультант': ['вед консультант', 'вед конс'],
+                    'заведующий сектором': ['зав сектором', 'зав сект'],
+                    'экономический отдел': ['эо'],
+                    'управление финансов': ['уф'],
+                    'отдел государственной кадастровой оценки': ['огко', 'кадастровый отдел'],
+                    'управление земельных отношений': ['узо'],
+                    'отдел землепользования': ['озп'],
+                    'контрольно-ревизионный отдел': ['кро']
+                };
+                
+                for (const [fullPhrase, variants] of Object.entries(phraseMap)) {
+                    if (positionLower.includes(fullPhrase)) {
+                        variants.forEach(variant => {
+                            if (!this.positionIndex.has(variant)) {
+                                this.positionIndex.set(variant, []);
+                            }
+                            this.positionIndex.get(variant).push(employee);
+                        });
+                    }
+                }
+            });
+        }
+
+        /**
+         * Генерирует возможные аббревиатуры из текста
+         */
+        generateAbbreviations(text) {
+            const abbreviations = [];
+            
+            // Ищем аббревиатуры в скобках, например "ЭО", "УФ"
+            const parenMatch = text.match(/\(([А-ЯЁ]{2,})\)/g);
+            if (parenMatch) {
+                parenMatch.forEach(match => {
+                    const abbr = match.replace(/[()]/g, '').toLowerCase();
+                    abbreviations.push(abbr);
+                });
+            }
+            
+            // Создаем аббревиатуры из заглавных букв слов
+            const words = text.split(/[\s,.-]+/);
+            const capitalLetters = words
+                .filter(w => w.length > 0 && w[0] === w[0].toUpperCase())
+                .map(w => w[0].toLowerCase())
+                .join('');
+            
+            if (capitalLetters.length >= 2 && capitalLetters.length <= 5) {
+                abbreviations.push(capitalLetters);
+            }
+            
+            // Стандартные сокращения
+            const standardAbbr = {
+                'экономический отдел': 'эо',
+                'управление финансов': 'уф',
+                'отдел государственной кадастровой оценки': 'огко',
+                'управление земельных отношений': 'узо',
+                'отдел землепользования': 'озп',
+                'контрольно-ревизионный отдел': 'кро'
+            };
+            
+            for (const [full, abbr] of Object.entries(standardAbbr)) {
+                if (text.toLowerCase().includes(full)) {
+                    abbreviations.push(abbr);
+                }
+            }
+            
+            return [...new Set(abbreviations)]; // Убираем дубликаты
         }
 
         /**
@@ -195,9 +293,29 @@ if (typeof window.DocumentParser === 'undefined') {
                 }
             }
             
-            // 5. Поиск по должности
+            // 5. Поиск по должности (ключевые слова)
             for (const [position, employees] of this.positionIndex) {
                 if (textLower.includes(position)) {
+                    employees.forEach(emp => {
+                        matchedEmployees.set(emp.id, emp);
+                    });
+                }
+            }
+            
+            // 6. Поиск по аббревиатурам (НОВОЕ)
+            for (const [abbr, employees] of this.abbrevIndex) {
+                // Ищем отдельно стоящие аббревиатуры (окруженные пробелами или знаками препинания)
+                const abbrPattern = new RegExp(`(^|\\s)${abbr}(\\s|$|[.,;:!?])`, 'i');
+                if (abbrPattern.test(textLower)) {
+                    employees.forEach(emp => {
+                        matchedEmployees.set(emp.id, emp);
+                    });
+                }
+            }
+            
+            // 7. Поиск по отделам (НОВОЕ)
+            for (const [dept, employees] of this.deptIndex) {
+                if (textLower.includes(dept.toLowerCase())) {
                     employees.forEach(emp => {
                         matchedEmployees.set(emp.id, emp);
                     });
@@ -505,26 +623,68 @@ if (typeof window.DocumentParser === 'undefined') {
         }
 
         /**
-         * Рассчитывает уверенность привязки
+         * Рассчитывает уверенность привязки с учетом аббревиатур
          */
         calculateConfidence(employee, text) {
             let confidence = 0;
             const textLower = text.toLowerCase();
             
+            // Полное совпадение ФИО
             if (textLower.includes(employee.name.toLowerCase())) {
-                confidence = 1.0; // Полное совпадение ФИО
-            } else if (textLower.includes(employee.lastName.toLowerCase())) {
-                confidence = 0.8; // Совпадение по фамилии
-            } else if (employee.shortName && textLower.includes(employee.shortName.toLowerCase())) {
-                confidence = 0.9; // Совпадение по короткому имени
-            } else {
-                // Проверяем по должностям
-                employee.positions.forEach(position => {
-                    if (textLower.includes(position.toLowerCase())) {
+                confidence = 1.0;
+            }
+            // Совпадение по короткому имени (Иванов И.И.)
+            else if (employee.shortName && textLower.includes(employee.shortName.toLowerCase())) {
+                confidence = 0.95;
+            }
+            // Совпадение по фамилии
+            else if (textLower.includes(employee.lastName.toLowerCase())) {
+                confidence = 0.8;
+            }
+            
+            // Проверяем по должностям и аббревиатурам
+            employee.positions.forEach(position => {
+                const positionLower = position.toLowerCase();
+                
+                // Проверяем полное совпадение должности
+                if (textLower.includes(positionLower)) {
+                    confidence = Math.max(confidence, 0.9);
+                }
+                
+                // Проверяем аббревиатуры
+                const abbreviations = this.generateAbbreviations(position);
+                abbreviations.forEach(abbr => {
+                    const abbrPattern = new RegExp(`(^|\\s)${abbr}(\\s|$|[.,;:!?])`, 'i');
+                    if (abbrPattern.test(textLower)) {
+                        confidence = Math.max(confidence, 0.85);
+                    }
+                });
+                
+                // Проверяем ключевые слова
+                const words = positionLower.split(/[\s,.-]+/).filter(w => w && w.length > 2);
+                words.forEach(word => {
+                    if (textLower.includes(word)) {
                         confidence = Math.max(confidence, 0.7);
                     }
                 });
-            }
+            });
+            
+            // Проверяем по названиям отделов
+            employee.parentNames.forEach(parentName => {
+                const parentLower = parentName.toLowerCase();
+                if (textLower.includes(parentLower)) {
+                    confidence = Math.max(confidence, 0.75);
+                }
+                
+                // Проверяем аббревиатуры отделов
+                const deptAbbr = this.generateAbbreviations(parentName);
+                deptAbbr.forEach(abbr => {
+                    const abbrPattern = new RegExp(`(^|\\s)${abbr}(\\s|$|[.,;:!?])`, 'i');
+                    if (abbrPattern.test(textLower)) {
+                        confidence = Math.max(confidence, 0.7);
+                    }
+                });
+            });
             
             return confidence;
         }
