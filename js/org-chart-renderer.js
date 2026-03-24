@@ -13,17 +13,32 @@ class OrgChartRenderer {
         this.init();
     }
     
-    init() {
-        this.setupEventListeners();
-        this.render();
-        
-        // Подписка на изменения данных
-        this.dataManager.subscribe('renderer', () => this.render());
-        
-        // Разворачиваем корневые узлы по умолчанию
+init() {
+    this.setupEventListeners();
+    
+    // Загружаем сохраненное состояние развернутых узлов
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+            console.log('📂 Загружено состояние развернутых узлов:', this.expandedNodes.size);
+        } catch(e) {
+            console.error('Ошибка загрузки состояния:', e);
+        }
+    }
+    
+    this.render();
+    
+    // Подписка на изменения данных
+    this.dataManager.subscribe('renderer', () => this.render());
+    
+    // Если нет сохраненного состояния, разворачиваем корневые узлы
+    if (!savedExpanded) {
         const roots = this.dataManager.departments.filter(d => d.parentId === null);
         roots.forEach(root => this.expandedNodes.add(root.id));
     }
+}
     
     setupEventListeners() {
         // Поиск
@@ -198,15 +213,15 @@ class OrgChartRenderer {
         if (!departments.length) return '';
         
         return departments.map(dept => {
-            const isExpanded = this.expandedNodes.has(dept.id);
+            const isExpanded = this.shouldShowChildren(dept);
             const hasChildren = dept.children.length > 0;
             const employees = dept.employees || [];
             const isSelected = this.selectedType === 'department' && this.selectedItem === dept.id;
             
             return `
                 <div class="org-node org-department-node" data-id="${dept.id}" data-type="department">
-                    <div class="org-node-header ${isSelected ? 'selected' : ''}" 
-                         onclick="orgApp.selectItem('department', ${dept.id})">
+                  <div class="org-node-header ${isSelected ? 'selected' : ''}" 
+     onclick="orgApp.toggleDepartmentExpand(${dept.id})">
                         <div class="org-node-icon">
                             ${hasChildren ? (isExpanded ? '📂' : '📁') : '📄'}
                         </div>
@@ -419,7 +434,18 @@ class OrgChartRenderer {
         
         this.render();
     }
-    
+    shouldShowChildren(dept) {
+    // Если узел развернут - показываем дочерние
+    if (this.expandedNodes.has(dept.id)) {
+        return true;
+    }
+    // Если есть поиск - показываем дочерние, даже если узел свернут
+    if (this.searchQuery && this.isParentOfMatch(dept, this.searchQuery)) {
+        return true;
+    }
+    return false;
+}
+  
 toggleExpand(id) {
     console.log('🔄 Переключение узла:', id);
     
@@ -438,24 +464,42 @@ toggleExpand(id) {
     this.render();
 }
     
-    expandAll() {
-        const addAllIds = (depts) => {
-            depts.forEach(dept => {
-                this.expandedNodes.add(dept.id);
+expandAll() {
+    console.log('📂 Разворачиваем все узлы...');
+    
+    const addAllIds = (depts) => {
+        depts.forEach(dept => {
+            this.expandedNodes.add(dept.id);
+            if (dept.children && dept.children.length) {
                 addAllIds(dept.children);
-            });
-        };
-        
-        const tree = this.dataManager.getDepartmentTree();
-        addAllIds(tree);
-        this.render();
-    }
+            }
+        });
+    };
     
-    collapseAll() {
-        this.expandedNodes.clear();
-        this.render();
-    }
+    const tree = this.dataManager.getDepartmentTree();
+    addAllIds(tree);
     
+    // Сохраняем состояние
+    localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
+    
+    this.render();
+    this.showNotification('✅ Все отделы развернуты', 'success');
+}
+      collapseAll() {
+    console.log('📁 Сворачиваем все узлы...');
+    
+    this.expandedNodes.clear();
+    
+    // Сохраняем состояние
+    localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
+    
+    this.render();
+    this.showNotification('✅ Все отделы свернуты', 'success');
+}
+    toggleDepartmentExpand(id) {
+    console.log('🔄 Клик по заголовку отдела:', id);
+    this.toggleExpand(id);
+}
     showAddDepartmentModal(parentId = null) {
         const departments = this.dataManager.departments.filter(d => d.id !== 1);
         
