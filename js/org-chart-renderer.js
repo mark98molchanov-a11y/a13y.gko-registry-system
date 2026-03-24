@@ -420,14 +420,23 @@ class OrgChartRenderer {
         this.render();
     }
     
-    toggleExpand(id) {
-        if (this.expandedNodes.has(id)) {
-            this.expandedNodes.delete(id);
-        } else {
-            this.expandedNodes.add(id);
-        }
-        this.render();
+toggleExpand(id) {
+    console.log('🔄 Переключение узла:', id);
+    
+    if (this.expandedNodes.has(id)) {
+        this.expandedNodes.delete(id);
+        console.log('📁 Узел свернут');
+    } else {
+        this.expandedNodes.add(id);
+        console.log('📂 Узел развернут');
     }
+    
+    // Сохраняем состояние в localStorage
+    localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
+    
+    // Перерисовываем дерево
+    this.render();
+}
     
     expandAll() {
         const addAllIds = (depts) => {
