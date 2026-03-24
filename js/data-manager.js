@@ -263,18 +263,18 @@ getAllDepartmentsFlat() {
         return siblings.length;
     }
     
-    getDepartmentTree(parentId = null) {
-        const children = this.departments
-            .filter(d => d.parentId === parentId)
-            .sort((a, b) => a.order - b.order);
-        
-        return children.map(dept => ({
-            ...dept,
-            children: this.getDepartmentTree(dept.id),
-            employees: this.getDepartmentEmployees(dept.id),
-            head: this.getDepartmentHead(dept.id)
-        }));
-    }
+getDepartmentTree(parentId = null) {
+    const children = this.departments
+        .filter(d => d.parentId === parentId)
+        .sort((a, b) => a.order - b.order);
+    
+    return children.map(dept => ({
+        ...dept,
+        children: this.getDepartmentTree(dept.id),
+        employees: this.getDepartmentEmployees(dept.id),
+        head: this.getDepartmentHead(dept.id)
+    }));
+}
     
     getDepartmentEmployees(departmentId, includeSub = false) {
         let employees = this.employees
@@ -337,7 +337,28 @@ getAllDepartmentsFlat() {
         return result;
     }
     
-    // ========== ОПЕРАЦИИ С СОТРУДНИКАМИ ==========
+    subscribe(id, callback) {
+    this.listeners.set(id, callback);
+    return () => this.listeners.delete(id);
+}
+
+/**
+ * Уведомление подписчиков об изменениях
+ */
+notifyListeners() {
+    this.listeners.forEach(callback => callback(this.getSnapshot()));
+}
+
+/**
+ * Получение снимка данных
+ */
+getSnapshot() {
+    return {
+        departments: [...this.departments],
+        employees: [...this.employees],
+        positions: [...this.positions]
+    };
+}
     
     addEmployee(data) {
         const newId = this.nextId.employee++;
