@@ -856,5 +856,280 @@ class OrgChartRenderer {
             .replace(/'/g, '&#39;');
     }
 }
+exportToExcel() {
+    const snapshot = this.dataManager.getSnapshot();
+    const departments = snapshot.departments;
+    const employees = snapshot.employees;
+    const positions = snapshot.positions;
+    
+    // Данные для отделов
+    const deptData = departments.map(dept => ({
+        'ID': dept.id,
+        'Название отдела': dept.name,
+        'Родительский отдел (ID)': dept.parentId || '',
+        'Уровень': dept.level,
+        'Порядок': dept.order,
+        'Описание': dept.description || '',
+        'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
+        'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
+    }));
+    
+    // Данные для сотрудников
+    const empData = employees.map(emp => {
+        const department = departments.find(d => d.id === emp.departmentId);
+        const position = positions.find(p => p.id === emp.positionId);
+        return {
+            'ID': emp.id,
+            'ФИО': emp.name,
+            'Отдел': department ? department.name : '',
+            'Должность': position ? position.name : '',
+            'Email': emp.email || '',
+            'Телефон': emp.phone || '',
+            'Руководитель': emp.isHead ? 'Да' : 'Нет',
+            'Статус': emp.isActive ? 'Активен' : 'Уволен',
+            'Дата начала': emp.startDate || '',
+            'Дата увольнения': emp.fireDate || '',
+            'Причина увольнения': emp.fireReason || '',
+            'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
+        };
+    });
+    
+    // Создаем workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Лист с отделами
+    const deptSheet = XLSX.utils.json_to_sheet(deptData);
+    deptSheet['!cols'] = [
+        { wch: 8 }, { wch: 30 }, { wch: 15 }, { wch: 8 }, 
+        { wch: 8 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
+    ];
+    XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
+    
+    // Лист с сотрудниками
+    const empSheet = XLSX.utils.json_to_sheet(empData);
+    empSheet['!cols'] = [
+        { wch: 8 }, { wch: 30 }, { wch: 25 }, { wch: 20 },
+        { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
+        { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 12 }
+    ];
+    XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
+    
+    // Сохраняем файл
+    const fileName = `org_structure_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    this.showNotification(`✅ Экспортировано ${departments.length} отделов и ${employees.length} сотрудников`, 'success');
+}
 
+/**
+ * Импорт структуры из Excel
+ */
+importFromExcel() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx, .xls';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Читаем лист с отделами
+                const deptSheet = workbook.Sheets['Отделы'];
+                const empSheet = workbook.Sheets['Сотрудники'];
+                
+                const deptData = deptSheet ? XLSX.utils.sheet_to_json(deptSheet) : [];
+                const empData = empSheet ? XLSX.utils.sheet_to_json(empSheet) : [];
+                
+                if (deptData.length === 0 && empData.length === 0) {
+                    alert('Файл не содержит данных. Убедитесь, что есть листы "Отделы" и "Сотрудники"');
+                    return;
+                }
+                
+                const confirmMsg = `Найдено:\n- ${deptData.length} отделов\n- ${empData.length} сотрудников\n\nИмпортировать? Текущие данные будут заменены.`;
+                
+                if (confirm(confirmMsg)) {
+                    await this.processImportData(deptData, empData);
+                }
+                
+            } catch (error) {
+                console.error('Ошибка импорта:', error);
+                alert('Ошибка при обработке файла: ' + error.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+    
+    input.click();
+}
+
+/**
+ * Обработка импортированных данных из Excel
+ */
+async processImportData(deptData, empData) {
+    const currentPositions = this.dataManager.positions;
+    const deptMap = new Map();
+    const newDepartments = [];
+    let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
+    
+    // 1. Создаем отделы
+    for (const row of deptData) {
+        const name = row['Название отдела'] || row['Название'] || row['name'];
+        if (!name) continue;
+        
+        const parentName = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
+        let parentId = null;
+        
+        // Если указан числовой ID родителя
+        if (parentName && typeof parentName === 'string' && !isNaN(parentName)) {
+            parentId = parseInt(parentName);
+        } 
+        // Если указано имя родителя
+        else if (parentName) {
+            const existingParent = this.dataManager.departments.find(d => d.name === parentName);
+            if (existingParent) {
+                parentId = existingParent.id;
+            } else {
+                // Ищем среди новых отделов
+                const newParent = newDepartments.find(d => d.name === parentName);
+                if (newParent) {
+                    parentId = newParent.id;
+                }
+            }
+        }
+        
+        const newDept = {
+            id: nextId++,
+            name: name,
+            parentId: parentId,
+            level: row['Уровень'] || 0,
+            order: row['Порядок'] || 0,
+            description: row['Описание'] || '',
+            headId: null,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+        
+        deptMap.set(name, newDept.id);
+        newDepartments.push(newDept);
+    }
+    
+    // 2. Обновляем parentId для новых отделов (если указано имя)
+    newDepartments.forEach(dept => {
+        const originalRow = deptData.find(r => (r['Название отдела'] || r['Название']) === dept.name);
+        if (originalRow) {
+            const parentName = originalRow['Родительский отдел (ID)'] || originalRow['Родительский отдел'];
+            if (parentName && typeof parentName === 'string' && isNaN(parentName) && deptMap.has(parentName)) {
+                dept.parentId = deptMap.get(parentName);
+            }
+        }
+    });
+    
+    // 3. Создаем сотрудников
+    const newEmployees = [];
+    const positionMap = new Map();
+    
+    // Сохраняем существующие должности
+    currentPositions.forEach(pos => {
+        positionMap.set(pos.name, pos.id);
+    });
+    
+    for (const row of empData) {
+        const name = row['ФИО'] || row['name'];
+        if (!name) continue;
+        
+        const deptName = row['Отдел'] || row['department'];
+        let departmentId = null;
+        
+        if (deptName && deptMap.has(deptName)) {
+            departmentId = deptMap.get(deptName);
+        } else if (deptName) {
+            const existingDept = this.dataManager.departments.find(d => d.name === deptName);
+            if (existingDept) departmentId = existingDept.id;
+        }
+        
+        const positionName = row['Должность'] || row['position'];
+        let positionId = positionMap.get(positionName);
+        
+        if (positionName && !positionId) {
+            // Создаем новую должность
+            const newPosition = this.dataManager.addPosition(positionName);
+            positionId = newPosition.id;
+            positionMap.set(positionName, positionId);
+        }
+        
+        const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
+        const isActive = row['Статус'] !== 'Уволен';
+        
+        newEmployees.push({
+            id: nextId++,
+            name: name,
+            departmentId: departmentId,
+            positionId: positionId || 8, // 8 = Специалист (по умолчанию)
+            email: row['Email'] || '',
+            phone: row['Телефон'] || '',
+            isHead: isHead,
+            isActive: isActive,
+            startDate: row['Дата начала'] || new Date().toISOString().split('T')[0],
+            fireDate: row['Дата увольнения'] || null,
+            fireReason: row['Причина увольнения'] || null,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        });
+    }
+    
+    // 4. Заменяем данные
+    this.dataManager.departments = newDepartments;
+    this.dataManager.employees = newEmployees;
+    
+    // 5. Обновляем руководителей отделов
+    newEmployees.forEach(emp => {
+        if (emp.isHead && emp.departmentId) {
+            const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
+            if (dept) dept.headId = emp.id;
+        }
+    });
+    
+    // 6. Сохраняем
+    this.dataManager.saveData();
+    
+    // 7. Обновляем UI
+    this.render();
+    this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
+}
+
+/**
+ * Показать уведомление
+ */
+showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+        type === 'success' ? 'bg-emerald-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        'bg-blue-500 text-white'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="font-medium">${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-white/80">&times;</button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (notification.parentElement) notification.remove();
+            }, 300);
+        }
+    }, 3000);
+}
 window.OrgChartRenderer = OrgChartRenderer;
