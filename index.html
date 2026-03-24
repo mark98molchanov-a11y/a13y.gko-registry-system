@@ -1474,7 +1474,19 @@
             return;
         }
         
-        orgData = new OrgDataManager();
+        // Проверяем, есть ли ожидающие данные из GitHub
+        if (window.pendingOrgData) {
+            console.log('📦 Загружаем ожидающие данные из GitHub...');
+            // Создаем OrgDataManager с предзагруженными данными
+            orgData = new OrgDataManager();
+            orgData.departments = window.pendingOrgData.departments || [];
+            orgData.employees = window.pendingOrgData.employees || [];
+            orgData.positions = window.pendingOrgData.positions || [];
+            orgData.saveData();
+            delete window.pendingOrgData;
+        } else {
+            orgData = new OrgDataManager();
+        }
         
         if (typeof OrgChartRenderer === 'undefined') {
             console.error('❌ OrgChartRenderer не загружен');
@@ -1488,18 +1500,12 @@
         // Обработчики кнопок
         const addDeptBtn = document.getElementById('org-add-department');
         if (addDeptBtn) {
-            addDeptBtn.onclick = () => {
-                console.log('➕ Клик: добавить отдел');
-                orgApp.showAddDepartmentModal();
-            };
+            addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
         }
         
         const addEmpBtn = document.getElementById('org-add-employee');
         if (addEmpBtn) {
-            addEmpBtn.onclick = () => {
-                console.log('👤 Клик: добавить сотрудника');
-                orgApp.showAddEmployeeModal();
-            };
+            addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
         }
         
         const expandAllBtn = document.getElementById('org-expand-all');
@@ -1523,6 +1529,7 @@
         }
         
         console.log('✅ Организационная структура инициализирована');
+        console.log(`📊 Текущие данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников`);
     });
 </script>
 
@@ -2285,7 +2292,6 @@ async function loadFromGitHub() {
     
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
-        console.log('Загрузка данных из GitHub...');
         
         const response = await fetch(`${GITHUB_SYNC_API}gko_all_data.json`);
         
@@ -2295,18 +2301,8 @@ async function loadFromGitHub() {
         
         const json = await response.json();
         console.log('📦 Получен JSON, версия:', json.version);
-        console.log('📦 Наличие images:', !!json.images);
-        console.log('📦 Наличие filesData:', !!json.filesData);
         
-        if (json.images) {
-            console.log('🖼️ Количество изображений в файле:', Object.keys(json.images).length);
-        }
-        
-        if (json.filesData) {
-            console.log('📁 Количество файлов в файле:', Object.keys(json.filesData).length);
-        }
-        
-        // Загружаем НПА
+        // ===== ЗАГРУЖАЕМ НПА =====
         if (json.npas && Array.isArray(json.npas)) {
             appData = [...json.npas];
             localStorage.setItem(STORAGE_KEY_NPA, JSON.stringify(appData));
@@ -2314,7 +2310,7 @@ async function loadFromGitHub() {
             renderGrid();
         }
         
-        // Загружаем дашборды
+        // ===== ЗАГРУЖАЕМ ДАШБОРДЫ =====
         if (json.dashboards && Array.isArray(json.dashboards)) {
             dashboardsData = [...json.dashboards];
             localStorage.setItem(STORAGE_KEY_DASHBOARDS, JSON.stringify(dashboardsData));
@@ -2324,92 +2320,45 @@ async function loadFromGitHub() {
             }
         }
         
-        // ✅ ЗАГРУЖАЕМ ФАЙЛЫ В INDEXEDDB
-        if (json.filesData) {
-            console.log('📁 Загрузка файлов в IndexedDB из GitHub...');
-            const filesData = json.filesData;
-            let loadedCount = 0;
+        // ===== ЗАГРУЖАЕМ НОВУЮ ОРГАНИЗАЦИОННУЮ СТРУКТУРУ =====
+        if (json.orgStructure && json.orgStructure.departments) {
+            console.log('🏢 Загружаем организационную структуру...');
             
-            // Проверяем, инициализирована ли база данных
-            if (window.treeApp && window.treeApp.db) {
-                for (const [fileId, fileMeta] of Object.entries(filesData)) {
-                    try {
-                        // Проверяем, есть ли уже файл
-                        const existingFile = await window.treeApp.db.getFile(fileId);
-                        if (!existingFile) {
-                            // Если файла нет, сохраняем
-                            await window.treeApp.db.saveFile(fileId, fileMeta);
-                            loadedCount++;
-                        }
-                    } catch (dbError) {
-                        console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
-                    }
+            // Сохраняем в localStorage для OrgDataManager
+            const orgDataToSave = {
+                departments: json.orgStructure.departments,
+                employees: json.orgStructure.employees || [],
+                positions: json.orgStructure.positions || [],
+                version: json.orgStructure.version || "3.0"
+            };
+            localStorage.setItem('org_data_v3', JSON.stringify(orgDataToSave));
+            
+            // Если OrgDataManager уже инициализирован, обновляем его
+            if (window.orgData) {
+                console.log('🔄 Обновляем OrgDataManager...');
+                window.orgData.departments = json.orgStructure.departments;
+                window.orgData.employees = json.orgStructure.employees || [];
+                window.orgData.positions = json.orgStructure.positions || [];
+                window.orgData.saveData();
+                
+                if (window.orgApp) {
+                    window.orgApp.render();
                 }
-                console.log(`✅ Загружено ${loadedCount} новых файлов в IndexedDB`);
             } else {
-                console.log('⏳ База данных еще не инициализирована, сохраняем файлы в глобальную переменную');
-                window.pendingTreeFiles = filesData;
+                console.log('⏳ OrgDataManager еще не инициализирован, сохраняем в pending');
+                window.pendingOrgData = orgDataToSave;
             }
+            
+            console.log(`📁 Загружено ${json.orgStructure.departments.length} отделов и ${json.orgStructure.employees?.length || 0} сотрудников`);
         }
         
-        // Загружаем дерево
-        if (json.tree) {
-            console.log('🌳 Данные дерева найдены в GitHub');
-            
-            // 🔥 ИЗМЕНЕНИЕ: Пытаемся сохранить, но не падаем при ошибке
-            try {
-                // Сохраняем данные дерева в localStorage
-                const treeDataToSave = { 
-                    tree: json.tree,
-                    images: json.images || {},
-                    filesData: json.filesData || {}
-                };
-                
-                // Проверяем примерный размер перед сохранением
-                const size = new Blob([JSON.stringify(treeDataToSave)]).size;
-                console.log('📦 Размер данных дерева:', Math.round(size / 1024), 'KB');
-                
-                // Если размер меньше 4MB (примерный лимит localStorage), сохраняем
-                if (size < 4 * 1024 * 1024) {
-                    localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
-                    console.log('📦 Дерево сохранено в localStorage');
-                } else {
-                    console.log('📦 Данные дерева слишком большие для localStorage, сохраняем только структуру');
-                    // Сохраняем только структуру без изображений
-                    localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
-                }
-            } catch (e) {
-                // Если все равно ошибка - игнорируем, главное что данные уже в pending переменных
-                console.log('⚠️ Не удалось сохранить в localStorage, но данные сохранены в памяти:', e.message);
-            }
-            
-            // ВСЕГДА сохраняем в глобальные переменные (это главное!)
-            window.pendingTree = json.tree;
-            window.pendingTreeImages = json.images || {};
-            window.pendingTreeFiles = json.filesData || {};
-            
-            console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
-            console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
-            
-            // Если дерево уже инициализировано - загружаем сразу
-            if (window.treeApp && window.treeApp.importData) {
-                console.log('🔄 Дерево уже инициализировано, загружаем данные...');
-                
-                // Обновляем filesData в памяти
-                window.treeApp.filesData = json.filesData || {};
-                
-                window.treeApp.importData({
-                    tree: json.tree,
-                    images: json.images || {},
-                    filesData: json.filesData || {}
-                });
-                console.log('✅ Данные загружены в дерево');
-            } else {
-                console.log('⏳ Дерево еще не инициализировано, данные будут загружены позже');
-            }
+        // ===== ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ: если есть старое дерево =====
+        if (json.tree && !json.orgStructure) {
+            console.log('🌳 Найдены данные старого дерева, конвертируем...');
+            // Здесь можно добавить конвертацию из старого формата в новый
         }
         
-        // Загружаем калькулятор
+        // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
         if (json.calculator) {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
@@ -2450,88 +2399,83 @@ async function saveToGitHub() {
     
     currentGitHubToken = token;
     
-    // Получаем данные дерева, изображения и файлы
-    let treeData = null;
-    let imagesData = {};
-    let filesData = {}; // ДОБАВЛЕНО
-    
     console.log('=== НАЧАЛО СОХРАНЕНИЯ В GITHUB ===');
     
-    if (window.treeApp && window.treeApp.treeData) {
-        console.log('✅ treeApp найден, получаем данные...');
-        treeData = window.treeApp.serializeTree(window.treeApp.treeData);
-        imagesData = window.treeApp.imagesData || {};
-        filesData = window.treeApp.filesData || {}; // ДОБАВЛЕНО
+    // ===== ПОЛУЧАЕМ ДАННЫЕ ИЗ НОВОЙ СИСТЕМЫ =====
+    let orgData = null;
+    let orgStructure = null;
+    
+    // Получаем данные из новой организационной структуры
+    if (window.orgData) {
+        console.log('✅ Получаем данные из OrgDataManager');
+        const snapshot = window.orgData.getSnapshot();
+        orgData = {
+            departments: snapshot.departments,
+            employees: snapshot.employees,
+            positions: snapshot.positions,
+            version: "3.0"
+        };
         
-        console.log('📊 treeApp.imagesData:', imagesData);
-        console.log('📊 treeApp.filesData:', filesData); // ДОБАВЛЕНО
-        console.log('🖼️ Количество изображений в памяти:', Object.keys(imagesData).length);
-        console.log('📁 Количество файлов в памяти:', Object.keys(filesData).length); // ДОБАВЛЕНО
-        
-        // Покажем первые 3 ключа для проверки
-        const imageKeys = Object.keys(imagesData);
-        if (imageKeys.length > 0) {
-            console.log('🔑 Примеры ключей изображений:', imageKeys.slice(0, 3));
-            console.log('📸 Пример первого изображения (первые 100 символов):', 
-                imagesData[imageKeys[0]]?.substring(0, 100) + '...');
-        } else {
-            console.warn('⚠️ imagesData пуст! Изображения не будут сохранены');
+        // Получаем дерево для отображения (если нужно для совместимости)
+        if (window.orgApp && window.orgApp.dataManager) {
+            orgStructure = {
+                tree: window.orgApp.dataManager.getDepartmentTree(),
+                flat: {
+                    departments: snapshot.departments,
+                    employees: snapshot.employees
+                }
+            };
         }
-        
-        // ДОБАВЛЕНО: логирование файлов
-        const fileKeys = Object.keys(filesData);
-        if (fileKeys.length > 0) {
-            console.log('📁 Примеры ключей файлов:', fileKeys.slice(0, 3));
-            console.log('📄 Пример первого файла:', filesData[fileKeys[0]]);
-        } else {
-            console.warn('⚠️ filesData пуст! Файлы не будут сохранены');
-        }
-        
     } else {
-        console.log('⚠️ treeApp не найден, проверяем localStorage...');
-        try {
-            const savedTree = localStorage.getItem('treeData');
-            if (savedTree) {
-                const parsed = JSON.parse(savedTree);
-                treeData = parsed.tree || null;
-                imagesData = parsed.images || {};
-                filesData = parsed.filesData || {}; // ДОБАВЛЕНО
-                console.log('📦 Загружено из localStorage, изображений:', Object.keys(imagesData).length);
-                console.log('📦 Загружено из localStorage, файлов:', Object.keys(filesData).length); // ДОБАВЛЕНО
-            } else {
-                console.log('❌ Данные не найдены в localStorage');
-            }
-        } catch (e) {
-            console.error('Ошибка парсинга localStorage:', e);
+        console.warn('⚠️ OrgDataManager не найден, используем старые данные');
+        // Fallback на старые данные, если новая система не загружена
+        if (window.treeApp && window.treeApp.treeData) {
+            orgStructure = {
+                tree: window.treeApp.serializeTree(window.treeApp.treeData),
+                images: window.treeApp.imagesData || {},
+                filesData: window.treeApp.filesData || {}
+            };
         }
     }
     
-    console.log('📦 imagesData перед сохранением:', Object.keys(imagesData));
-    console.log('📦 filesData перед сохранением:', Object.keys(filesData)); // ДОБАВЛЕНО
-    console.log('📦 Размер imagesData (в символах):', JSON.stringify(imagesData).length);
-    console.log('📦 Размер filesData (в символах):', JSON.stringify(filesData).length); // ДОБАВЛЕНО
+    // Получаем данные калькулятора
+    const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
     
+    // Формируем полные данные для сохранения
     const allData = {
-        version: "2.0",
+        version: "3.0",  // Новая версия
         exportDate: new Date().toISOString(),
+        
+        // НПА (остаются без изменений)
         npas: appData,
+        
+        // Дашборды (остаются без изменений)
         dashboards: dashboardsData,
-        tree: treeData,
-        images: imagesData,
-        filesData: filesData, // ДОБАВЛЕНО
-        calculator: JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}'),
+        
+        // ===== НОВАЯ СТРУКТУРА =====
+        orgStructure: orgData,  // Основные данные организационной структуры
+        
+        // Для обратной совместимости со старым деревом
+        tree: orgStructure?.tree || null,
+        images: orgStructure?.images || {},
+        filesData: orgStructure?.filesData || {},
+        
+        // Калькулятор
+        calculator: calculatorData,
+        
         metadata: {
             npaCount: appData.length,
             dashboardsCount: dashboardsData.length,
-            hasTree: !!treeData,
-            imageCount: Object.keys(imagesData).length,
-            fileCount: Object.keys(filesData).length, // ДОБАВЛЕНО
-            exportFormat: "combined"
+            orgStructureVersion: "3.0",
+            departmentsCount: orgData?.departments?.length || 0,
+            employeesCount: orgData?.employees?.length || 0,
+            exportFormat: "combined_v3"
         }
     };
     
     console.log('📊 Итоговые метаданные:', allData.metadata);
-    console.log('📦 Размер allData (в символах):', JSON.stringify(allData).length);
+    console.log('📦 Отделов для сохранения:', allData.orgStructure?.departments?.length || 0);
+    console.log('👥 Сотрудников для сохранения:', allData.orgStructure?.employees?.length || 0);
     
     const content = JSON.stringify(allData, null, 2);
     const owner = 'mark98molchanov-a11y';
@@ -2559,7 +2503,7 @@ async function saveToGitHub() {
         }
         
         console.log('📤 Отправка данных в GitHub...');
-        console.log('📤 Размер отправляемых данных:', content.length, 'символов');
+        console.log('📤 Размер отправляемых данных:', Math.round(content.length / 1024), 'KB');
         
         // Сохраняем файл в GitHub
         const response = await fetch(apiUrl, {
@@ -2583,7 +2527,7 @@ async function saveToGitHub() {
             // Показываем уведомление об успехе
             const success = document.createElement('div');
             success.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-            success.textContent = `✅ Успешно сохранено в GitHub (изображений: ${Object.keys(imagesData).length}, файлов: ${Object.keys(filesData).length})`; // ИЗМЕНЕНО
+            success.textContent = `✅ Сохранено: ${allData.orgStructure?.departments?.length || 0} отделов, ${allData.orgStructure?.employees?.length || 0} сотрудников`;
             document.body.appendChild(success);
             
             setTimeout(() => {
