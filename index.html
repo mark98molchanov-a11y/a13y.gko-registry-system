@@ -1447,38 +1447,76 @@
 <script src="js/data-manager.js"></script>
 <script src="js/org-chart-renderer.js"></script>
 <script type="text/babel" src="js/parser-ui.jsx"></script>
-      <script>
-        let orgApp = null;
-        let orgData = null;
+     <script>
+    let orgApp = null;
+    let orgData = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Инициализация организационной структуры...');
         
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Инициализация организационной структуры...');
-            
-            const container = document.getElementById('org-chart-container');
-            if (!container) {
-                console.error('❌ Контейнер org-chart-container не найден');
-                return;
-            }
-            
-            if (typeof OrgDataManager === 'undefined') {
-                console.error('❌ OrgDataManager не загружен');
-                return;
-            }
-            
-            orgData = new OrgDataManager();
-            
-            if (typeof OrgChartRenderer === 'undefined') {
-                console.error('❌ OrgChartRenderer не загружен');
-                return;
-            }
-            
-            orgApp = new OrgChartRenderer('org-chart-container', orgData);
-            window.orgApp = orgApp;
-            window.orgData = orgData;
-            
-            console.log('✅ Организационная структура инициализирована');
-        });
-    </script>
+        const container = document.getElementById('org-chart-container');
+        if (!container) {
+            console.error('❌ Контейнер org-chart-container не найден');
+            return;
+        }
+        
+        if (typeof OrgDataManager === 'undefined') {
+            console.error('❌ OrgDataManager не загружен');
+            return;
+        }
+        
+        orgData = new OrgDataManager();
+        
+        if (typeof OrgChartRenderer === 'undefined') {
+            console.error('❌ OrgChartRenderer не загружен');
+            return;
+        }
+        
+        orgApp = new OrgChartRenderer('org-chart-container', orgData);
+        window.orgApp = orgApp;
+        window.orgData = orgData;
+        
+        // ===== НОВЫЕ ОБРАБОТЧИКИ КНОПОК =====
+        
+        // Экспорт в Excel
+        const exportBtn = document.getElementById('org-export');
+        if (exportBtn) {
+            exportBtn.onclick = () => orgApp.exportToExcel();
+        }
+        
+        // Импорт из Excel
+        const importBtn = document.getElementById('org-import');
+        if (importBtn) {
+            importBtn.onclick = () => orgApp.importFromExcel();
+        }
+        
+        // Развернуть все
+        const expandAllBtn = document.getElementById('org-expand-all');
+        if (expandAllBtn) {
+            expandAllBtn.onclick = () => orgApp.expandAll();
+        }
+        
+        // Свернуть все
+        const collapseAllBtn = document.getElementById('org-collapse-all');
+        if (collapseAllBtn) {
+            collapseAllBtn.onclick = () => orgApp.collapseAll();
+        }
+        
+        // Добавить отдел
+        const addDeptBtn = document.getElementById('org-add-department');
+        if (addDeptBtn) {
+            addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
+        }
+        
+        // Добавить сотрудника
+        const addEmpBtn = document.getElementById('org-add-employee');
+        if (addEmpBtn) {
+            addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
+        }
+        
+        console.log('✅ Организационная структура инициализирована');
+    });
+</script>
 </body>
 </html>
 <script type="text/babel">
