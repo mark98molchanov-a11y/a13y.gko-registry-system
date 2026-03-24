@@ -113,7 +113,64 @@ class OrgDataManager {
             positions: [...this.positions]
         };
     }
+    addPosition(name, level = 0) {
+    const newId = Math.max(0, ...this.positions.map(p => p.id), 10) + 1;
     
+    const newPosition = {
+        id: newId,
+        name: name.trim(),
+        level: level,
+        order: this.positions.length,
+        createdAt: Date.now()
+    };
+    
+    this.positions.push(newPosition);
+    this.saveData();
+    this.addToHistory('add_position', { name: name });
+    
+    return newPosition;
+}
+
+/**
+ * Получение должности по имени (создает если нет)
+ */
+getOrCreatePosition(name) {
+    if (!name) return null;
+    
+    let position = this.positions.find(p => p.name === name);
+    if (!position) {
+        position = this.addPosition(name);
+    }
+    return position;
+}
+
+/**
+ * Получение отдела по имени
+ */
+getDepartmentByName(name) {
+    return this.departments.find(d => d.name === name);
+}
+
+/**
+ * Получение всех отделов плоским списком с путями
+ */
+getAllDepartmentsFlat() {
+    const result = [];
+    const addWithPath = (id, path = '') => {
+        const dept = this.departments.find(d => d.id === id);
+        if (dept) {
+            const fullPath = path ? `${path} / ${dept.name}` : dept.name;
+            result.push({ ...dept, fullPath });
+            const children = this.departments.filter(d => d.parentId === id);
+            children.forEach(child => addWithPath(child.id, fullPath));
+        }
+    };
+    
+    const roots = this.departments.filter(d => d.parentId === null);
+    roots.forEach(root => addWithPath(root.id));
+    
+    return result;
+}
     addToHistory(action, details = {}) {
         this.changeHistory.unshift({
             id: Date.now(),
