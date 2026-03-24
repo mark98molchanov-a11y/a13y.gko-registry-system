@@ -1450,12 +1450,12 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
 
-<!-- Основные скрипты новой системы -->
-<script src="js/indexed-db-manager.js"></script>
+<!-- Основные скрипты (только эти!) -->
 <script src="js/document-parser-core.js"></script>
 <script src="js/data-manager.js"></script>
 <script src="js/org-chart-renderer.js"></script>
 <script type="text/babel" src="js/parser-ui.jsx"></script>
+
 <script>
     let orgApp = null;
     let orgData = null;
@@ -1485,49 +1485,61 @@
         window.orgApp = orgApp;
         window.orgData = orgData;
         
-        // ===== ОБРАБОТЧИКИ КНОПОК =====
-        
-        // Основные действия
+        // Обработчики кнопок
         const addDeptBtn = document.getElementById('org-add-department');
-        if (addDeptBtn) addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
+        if (addDeptBtn) {
+            addDeptBtn.onclick = () => {
+                console.log('➕ Клик: добавить отдел');
+                orgApp.showAddDepartmentModal();
+            };
+        }
         
         const addEmpBtn = document.getElementById('org-add-employee');
-        if (addEmpBtn) addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
+        if (addEmpBtn) {
+            addEmpBtn.onclick = () => {
+                console.log('👤 Клик: добавить сотрудника');
+                orgApp.showAddEmployeeModal();
+            };
+        }
         
         const expandAllBtn = document.getElementById('org-expand-all');
-        if (expandAllBtn) expandAllBtn.onclick = () => orgApp.expandAll();
+        if (expandAllBtn) {
+            expandAllBtn.onclick = () => orgApp.expandAll();
+        }
         
         const collapseAllBtn = document.getElementById('org-collapse-all');
-        if (collapseAllBtn) collapseAllBtn.onclick = () => orgApp.collapseAll();
+        if (collapseAllBtn) {
+            collapseAllBtn.onclick = () => orgApp.collapseAll();
+        }
         
-        // Экспорт в Excel
         const exportExcelBtn = document.getElementById('org-export-excel');
         if (exportExcelBtn) {
             exportExcelBtn.onclick = () => orgApp.exportToExcel();
         }
         
-        // Экспорт в JSON
-        const exportJsonBtn = document.getElementById('org-export-json');
-        if (exportJsonBtn) {
-            exportJsonBtn.onclick = () => orgApp.exportData();
-        }
-        
-        // Импорт из Excel
         const importExcelBtn = document.getElementById('org-import-excel');
         if (importExcelBtn) {
             importExcelBtn.onclick = () => orgApp.importFromExcel();
         }
         
-        // Импорт из JSON
-        const importJsonBtn = document.getElementById('org-import-json');
-        if (importJsonBtn) {
-            importJsonBtn.onclick = () => orgApp.importData();
-        }
-        
         console.log('✅ Организационная структура инициализирована');
-        console.log('📊 Экспорт: Excel + JSON | Импорт: Excel + JSON');
     });
 </script>
+
+<!-- Модальное окно -->
+<div id="org-modal" class="org-modal" style="display: none;">
+    <div class="org-modal-content">
+        <div class="org-modal-header">
+            <h3 id="org-modal-title">Заголовок</h3>
+            <button class="org-modal-close">&times;</button>
+        </div>
+        <div class="org-modal-body" id="org-modal-body"></div>
+        <div class="org-modal-footer">
+            <button id="org-modal-cancel" class="btn-secondary">Отмена</button>
+            <button id="org-modal-save" class="btn-primary">Сохранить</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
 <script type="text/babel">
