@@ -972,109 +972,174 @@ class OrgChartRenderer {
     /**
      * Обработка импортированных данных
      */
-    async processImportData(deptData, empData) {
-        const currentPositions = this.dataManager.positions;
-        const deptMap = new Map();
-        const newDepartments = [];
-        let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
+  async processImportData(deptData, empData) {
+    const currentPositions = this.dataManager.positions;
+    const deptMap = new Map(); // имя -> id
+    const newDepartments = [];
+    let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
+    
+    // 1. Создаем отделы
+    for (const row of deptData) {
+        const name = row['Название отдела'] || row['Название'] || row['name'];
+        if (!name) continue;
         
-        // Создаем отделы
-        for (const row of deptData) {
-            const name = row['Название отдела'] || row['Название'] || row['name'];
-            if (!name) continue;
-            
-            const parentName = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
-            let parentId = null;
-            
-            if (parentName && typeof parentName === 'string' && !isNaN(parentName)) {
-                parentId = parseInt(parentName);
-            } else if (parentName) {
-                const existingParent = this.dataManager.departments.find(d => d.name === parentName);
-                if (existingParent) parentId = existingParent.id;
-            }
-            
-            newDepartments.push({
-                id: nextId++,
-                name: name,
-                parentId: parentId,
-                level: row['Уровень'] || 0,
-                order: row['Порядок'] || 0,
-                description: row['Описание'] || '',
-                headId: null,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            });
-            deptMap.set(name, newDepartments[newDepartments.length - 1].id);
-        }
+        const parentName = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
+        let parentId = null;
         
-        // Обновляем parentId
-        newDepartments.forEach(dept => {
-            const originalRow = deptData.find(r => (r['Название отдела'] || r['Название']) === dept.name);
-            if (originalRow) {
-                const parentName = originalRow['Родительский отдел (ID)'] || originalRow['Родительский отдел'];
-                if (parentName && typeof parentName === 'string' && isNaN(parentName) && deptMap.has(parentName)) {
-                    dept.parentId = deptMap.get(parentName);
+        // Если указан числовой ID родителя
+        if (parentName && typeof parentName === 'string' && !isNaN(parentName) && parentName !== '') {
+            parentId = parseInt(parentName);
+        } 
+        // Если указано имя родителя
+        else if (parentName && parentName !== '') {
+            // Ищем среди существующих отделов
+            const existingParent = this.dataManager.departments.find(d => d.name === parentName);
+            if (existingParent) {
+                parentId = existingParent.id;
+            } else {
+                // Ищем среди новых отделов
+                const newParent = newDepartments.find(d => d.name === parentName);
+                if (newParent) {
+                    parentId = newParent.id;
                 }
             }
-        });
-        
-        // Создаем сотрудников
-        const newEmployees = [];
-        const positionMap = new Map();
-        currentPositions.forEach(pos => positionMap.set(pos.name, pos.id));
-        
-        for (const row of empData) {
-            const name = row['ФИО'] || row['name'];
-            if (!name) continue;
-            
-            const deptName = row['Отдел'] || row['department'];
-            let departmentId = deptName && deptMap.has(deptName) ? deptMap.get(deptName) : null;
-            
-            const positionName = row['Должность'] || row['position'];
-            let positionId = positionMap.get(positionName);
-            
-            if (positionName && !positionId) {
-                const newPosition = this.dataManager.addPosition(positionName);
-                positionId = newPosition.id;
-                positionMap.set(positionName, positionId);
-            }
-            
-            const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
-            const isActive = row['Статус'] !== 'Уволен';
-            
-            newEmployees.push({
-                id: nextId++,
-                name: name,
-                departmentId: departmentId,
-                positionId: positionId || 8,
-                email: row['Email'] || '',
-                phone: row['Телефон'] || '',
-                isHead: isHead,
-                isActive: isActive,
-                startDate: row['Дата начала'] || new Date().toISOString().split('T')[0],
-                fireDate: row['Дата увольнения'] || null,
-                fireReason: row['Причина увольнения'] || null,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            });
         }
         
-        // Заменяем данные
-        this.dataManager.departments = newDepartments;
-        this.dataManager.employees = newEmployees;
+        const newDept = {
+            id: nextId++,
+            name: name,
+            parentId: parentId,
+            level: row['Уровень'] || 0,
+            order: row['Порядок'] || 0,
+            description: row['Описание'] || '',
+            headId: null,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
         
-        // Обновляем руководителей
-        newEmployees.forEach(emp => {
-            if (emp.isHead && emp.departmentId) {
-                const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
-                if (dept) dept.headId = emp.id;
-            }
-        });
-        
-        this.dataManager.saveData();
-        this.render();
-        this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
+        deptMap.set(name, newDept.id);
+        newDepartments.push(newDept);
     }
+    
+    // 2. Обновляем parentId для новых отделов (если указано имя родителя)
+    newDepartments.forEach(dept => {
+        const originalRow = deptData.find(r => (r['Название отдела'] || r['Название']) === dept.name);
+        if (originalRow) {
+            const parentName = originalRow['Родительский отдел (ID)'] || originalRow['Родительский отдел'];
+            if (parentName && typeof parentName === 'string' && isNaN(parentName) && parentName !== '' && deptMap.has(parentName)) {
+                dept.parentId = deptMap.get(parentName);
+            }
+        }
+    });
+    
+    // 3. Создаем сотрудников
+    const newEmployees = [];
+    const positionMap = new Map();
+    
+    // Сохраняем существующие должности
+    currentPositions.forEach(pos => {
+        positionMap.set(pos.name, pos.id);
+    });
+    
+    for (const row of empData) {
+        const name = row['ФИО'] || row['name'];
+        if (!name) continue;
+        
+        const deptName = row['Отдел'] || row['department'];
+        let departmentId = null;
+        
+        if (deptName && deptMap.has(deptName)) {
+            departmentId = deptMap.get(deptName);
+        } else if (deptName) {
+            const existingDept = this.dataManager.departments.find(d => d.name === deptName);
+            if (existingDept) departmentId = existingDept.id;
+        }
+        
+        const positionName = row['Должность'] || row['position'];
+        let positionId = positionMap.get(positionName);
+        
+        if (positionName && !positionId) {
+            // Создаем новую должность (исправлено!)
+            const newPosition = this.dataManager.addPosition(positionName);
+            positionId = newPosition.id;
+            positionMap.set(positionName, positionId);
+        }
+        
+        const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
+        const isActive = row['Статус'] !== 'Уволен';
+        
+        newEmployees.push({
+            id: nextId++,
+            name: name,
+            departmentId: departmentId,
+            positionId: positionId || 8, // 8 = Специалист (по умолчанию)
+            email: row['Email'] || '',
+            phone: row['Телефон'] || '',
+            isHead: isHead,
+            isActive: isActive,
+            startDate: row['Дата начала'] ? this.parseExcelDateString(row['Дата начала']) : new Date().toISOString().split('T')[0],
+            fireDate: row['Дата увольнения'] || null,
+            fireReason: row['Причина увольнения'] || null,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        });
+    }
+    
+    // 4. Заменяем данные
+    this.dataManager.departments = newDepartments;
+    this.dataManager.employees = newEmployees;
+    
+    // 5. Обновляем руководителей отделов
+    newEmployees.forEach(emp => {
+        if (emp.isHead && emp.departmentId) {
+            const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
+            if (dept) dept.headId = emp.id;
+        }
+    });
+    
+    // 6. Сохраняем
+    this.dataManager.saveData();
+    
+    // 7. Обновляем UI
+    this.render();
+    this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
+}
+
+/**
+ * Парсинг даты из Excel (вспомогательный метод)
+ */
+parseExcelDateString(dateValue) {
+    if (!dateValue) return new Date().toISOString().split('T')[0];
+    
+    // Если это число (Excel дата)
+    if (typeof dateValue === 'number') {
+        const excelEpoch = new Date(1899, 11, 30);
+        const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
+        return jsDate.toISOString().split('T')[0];
+    }
+    
+    // Если это строка
+    if (typeof dateValue === 'string') {
+        // Пробуем распарсить
+        const date = new Date(dateValue);
+        if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+        }
+        
+        // Пробуем формат dd.mm.yyyy
+        const parts = dateValue.split('.');
+        if (parts.length === 3) {
+            const day = parts[0];
+            const month = parts[1];
+            const year = parts[2];
+            if (year && month && day) {
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+        }
+    }
+    
+    return new Date().toISOString().split('T')[0];
+}
     
     /**
      * Показать уведомление
