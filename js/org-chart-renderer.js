@@ -40,69 +40,109 @@ init() {
     }
 }
     
-    setupEventListeners() {
-        // Поиск
-        const searchInput = document.getElementById('org-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.searchQuery = e.target.value.toLowerCase();
-                this.render();
-            });
-        }
-        
-        // Фильтр по отделам
-        const filterDept = document.getElementById('org-filter-department');
-        if (filterDept) {
-            filterDept.addEventListener('change', (e) => {
-                this.filterDepartment = e.target.value;
-                this.render();
-            });
-            this.updateDepartmentFilter();
-        }
-        
-        // Фильтр по должностям
-        const filterPos = document.getElementById('org-filter-position');
-        if (filterPos) {
-            filterPos.addEventListener('change', (e) => {
-                this.filterPosition = e.target.value;
-                this.render();
-            });
-            this.updatePositionFilter();
-        }
-        
-        // Сброс фильтров
-        const clearBtn = document.getElementById('org-filter-clear');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                this.searchQuery = '';
-                this.filterDepartment = '';
-                this.filterPosition = '';
-                if (searchInput) searchInput.value = '';
-                if (filterDept) filterDept.value = '';
-                if (filterPos) filterPos.value = '';
-                this.render();
-            });
-        }
-        
-        // Кнопки управления
-        const expandAll = document.getElementById('org-expand-all');
-        if (expandAll) expandAll.addEventListener('click', () => this.expandAll());
-        
-        const collapseAll = document.getElementById('org-collapse-all');
-        if (collapseAll) collapseAll.addEventListener('click', () => this.collapseAll());
-        
-        const addDept = document.getElementById('org-add-department');
-        if (addDept) addDept.addEventListener('click', () => this.showAddDepartmentModal());
-        
-        const addEmployee = document.getElementById('org-add-employee');
-        if (addEmployee) addEmployee.addEventListener('click', () => this.showAddEmployeeModal());
-        
-        const exportBtn = document.getElementById('org-export');
-        if (exportBtn) exportBtn.addEventListener('click', () => this.exportData());
-        
-        const importBtn = document.getElementById('org-import');
-        if (importBtn) importBtn.addEventListener('click', () => this.importData());
+setupEventListeners() {
+    // Поиск
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase().trim();
+            
+            if (this.searchQuery) {
+                const expandMatchingNodes = (depts) => {
+                    depts.forEach(dept => {
+                        if (this.hasMatchingDescendant(dept)) {
+                            this.expandedNodes.add(dept.id);
+                            if (dept.children && dept.children.length) {
+                                expandMatchingNodes(dept.children);
+                            }
+                        }
+                    });
+                };
+                const tree = this.dataManager.getDepartmentTree();
+                expandMatchingNodes(tree);
+            }
+            
+            this.render();
+        });
     }
+    
+    // Фильтр по отделам
+    const filterDept = document.getElementById('org-filter-department');
+    if (filterDept) {
+        filterDept.addEventListener('change', (e) => {
+            this.filterDepartment = e.target.value;
+            this.render();
+        });
+        this.updateDepartmentFilter();
+    }
+    
+    // Фильтр по должностям
+    const filterPos = document.getElementById('org-filter-position');
+    if (filterPos) {
+        filterPos.addEventListener('change', (e) => {
+            this.filterPosition = e.target.value;
+            this.render();
+        });
+        this.updatePositionFilter();
+    }
+    
+    // Сброс фильтров
+    const clearBtn = document.getElementById('org-filter-clear');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            this.searchQuery = '';
+            this.filterDepartment = '';
+            this.filterPosition = '';
+            if (searchInput) searchInput.value = '';
+            if (filterDept) filterDept.value = '';
+            if (filterPos) filterPos.value = '';
+            
+            // Восстанавливаем сохраненное состояние развернутых узлов
+            const savedExpanded = localStorage.getItem('org_expanded_nodes');
+            if (savedExpanded) {
+                try {
+                    const expandedArray = JSON.parse(savedExpanded);
+                    this.expandedNodes = new Set(expandedArray);
+                } catch(e) {}
+            } else {
+                const roots = this.dataManager.departments.filter(d => d.parentId === null);
+                roots.forEach(root => this.expandedNodes.add(root.id));
+            }
+            
+            this.render();
+        });
+    }
+    
+    // Кнопки управления
+    const expandAll = document.getElementById('org-expand-all');
+    if (expandAll) expandAll.addEventListener('click', () => this.expandAll());
+    
+    const collapseAll = document.getElementById('org-collapse-all');
+    if (collapseAll) collapseAll.addEventListener('click', () => this.collapseAll());
+    
+    const addDept = document.getElementById('org-add-department');
+    if (addDept) addDept.addEventListener('click', () => this.showAddDepartmentModal());
+    
+    const addEmployee = document.getElementById('org-add-employee');
+    if (addEmployee) addEmployee.addEventListener('click', () => this.showAddEmployeeModal());
+    
+    // Экспорт JSON
+    const exportJsonBtn = document.getElementById('org-export-json');
+    if (exportJsonBtn) exportJsonBtn.addEventListener('click', () => this.exportData());
+    
+    // Экспорт Excel
+    const exportExcelBtn = document.getElementById('org-export-excel');
+    if (exportExcelBtn) exportExcelBtn.addEventListener('click', () => this.exportToExcel());
+    
+    // Импорт JSON
+    const importJsonBtn = document.getElementById('org-import-json');
+    if (importJsonBtn) importJsonBtn.addEventListener('click', () => this.importData());
+    
+    // Импорт Excel
+    const importExcelBtn = document.getElementById('org-import-excel');
+    if (importExcelBtn) importExcelBtn.addEventListener('click', () => this.importFromExcel());
+}
+
     
     updateDepartmentFilter() {
         const select = document.getElementById('org-filter-department');
@@ -134,51 +174,69 @@ init() {
         `;
     }
     
-    filterTree(departments) {
-        let result = [...departments];
-        
-        // Фильтр по поиску
-        if (this.searchQuery) {
-            result = result.filter(dept => {
-                const deptMatches = dept.name.toLowerCase().includes(this.searchQuery);
-                const employeesMatches = dept.employees.some(emp => 
-                    emp.name.toLowerCase().includes(this.searchQuery) ||
-                    (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(this.searchQuery)
-                );
-                const childrenMatches = this.filterTree(dept.children).length > 0;
-                
-                return deptMatches || employeesMatches || childrenMatches;
-            }).map(dept => ({
-                ...dept,
-                children: this.filterTree(dept.children)
-            }));
-        }
-        
-        // Фильтр по отделу
-        if (this.filterDepartment) {
-            const filterId = parseInt(this.filterDepartment);
-            result = result.filter(dept => {
-                if (dept.id === filterId) return true;
-                if (this.hasDepartment(dept, filterId)) return true;
-                return false;
-            }).map(dept => ({
-                ...dept,
-                children: this.filterTreeByDepartment(dept.children, filterId)
-            }));
-        }
-        
-        // Фильтр по должности
-        if (this.filterPosition) {
-            const filterPosId = parseInt(this.filterPosition);
-            result = result.map(dept => ({
-                ...dept,
-                employees: dept.employees.filter(emp => emp.positionId === filterPosId),
-                children: this.filterTreeByPosition(dept.children, filterPosId)
-            })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, filterPosId));
-        }
-        
-        return result;
+filterTree(departments) {
+    let result = [...departments];
+    
+    // Фильтр по поиску
+    if (this.searchQuery) {
+        result = result.filter(dept => {
+            // Проверяем, подходит ли сам отдел
+            const deptMatches = dept.name.toLowerCase().includes(this.searchQuery);
+            
+            // Проверяем сотрудников отдела
+            const employeesMatches = dept.employees.some(emp => 
+                emp.name.toLowerCase().includes(this.searchQuery) ||
+                (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(this.searchQuery) ||
+                (emp.email && emp.email.toLowerCase().includes(this.searchQuery))
+            );
+            
+            // Проверяем дочерние отделы
+            const childrenMatches = this.filterTree(dept.children).length > 0;
+            
+            // Если отдел подходит сам, показываем его полностью
+            if (deptMatches) {
+                return true;
+            }
+            
+            // Если есть совпадения в сотрудниках или детях - показываем
+            return employeesMatches || childrenMatches;
+        }).map(dept => ({
+            ...dept,
+            // Фильтруем сотрудников, оставляем только тех, кто подходит под поиск
+            employees: dept.employees.filter(emp => 
+                emp.name.toLowerCase().includes(this.searchQuery) ||
+                (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(this.searchQuery) ||
+                (emp.email && emp.email.toLowerCase().includes(this.searchQuery))
+            ),
+            children: this.filterTree(dept.children)
+        }));
     }
+    
+    // Фильтр по отделу (оставляем как есть)
+    if (this.filterDepartment) {
+        const filterId = parseInt(this.filterDepartment);
+        result = result.filter(dept => {
+            if (dept.id === filterId) return true;
+            if (this.hasDepartment(dept, filterId)) return true;
+            return false;
+        }).map(dept => ({
+            ...dept,
+            children: this.filterTreeByDepartment(dept.children, filterId)
+        }));
+    }
+    
+    // Фильтр по должности (оставляем как есть)
+    if (this.filterPosition) {
+        const filterPosId = parseInt(this.filterPosition);
+        result = result.map(dept => ({
+            ...dept,
+            employees: dept.employees.filter(emp => emp.positionId === filterPosId),
+            children: this.filterTreeByPosition(dept.children, filterPosId)
+        })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, filterPosId));
+    }
+    
+    return result;
+}
     
     hasDepartment(dept, targetId) {
         if (dept.id === targetId) return true;
@@ -434,20 +492,100 @@ init() {
         
         this.render();
     }
-    shouldShowChildren(dept) {
-    // Если узел развернут - показываем дочерние
-    if (this.expandedNodes.has(dept.id)) {
+shouldShowChildren(dept) {
+    // Если есть активный поиск - показываем все узлы, которые содержат результат поиска
+    if (this.searchQuery) {
+        // Проверяем, есть ли в этом отделе или его потомках совпадение
+        if (this.hasMatchingDescendant(dept)) {
+            return true;
+        }
+        // Если узел сам подходит под поиск, показываем его дочерние
+        if (this.nodeMatchesSearch(dept, this.searchQuery)) {
+            return true;
+        }
+        return false;
+    }
+    
+    // Если нет поиска, используем обычное состояние развернутости
+    return this.expandedNodes.has(dept.id);
+}
+  hasMatchingDescendant(node, query = this.searchQuery) {
+    if (!query) return false;
+    
+    // Проверяем самого узла
+    if (this.nodeMatchesSearch(node, query)) {
         return true;
     }
-    // Если есть поиск - показываем дочерние, даже если узел свернут
-    if (this.searchQuery && this.isParentOfMatch(dept, this.searchQuery)) {
-        return true;
+    
+    // Проверяем дочерние узлы
+    for (const child of node.children) {
+        if (this.hasMatchingDescendant(child, query)) {
+            return true;
+        }
     }
+    
+    // Проверяем сотрудников
+    if (node.employees && node.employees.length) {
+        for (const emp of node.employees) {
+            const position = this.dataManager.positions.find(p => p.id === emp.positionId);
+            if (emp.name.toLowerCase().includes(query) ||
+                (position && position.name.toLowerCase().includes(query)) ||
+                (emp.email && emp.email.toLowerCase().includes(query))) {
+                return true;
+            }
+        }
+    }
+    
     return false;
 }
-  
+    nodeMatchesSearch(node, query = this.searchQuery) {
+    if (!query) return false;
+    
+    const lowerQuery = query.toLowerCase();
+    
+    // Проверяем название отдела
+    if (node.name.toLowerCase().includes(lowerQuery)) {
+        return true;
+    }
+    
+    // Проверяем описание
+    if (node.description && node.description.toLowerCase().includes(lowerQuery)) {
+        return true;
+    }
+    
+    // Проверяем сотрудников
+    if (node.employees && node.employees.length) {
+        for (const emp of node.employees) {
+            if (emp.name.toLowerCase().includes(lowerQuery)) {
+                return true;
+            }
+            const position = this.dataManager.positions.find(p => p.id === emp.positionId);
+            if (position && position.name.toLowerCase().includes(lowerQuery)) {
+                return true;
+            }
+            if (emp.email && emp.email.toLowerCase().includes(lowerQuery)) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
 toggleExpand(id) {
     console.log('🔄 Переключение узла:', id);
+    
+    // Если есть активный поиск, не позволяем сворачивать узлы с результатами
+    if (this.searchQuery) {
+        const node = this.dataManager.departments.find(d => d.id === id);
+        if (node && this.hasMatchingDescendant(node)) {
+            // Если узел содержит результат поиска, не сворачиваем его
+            if (!this.expandedNodes.has(id)) {
+                this.expandedNodes.add(id);
+                this.render();
+            }
+            return;
+        }
+    }
     
     if (this.expandedNodes.has(id)) {
         this.expandedNodes.delete(id);
@@ -457,10 +595,7 @@ toggleExpand(id) {
         console.log('📂 Узел развернут');
     }
     
-    // Сохраняем состояние в localStorage
     localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
-    
-    // Перерисовываем дерево
     this.render();
 }
     
