@@ -913,70 +913,104 @@ expandAll() {
     /**
      * Экспорт структуры в Excel
      */
-    exportToExcel() {
-        const snapshot = this.dataManager.getSnapshot();
-        const departments = snapshot.departments;
-        const employees = snapshot.employees;
-        const positions = snapshot.positions;
+   exportToExcel() {
+    const snapshot = this.dataManager.getSnapshot();
+    const departments = snapshot.departments;
+    const employees = snapshot.employees;
+    const positions = snapshot.positions;
+    
+    // Создаем карту имен отделов для быстрого поиска
+    const deptNameToId = new Map();
+    departments.forEach(dept => {
+        deptNameToId.set(dept.name, dept.id);
+    });
+    
+    // Данные для отделов
+    const deptData = departments.map(dept => {
+        // Находим имя родительского отдела по ID
+        let parentName = '';
+        if (dept.parentId) {
+            const parent = departments.find(d => d.id === dept.parentId);
+            if (parent) parentName = parent.name;
+        }
         
-        // Данные для отделов
-        const deptData = departments.map(dept => ({
+        return {
             'ID': dept.id,
             'Название отдела': dept.name,
             'Родительский отдел (ID)': dept.parentId || '',
+            'Родительский отдел (название)': parentName,
             'Уровень': dept.level,
             'Порядок': dept.order,
             'Описание': dept.description || '',
             'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
             'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
-        }));
-        
-        // Данные для сотрудников
-        const empData = employees.map(emp => {
-            const department = departments.find(d => d.id === emp.departmentId);
-            const position = positions.find(p => p.id === emp.positionId);
-            return {
-                'ID': emp.id,
-                'ФИО': emp.name,
-                'Отдел': department ? department.name : '',
-                'Должность': position ? position.name : '',
-                'Email': emp.email || '',
-                'Телефон': emp.phone || '',
-                'Руководитель': emp.isHead ? 'Да' : 'Нет',
-                'Статус': emp.isActive ? 'Активен' : 'Уволен',
-                'Дата начала': emp.startDate || '',
-                'Дата увольнения': emp.fireDate || '',
-                'Причина увольнения': emp.fireReason || '',
-                'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
-            };
-        });
-        
-        // Создаем workbook
-        const wb = XLSX.utils.book_new();
-        
-        // Лист с отделами
-        const deptSheet = XLSX.utils.json_to_sheet(deptData);
-        deptSheet['!cols'] = [
-            { wch: 8 }, { wch: 30 }, { wch: 15 }, { wch: 8 }, 
-            { wch: 8 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
-        ];
-        XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
-        
-        // Лист с сотрудниками
-        const empSheet = XLSX.utils.json_to_sheet(empData);
-        empSheet['!cols'] = [
-            { wch: 8 }, { wch: 30 }, { wch: 25 }, { wch: 20 },
-            { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
-            { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 12 }
-        ];
-        XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
-        
-        // Сохраняем файл
-        const fileName = `org_structure_${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-        
-        this.showNotification(`✅ Экспортировано ${departments.length} отделов и ${employees.length} сотрудников`, 'success');
-    }
+        };
+    });
+    
+    // Данные для сотрудников
+    const empData = employees.map(emp => {
+        const department = departments.find(d => d.id === emp.departmentId);
+        const position = positions.find(p => p.id === emp.positionId);
+        return {
+            'ID': emp.id,
+            'ФИО': emp.name,
+            'Отдел': department ? department.name : '',
+            'ID отдела': emp.departmentId || '',
+            'Должность': position ? position.name : '',
+            'Email': emp.email || '',
+            'Телефон': emp.phone || '',
+            'Руководитель': emp.isHead ? 'Да' : 'Нет',
+            'Статус': emp.isActive ? 'Активен' : 'Уволен',
+            'Дата начала': emp.startDate || '',
+            'Дата увольнения': emp.fireDate || '',
+            'Причина увольнения': emp.fireReason || '',
+            'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
+        };
+    });
+    
+    // Создаем workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Лист с отделами
+    const deptSheet = XLSX.utils.json_to_sheet(deptData);
+    deptSheet['!cols'] = [
+        { wch: 8 },   // ID
+        { wch: 35 },  // Название отдела
+        { wch: 15 },  // Родительский отдел (ID)
+        { wch: 30 },  // Родительский отдел (название)
+        { wch: 8 },   // Уровень
+        { wch: 8 },   // Порядок
+        { wch: 40 },  // Описание
+        { wch: 12 },  // Дата создания
+        { wch: 12 }   // Дата обновления
+    ];
+    XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
+    
+    // Лист с сотрудниками
+    const empSheet = XLSX.utils.json_to_sheet(empData);
+    empSheet['!cols'] = [
+        { wch: 8 },   // ID
+        { wch: 30 },  // ФИО
+        { wch: 35 },  // Отдел
+        { wch: 10 },  // ID отдела
+        { wch: 25 },  // Должность
+        { wch: 25 },  // Email
+        { wch: 15 },  // Телефон
+        { wch: 10 },  // Руководитель
+        { wch: 10 },  // Статус
+        { wch: 12 },  // Дата начала
+        { wch: 12 },  // Дата увольнения
+        { wch: 30 },  // Причина увольнения
+        { wch: 12 }   // Дата создания
+    ];
+    XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
+    
+    // Сохраняем файл
+    const fileName = `org_structure_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    this.showNotification(`✅ Экспортировано ${departments.length} отделов и ${employees.length} сотрудников`, 'success');
+}
     
     /**
      * Импорт структуры из Excel
@@ -1025,41 +1059,42 @@ expandAll() {
     /**
      * Обработка импортированных данных
      */
-  async processImportData(deptData, empData) {
+ async processImportData(deptData, empData) {
+    console.log('📥 Начинаем импорт данных...');
+    console.log('Отделов для импорта:', deptData.length);
+    console.log('Сотрудников для импорта:', empData.length);
+    
     const currentPositions = this.dataManager.positions;
-    const deptMap = new Map(); // имя -> id
+    const deptMap = new Map(); // id -> объект отдела
+    const nameToIdMap = new Map(); // имя -> id
     const newDepartments = [];
     let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
     
-    // 1. Создаем отделы
+    // 1. Сначала создаем ВСЕ отделы без привязки к родителям
     for (const row of deptData) {
+        let id = row['ID'];
         const name = row['Название отдела'] || row['Название'] || row['name'];
         if (!name) continue;
         
-        const parentName = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
+        // Если ID не указан или это не число, генерируем новый
+        if (!id || isNaN(parseInt(id))) {
+            id = nextId++;
+        } else {
+            id = parseInt(id);
+            // Обновляем nextId, чтобы не было конфликтов
+            if (id >= nextId) nextId = id + 1;
+        }
+        
+        const parentIdRaw = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
         let parentId = null;
         
         // Если указан числовой ID родителя
-        if (parentName && typeof parentName === 'string' && !isNaN(parentName) && parentName !== '') {
-            parentId = parseInt(parentName);
-        } 
-        // Если указано имя родителя
-        else if (parentName && parentName !== '') {
-            // Ищем среди существующих отделов
-            const existingParent = this.dataManager.departments.find(d => d.name === parentName);
-            if (existingParent) {
-                parentId = existingParent.id;
-            } else {
-                // Ищем среди новых отделов
-                const newParent = newDepartments.find(d => d.name === parentName);
-                if (newParent) {
-                    parentId = newParent.id;
-                }
-            }
+        if (parentIdRaw && parentIdRaw !== '' && !isNaN(parseInt(parentIdRaw))) {
+            parentId = parseInt(parentIdRaw);
         }
         
         const newDept = {
-            id: nextId++,
+            id: id,
             name: name,
             parentId: parentId,
             level: row['Уровень'] || 0,
@@ -1070,40 +1105,58 @@ expandAll() {
             updatedAt: Date.now()
         };
         
-        deptMap.set(name, newDept.id);
+        deptMap.set(id, newDept);
+        nameToIdMap.set(name, id);
         newDepartments.push(newDept);
+        
+        console.log(`📁 Отдел: ${name} (ID: ${id}, parentId: ${parentId})`);
     }
     
-    // 2. Обновляем parentId для новых отделов (если указано имя родителя)
-    newDepartments.forEach(dept => {
-        const originalRow = deptData.find(r => (r['Название отдела'] || r['Название']) === dept.name);
+    // 2. Второй проход: обновляем parentId, если указано имя родителя
+    for (const dept of newDepartments) {
+        const originalRow = deptData.find(r => {
+            const rowId = r['ID'];
+            const rowName = r['Название отдела'] || r['Название'];
+            return (rowId && parseInt(rowId) === dept.id) || rowName === dept.name;
+        });
+        
         if (originalRow) {
             const parentName = originalRow['Родительский отдел (ID)'] || originalRow['Родительский отдел'];
-            if (parentName && typeof parentName === 'string' && isNaN(parentName) && parentName !== '' && deptMap.has(parentName)) {
-                dept.parentId = deptMap.get(parentName);
+            // Если родитель указан как имя (не число)
+            if (parentName && typeof parentName === 'string' && isNaN(parseInt(parentName)) && parentName !== '') {
+                if (nameToIdMap.has(parentName)) {
+                    dept.parentId = nameToIdMap.get(parentName);
+                    console.log(`🔗 Привязан отдел "${dept.name}" к родителю "${parentName}" (ID: ${dept.parentId})`);
+                }
             }
         }
-    });
+    }
     
     // 3. Создаем сотрудников
     const newEmployees = [];
     const positionMap = new Map();
-    
-    // Сохраняем существующие должности
-    currentPositions.forEach(pos => {
-        positionMap.set(pos.name, pos.id);
-    });
+    currentPositions.forEach(pos => positionMap.set(pos.name, pos.id));
     
     for (const row of empData) {
         const name = row['ФИО'] || row['name'];
         if (!name) continue;
         
+        let id = row['ID'];
+        if (!id || isNaN(parseInt(id))) {
+            id = nextId++;
+        } else {
+            id = parseInt(id);
+            if (id >= nextId) nextId = id + 1;
+        }
+        
         const deptName = row['Отдел'] || row['department'];
         let departmentId = null;
         
-        if (deptName && deptMap.has(deptName)) {
-            departmentId = deptMap.get(deptName);
+        // Ищем отдел по имени
+        if (deptName && nameToIdMap.has(deptName)) {
+            departmentId = nameToIdMap.get(deptName);
         } else if (deptName) {
+            // Ищем среди существующих отделов
             const existingDept = this.dataManager.departments.find(d => d.name === deptName);
             if (existingDept) departmentId = existingDept.id;
         }
@@ -1112,7 +1165,6 @@ expandAll() {
         let positionId = positionMap.get(positionName);
         
         if (positionName && !positionId) {
-            // Создаем новую должность (исправлено!)
             const newPosition = this.dataManager.addPosition(positionName);
             positionId = newPosition.id;
             positionMap.set(positionName, positionId);
@@ -1121,21 +1173,25 @@ expandAll() {
         const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
         const isActive = row['Статус'] !== 'Уволен';
         
+        const startDate = this.parseExcelDateString(row['Дата начала'] || row['startDate']);
+        
         newEmployees.push({
-            id: nextId++,
+            id: id,
             name: name,
             departmentId: departmentId,
-            positionId: positionId || 8, // 8 = Специалист (по умолчанию)
+            positionId: positionId || 8,
             email: row['Email'] || '',
             phone: row['Телефон'] || '',
             isHead: isHead,
             isActive: isActive,
-            startDate: row['Дата начала'] ? this.parseExcelDateString(row['Дата начала']) : new Date().toISOString().split('T')[0],
+            startDate: startDate,
             fireDate: row['Дата увольнения'] || null,
             fireReason: row['Причина увольнения'] || null,
             createdAt: Date.now(),
             updatedAt: Date.now()
         });
+        
+        console.log(`👤 Сотрудник: ${name} -> отдел: ${deptName} (ID: ${departmentId})`);
     }
     
     // 4. Заменяем данные
@@ -1155,6 +1211,10 @@ expandAll() {
     
     // 7. Обновляем UI
     this.render();
+    
+    console.log('✅ Импорт завершен!');
+    console.log(`📊 Итог: ${newDepartments.length} отделов, ${newEmployees.length} сотрудников`);
+    
     this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
 }
 
@@ -1173,21 +1233,21 @@ parseExcelDateString(dateValue) {
     
     // Если это строка
     if (typeof dateValue === 'string') {
-        // Пробуем распарсить
-        const date = new Date(dateValue);
-        if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0];
-        }
-        
         // Пробуем формат dd.mm.yyyy
         const parts = dateValue.split('.');
         if (parts.length === 3) {
-            const day = parts[0];
-            const month = parts[1];
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
             const year = parts[2];
-            if (year && month && day) {
-                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            if (year && year.length === 4) {
+                return `${year}-${month}-${day}`;
             }
+        }
+        
+        // Пробуем стандартный парсинг
+        const date = new Date(dateValue);
+        if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
         }
     }
     
