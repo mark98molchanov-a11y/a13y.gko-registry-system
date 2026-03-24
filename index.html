@@ -1156,23 +1156,19 @@
             <input type="text" id="org-search" placeholder="🔍 Поиск по отделам и сотрудникам...">
         </div>
         
-        <div class="org-toolbar" style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
-            <button id="org-add-department" class="btn-primary" style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">➕ Добавить отдел</button>
-            <button id="org-add-employee" class="btn-primary" style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">👤 Добавить сотрудника</button>
-            <button id="org-expand-all" class="btn-secondary" style="background: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">📂 Развернуть все</button>
-            <button id="org-collapse-all" class="btn-secondary" style="background: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">📁 Свернуть все</button>
-            
-            <!-- Разделитель -->
-            <div style="width: 1px; background: #e2e8f0; margin: 0 4px;"></div>
-            
-            <!-- Кнопки экспорта -->
-            <button id="org-export-excel" class="btn-success" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">📊 Экспорт Excel</button>
-            <button id="org-export-json" class="btn-secondary" style="background: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">📄 Экспорт JSON</button>
-            
-            <!-- Кнопки импорта -->
-            <button id="org-import-excel" class="btn-success" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">📊 Импорт Excel</button>
-            <button id="org-import-json" class="btn-secondary" style="background: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">📄 Импорт JSON</button>
-        </div>
+<div class="org-toolbar" style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+    <button id="org-add-department" class="btn-primary" style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">➕ Добавить отдел</button>
+    <button id="org-add-employee" class="btn-primary" style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">👤 Добавить сотрудника</button>
+    <button id="org-expand-all" class="btn-secondary" style="background: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">📂 Развернуть все</button>
+    <button id="org-collapse-all" class="btn-secondary" style="background: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">📁 Свернуть все</button>
+    
+    <!-- Разделитель -->
+    <div style="width: 1px; background: #e2e8f0; margin: 0 4px;"></div>
+    
+    <!-- Кнопки экспорта/импорта (только Excel) -->
+    <button id="org-export-excel" class="btn-success" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">📊 Экспорт Excel</button>
+    <button id="org-import-excel" class="btn-success" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">📊 Импорт Excel</button>
+</div>
         
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Левая колонка - структура -->
