@@ -267,62 +267,72 @@ filterTree(departments) {
         })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, positionId));
     }
     
-    renderTree(departments, level = 0) {
-        if (!departments.length) return '';
+renderTree(departments, level = 0) {
+    if (!departments.length) return '';
+    
+    return departments.map(dept => {
+        const isExpanded = this.shouldShowChildren(dept);
+        const hasChildren = dept.children.length > 0;
+        const employees = dept.employees || [];
+        const isSelected = this.selectedType === 'department' && this.selectedItem === dept.id;
         
-        return departments.map(dept => {
-            const isExpanded = this.shouldShowChildren(dept);
-            const hasChildren = dept.children.length > 0;
-            const employees = dept.employees || [];
-            const isSelected = this.selectedType === 'department' && this.selectedItem === dept.id;
-            
-            return `
-                <div class="org-node org-department-node" data-id="${dept.id}" data-type="department">
-                  <div class="org-node-header ${isSelected ? 'selected' : ''}" 
-     onclick="orgApp.toggleDepartmentExpand(${dept.id})">
-                        <div class="org-node-icon">
-                            ${hasChildren ? (isExpanded ? '📂' : '📁') : '📄'}
-                        </div>
-                        <div class="org-node-content">
-                            <div class="org-node-title">${this.escapeHtml(dept.name)}</div>
-                            <div class="org-node-meta">
-                                ${employees.length} сотрудник${this.plural(employees.length)}
-                                ${hasChildren ? ` • ${dept.children.length} подотдел${this.plural(dept.children.length)}` : ''}
-                            </div>
-                        </div>
-                        <div class="org-node-actions">
-                            <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editDepartment(${dept.id})" title="Редактировать">✏️</button>
-                            <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.deleteDepartment(${dept.id})" title="Удалить">🗑️</button>
-                            ${hasChildren ? `
-                                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.toggleExpand(${dept.id})" title="${isExpanded ? 'Свернуть' : 'Развернуть'}">
-                                    ${isExpanded ? '▲' : '▼'}
-                                </button>
-                            ` : ''}
+        // Определяем, что показывать: фото или иконку
+        let iconHtml = '';
+        if (dept.image && dept.image.startsWith('data:image')) {
+            iconHtml = `<img src="${dept.image}" class="org-department-img" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">`;
+        } else {
+            iconHtml = `<div class="org-node-icon">${hasChildren ? (isExpanded ? '📂' : '📁') : '📄'}</div>`;
+        }
+        
+        return `
+            <div class="org-node org-department-node" data-id="${dept.id}" data-type="department">
+                <div class="org-node-header ${isSelected ? 'selected' : ''}" 
+                     onclick="orgApp.toggleDepartmentExpand(${dept.id})">
+                    ${iconHtml}
+                    <div class="org-node-content">
+                        <div class="org-node-title">${this.escapeHtml(dept.name)}</div>
+                        <div class="org-node-meta">
+                            ${employees.length} сотрудник${this.plural(employees.length)}
+                            ${hasChildren ? ` • ${dept.children.length} подотдел${this.plural(dept.children.length)}` : ''}
                         </div>
                     </div>
-                    
-                    ${isExpanded ? `
-                        <div class="org-node-children">
-                            ${employees.length ? `
-                                <div class="org-employees-section">
-                                    <div class="org-section-title">👥 Сотрудники</div>
-                                    <div class="org-employees-list">
-                                        ${employees.map(emp => this.renderEmployee(emp)).join('')}
-                                    </div>
-                                </div>
-                            ` : ''}
-                            
-                            ${hasChildren ? `
-                                <div class="org-subdepartments-section">
-                                    ${this.renderTree(dept.children, level + 1)}
-                                </div>
-                            ` : ''}
-                        </div>
-                    ` : ''}
+                    <div class="org-node-actions">
+                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editDepartment(${dept.id})" title="Редактировать">✏️</button>
+                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadDepartmentImage(${dept.id})" title="Загрузить фото">🖼️</button>
+                        ${dept.image ? `
+                            <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.removeDepartmentImage(${dept.id})" title="Удалить фото">🗑️</button>
+                        ` : ''}
+                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.deleteDepartment(${dept.id})" title="Удалить отдел">❌</button>
+                        ${hasChildren ? `
+                            <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.toggleExpand(${dept.id})" title="${isExpanded ? 'Свернуть' : 'Развернуть'}">
+                                ${isExpanded ? '▲' : '▼'}
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
-            `;
-        }).join('');
-    }
+                
+                ${isExpanded ? `
+                    <div class="org-node-children">
+                        ${employees.length ? `
+                            <div class="org-employees-section">
+                                <div class="org-section-title">👥 Сотрудники</div>
+                                <div class="org-employees-list">
+                                    ${employees.map(emp => this.renderEmployee(emp)).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hasChildren ? `
+                            <div class="org-subdepartments-section">
+                                ${this.renderTree(dept.children, level + 1)}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
     
     renderEmployee(employee) {
         const position = this.dataManager.positions.find(p => p.id === employee.positionId);
@@ -492,6 +502,7 @@ filterTree(departments) {
         
         this.render();
     }
+    
 shouldShowChildren(dept) {
     // Если есть активный поиск - показываем все узлы, которые содержат результат поиска
     if (this.searchQuery) {
@@ -571,6 +582,67 @@ shouldShowChildren(dept) {
     
     return false;
 }
+    uploadDepartmentImage(departmentId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/gif, image/webp';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Проверяем размер файла (макс 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимальный размер 2MB');
+            return;
+        }
+        
+        // Проверяем тип файла
+        if (!file.type.startsWith('image/')) {
+            alert('Пожалуйста, выберите изображение');
+            return;
+        }
+        
+        try {
+            // Показываем индикатор загрузки
+            this.showNotification('⏳ Загрузка фото...', 'info');
+            
+            // Конвертируем в base64
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Image = event.target.result;
+                
+                // Обновляем отдел с фото
+                this.dataManager.updateDepartment(departmentId, {
+                    image: base64Image
+                });
+                
+                // Обновляем отображение
+                this.render();
+                this.showNotification('✅ Фото отдела загружено', 'success');
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Ошибка загрузки фото:', error);
+            alert('Ошибка при загрузке фото');
+        }
+    };
+    
+    input.click();
+}
+
+/**
+ * Удаление фото отдела
+ */
+removeDepartmentImage(departmentId) {
+    if (confirm('Удалить фото этого отдела?')) {
+        this.dataManager.updateDepartment(departmentId, {
+            image: null
+        });
+        this.render();
+        this.showNotification('✅ Фото отдела удалено', 'success');
+    }
+}
 toggleExpand(id) {
     console.log('🔄 Переключение узла:', id);
     
@@ -635,65 +707,99 @@ expandAll() {
     console.log('🔄 Клик по заголовку отдела:', id);
     this.toggleExpand(id);
 }
-    showAddDepartmentModal(parentId = null) {
-        const departments = this.dataManager.departments.filter(d => d.id !== 1);
-        
-        const modal = document.getElementById('org-modal');
-        const modalBody = document.getElementById('org-modal-body');
-        const modalTitle = document.getElementById('org-modal-title');
-        
-        modalTitle.textContent = 'Добавление отдела';
-        
-        modalBody.innerHTML = `
-            <div class="form-group">
-                <label>Название отдела *</label>
-                <input type="text" id="dept-name" placeholder="Введите название отдела" autocomplete="off">
+   showAddDepartmentModal(parentId = null) {
+    const departments = this.dataManager.departments.filter(d => d.id !== 1);
+    
+    const modal = document.getElementById('org-modal');
+    const modalBody = document.getElementById('org-modal-body');
+    const modalTitle = document.getElementById('org-modal-title');
+    
+    modalTitle.textContent = '➕ Добавление отдела';
+    
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Название отдела *</label>
+            <input type="text" id="dept-name" placeholder="Введите название отдела" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Родительский отдел</label>
+            <select id="dept-parent">
+                <option value="">— Корневой отдел —</option>
+                ${departments.map(d => `
+                    <option value="${d.id}" ${parentId === d.id ? 'selected' : ''}>
+                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Описание</label>
+            <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Фото отдела</label>
+            <input type="file" id="dept-image" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div id="dept-image-preview" style="margin-top: 10px; display: none;">
+                <img style="max-width: 100px; max-height: 100px; border-radius: 8px;">
             </div>
-            <div class="form-group">
-                <label>Родительский отдел</label>
-                <select id="dept-parent">
-                    <option value="">— Корневой отдел —</option>
-                    ${departments.map(d => `
-                        <option value="${d.id}" ${parentId === d.id ? 'selected' : ''}>
-                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Описание</label>
-                <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
-            </div>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        const saveBtn = document.getElementById('org-modal-save');
-        const cancelBtn = document.getElementById('org-modal-cancel');
-        const closeBtn = modal.querySelector('.org-modal-close');
-        
-        const saveHandler = () => {
-            const name = document.getElementById('dept-name').value.trim();
-            if (!name) {
-                alert('Введите название отдела');
-                return;
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    // Предпросмотр фото
+    const imageInput = document.getElementById('dept-image');
+    const imagePreview = document.getElementById('dept-image-preview');
+    const previewImg = imagePreview.querySelector('img');
+    
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImg.src = event.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.style.display = 'none';
             }
-            
-            const parent = document.getElementById('dept-parent').value;
-            const description = document.getElementById('dept-description').value;
-            
-            this.dataManager.addDepartment(name, parent ? parseInt(parent) : null, description);
-            this.closeModal();
-        };
-        
-        const closeHandler = () => this.closeModal();
-        
-        saveBtn.onclick = saveHandler;
-        cancelBtn.onclick = closeHandler;
-        closeBtn.onclick = closeHandler;
-        
-        document.getElementById('dept-name')?.focus();
+        });
     }
+    
+    const saveBtn = document.getElementById('org-modal-save');
+    const cancelBtn = document.getElementById('org-modal-cancel');
+    const closeBtn = modal.querySelector('.org-modal-close');
+    
+    const saveHandler = () => {
+        const name = document.getElementById('dept-name').value.trim();
+        if (!name) {
+            alert('Введите название отдела');
+            return;
+        }
+        
+        const parent = document.getElementById('dept-parent').value;
+        const description = document.getElementById('dept-description').value;
+        
+        // Получаем фото, если есть
+        let image = null;
+        if (imageInput.files && imageInput.files[0]) {
+            image = previewImg.src;
+        }
+        
+        this.dataManager.addDepartment(name, parent ? parseInt(parent) : null, description, image);
+        this.closeModal();
+    };
+    
+    const closeHandler = () => this.closeModal();
+    
+    saveBtn.onclick = saveHandler;
+    cancelBtn.onclick = closeHandler;
+    if (closeBtn) closeBtn.onclick = closeHandler;
+    
+    document.getElementById('dept-name')?.focus();
+}
     
     showAddEmployeeModal(departmentId = null) {
         const departments = this.dataManager.departments.filter(d => d.id !== 1);
@@ -1389,9 +1495,6 @@ parseExcelDateString(dateValue) {
     return new Date().toISOString().split('T')[0];
 }
     
-    /**
-     * Показать уведомление
-     */
     showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
