@@ -506,7 +506,7 @@ class OrgChartRenderer {
     `;
 }
     
-  renderChartsInDetails() {
+renderChartsInDetails() {
     const stats = this.renderStatistics();
     const detailsPanel = document.getElementById('org-details-panel');
     if (!detailsPanel) return;
@@ -517,7 +517,7 @@ class OrgChartRenderer {
         chartsContainer.id = 'org-charts-in-details';
         chartsContainer.style.cssText = `
             margin-top: 12px;
-            padding: 8px 10px;
+            padding: 10px;
             background: #f8fafc;
             border-radius: 10px;
             border: 1px solid #e2e8f0;
@@ -531,30 +531,39 @@ class OrgChartRenderer {
             <button onclick="orgApp.clearFilters()" style="font-size: 0.6rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс фильтров</button>
         </div>
         
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <!-- Диаграмма 1: Статус -->
-            <div style="flex: 1; min-width: 80px;">
-                <canvas id="org-status-chart-details" style="height: 70px; width: 100%;"></canvas>
-                <div style="display: flex; justify-content: center; gap: 8px; margin-top: 4px;">
-                    <div style="display: flex; align-items: center; gap: 3px; cursor: pointer;" onclick="orgApp.filterByStatus('active')">
-                        <span style="width: 6px; height: 6px; background: #10b981; border-radius: 50%;"></span>
-                        <span style="font-size: 0.55rem; color: #475569;">${stats.activeCount}</span>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Диаграмма 1: Статус сотрудников -->
+            <div>
+                <div style="text-align: center; margin-bottom: 4px;">
+                    <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">Статус сотрудников</span>
+                </div>
+                <canvas id="org-status-chart-details" style="height: 100px; width: 100%;"></canvas>
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="orgApp.filterByStatus('active')">
+                        <span style="width: 10px; height: 10px; background: #10b981; border-radius: 50%;"></span>
+                        <span style="font-size: 0.7rem; font-weight: 500; color: #10b981;">Активные: ${stats.activeCount}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 3px; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">
-                        <span style="width: 6px; height: 6px; background: #ef4444; border-radius: 50%;"></span>
-                        <span style="font-size: 0.55rem; color: #475569;">${stats.firedCount}</span>
+                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">
+                        <span style="width: 10px; height: 10px; background: #ef4444; border-radius: 50%;"></span>
+                        <span style="font-size: 0.7rem; font-weight: 500; color: #ef4444;">Вакансии: ${stats.firedCount}</span>
                     </div>
                 </div>
             </div>
             
-            <!-- Диаграмма 2: Топ отделов -->
-            <div style="flex: 2; min-width: 120px;">
-                <canvas id="org-departments-chart-details" style="height: 70px; width: 100%;"></canvas>
+            <!-- Диаграмма 2: Разбивка по отделам -->
+            <div>
+                <div style="text-align: center; margin-bottom: 6px;">
+                    <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">Сотрудники по отделам</span>
+                </div>
+                <canvas id="org-departments-chart-details" style="height: 200px; width: 100%;"></canvas>
             </div>
             
-            <!-- Диаграмма 3: Топ должностей -->
-            <div style="flex: 2; min-width: 120px;">
-                <canvas id="org-positions-chart-details" style="height: 70px; width: 100%;"></canvas>
+            <!-- Диаграмма 3: Разбивка по должностям -->
+            <div>
+                <div style="text-align: center; margin-bottom: 6px;">
+                    <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">Сотрудники по должностям</span>
+                </div>
+                <canvas id="org-positions-chart-details" style="height: 200px; width: 100%;"></canvas>
             </div>
         </div>
     `;
@@ -563,8 +572,7 @@ class OrgChartRenderer {
     this.drawDepartmentsChartDetails(stats);
     this.drawPositionsChartDetails(stats);
 }
-
- drawStatusChartDetails(stats) {
+drawStatusChartDetails(stats) {
     const ctx = document.getElementById('org-status-chart-details')?.getContext('2d');
     if (!ctx) return;
     
@@ -577,63 +585,75 @@ class OrgChartRenderer {
             datasets: [{
                 data: [stats.activeCount, stats.firedCount],
                 backgroundColor: ['#10b981', '#ef4444'],
-                borderWidth: 0,
-                hoverOffset: 4
+                borderWidth: 1,
+                borderColor: '#fff',
+                hoverOffset: 8
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            cutout: '65%',
+            cutout: '55%',
             plugins: {
-                legend: { display: false },
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 10 },
+                        boxWidth: 12,
+                        padding: 10
+                    }
+                },
                 tooltip: {
-                    enabled: true,
-                    bodyFont: { size: 10 },
+                    bodyFont: { size: 11 },
                     callbacks: {
                         label: function(context) {
                             const label = context.label || '';
                             const value = context.raw || 0;
                             const total = stats.activeCount + stats.firedCount;
-                            const percentage = total ? Math.round((value / total) * 100) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
+                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} чел. (${percentage}%)`;
                         }
+                    }
+                }
+            },
+            onClick: (e, els) => {
+                if (els.length > 0) {
+                    const index = els[0].index;
+                    if (index === 0) {
+                        this.filterByStatus('active');
+                    } else if (index === 1) {
+                        this.filterByStatus('fired');
                     }
                 }
             }
         }
     });
 }
-
 drawDepartmentsChartDetails(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
     if (!ctx) return;
     
     if (this.deptsChartDetails) this.deptsChartDetails.destroy();
     
-    // Берем топ-8 отделов для читаемости диаграммы
-    const topDepts = stats.deptStats.slice(0, 8);
-    const othersCount = stats.deptStats.slice(8).reduce((sum, d) => sum + d.count, 0);
+    // Берем ВСЕ отделы с сотрудниками
+    const allDepts = stats.deptStats.filter(d => d.count > 0);
     
-    let labels = topDepts.map(d => d.name.length > 12 ? d.name.substring(0, 10) + '..' : d.name);
-    let data = topDepts.map(d => d.count);
-    
-    if (othersCount > 0) {
-        labels.push('Остальные');
-        data.push(othersCount);
-    }
-    
-    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#94a3b8'];
+    const colors = [
+        '#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', 
+        '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6',
+        '#6366f1', '#a855f7', '#d946ef', '#f43f5e', '#84cc16'
+    ];
     
     this.deptsChartDetails = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: labels,
+            labels: allDepts.map(d => d.name),
             datasets: [{
-                data: data,
-                backgroundColor: colors.slice(0, data.length),
-                borderWidth: 0,
-                hoverOffset: 4
+                data: allDepts.map(d => d.count),
+                backgroundColor: colors.slice(0, allDepts.length),
+                borderWidth: 1,
+                borderColor: '#fff',
+                hoverOffset: 8
             }]
         },
         options: {
@@ -643,20 +663,20 @@ drawDepartmentsChartDetails(stats) {
                 legend: {
                     position: 'right',
                     labels: {
-                        boxWidth: 6,
-                        font: { size: 6 },
-                        padding: 2
+                        font: { size: 9 },
+                        boxWidth: 10,
+                        padding: 8
                     }
                 },
                 tooltip: {
-                    bodyFont: { size: 10 },
+                    bodyFont: { size: 11 },
                     callbacks: {
                         label: function(context) {
                             const label = context.label || '';
                             const value = context.raw || 0;
-                            const total = data.reduce((a, b) => a + b, 0);
-                            const percentage = total ? Math.round((value / total) * 100) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
+                            const total = allDepts.reduce((sum, d) => sum + d.count, 0);
+                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} чел. (${percentage}%)`;
                         }
                     }
                 }
@@ -664,16 +684,16 @@ drawDepartmentsChartDetails(stats) {
             onClick: (e, els) => {
                 if (els.length > 0) {
                     const index = els[0].index;
-                    if (index < topDepts.length) {
-                        const deptId = topDepts[index].id;
-                        this.filterDepartment = deptId.toString();
+                    const dept = allDepts[index];
+                    if (dept) {
+                        this.filterDepartment = dept.id.toString();
                         this.filterPosition = '';
                         this.searchQuery = '';
                         this.filterStatus = '';
                         const searchInput = document.getElementById('org-search');
                         if (searchInput) searchInput.value = '';
                         this.render();
-                        this.showNotification(`🔍 Фильтр по отделу: ${topDepts[index].name}`, 'info');
+                        this.showNotification(`🔍 Фильтр по отделу: ${dept.name}`, 'info');
                     }
                 }
             }
@@ -687,29 +707,25 @@ drawPositionsChartDetails(stats) {
     
     if (this.positionsChartDetails) this.positionsChartDetails.destroy();
     
-    // Берем топ-6 должностей
-    const topPositions = stats.positionStats.slice(0, 6);
-    const othersCount = stats.positionStats.slice(6).reduce((sum, p) => sum + p.count, 0);
+    // Берем ВСЕ должности с сотрудниками
+    const allPositions = stats.positionStats.filter(p => p.count > 0);
     
-    let labels = topPositions.map(p => p.name.length > 10 ? p.name.substring(0, 8) + '..' : p.name);
-    let data = topPositions.map(p => p.count);
-    
-    if (othersCount > 0) {
-        labels.push('Остальные');
-        data.push(othersCount);
-    }
-    
-    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#94a3b8'];
+    const colors = [
+        '#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', 
+        '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+        '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1'
+    ];
     
     this.positionsChartDetails = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: labels,
+            labels: allPositions.map(p => p.name),
             datasets: [{
-                data: data,
-                backgroundColor: colors.slice(0, data.length),
-                borderWidth: 0,
-                hoverOffset: 4
+                data: allPositions.map(p => p.count),
+                backgroundColor: colors.slice(0, allPositions.length),
+                borderWidth: 1,
+                borderColor: '#fff',
+                hoverOffset: 8
             }]
         },
         options: {
@@ -719,20 +735,20 @@ drawPositionsChartDetails(stats) {
                 legend: {
                     position: 'right',
                     labels: {
-                        boxWidth: 6,
-                        font: { size: 6 },
-                        padding: 2
+                        font: { size: 9 },
+                        boxWidth: 10,
+                        padding: 8
                     }
                 },
                 tooltip: {
-                    bodyFont: { size: 10 },
+                    bodyFont: { size: 11 },
                     callbacks: {
                         label: function(context) {
                             const label = context.label || '';
                             const value = context.raw || 0;
-                            const total = data.reduce((a, b) => a + b, 0);
-                            const percentage = total ? Math.round((value / total) * 100) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
+                            const total = allPositions.reduce((sum, p) => sum + p.count, 0);
+                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} чел. (${percentage}%)`;
                         }
                     }
                 }
@@ -740,22 +756,23 @@ drawPositionsChartDetails(stats) {
             onClick: (e, els) => {
                 if (els.length > 0) {
                     const index = els[0].index;
-                    if (index < topPositions.length) {
-                        const positionId = topPositions[index].id;
-                        this.filterPosition = positionId.toString();
+                    const position = allPositions[index];
+                    if (position) {
+                        this.filterPosition = position.id.toString();
                         this.filterDepartment = '';
                         this.searchQuery = '';
                         this.filterStatus = '';
                         const searchInput = document.getElementById('org-search');
                         if (searchInput) searchInput.value = '';
                         this.render();
-                        this.showNotification(`🔍 Фильтр по должности: ${topPositions[index].name}`, 'info');
+                        this.showNotification(`🔍 Фильтр по должности: ${position.name}`, 'info');
                     }
                 }
             }
         }
     });
 }
+
 drawPositionsChartDetails(stats) {
     const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
     if (!ctx) return;
