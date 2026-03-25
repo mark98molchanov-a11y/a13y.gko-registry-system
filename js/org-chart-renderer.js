@@ -528,30 +528,30 @@ renderChartsInDetails() {
     const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
     
     chartsContainer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 0.6rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 0.55rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
             <button onclick="orgApp.clearFilters()" style="font-size: 0.5rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
         </div>
         
         <!-- Статус полоска -->
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
             <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
                 <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
             </div>
             <div style="display: flex; gap: 6px;">
-                <span style="font-size: 0.55rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
-                <span style="font-size: 0.55rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
+                <span style="font-size: 0.5rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
+                <span style="font-size: 0.5rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
             </div>
         </div>
         
-        <!-- Три диаграммы в одну строку -->
-        <div style="display: flex; gap: 6px; align-items: center;">
+        <!-- Две диаграммы в одну строку -->
+        <div style="display: flex; gap: 8px;">
             <div style="flex: 1; text-align: center;">
-                <canvas id="org-departments-chart-details" style="height: 70px; width: 100%;"></canvas>
+                <canvas id="org-departments-chart-details" style="height: 80px; width: 100%;"></canvas>
                 <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
             </div>
             <div style="flex: 1; text-align: center;">
-                <canvas id="org-positions-chart-details" style="height: 70px; width: 100%;"></canvas>
+                <canvas id="org-positions-chart-details" style="height: 80px; width: 100%;"></canvas>
                 <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
             </div>
         </div>
@@ -567,18 +567,18 @@ drawDepartmentsChartMini(stats) {
     
     if (this.deptsChartDetails) this.deptsChartDetails.destroy();
     
-    const allDepts = stats.deptStats.filter(d => d.count > 0).slice(0, 6);
-    const othersCount = stats.deptStats.slice(6).reduce((sum, d) => sum + d.count, 0);
+    // Берем ВСЕ отделы с сотрудниками
+    const allDepts = stats.deptStats.filter(d => d.count > 0);
     
-    let labels = allDepts.map(d => d.name.length > 8 ? d.name.substring(0, 6) + '..' : d.name);
-    let data = allDepts.map(d => d.count);
+    // Для отображения используем номера или иконки
+    const labels = allDepts.map((_, index) => `${index + 1}`);
+    const data = allDepts.map(d => d.count);
     
-    if (othersCount > 0) {
-        labels.push('...');
-        data.push(othersCount);
-    }
-    
-    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#94a3b8'];
+    const colors = [
+        '#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', 
+        '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6',
+        '#6366f1', '#a855f7', '#d946ef', '#f43f5e', '#84cc16'
+    ];
     
     this.deptsChartDetails = new Chart(ctx, {
         type: 'doughnut',
@@ -586,9 +586,9 @@ drawDepartmentsChartMini(stats) {
             labels: labels,
             datasets: [{
                 data: data,
-                backgroundColor: colors.slice(0, data.length),
+                backgroundColor: colors.slice(0, allDepts.length),
                 borderWidth: 0,
-                hoverOffset: 4
+                hoverOffset: 6
             }]
         },
         options: {
@@ -598,12 +598,15 @@ drawDepartmentsChartMini(stats) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    bodyFont: { size: 9 },
+                    bodyFont: { size: 10 },
                     callbacks: {
                         label: function(context) {
-                            const label = context.label === '...' ? 'Остальные отделы' : context.label;
+                            const index = context.dataIndex;
+                            const dept = allDepts[index];
                             const value = context.raw || 0;
-                            return `${label}: ${value}`;
+                            const total = allDepts.reduce((sum, d) => sum + d.count, 0);
+                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${dept.name}: ${value} чел. (${percentage}%)`;
                         }
                     }
                 }
@@ -611,8 +614,8 @@ drawDepartmentsChartMini(stats) {
             onClick: (e, els) => {
                 if (els.length > 0) {
                     const index = els[0].index;
-                    if (index < allDepts.length) {
-                        const dept = allDepts[index];
+                    const dept = allDepts[index];
+                    if (dept) {
                         this.filterDepartment = dept.id.toString();
                         this.filterPosition = '';
                         this.searchQuery = '';
@@ -621,6 +624,72 @@ drawDepartmentsChartMini(stats) {
                         if (searchInput) searchInput.value = '';
                         this.render();
                         this.showNotification(`🔍 Фильтр по отделу: ${dept.name}`, 'info');
+                    }
+                }
+            }
+        }
+    });
+}
+
+drawPositionsChartMini(stats) {
+    const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
+    if (!ctx) return;
+    
+    if (this.positionsChartDetails) this.positionsChartDetails.destroy();
+    
+    // Берем ВСЕ должности с сотрудниками
+    const allPositions = stats.positionStats.filter(p => p.count > 0);
+    
+    // Для отображения используем номера
+    const labels = allPositions.map((_, index) => `${index + 1}`);
+    const data = allPositions.map(p => p.count);
+    
+    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b'];
+    
+    this.positionsChartDetails = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, allPositions.length),
+                borderWidth: 0,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    bodyFont: { size: 10 },
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            const position = allPositions[index];
+                            const value = context.raw || 0;
+                            const total = allPositions.reduce((sum, p) => sum + p.count, 0);
+                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${position.name}: ${value} чел. (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            onClick: (e, els) => {
+                if (els.length > 0) {
+                    const index = els[0].index;
+                    const position = allPositions[index];
+                    if (position) {
+                        this.filterPosition = position.id.toString();
+                        this.filterDepartment = '';
+                        this.searchQuery = '';
+                        this.filterStatus = '';
+                        const searchInput = document.getElementById('org-search');
+                        if (searchInput) searchInput.value = '';
+                        this.render();
+                        this.showNotification(`🔍 Фильтр по должности: ${position.name}`, 'info');
                     }
                 }
             }
