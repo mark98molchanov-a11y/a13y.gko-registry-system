@@ -853,6 +853,20 @@
     .org-department-img + .org-node-content {
         margin-left: 4px;
     }
+      .org-employee-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    background: #f8fafc;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.org-employee-card:hover .org-employee-photo {
+    transform: scale(1.05);
+    border-color: #4f46e5;
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
