@@ -570,7 +570,7 @@ drawDepartmentsChartMini(stats) {
     // Берем ВСЕ отделы с сотрудниками
     const allDepts = stats.deptStats.filter(d => d.count > 0);
     
-    // Для отображения используем номера или иконки
+    // Для отображения используем номера
     const labels = allDepts.map((_, index) => `${index + 1}`);
     const data = allDepts.map(d => d.count);
     
@@ -644,7 +644,12 @@ drawPositionsChartMini(stats) {
     const labels = allPositions.map((_, index) => `${index + 1}`);
     const data = allPositions.map(p => p.count);
     
-    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b'];
+    const colors = [
+        '#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', 
+        '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+        '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1',
+        '#4f46e5', '#7c3aed', '#a855f7', '#d946ef', '#ec489a'
+    ];
     
     this.positionsChartDetails = new Chart(ctx, {
         type: 'doughnut',
