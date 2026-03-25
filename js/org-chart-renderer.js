@@ -255,52 +255,96 @@ class OrgChartRenderer {
         })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, positionId));
     }
     
-    async renderEmployeeAsync(employee) {
-        const position = this.dataManager.positions.find(p => p.id === employee.positionId);
-        const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
-        
-        let photoUrl = null;
-        if (employee.photo) {
-            if (employee.photo.startsWith('__INDEXEDDB__')) {
-                if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
-                    photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(employee.id);
-                }
-            } else {
-                photoUrl = employee.photo;
-            }
-        }
-        
-        let avatarHtml = '';
-        if (photoUrl && photoUrl.startsWith('data:image')) {
-            avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
-        } else {
-            avatarHtml = `<div class="org-employee-avatar">${employee.isHead ? '👔' : '👤'}</div>`;
-        }
-        
-        return `
-            <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
-                 data-id="${employee.id}" 
-                 data-type="employee"
-                 onclick="orgApp.selectItem('employee', ${employee.id})">
-                ${avatarHtml}
-                <div class="org-employee-info">
-                    <div class="org-employee-name">
-                        ${this.escapeHtml(employee.name)}
-                        ${employee.isHead ? '<span class="org-badge-head">Руководитель</span>' : ''}
-                    </div>
-                    <div class="org-employee-position">${position ? this.escapeHtml(position.name) : ''}</div>
-                    ${employee.email ? `<div class="org-employee-contact">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
-                    ${employee.phone ? `<div class="org-employee-contact">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
-                </div>
-                <div class="org-employee-actions">
-                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadEmployeePhoto(${employee.id})" title="Загрузить фото">🖼️</button>
-                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
-                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.fireEmployee(${employee.id})" title="Уволить">🚪</button>
-                </div>
-            </div>
-        `;
+async renderEmployeeAsync(employee) {
+    // Если сотрудник уволен - показываем как вакансию
+    if (!employee.isActive) {
+        return this.renderFiredEmployee(employee);
     }
     
+    const position = this.dataManager.positions.find(p => p.id === employee.positionId);
+    const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
+    
+    let photoUrl = null;
+    if (employee.photo) {
+        if (employee.photo.startsWith('__INDEXEDDB__')) {
+            if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
+                photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(employee.id);
+            }
+        } else {
+            photoUrl = employee.photo;
+        }
+    }
+    
+    let avatarHtml = '';
+    if (photoUrl && photoUrl.startsWith('data:image')) {
+        avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
+    } else {
+        avatarHtml = `<div class="org-employee-avatar">${employee.isHead ? '👔' : '👤'}</div>`;
+    }
+    
+    return `
+        <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
+             data-id="${employee.id}" 
+             data-type="employee"
+             onclick="orgApp.selectItem('employee', ${employee.id})">
+            ${avatarHtml}
+            <div class="org-employee-info">
+                <div class="org-employee-name">
+                    ${this.escapeHtml(employee.name)}
+                    ${employee.isHead ? '<span class="org-badge-head">Руководитель</span>' : ''}
+                </div>
+                <div class="org-employee-position">${position ? this.escapeHtml(position.name) : ''}</div>
+                ${employee.email ? `<div class="org-employee-contact">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
+                ${employee.phone ? `<div class="org-employee-contact">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
+            </div>
+            <div class="org-employee-actions">
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadEmployeePhoto(${employee.id})" title="Загрузить фото">🖼️</button>
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.fireEmployee(${employee.id})" title="Уволить">🚪</button>
+            </div>
+        </div>
+    `;
+}
+
+// Добавьте этот метод для отображения уволенных сотрудников (Вакансий)
+renderFiredEmployee(employee) {
+    const position = this.dataManager.positions.find(p => p.id === employee.positionId);
+    const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
+    
+    // Для уволенных используем серый аватар или иконку
+    let avatarHtml = `<div class="org-employee-avatar" style="background: #f1f5f9; filter: grayscale(0.3);">🚪</div>`;
+    
+    return `
+        <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
+             data-id="${employee.id}" 
+             data-type="employee"
+             onclick="orgApp.selectItem('employee', ${employee.id})"
+             style="border-left: 3px solid #ef4444; background: #fef2f2;">
+            ${avatarHtml}
+            <div class="org-employee-info">
+                <div class="org-employee-name" style="color: #991b1b;">
+                    ${this.escapeHtml(employee.name)}
+                    <span class="org-badge-vacancy" style="font-size: 0.65rem; padding: 2px 8px; background: #ef4444; color: white; border-radius: 20px; font-weight: 500;">Вакансия</span>
+                </div>
+                <div class="org-employee-position" style="color: #b91c1c;">
+                    <s>${position ? this.escapeHtml(position.name) : ''}</s>
+                    <span style="color: #dc2626; font-size: 0.7rem; margin-left: 6px;">Уволен: ${employee.fireDate || '—'}</span>
+                </div>
+                ${employee.fireReason ? `
+                    <div class="org-employee-fire-reason" style="font-size: 0.65rem; color: #b91c1c; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+                        📋 Причина: ${this.escapeHtml(employee.fireReason)}
+                    </div>
+                ` : ''}
+                ${employee.email ? `<div class="org-employee-contact" style="color: #9ca3af;">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
+                ${employee.phone ? `<div class="org-employee-contact" style="color: #9ca3af;">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
+            </div>
+            <div class="org-employee-actions">
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.rehireEmployee(${employee.id})" title="Восстановить" style="color: #10b981;">🔄</button>
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
+            </div>
+        </div>
+    `;
+}
     async renderTreeAsync(departments, level = 0) {
         if (!departments.length) return '';
         
@@ -366,15 +410,45 @@ class OrgChartRenderer {
         return html.join('');
     }
     
-    async render() {
-        if (!this.container) return;
-        
-        const tree = this.dataManager.getDepartmentTree();
-        const filteredTree = this.filterTree(tree);
-        
-        const html = await this.renderTreeAsync(filteredTree);
-        this.container.innerHTML = `<div class="org-chart">${html}</div>`;
-    }
+  async render() {
+    if (!this.container) return;
+    
+    const tree = this.dataManager.getDepartmentTree();
+    const filteredTree = this.filterTree(tree);
+    
+    // Подсчет активных и уволенных сотрудников
+    const totalEmployees = this.dataManager.employees.filter(e => e.isActive).length;
+    const totalFired = this.dataManager.employees.filter(e => !e.isActive).length;
+    
+    const html = await this.renderTreeAsync(filteredTree);
+    
+    // Добавляем счетчик вверху и оборачиваем в контейнер
+    this.container.innerHTML = `
+        <div style="position: relative;">
+            <!-- Счетчик сотрудников в правом верхнем углу -->
+            <div style="position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; padding: 12px 16px; background: white; border-bottom: 1px solid #e2e8f0; margin-bottom: 8px;">
+                <div style="display: flex; gap: 16px; background: #f8fafc; padding: 8px 16px; border-radius: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem;">👥</span>
+                        <div>
+                            <div style="font-size: 0.7rem; color: #64748b;">Всего сотрудников</div>
+                            <div style="font-size: 1.2rem; font-weight: 700; color: #1e293b;">${totalEmployees}</div>
+                        </div>
+                    </div>
+                    <div style="width: 1px; background: #e2e8f0;"></div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem;">🚪</span>
+                        <div>
+                            <div style="font-size: 0.7rem; color: #64748b;">Вакансии</div>
+                            <div style="font-size: 1.2rem; font-weight: 700; color: #dc2626;">${totalFired}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="org-chart">${html}</div>
+        </div>
+    `;
+}
     
     selectItem(type, id) {
         this.selectedType = type;
