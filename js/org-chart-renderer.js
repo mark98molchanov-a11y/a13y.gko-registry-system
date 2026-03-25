@@ -883,74 +883,126 @@ expandAll() {
         document.getElementById('emp-name')?.focus();
     }
     
-    editDepartment(id) {
-        const dept = this.dataManager.departments.find(d => d.id === id);
-        if (!dept) return;
-        
-        const departments = this.dataManager.departments.filter(d => d.id !== 1 && d.id !== id);
-        
-        const modal = document.getElementById('org-modal');
-        const modalBody = document.getElementById('org-modal-body');
-        const modalTitle = document.getElementById('org-modal-title');
-        
-        modalTitle.textContent = 'Редактирование отдела';
-        
-        modalBody.innerHTML = `
-            <div class="form-group">
-                <label>Название отдела *</label>
-                <input type="text" id="dept-name" value="${this.escapeHtml(dept.name)}">
+ editDepartment(id) {
+    const dept = this.dataManager.departments.find(d => d.id === id);
+    if (!dept) return;
+    
+    const departments = this.dataManager.departments.filter(d => d.id !== 1 && d.id !== id);
+    
+    const modal = document.getElementById('org-modal');
+    const modalBody = document.getElementById('org-modal-body');
+    const modalTitle = document.getElementById('org-modal-title');
+    
+    modalTitle.textContent = '✏️ Редактирование отдела';
+    
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Название отдела *</label>
+            <input type="text" id="dept-name" value="${this.escapeHtml(dept.name)}">
+        </div>
+        <div class="form-group">
+            <label>Родительский отдел</label>
+            <select id="dept-parent">
+                <option value="">— Корневой отдел —</option>
+                ${departments.map(d => `
+                    <option value="${d.id}" ${dept.parentId === d.id ? 'selected' : ''}>
+                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Описание</label>
+            <textarea id="dept-description" rows="3">${dept.description || ''}</textarea>
+        </div>
+        <div class="form-group">
+            <label>Фото отдела</label>
+            <input type="file" id="dept-image" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div id="dept-image-preview" style="margin-top: 10px; ${!dept.image ? 'display: none;' : ''}">
+                <img src="${dept.image || ''}" style="max-width: 100px; max-height: 100px; border-radius: 8px;">
             </div>
-            <div class="form-group">
-                <label>Родительский отдел</label>
-                <select id="dept-parent">
-                    <option value="">— Корневой отдел —</option>
-                    ${departments.map(d => `
-                        <option value="${d.id}" ${dept.parentId === d.id ? 'selected' : ''}>
-                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Описание</label>
-                <textarea id="dept-description" rows="3">${dept.description || ''}</textarea>
-            </div>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        const saveBtn = document.getElementById('org-modal-save');
-        const cancelBtn = document.getElementById('org-modal-cancel');
-        const closeBtn = modal.querySelector('.org-modal-close');
-        
-        const saveHandler = () => {
-            const name = document.getElementById('dept-name').value.trim();
-            if (!name) {
-                alert('Введите название отдела');
-                return;
+            ${dept.image ? '<button type="button" id="remove-dept-image" style="margin-top: 8px; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>' : ''}
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    // Предпросмотр нового фото
+    const imageInput = document.getElementById('dept-image');
+    const imagePreview = document.getElementById('dept-image-preview');
+    const previewImg = imagePreview.querySelector('img');
+    
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImg.src = event.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
             }
-            
-            const parent = document.getElementById('dept-parent').value;
-            const description = document.getElementById('dept-description').value;
-            
-            this.dataManager.updateDepartment(id, {
-                name,
-                parentId: parent ? parseInt(parent) : null,
-                description
-            });
-            
-            this.closeModal();
-            this.render();
-        };
-        
-        const closeHandler = () => this.closeModal();
-        
-        saveBtn.onclick = saveHandler;
-        cancelBtn.onclick = closeHandler;
-        closeBtn.onclick = closeHandler;
-        
-        document.getElementById('dept-name')?.focus();
+        });
     }
+    
+    // Кнопка удаления фото
+    const removeBtn = document.getElementById('remove-dept-image');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            previewImg.src = '';
+            imagePreview.style.display = 'none';
+            if (imageInput) imageInput.value = '';
+            // Помечаем, что фото нужно удалить
+            window._removeImage = true;
+        });
+    }
+    
+    const saveBtn = document.getElementById('org-modal-save');
+    const cancelBtn = document.getElementById('org-modal-cancel');
+    const closeBtn = modal.querySelector('.org-modal-close');
+    
+    const saveHandler = () => {
+        const name = document.getElementById('dept-name').value.trim();
+        if (!name) {
+            alert('Введите название отдела');
+            return;
+        }
+        
+        const parent = document.getElementById('dept-parent').value;
+        const description = document.getElementById('dept-description').value;
+        
+        // Определяем, что делать с фото
+        let image = dept.image;
+        if (window._removeImage) {
+            image = null;
+            delete window._removeImage;
+        } else if (imageInput.files && imageInput.files[0]) {
+            image = previewImg.src;
+        }
+        
+        this.dataManager.updateDepartment(id, {
+            name,
+            parentId: parent ? parseInt(parent) : null,
+            description,
+            image: image
+        });
+        
+        this.closeModal();
+        this.render();
+    };
+    
+    const closeHandler = () => {
+        delete window._removeImage;
+        this.closeModal();
+    };
+    
+    saveBtn.onclick = saveHandler;
+    cancelBtn.onclick = closeHandler;
+    if (closeBtn) closeBtn.onclick = closeHandler;
+    
+    document.getElementById('dept-name')?.focus();
+}
     
     editEmployee(id) {
         const emp = this.dataManager.employees.find(e => e.id === id);
