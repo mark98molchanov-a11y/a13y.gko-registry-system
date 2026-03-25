@@ -453,7 +453,69 @@ updateEmployee(id, updates) {
     this.saveData();
     return true;
 }
+async syncPhotosFromIndexedDB() {
+    if (!window.photoDB) return;
+    
+    const photos = await window.photoDB.loadAllPhotos();
+    let updatedCount = 0;
+    
+    this.employees.forEach(employee => {
+        if (photos[employee.id] && employee.photo !== photos[employee.id]) {
+            employee.photo = photos[employee.id];
+            updatedCount++;
+        }
+    });
+    
+    if (updatedCount > 0) {
+        console.log(`🔄 Синхронизировано ${updatedCount} фото из IndexedDB`);
+        this.saveData();
+        this.notifyListeners();
+    }
+}
 
+async saveEmployeePhotoToIndexedDB(employeeId, base64Photo) {
+    if (!window.photoDB) return false;
+    
+    try {
+        await window.photoDB.savePhoto(employeeId, base64Photo);
+        
+        // Обновляем ссылку в employee (но сам base64 храним только в IndexedDB)
+        const employee = this.employees.find(e => e.id === employeeId);
+        if (employee) {
+            // Сохраняем только ссылку, не сам base64
+            employee.photo = `__INDEXEDDB__${employeeId}`;
+            this.saveData();
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Ошибка сохранения фото:', error);
+        return false;
+    }
+}
+
+async loadEmployeePhotoFromIndexedDB(employeeId) {
+    if (!window.photoDB) return null;
+    
+    // Проверяем, есть ли фото в IndexedDB
+    const photo = await window.photoDB.loadPhoto(employeeId);
+    return photo;
+}
+
+async getEmployeePhotoForDisplay(employee) {
+    // Если фото не начинается с __INDEXEDDB__, это старый формат (base64 в localStorage)
+    if (employee.photo && !employee.photo.startsWith('__INDEXEDDB__')) {
+        return employee.photo;
+    }
+    
+    // Если фото в IndexedDB
+    if (employee.photo && employee.photo.startsWith('__INDEXEDDB__')) {
+        const photo = await this.loadEmployeePhotoFromIndexedDB(employee.id);
+        return photo;
+    }
+    
+    return null;
+}
     
     fireEmployee(id, reason = '') {
         const employee = this.employees.find(e => e.id === id);
