@@ -498,7 +498,7 @@ renderFiredEmployee(employee) {
         return html.join('');
     }
     
-  async render() {
+async render() {
     if (!this.container) return;
     
     const tree = this.dataManager.getDepartmentTree();
@@ -510,7 +510,7 @@ renderFiredEmployee(employee) {
     
     const html = await this.renderTreeAsync(filteredTree);
     
-    // Добавляем счетчик вверху и оборачиваем в контейнер
+    // Добавляем счетчик и диаграммы
     this.container.innerHTML = `
         <div style="position: relative;">
             <!-- Счетчик сотрудников в правом верхнем углу -->
@@ -533,9 +533,18 @@ renderFiredEmployee(employee) {
                     </div>
                 </div>
             </div>
+            
+            <!-- Контейнер для диаграмм -->
+            <div id="org-charts-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; padding: 0 20px;"></div>
+            
             <div class="org-chart">${html}</div>
         </div>
     `;
+    
+    // Рендерим диаграммы
+    setTimeout(() => {
+        this.renderCharts();
+    }, 50);
 }
     
     selectItem(type, id) {
@@ -717,6 +726,300 @@ renderFiredEmployee(employee) {
     
     // ✅ Сохраняем в GitHub после изменения статуса
     await this.saveToGitHubAfterChange();
+}
+    renderStatistics() {
+    const snapshot = this.dataManager.getSnapshot();
+    const employees = snapshot.employees;
+    const departments = snapshot.departments;
+    
+    // Статистика по отделам (количество сотрудников)
+    const deptStats = departments
+        .filter(d => d.id !== 1)
+        .map(dept => ({
+            name: dept.name,
+            count: employees.filter(e => e.departmentId === dept.id && e.isActive).length,
+            total: employees.filter(e => e.departmentId === dept.id).length,
+            fired: employees.filter(e => e.departmentId === dept.id && !e.isActive).length
+        }))
+        .filter(d => d.count > 0 || d.fired > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8); // Показываем топ-8 отделов
+    
+    // Статистика по статусам (активные/уволенные)
+    const activeCount = employees.filter(e => e.isActive).length;
+    const firedCount = employees.filter(e => !e.isActive).length;
+    
+    // Статистика по должностям (топ-5)
+    const positions = snapshot.positions;
+    const positionStats = positions
+        .map(pos => ({
+            name: pos.name,
+            count: employees.filter(e => e.positionId === pos.id && e.isActive).length
+        }))
+        .filter(p => p.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
+    
+    // Статистика по руководителям
+    const headsCount = employees.filter(e => e.isHead && e.isActive).length;
+    
+    return {
+        deptStats,
+        activeCount,
+        firedCount,
+        positionStats,
+        headsCount,
+        totalEmployees: employees.length
+    };
+}
+    renderCharts() {
+    const stats = this.renderStatistics();
+    
+    // Создаем контейнер для диаграмм, если его нет
+    let chartsContainer = document.getElementById('org-charts-container');
+    if (!chartsContainer) {
+        const container = this.container.parentElement;
+        chartsContainer = document.createElement('div');
+        chartsContainer.id = 'org-charts-container';
+        chartsContainer.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 0 20px;
+        `;
+        container.insertBefore(chartsContainer, this.container);
+    }
+    
+    chartsContainer.innerHTML = `
+        <!-- Диаграмма 1: Активные vs Уволенные -->
+        <div class="org-chart-card" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Статус сотрудников</h4>
+                <span style="font-size: 0.7rem; color: #94a3b8;">Всего: ${stats.totalEmployees}</span>
+            </div>
+            <canvas id="org-status-chart" style="height: 180px; width: 100%;"></canvas>
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 10px; height: 10px; background: #10b981; border-radius: 50%;"></span>
+                    <span style="font-size: 0.7rem; color: #475569;">Активные: ${stats.activeCount}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 10px; height: 10px; background: #ef4444; border-radius: 50%;"></span>
+                    <span style="font-size: 0.7rem; color: #475569;">Вакансии: ${stats.firedCount}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Диаграмма 2: Топ отделов по сотрудникам -->
+        <div class="org-chart-card" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Топ отделов</h4>
+                <span style="font-size: 0.7rem; color: #94a3b8;">по числу сотрудников</span>
+            </div>
+            <canvas id="org-departments-chart" style="height: 180px; width: 100%;"></canvas>
+        </div>
+        
+        <!-- Диаграмма 3: Топ должностей -->
+        <div class="org-chart-card" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Топ должностей</h4>
+                <span style="font-size: 0.7rem; color: #94a3b8;">активные сотрудники</span>
+            </div>
+            <canvas id="org-positions-chart" style="height: 180px; width: 100%;"></canvas>
+        </div>
+    `;
+    
+    // Рисуем диаграммы
+    this.drawStatusChart(stats);
+    this.drawDepartmentsChart(stats);
+    this.drawPositionsChart(stats);
+}
+
+drawStatusChart(stats) {
+    const ctx = document.getElementById('org-status-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    if (this.statusChart) this.statusChart.destroy();
+    
+    this.statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Активные', 'Вакансии'],
+            datasets: [{
+                data: [stats.activeCount, stats.firedCount],
+                backgroundColor: ['#10b981', '#ef4444'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = stats.activeCount + stats.firedCount;
+                            const percentage = total ? Math.round((value / total) * 100) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            onClick: (e, els) => {
+                if (els.length > 0) {
+                    const index = els[0].index;
+                    if (index === 0) {
+                        // Показать только активных
+                        this.filterDepartment = '';
+                        this.filterPosition = '';
+                        this.searchQuery = '';
+                        const searchInput = document.getElementById('org-search');
+                        if (searchInput) searchInput.value = '';
+                        this.render();
+                    } else if (index === 1) {
+                        // Показать только уволенных
+                        this.searchQuery = '';
+                        this.filterDepartment = '';
+                        this.filterPosition = '';
+                        this.render();
+                        // Можно добавить фильтрацию по уволенным
+                    }
+                }
+            }
+        }
+    });
+}
+
+drawDepartmentsChart(stats) {
+    const ctx = document.getElementById('org-departments-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    if (this.deptsChart) this.deptsChart.destroy();
+    
+    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
+    
+    this.deptsChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: stats.deptStats.map(d => d.name.length > 20 ? d.name.substring(0, 18) + '...' : d.name),
+            datasets: [{
+                data: stats.deptStats.map(d => d.count),
+                backgroundColor: colors.slice(0, stats.deptStats.length),
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 10,
+                        font: { size: 9 },
+                        padding: 8
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = stats.deptStats.reduce((sum, d) => sum + d.count, 0);
+                            const percentage = total ? Math.round((value / total) * 100) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            onClick: (e, els) => {
+                if (els.length > 0) {
+                    const index = els[0].index;
+                    const deptName = stats.deptStats[index].name;
+                    const dept = this.dataManager.departments.find(d => d.name === deptName);
+                    if (dept) {
+                        this.filterDepartment = dept.id.toString();
+                        this.filterPosition = '';
+                        this.searchQuery = '';
+                        const searchInput = document.getElementById('org-search');
+                        if (searchInput) searchInput.value = '';
+                        this.render();
+                        this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
+                    }
+                }
+            }
+        }
+    });
+}
+
+drawPositionsChart(stats) {
+    const ctx = document.getElementById('org-positions-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    if (this.positionsChart) this.positionsChart.destroy();
+    
+    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185'];
+    
+    this.positionsChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: stats.positionStats.map(p => p.name.length > 15 ? p.name.substring(0, 13) + '...' : p.name),
+            datasets: [{
+                data: stats.positionStats.map(p => p.count),
+                backgroundColor: colors.slice(0, stats.positionStats.length),
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 10,
+                        font: { size: 9 },
+                        padding: 8
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = stats.positionStats.reduce((sum, p) => sum + p.count, 0);
+                            const percentage = total ? Math.round((value / total) * 100) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            onClick: (e, els) => {
+                if (els.length > 0) {
+                    const index = els[0].index;
+                    const positionName = stats.positionStats[index].name;
+                    const position = this.dataManager.positions.find(p => p.name === positionName);
+                    if (position) {
+                        this.filterPosition = position.id.toString();
+                        this.filterDepartment = '';
+                        this.searchQuery = '';
+                        const searchInput = document.getElementById('org-search');
+                        if (searchInput) searchInput.value = '';
+                        this.render();
+                        this.showNotification(`🔍 Фильтр по должности: ${positionName}`, 'info');
+                    }
+                }
+            }
+        }
+    });
 }
 async saveToGitHubAfterChange() {
     // Проверяем, есть ли сохраненный токен
