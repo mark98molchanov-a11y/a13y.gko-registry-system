@@ -334,34 +334,41 @@ renderTree(departments, level = 0) {
     }).join('');
 }
     
-    renderEmployee(employee) {
-        const position = this.dataManager.positions.find(p => p.id === employee.positionId);
-        const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
-        
-        return `
-            <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
-                 data-id="${employee.id}" 
-                 data-type="employee"
-                 onclick="orgApp.selectItem('employee', ${employee.id})">
-                <div class="org-employee-avatar">
-                    ${employee.isHead ? '👔' : '👤'}
-                </div>
-                <div class="org-employee-info">
-                    <div class="org-employee-name">
-                        ${this.escapeHtml(employee.name)}
-                        ${employee.isHead ? '<span class="org-badge-head">Руководитель</span>' : ''}
-                    </div>
-                    <div class="org-employee-position">${position ? this.escapeHtml(position.name) : ''}</div>
-                    ${employee.email ? `<div class="org-employee-contact">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
-                    ${employee.phone ? `<div class="org-employee-contact">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
-                </div>
-                <div class="org-employee-actions">
-                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
-                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.fireEmployee(${employee.id})" title="Уволить">🚪</button>
-                </div>
-            </div>
-        `;
+renderEmployee(employee) {
+    const position = this.dataManager.positions.find(p => p.id === employee.positionId);
+    const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
+    
+    // Определяем, что показывать: фото или аватар по умолчанию
+    let avatarHtml = '';
+    if (employee.photo && employee.photo.startsWith('data:image')) {
+        avatarHtml = `<img src="${employee.photo}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
+    } else {
+        avatarHtml = `<div class="org-employee-avatar">${employee.isHead ? '👔' : '👤'}</div>`;
     }
+    
+    return `
+        <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
+             data-id="${employee.id}" 
+             data-type="employee"
+             onclick="orgApp.selectItem('employee', ${employee.id})">
+            ${avatarHtml}
+            <div class="org-employee-info">
+                <div class="org-employee-name">
+                    ${this.escapeHtml(employee.name)}
+                    ${employee.isHead ? '<span class="org-badge-head">Руководитель</span>' : ''}
+                </div>
+                <div class="org-employee-position">${position ? this.escapeHtml(position.name) : ''}</div>
+                ${employee.email ? `<div class="org-employee-contact">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
+                ${employee.phone ? `<div class="org-employee-contact">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
+            </div>
+            <div class="org-employee-actions">
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadEmployeePhoto(${employee.id})" title="Загрузить фото">🖼️</button>
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
+                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.fireEmployee(${employee.id})" title="Уволить">🚪</button>
+            </div>
+        </div>
+    `;
+}
     
     selectItem(type, id) {
         this.selectedType = type;
@@ -631,9 +638,7 @@ shouldShowChildren(dept) {
     input.click();
 }
 
-/**
- * Удаление фото отдела
- */
+
 removeDepartmentImage(departmentId) {
     if (confirm('Удалить фото этого отдела?')) {
         this.dataManager.updateDepartment(departmentId, {
@@ -643,6 +648,67 @@ removeDepartmentImage(departmentId) {
         this.showNotification('✅ Фото отдела удалено', 'success');
     }
 }
+    uploadEmployeePhoto(employeeId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/gif, image/webp';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Проверяем размер файла (макс 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимальный размер 2MB');
+            return;
+        }
+        
+        // Проверяем тип файла
+        if (!file.type.startsWith('image/')) {
+            alert('Пожалуйста, выберите изображение');
+            return;
+        }
+        
+        try {
+            this.showNotification('⏳ Загрузка фото...', 'info');
+            
+            // Конвертируем в base64
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Image = event.target.result;
+                
+                // Обновляем сотрудника с фото
+                this.dataManager.updateEmployee(employeeId, {
+                    photo: base64Image
+                });
+                
+                // Обновляем отображение
+                this.render();
+                this.showNotification('✅ Фото сотрудника загружено', 'success');
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Ошибка загрузки фото:', error);
+            alert('Ошибка при загрузке фото');
+        }
+    };
+    
+    input.click();
+}
+
+/**
+ * Удаление фото сотрудника
+ */
+removeEmployeePhoto(employeeId) {
+    if (confirm('Удалить фото этого сотрудника?')) {
+        this.dataManager.updateEmployee(employeeId, {
+            photo: null
+        });
+        this.render();
+        this.showNotification('✅ Фото сотрудника удалено', 'success');
+    }
+}
+
 toggleExpand(id) {
     console.log('🔄 Переключение узла:', id);
     
@@ -801,87 +867,122 @@ expandAll() {
     document.getElementById('dept-name')?.focus();
 }
     
-    showAddEmployeeModal(departmentId = null) {
-        const departments = this.dataManager.departments.filter(d => d.id !== 1);
-        const positions = this.dataManager.positions;
-        
-        const modal = document.getElementById('org-modal');
-        const modalBody = document.getElementById('org-modal-body');
-        const modalTitle = document.getElementById('org-modal-title');
-        
-        modalTitle.textContent = 'Добавление сотрудника';
-        
-        modalBody.innerHTML = `
-            <div class="form-group">
-                <label>ФИО сотрудника *</label>
-                <input type="text" id="emp-name" placeholder="Иванов Иван Иванович" autocomplete="off">
+ showAddEmployeeModal(departmentId = null) {
+    const departments = this.dataManager.departments.filter(d => d.id !== 1);
+    const positions = this.dataManager.positions;
+    
+    const modal = document.getElementById('org-modal');
+    const modalBody = document.getElementById('org-modal-body');
+    const modalTitle = document.getElementById('org-modal-title');
+    
+    modalTitle.textContent = '👤 Добавление сотрудника';
+    
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>ФИО сотрудника *</label>
+            <input type="text" id="emp-name" placeholder="Иванов Иван Иванович" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Отдел *</label>
+            <select id="emp-department">
+                ${departments.map(d => `
+                    <option value="${d.id}" ${departmentId === d.id ? 'selected' : ''}>
+                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Должность *</label>
+            <select id="emp-position">
+                ${positions.map(p => `
+                    <option value="${p.id}">${this.escapeHtml(p.name)}</option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="emp-email" placeholder="example@domain.ru">
+        </div>
+        <div class="form-group">
+            <label>Телефон</label>
+            <input type="tel" id="emp-phone" placeholder="+7 (495) 123-45-67">
+        </div>
+        <div class="form-group">
+            <label>Фото сотрудника</label>
+            <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div id="emp-photo-preview" style="margin-top: 10px; display: none;">
+                <img style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
             </div>
-            <div class="form-group">
-                <label>Отдел *</label>
-                <select id="emp-department">
-                    ${departments.map(d => `
-                        <option value="${d.id}" ${departmentId === d.id ? 'selected' : ''}>
-                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Должность *</label>
-                <select id="emp-position">
-                    ${positions.map(p => `
-                        <option value="${p.id}">${this.escapeHtml(p.name)}</option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="emp-email" placeholder="example@domain.ru">
-            </div>
-            <div class="form-group">
-                <label>Телефон</label>
-                <input type="tel" id="emp-phone" placeholder="+7 (495) 123-45-67">
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="emp-is-head"> Назначить руководителем отдела
-                </label>
-            </div>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        const saveBtn = document.getElementById('org-modal-save');
-        const cancelBtn = document.getElementById('org-modal-cancel');
-        const closeBtn = modal.querySelector('.org-modal-close');
-        
-        const saveHandler = () => {
-            const name = document.getElementById('emp-name').value.trim();
-            if (!name) {
-                alert('Введите ФИО сотрудника');
-                return;
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="emp-is-head"> Назначить руководителем отдела
+            </label>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    // Предпросмотр фото
+    const photoInput = document.getElementById('emp-photo');
+    const photoPreview = document.getElementById('emp-photo-preview');
+    const previewImg = photoPreview.querySelector('img');
+    
+    if (photoInput) {
+        photoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImg.src = event.target.result;
+                    photoPreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                photoPreview.style.display = 'none';
             }
-            
-            this.dataManager.addEmployee({
-                name,
-                departmentId: parseInt(document.getElementById('emp-department').value),
-                positionId: parseInt(document.getElementById('emp-position').value),
-                email: document.getElementById('emp-email').value,
-                phone: document.getElementById('emp-phone').value,
-                isHead: document.getElementById('emp-is-head').checked
-            });
-            
-            this.closeModal();
-        };
-        
-        const closeHandler = () => this.closeModal();
-        
-        saveBtn.onclick = saveHandler;
-        cancelBtn.onclick = closeHandler;
-        closeBtn.onclick = closeHandler;
-        
-        document.getElementById('emp-name')?.focus();
+        });
     }
+    
+    const saveBtn = document.getElementById('org-modal-save');
+    const cancelBtn = document.getElementById('org-modal-cancel');
+    const closeBtn = modal.querySelector('.org-modal-close');
+    
+    const saveHandler = () => {
+        const name = document.getElementById('emp-name').value.trim();
+        if (!name) {
+            alert('Введите ФИО сотрудника');
+            return;
+        }
+        
+        // Получаем фото, если есть
+        let photo = null;
+        if (photoInput.files && photoInput.files[0]) {
+            photo = previewImg.src;
+        }
+        
+        this.dataManager.addEmployee({
+            name,
+            departmentId: parseInt(document.getElementById('emp-department').value),
+            positionId: parseInt(document.getElementById('emp-position').value),
+            email: document.getElementById('emp-email').value,
+            phone: document.getElementById('emp-phone').value,
+            photo: photo,
+            isHead: document.getElementById('emp-is-head').checked
+        });
+        
+        this.closeModal();
+    };
+    
+    const closeHandler = () => this.closeModal();
+    
+    saveBtn.onclick = saveHandler;
+    cancelBtn.onclick = closeHandler;
+    if (closeBtn) closeBtn.onclick = closeHandler;
+    
+    document.getElementById('emp-name')?.focus();
+}
     
  editDepartment(id) {
     const dept = this.dataManager.departments.find(d => d.id === id);
@@ -1004,94 +1105,145 @@ expandAll() {
     document.getElementById('dept-name')?.focus();
 }
     
-    editEmployee(id) {
-        const emp = this.dataManager.employees.find(e => e.id === id);
-        if (!emp) return;
-        
-        const departments = this.dataManager.departments.filter(d => d.id !== 1);
-        const positions = this.dataManager.positions;
-        
-        const modal = document.getElementById('org-modal');
-        const modalBody = document.getElementById('org-modal-body');
-        const modalTitle = document.getElementById('org-modal-title');
-        
-        modalTitle.textContent = 'Редактирование сотрудника';
-        
-        modalBody.innerHTML = `
-            <div class="form-group">
-                <label>ФИО сотрудника *</label>
-                <input type="text" id="emp-name" value="${this.escapeHtml(emp.name)}">
+  editEmployee(id) {
+    const emp = this.dataManager.employees.find(e => e.id === id);
+    if (!emp) return;
+    
+    const departments = this.dataManager.departments.filter(d => d.id !== 1);
+    const positions = this.dataManager.positions;
+    
+    const modal = document.getElementById('org-modal');
+    const modalBody = document.getElementById('org-modal-body');
+    const modalTitle = document.getElementById('org-modal-title');
+    
+    modalTitle.textContent = '✏️ Редактирование сотрудника';
+    
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>ФИО сотрудника *</label>
+            <input type="text" id="emp-name" value="${this.escapeHtml(emp.name)}">
+        </div>
+        <div class="form-group">
+            <label>Отдел *</label>
+            <select id="emp-department">
+                ${departments.map(d => `
+                    <option value="${d.id}" ${emp.departmentId === d.id ? 'selected' : ''}>
+                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Должность *</label>
+            <select id="emp-position">
+                ${positions.map(p => `
+                    <option value="${p.id}" ${emp.positionId === p.id ? 'selected' : ''}>
+                        ${this.escapeHtml(p.name)}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="emp-email" value="${emp.email || ''}">
+        </div>
+        <div class="form-group">
+            <label>Телефон</label>
+            <input type="tel" id="emp-phone" value="${emp.phone || ''}">
+        </div>
+        <div class="form-group">
+            <label>Фото сотрудника</label>
+            <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div id="emp-photo-preview" style="margin-top: 10px; ${!emp.photo ? 'display: none;' : ''}">
+                <img src="${emp.photo || ''}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
             </div>
-            <div class="form-group">
-                <label>Отдел *</label>
-                <select id="emp-department">
-                    ${departments.map(d => `
-                        <option value="${d.id}" ${emp.departmentId === d.id ? 'selected' : ''}>
-                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Должность *</label>
-                <select id="emp-position">
-                    ${positions.map(p => `
-                        <option value="${p.id}" ${emp.positionId === p.id ? 'selected' : ''}>
-                            ${this.escapeHtml(p.name)}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="emp-email" value="${emp.email || ''}">
-            </div>
-            <div class="form-group">
-                <label>Телефон</label>
-                <input type="tel" id="emp-phone" value="${emp.phone || ''}">
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="emp-is-head" ${emp.isHead ? 'checked' : ''}> 
-                    Назначить руководителем отдела
-                </label>
-            </div>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        const saveBtn = document.getElementById('org-modal-save');
-        const cancelBtn = document.getElementById('org-modal-cancel');
-        const closeBtn = modal.querySelector('.org-modal-close');
-        
-        const saveHandler = () => {
-            const name = document.getElementById('emp-name').value.trim();
-            if (!name) {
-                alert('Введите ФИО сотрудника');
-                return;
+            ${emp.photo ? '<button type="button" id="remove-emp-photo" style="margin-top: 8px; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>' : ''}
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="emp-is-head" ${emp.isHead ? 'checked' : ''}> 
+                Назначить руководителем отдела
+            </label>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    // Предпросмотр нового фото
+    const photoInput = document.getElementById('emp-photo');
+    const photoPreview = document.getElementById('emp-photo-preview');
+    const previewImg = photoPreview.querySelector('img');
+    
+    if (photoInput) {
+        photoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImg.src = event.target.result;
+                    photoPreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
             }
-            
-            this.dataManager.updateEmployee(id, {
-                name,
-                departmentId: parseInt(document.getElementById('emp-department').value),
-                positionId: parseInt(document.getElementById('emp-position').value),
-                email: document.getElementById('emp-email').value,
-                phone: document.getElementById('emp-phone').value,
-                isHead: document.getElementById('emp-is-head').checked
-            });
-            
-            this.closeModal();
-            this.render();
-        };
-        
-        const closeHandler = () => this.closeModal();
-        
-        saveBtn.onclick = saveHandler;
-        cancelBtn.onclick = closeHandler;
-        closeBtn.onclick = closeHandler;
-        
-        document.getElementById('emp-name')?.focus();
+        });
     }
+    
+    // Кнопка удаления фото
+    const removeBtn = document.getElementById('remove-emp-photo');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            previewImg.src = '';
+            photoPreview.style.display = 'none';
+            if (photoInput) photoInput.value = '';
+            window._removeEmployeePhoto = true;
+        });
+    }
+    
+    const saveBtn = document.getElementById('org-modal-save');
+    const cancelBtn = document.getElementById('org-modal-cancel');
+    const closeBtn = modal.querySelector('.org-modal-close');
+    
+    const saveHandler = () => {
+        const name = document.getElementById('emp-name').value.trim();
+        if (!name) {
+            alert('Введите ФИО сотрудника');
+            return;
+        }
+        
+        // Определяем, что делать с фото
+        let photo = emp.photo;
+        if (window._removeEmployeePhoto) {
+            photo = null;
+            delete window._removeEmployeePhoto;
+        } else if (photoInput.files && photoInput.files[0]) {
+            photo = previewImg.src;
+        }
+        
+        this.dataManager.updateEmployee(id, {
+            name,
+            departmentId: parseInt(document.getElementById('emp-department').value),
+            positionId: parseInt(document.getElementById('emp-position').value),
+            email: document.getElementById('emp-email').value,
+            phone: document.getElementById('emp-phone').value,
+            photo: photo,
+            isHead: document.getElementById('emp-is-head').checked
+        });
+        
+        this.closeModal();
+        this.render();
+    };
+    
+    const closeHandler = () => {
+        delete window._removeEmployeePhoto;
+        this.closeModal();
+    };
+    
+    saveBtn.onclick = saveHandler;
+    cancelBtn.onclick = closeHandler;
+    if (closeBtn) closeBtn.onclick = closeHandler;
+    
+    document.getElementById('emp-name')?.focus();
+}
     
     deleteDepartment(id) {
         const dept = this.dataManager.departments.find(d => d.id === id);
@@ -1241,25 +1393,26 @@ expandAll() {
     });
     
     // Данные для сотрудников
-    const empData = employees.map(emp => {
-        const department = departments.find(d => d.id === emp.departmentId);
-        const position = positions.find(p => p.id === emp.positionId);
-        return {
-            'ID': emp.id,
-            'ФИО': emp.name,
-            'Отдел': department ? department.name : '',
-            'ID отдела': emp.departmentId || '',
-            'Должность': position ? position.name : '',
-            'Email': emp.email || '',
-            'Телефон': emp.phone || '',
-            'Руководитель': emp.isHead ? 'Да' : 'Нет',
-            'Статус': emp.isActive ? 'Активен' : 'Уволен',
-            'Дата начала': emp.startDate || '',
-            'Дата увольнения': emp.fireDate || '',
-            'Причина увольнения': emp.fireReason || '',
-            'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
-        };
-    });
+const empData = employees.map(emp => {
+    const department = departments.find(d => d.id === emp.departmentId);
+    const position = positions.find(p => p.id === emp.positionId);
+    return {
+        'ID': emp.id,
+        'ФИО': emp.name,
+        'Отдел': department ? department.name : '',
+        'ID отдела': emp.departmentId || '',
+        'Должность': position ? position.name : '',
+        'Email': emp.email || '',
+        'Телефон': emp.phone || '',
+        'Фото': emp.photo ? 'Есть фото' : 'Нет фото',  // 👈 ДОБАВЛЕНО
+        'Руководитель': emp.isHead ? 'Да' : 'Нет',
+        'Статус': emp.isActive ? 'Активен' : 'Уволен',
+        'Дата начала': emp.startDate || '',
+        'Дата увольнения': emp.fireDate || '',
+        'Причина увольнения': emp.fireReason || '',
+        'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
+    };
+});
     
     // Создаем workbook
     const wb = XLSX.utils.book_new();
