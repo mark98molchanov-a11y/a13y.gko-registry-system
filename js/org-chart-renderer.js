@@ -670,6 +670,49 @@ drawPositionsChartMini(stats) {
         }
     });
 }
+    renderLegends(stats) {
+    // Легенда для отделов
+    const deptsLegend = document.getElementById('org-departments-legend');
+    if (deptsLegend) {
+        const allDepts = stats.deptStats.filter(d => d.count > 0);
+        const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
+        
+        deptsLegend.innerHTML = allDepts.map((dept, index) => {
+            let shortName = dept.name;
+            if (shortName.length > 12) {
+                shortName = shortName.substring(0, 10) + '..';
+            }
+            return `
+                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'")}')" title="${dept.name}">
+                    <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
+                    <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
+                    <span style="font-size: 0.4rem; color: #94a3b8;">(${dept.count})</span>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Легенда для должностей
+    const positionsLegend = document.getElementById('org-positions-legend');
+    if (positionsLegend) {
+        const allPositions = stats.positionStats.filter(p => p.count > 0);
+        const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
+        
+        positionsLegend.innerHTML = allPositions.map((pos, index) => {
+            let shortName = pos.name;
+            if (shortName.length > 12) {
+                shortName = shortName.substring(0, 10) + '..';
+            }
+            return `
+                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'")}')" title="${pos.name}">
+                    <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
+                    <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
+                    <span style="font-size: 0.4rem; color: #94a3b8;">(${pos.count})</span>
+                </div>
+            `;
+        }).join('');
+    }
+}
     filterByStatus(status) {
         this.filterStatus = status;
         this.filterDepartment = '';
