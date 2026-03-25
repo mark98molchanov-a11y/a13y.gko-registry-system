@@ -1541,7 +1541,7 @@
     let orgApp = null;
     let orgData = null;
     
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         console.log('🚀 Инициализация организационной структуры...');
         
         const container = document.getElementById('org-chart-container');
@@ -1555,6 +1555,7 @@
             return;
         }
         
+        // Инициализируем OrgDataManager
         if (window.pendingOrgData) {
             console.log('📦 Загружаем ожидающие данные из GitHub...');
             orgData = new OrgDataManager();
@@ -1572,6 +1573,7 @@
             return;
         }
         
+        // Создаем рендерер (он сам вызовет render после инициализации)
         orgApp = new OrgChartRenderer('org-chart-container', orgData);
         window.orgApp = orgApp;
         window.orgData = orgData;
@@ -1595,7 +1597,7 @@
         const importExcelBtn = document.getElementById('org-import-excel');
         if (importExcelBtn) importExcelBtn.onclick = () => orgApp.importFromExcel();
         
-        // ===== КНОПКА ОЧИСТКИ ПОИСКА =====
+        // Кнопка очистки поиска
         const searchClearBtn = document.getElementById('org-search-clear');
         if (searchClearBtn) {
             searchClearBtn.addEventListener('click', () => {
@@ -1607,17 +1609,17 @@
                 }
             });
         }
-
-        // ===== АКТИВНЫЙ КЛАСС ПРИ ПОИСКЕ =====
+        
+        // Активный класс при поиске
         const searchInput = document.getElementById('org-search');
         if (searchInput) {
-            const container = document.getElementById('org-search-container');
+            const searchContainer = document.getElementById('org-search-container');
             searchInput.addEventListener('input', (e) => {
-                if (container) {
+                if (searchContainer) {
                     if (e.target.value.trim()) {
-                        container.classList.add('active-search');
+                        searchContainer.classList.add('active-search');
                     } else {
-                        container.classList.remove('active-search');
+                        searchContainer.classList.remove('active-search');
                     }
                 }
             });
