@@ -191,7 +191,7 @@ getAllDepartmentsFlat() {
         return this.changeHistory;
     }
     
-  addDepartment(name, parentId = null, description = '', image = null) {
+addDepartment(name, parentId = null, description = '') {  // убрали image
     const parent = this.departments.find(d => d.id === parentId);
     const newId = this.nextId.department++;
     
@@ -202,7 +202,7 @@ getAllDepartmentsFlat() {
         level: parent ? parent.level + 1 : 0,
         order: this.getNextOrder(parentId),
         description: description,
-        image: image, // 👈 ДОБАВЛЕНО
+        // image: image,  // УДАЛИТЬ ЭТУ СТРОКУ
         headId: null,
         createdAt: Date.now(),
         updatedAt: Date.now()
