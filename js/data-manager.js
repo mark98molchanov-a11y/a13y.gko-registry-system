@@ -359,87 +359,89 @@ getSnapshot() {
     };
 }
     
-    addEmployee(data) {
-        const newId = this.nextId.employee++;
-        
-        const newEmployee = {
-            id: newId,
-            name: data.name.trim(),
-            departmentId: data.departmentId,
-            positionId: data.positionId,
-            email: data.email || '',
-            phone: data.phone || '',
-            isHead: data.isHead || false,
-            isActive: true,
-            startDate: data.startDate || new Date().toISOString().split('T')[0],
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
-        
-        this.employees.push(newEmployee);
-        
-        if (newEmployee.isHead) {
-            const department = this.departments.find(d => d.id === data.departmentId);
-            if (department) {
-                department.headId = newId;
-                department.updatedAt = Date.now();
-            }
+addEmployee(data) {
+    const newId = this.nextId.employee++;
+    
+    const newEmployee = {
+        id: newId,
+        name: data.name.trim(),
+        departmentId: data.departmentId,
+        positionId: data.positionId,
+        email: data.email || '',
+        phone: data.phone || '',
+        photo: data.photo || null,  // 👈 ДОБАВЛЕНО
+        isHead: data.isHead || false,
+        isActive: true,
+        startDate: data.startDate || new Date().toISOString().split('T')[0],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
+    
+    this.employees.push(newEmployee);
+    
+    if (newEmployee.isHead) {
+        const department = this.departments.find(d => d.id === data.departmentId);
+        if (department) {
+            department.headId = newId;
+            department.updatedAt = Date.now();
         }
-        
-        this.saveData();
-        this.addToHistory('add_employee', { name: data.name, departmentId: data.departmentId });
-        
-        return newEmployee;
     }
     
-    updateEmployee(id, updates) {
-        const index = this.employees.findIndex(e => e.id === id);
-        if (index === -1) return false;
+    this.saveData();
+    this.addToHistory('add_employee', { name: data.name, departmentId: data.departmentId });
+    
+    return newEmployee;
+}
+    
+updateEmployee(id, updates) {
+    const index = this.employees.findIndex(e => e.id === id);
+    if (index === -1) return false;
+    
+    const oldEmployee = { ...this.employees[index] };
+    this.employees[index] = {
+        ...this.employees[index],
+        ...updates,
+        updatedAt: Date.now()
+    };
+    
+    // Если меняется отдел
+    if (updates.departmentId && updates.departmentId !== oldEmployee.departmentId) {
+        const oldDept = this.departments.find(d => d.id === oldEmployee.departmentId);
+        const newDept = this.departments.find(d => d.id === updates.departmentId);
         
-        const oldEmployee = { ...this.employees[index] };
-        this.employees[index] = {
-            ...this.employees[index],
-            ...updates,
-            updatedAt: Date.now()
-        };
-        
-        // Если меняется отдел
-        if (updates.departmentId && updates.departmentId !== oldEmployee.departmentId) {
-            const oldDept = this.departments.find(d => d.id === oldEmployee.departmentId);
-            const newDept = this.departments.find(d => d.id === updates.departmentId);
-            
-            if (oldDept && oldDept.headId === id) {
-                oldDept.headId = null;
-            }
-            
-            if (updates.isHead && newDept) {
-                newDept.headId = id;
-            }
-            
-            this.addToHistory('move_employee', {
-                name: oldEmployee.name,
-                fromDepartment: oldDept?.name,
-                toDepartment: newDept?.name
-            });
+        if (oldDept && oldDept.headId === id) {
+            oldDept.headId = null;
         }
         
-        // Если меняется статус руководителя
-        if (updates.isHead !== undefined && updates.isHead !== oldEmployee.isHead) {
-            const department = this.departments.find(d => d.id === this.employees[index].departmentId);
-            if (department) {
-                if (updates.isHead) {
-                    department.headId = id;
-                    this.addToHistory('promote_employee', { name: oldEmployee.name, department: department.name });
-                } else if (department.headId === id) {
-                    department.headId = null;
-                    this.addToHistory('demote_employee', { name: oldEmployee.name, department: department.name });
-                }
-            }
+        if (updates.isHead && newDept) {
+            newDept.headId = id;
         }
         
-        this.saveData();
-        return true;
+        this.addToHistory('move_employee', {
+            name: oldEmployee.name,
+            fromDepartment: oldDept?.name,
+            toDepartment: newDept?.name
+        });
     }
+    
+    // Если меняется статус руководителя
+    if (updates.isHead !== undefined && updates.isHead !== oldEmployee.isHead) {
+        const department = this.departments.find(d => d.id === this.employees[index].departmentId);
+        if (department) {
+            if (updates.isHead) {
+                department.headId = id;
+                this.addToHistory('promote_employee', { name: oldEmployee.name, department: department.name });
+            } else if (department.headId === id) {
+                department.headId = null;
+                this.addToHistory('demote_employee', { name: oldEmployee.name, department: department.name });
+            }
+        }
+    }
+    
+    this.saveData();
+    return true;
+}
+
     
     fireEmployee(id, reason = '') {
         const employee = this.employees.find(e => e.id === id);
