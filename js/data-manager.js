@@ -82,20 +82,24 @@ class OrgDataManager {
         this.saveData();
     }
     
-    saveData() {
-        const data = {
-            departments: this.departments,
-            employees: this.employees,
-            positions: this.positions,
-            nextId: this.nextId,
-            changeHistory: this.changeHistory,
-            version: '3.0',
-            lastUpdated: Date.now()
-        };
-        
-        localStorage.setItem('org_data_v3', JSON.stringify(data));
-        this.notifyListeners();
-    }
+saveData() {
+    const data = {
+        departments: this.departments,
+        employees: this.employees.map(emp => ({
+            ...emp,
+            // Убеждаемся, что photo сохраняется как строка
+            photo: emp.photo || null
+        })),
+        positions: this.positions,
+        nextId: this.nextId,
+        changeHistory: this.changeHistory,
+        version: '3.0',
+        lastUpdated: Date.now()
+    };
+    
+    localStorage.setItem('org_data_v3', JSON.stringify(data));
+    this.notifyListeners();
+}
     
     subscribe(id, callback) {
         this.listeners.set(id, callback);
@@ -398,6 +402,14 @@ updateEmployee(id, updates) {
     if (index === -1) return false;
     
     const oldEmployee = { ...this.employees[index] };
+    
+    // ✅ Логируем изменение фото
+    if (updates.photo !== undefined && updates.photo !== oldEmployee.photo) {
+        console.log(`📸 Обновление фото для ${oldEmployee.name}`);
+        console.log(`   Было: ${oldEmployee.photo ? 'есть фото' : 'нет фото'}`);
+        console.log(`   Стало: ${updates.photo ? 'есть фото' : 'нет фото'}`);
+    }
+    
     this.employees[index] = {
         ...this.employees[index],
         ...updates,
