@@ -195,7 +195,7 @@ class OrgChartRenderer {
             this.dataManager.positions.map(p => `<option value="${p.id}">${this.escapeHtml(p.name)}</option>`).join('');
     }
     
-   filterTree(departments) {
+ filterTree(departments) {
     let result = [...departments];
     
     // Фильтр по поиску
@@ -206,7 +206,12 @@ class OrgChartRenderer {
             // Проверяем, подходит ли сам отдел
             const deptMatches = dept.name.toLowerCase().includes(query);
             
-            // Проверяем сотрудников отдела
+            // Если отдел подходит по названию - показываем ВСЕХ его сотрудников
+            if (deptMatches) {
+                return true;
+            }
+            
+            // Проверяем сотрудников отдела (только если отдел не подошел)
             const employeesMatches = dept.employees.some(emp => 
                 emp.name.toLowerCase().includes(query) ||
                 (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(query) ||
@@ -217,24 +222,33 @@ class OrgChartRenderer {
             // Проверяем дочерние отделы
             const childrenMatches = this.filterTree(dept.children).length > 0;
             
-            // Если отдел подходит сам, показываем его полностью
-            if (deptMatches) {
-                return true;
-            }
-            
             // Если есть совпадения в сотрудниках или детях - показываем
             return employeesMatches || childrenMatches;
-        }).map(dept => ({
-            ...dept,
-            // Фильтруем сотрудников, оставляем только тех, кто подходит под поиск
-            employees: dept.employees.filter(emp => 
-                emp.name.toLowerCase().includes(query) ||
-                (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(query) ||
-                (emp.email && emp.email.toLowerCase().includes(query)) ||
-                (emp.phone && emp.phone.toLowerCase().includes(query))
-            ),
-            children: this.filterTree(dept.children)
-        }));
+        }).map(dept => {
+            // Проверяем, подходит ли сам отдел
+            const deptMatches = dept.name.toLowerCase().includes(query);
+            
+            // Если отдел подошел - показываем ВСЕХ сотрудников
+            if (deptMatches) {
+                return {
+                    ...dept,
+                    employees: dept.employees, // Все сотрудники
+                    children: this.filterTree(dept.children)
+                };
+            }
+            
+            // Иначе фильтруем сотрудников
+            return {
+                ...dept,
+                employees: dept.employees.filter(emp => 
+                    emp.name.toLowerCase().includes(query) ||
+                    (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(query) ||
+                    (emp.email && emp.email.toLowerCase().includes(query)) ||
+                    (emp.phone && emp.phone.toLowerCase().includes(query))
+                ),
+                children: this.filterTree(dept.children)
+            };
+        });
     }
     
     // Фильтр по отделу
@@ -262,6 +276,7 @@ class OrgChartRenderer {
     
     return result;
 }
+
     
     hasDepartment(dept, targetId) {
         if (dept.id === targetId) return true;
@@ -841,8 +856,10 @@ shouldShowChildren(dept) {
 hasMatchingDescendant(node, query = this.searchQuery) {
     if (!query) return false;
     
+    const lowerQuery = query.toLowerCase();
+    
     // Проверяем самого узла
-    if (this.nodeMatchesSearch(node, query)) {
+    if (node.name.toLowerCase().includes(lowerQuery)) {
         return true;
     }
     
@@ -857,10 +874,10 @@ hasMatchingDescendant(node, query = this.searchQuery) {
     if (node.employees && node.employees.length) {
         for (const emp of node.employees) {
             const position = this.dataManager.positions.find(p => p.id === emp.positionId);
-            if (emp.name.toLowerCase().includes(query) ||
-                (position && position.name.toLowerCase().includes(query)) ||
-                (emp.email && emp.email.toLowerCase().includes(query)) ||
-                (emp.phone && emp.phone.toLowerCase().includes(query))) {
+            if (emp.name.toLowerCase().includes(lowerQuery) ||
+                (position && position.name.toLowerCase().includes(lowerQuery)) ||
+                (emp.email && emp.email.toLowerCase().includes(lowerQuery)) ||
+                (emp.phone && emp.phone.toLowerCase().includes(lowerQuery))) {
                 return true;
             }
         }
