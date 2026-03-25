@@ -83,13 +83,12 @@ class OrgDataManager {
     }
     
 saveData() {
+    console.log('💾 Сохранение данных...');
+    console.log('📸 Сотрудники с фото:', this.employees.filter(e => e.photo).length);
+    
     const data = {
         departments: this.departments,
-        employees: this.employees.map(emp => ({
-            ...emp,
-            // Убеждаемся, что photo сохраняется как строка
-            photo: emp.photo || null
-        })),
+        employees: this.employees,
         positions: this.positions,
         nextId: this.nextId,
         changeHistory: this.changeHistory,
@@ -98,6 +97,7 @@ saveData() {
     };
     
     localStorage.setItem('org_data_v3', JSON.stringify(data));
+    console.log('✅ Данные сохранены');
     this.notifyListeners();
 }
     
