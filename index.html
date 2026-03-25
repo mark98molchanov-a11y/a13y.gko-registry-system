@@ -891,6 +891,27 @@
     border-color: #4f46e5;
     box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
+      .org-chart-card {
+    transition: all 0.2s ease;
+}
+
+.org-chart-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Адаптивность для диаграмм */
+@media (max-width: 1024px) {
+    #org-charts-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #org-charts-container {
+        grid-template-columns: 1fr !important;
+    }
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
