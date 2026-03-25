@@ -966,8 +966,10 @@ editEmployee(id) {
     
     modalTitle.textContent = '✏️ Редактирование сотрудника';
     
-    // Сохраняем исходное фото для сравнения
-    let originalPhoto = emp.photo;
+    // Переменные для фото
+    let newPhotoBase64 = null;
+    let removePhoto = false;
+    const originalPhoto = emp.photo;
     
     modalBody.innerHTML = `
         <div class="form-group">
@@ -1006,11 +1008,12 @@ editEmployee(id) {
             <label>Фото сотрудника</label>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
-                <button type="button" id="remove-emp-photo" style="background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>
+                <button type="button" id="remove-emp-photo" style="background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>
             </div>
             <div id="emp-photo-preview" style="margin-top: 10px; ${!emp.photo ? 'display: none;' : ''}">
                 <img src="${emp.photo || ''}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
             </div>
+            <div id="photo-status" style="margin-top: 8px; font-size: 12px; color: #64748b;"></div>
         </div>
         <div class="form-group">
             <label>
@@ -1025,39 +1028,54 @@ editEmployee(id) {
     const photoInput = document.getElementById('emp-photo');
     const photoPreview = document.getElementById('emp-photo-preview');
     const previewImg = photoPreview?.querySelector('img');
-    let newPhotoData = null;
-    let shouldRemovePhoto = false;
+    const photoStatus = document.getElementById('photo-status');
     
-    // Предпросмотр нового фото
+    // Загрузка нового фото
     if (photoInput) {
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Файл слишком большой. Максимум 2MB');
+                    photoInput.value = '';
+                    return;
+                }
+                
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    newPhotoData = event.target.result;
+                    newPhotoBase64 = event.target.result;
                     if (previewImg) {
-                        previewImg.src = newPhotoData;
+                        previewImg.src = newPhotoBase64;
                         photoPreview.style.display = 'block';
                     }
-                    shouldRemovePhoto = false;
+                    removePhoto = false;
+                    if (photoStatus) {
+                        photoStatus.textContent = '✅ Новое фото выбрано';
+                        photoStatus.style.color = '#10b981';
+                    }
+                    console.log('📸 Новое фото загружено, длина:', newPhotoBase64.length);
                 };
                 reader.readAsDataURL(file);
             }
         });
     }
     
-    // Кнопка удаления фото
+    // Удаление фото
     const removeBtn = document.getElementById('remove-emp-photo');
     if (removeBtn) {
         removeBtn.addEventListener('click', () => {
-            newPhotoData = null;
-            shouldRemovePhoto = true;
+            newPhotoBase64 = null;
+            removePhoto = true;
             if (previewImg) {
                 previewImg.src = '';
                 photoPreview.style.display = 'none';
             }
             if (photoInput) photoInput.value = '';
+            if (photoStatus) {
+                photoStatus.textContent = '🗑️ Фото будет удалено';
+                photoStatus.style.color = '#dc2626';
+            }
+            console.log('🗑️ Фото будет удалено');
         });
     }
     
@@ -1072,19 +1090,20 @@ editEmployee(id) {
             return;
         }
         
-        // ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: определяем финальное фото
+        // Определяем финальное фото
         let finalPhoto = originalPhoto;
         
-        if (shouldRemovePhoto) {
+        if (removePhoto) {
             finalPhoto = null;
-            console.log('🗑️ Фото удалено');
-        } else if (newPhotoData) {
-            finalPhoto = newPhotoData;
-            console.log('📸 Новое фото загружено');
+            console.log('📸 Результат: фото удалено');
+        } else if (newPhotoBase64) {
+            finalPhoto = newPhotoBase64;
+            console.log('📸 Результат: новое фото, длина:', finalPhoto.length);
+        } else {
+            console.log('📸 Результат: фото без изменений');
         }
         
-        // Обновляем сотрудника
-        this.dataManager.updateEmployee(id, {
+        const updates = {
             name: name,
             departmentId: parseInt(document.getElementById('emp-department').value),
             positionId: parseInt(document.getElementById('emp-position').value),
@@ -1092,10 +1111,18 @@ editEmployee(id) {
             phone: document.getElementById('emp-phone').value,
             photo: finalPhoto,
             isHead: document.getElementById('emp-is-head').checked
-        });
+        };
+        
+        console.log('💾 Сохраняем сотрудника:', { id, updates });
+        console.log('📸 Сохраняемое фото:', updates.photo ? 'есть (длина: ' + updates.photo.length + ')' : 'нет');
+        
+        this.dataManager.updateEmployee(id, updates);
         
         this.closeModal();
         this.render();
+        
+        // Показываем уведомление
+        this.showNotification('✅ Сотрудник сохранен' + (finalPhoto ? ' с фото' : ''), 'success');
     };
     
     const closeHandler = () => {
