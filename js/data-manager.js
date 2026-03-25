@@ -191,49 +191,48 @@ getAllDepartmentsFlat() {
         return this.changeHistory;
     }
     
-    // ========== ОПЕРАЦИИ С ОТДЕЛАМИ ==========
+  addDepartment(name, parentId = null, description = '', image = null) {
+    const parent = this.departments.find(d => d.id === parentId);
+    const newId = this.nextId.department++;
     
-    addDepartment(name, parentId = null, description = '') {
-        const parent = this.departments.find(d => d.id === parentId);
-        const newId = this.nextId.department++;
-        
-        const newDepartment = {
-            id: newId,
-            name: name.trim(),
-            parentId: parentId,
-            level: parent ? parent.level + 1 : 0,
-            order: this.getNextOrder(parentId),
-            description: description,
-            headId: null,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
-        
-        this.departments.push(newDepartment);
-        this.saveData();
-        this.addToHistory('add_department', { name, parentId });
-        
-        return newDepartment;
+    const newDepartment = {
+        id: newId,
+        name: name.trim(),
+        parentId: parentId,
+        level: parent ? parent.level + 1 : 0,
+        order: this.getNextOrder(parentId),
+        description: description,
+        image: image, // 👈 ДОБАВЛЕНО
+        headId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
+    
+    this.departments.push(newDepartment);
+    this.saveData();
+    this.addToHistory('add_department', { name, parentId });
+    
+    return newDepartment;
+}
+    
+updateDepartment(id, updates) {
+    const index = this.departments.findIndex(d => d.id === id);
+    if (index === -1) return false;
+    
+    const oldName = this.departments[index].name;
+    this.departments[index] = {
+        ...this.departments[index],
+        ...updates,
+        updatedAt: Date.now()
+    };
+    
+    this.saveData();
+    if (updates.name && updates.name !== oldName) {
+        this.addToHistory('rename_department', { oldName, newName: updates.name });
     }
     
-    updateDepartment(id, updates) {
-        const index = this.departments.findIndex(d => d.id === id);
-        if (index === -1) return false;
-        
-        const oldName = this.departments[index].name;
-        this.departments[index] = {
-            ...this.departments[index],
-            ...updates,
-            updatedAt: Date.now()
-        };
-        
-        this.saveData();
-        if (updates.name && updates.name !== oldName) {
-            this.addToHistory('rename_department', { oldName, newName: updates.name });
-        }
-        
-        return true;
-    }
+    return true;
+}
     
     deleteDepartment(id) {
         const department = this.departments.find(d => d.id === id);
