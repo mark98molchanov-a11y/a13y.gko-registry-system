@@ -679,180 +679,214 @@ class OrgChartRenderer {
         this.toggleExpand(id);
     }
     
-    showAddDepartmentModal(parentId = null) {
-        const departments = this.dataManager.departments.filter(d => d.id !== 1);
-        
-        const modal = document.getElementById('org-modal');
-        const modalBody = document.getElementById('org-modal-body');
-        const modalTitle = document.getElementById('org-modal-title');
-        
-        modalTitle.textContent = '➕ Добавление отдела';
-        
-        modalBody.innerHTML = `
-            <div class="form-group">
-                <label>Название отдела *</label>
-                <input type="text" id="dept-name" placeholder="Введите название отдела" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label>Родительский отдел</label>
-                <select id="dept-parent">
-                    <option value="">— Корневой отдел —</option>
-                    ${departments.map(d => `
-                        <option value="${d.id}" ${parentId === d.id ? 'selected' : ''}>
-                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Описание</label>
-                <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
-            </div>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        const saveBtn = document.getElementById('org-modal-save');
-        const cancelBtn = document.getElementById('org-modal-cancel');
-        const closeBtn = modal.querySelector('.org-modal-close');
-        
-        const saveHandler = () => {
-            const name = document.getElementById('dept-name').value.trim();
-            if (!name) {
-                alert('Введите название отдела');
-                return;
-            }
-            
-            const parent = document.getElementById('dept-parent').value;
-            const description = document.getElementById('dept-description').value;
-            
-            this.dataManager.addDepartment(name, parent ? parseInt(parent) : null, description);
-            this.closeModal();
-        };
-        
-        const closeHandler = () => this.closeModal();
-        
-        saveBtn.onclick = saveHandler;
-        cancelBtn.onclick = closeHandler;
-        if (closeBtn) closeBtn.onclick = closeHandler;
-        
-        document.getElementById('dept-name')?.focus();
-    }
+ showAddDepartmentModal(parentId = null) {
+    const departments = this.dataManager.departments.filter(d => d.id !== 1);
     
-    showAddEmployeeModal(departmentId = null) {
-        const departments = this.dataManager.departments.filter(d => d.id !== 1);
-        const positions = this.dataManager.positions;
-        
-        const modal = document.getElementById('org-modal');
-        const modalBody = document.getElementById('org-modal-body');
-        const modalTitle = document.getElementById('org-modal-title');
-        
-        modalTitle.textContent = '👤 Добавление сотрудника';
-        
-        modalBody.innerHTML = `
-            <div class="form-group">
-                <label>ФИО сотрудника *</label>
-                <input type="text" id="emp-name" placeholder="Иванов Иван Иванович" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label>Отдел *</label>
-                <select id="emp-department">
-                    ${departments.map(d => `
-                        <option value="${d.id}" ${departmentId === d.id ? 'selected' : ''}>
-                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Должность *</label>
-                <select id="emp-position">
-                    ${positions.map(p => `
-                        <option value="${p.id}">${this.escapeHtml(p.name)}</option>
-                    `).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="emp-email" placeholder="example@domain.ru">
-            </div>
-            <div class="form-group">
-                <label>Телефон</label>
-                <input type="tel" id="emp-phone" placeholder="+7 (495) 123-45-67">
-            </div>
-            <div class="form-group">
-                <label>Фото сотрудника</label>
-                <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
-                <div id="emp-photo-preview" style="margin-top: 10px; display: none;">
-                    <img style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="emp-is-head"> Назначить руководителем отдела
-                </label>
-            </div>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        const photoInput = document.getElementById('emp-photo');
-        const photoPreview = document.getElementById('emp-photo-preview');
-        const previewImg = photoPreview.querySelector('img');
-        
-        if (photoInput) {
-            photoInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        previewImg.src = event.target.result;
-                        photoPreview.style.display = 'block';
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    photoPreview.style.display = 'none';
-                }
-            });
+    const modal = document.getElementById('org-modal');
+    const modalBody = document.getElementById('org-modal-body');
+    const modalTitle = document.getElementById('org-modal-title');
+    
+    modalTitle.textContent = '➕ Добавление отдела';
+    
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Название отдела *</label>
+            <input type="text" id="dept-name" placeholder="Введите название отдела" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Родительский отдел</label>
+            <select id="dept-parent">
+                <option value="">— Корневой отдел —</option>
+                ${departments.map(d => `
+                    <option value="${d.id}" ${parentId === d.id ? 'selected' : ''}>
+                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Описание</label>
+            <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    const saveBtn = document.getElementById('org-modal-save');
+    const cancelBtn = document.getElementById('org-modal-cancel');
+    const closeBtn = modal.querySelector('.org-modal-close');
+    
+    const saveHandler = () => {
+        const name = document.getElementById('dept-name').value.trim();
+        if (!name) {
+            alert('Введите название отдела');
+            return;
         }
         
-        const saveBtn = document.getElementById('org-modal-save');
-        const cancelBtn = document.getElementById('org-modal-cancel');
-        const closeBtn = modal.querySelector('.org-modal-close');
+        const parentId = document.getElementById('dept-parent').value;
+        const description = document.getElementById('dept-description').value;
         
-        const saveHandler = () => {
-            const name = document.getElementById('emp-name').value.trim();
-            if (!name) {
-                alert('Введите ФИО сотрудника');
-                return;
+        this.dataManager.addDepartment(name, parentId ? parseInt(parentId) : null, description);
+        
+        this.closeModal();
+        this.render();
+        this.showNotification(`✅ Отдел "${name}" добавлен`, 'success');
+    };
+    
+    const closeHandler = () => {
+        this.closeModal();
+    };
+    
+    saveBtn.onclick = saveHandler;
+    cancelBtn.onclick = closeHandler;
+    if (closeBtn) closeBtn.onclick = closeHandler;
+    
+    document.getElementById('dept-name')?.focus();
+}
+    
+ showAddEmployeeModal(departmentId = null) {
+    const departments = this.dataManager.departments.filter(d => d.id !== 1);
+    const positions = this.dataManager.positions;
+    
+    const modal = document.getElementById('org-modal');
+    const modalBody = document.getElementById('org-modal-body');
+    const modalTitle = document.getElementById('org-modal-title');
+    
+    modalTitle.textContent = '👤 Добавление сотрудника';
+    
+    let newPhotoBase64 = null;
+    
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>ФИО сотрудника *</label>
+            <input type="text" id="emp-name" placeholder="Иванов Иван Иванович" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Отдел *</label>
+            <select id="emp-department">
+                ${departments.map(d => `
+                    <option value="${d.id}" ${departmentId === d.id ? 'selected' : ''}>
+                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Должность *</label>
+            <select id="emp-position">
+                ${positions.map(p => `
+                    <option value="${p.id}">${this.escapeHtml(p.name)}</option>
+                `).join('')}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="emp-email" placeholder="example@domain.ru">
+        </div>
+        <div class="form-group">
+            <label>Телефон</label>
+            <input type="tel" id="emp-phone" placeholder="+7 (495) 123-45-67">
+        </div>
+        <div class="form-group">
+            <label>Фото сотрудника</label>
+            <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div id="emp-photo-preview" style="margin-top: 10px; display: none;">
+                <img style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="emp-is-head"> Назначить руководителем отдела
+            </label>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    const photoInput = document.getElementById('emp-photo');
+    const photoPreview = document.getElementById('emp-photo-preview');
+    const previewImg = photoPreview?.querySelector('img');
+    
+    // Предпросмотр фото
+    if (photoInput) {
+        photoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Файл слишком большой. Максимум 2MB');
+                    photoInput.value = '';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    newPhotoBase64 = event.target.result;
+                    if (previewImg) {
+                        previewImg.src = newPhotoBase64;
+                        photoPreview.style.display = 'block';
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                photoPreview.style.display = 'none';
+                newPhotoBase64 = null;
             }
-            
-            let photo = null;
-            if (photoInput.files && photoInput.files[0]) {
-                photo = previewImg.src;
-            }
-            
-            this.dataManager.addEmployee({
-                name,
-                departmentId: parseInt(document.getElementById('emp-department').value),
-                positionId: parseInt(document.getElementById('emp-position').value),
-                email: document.getElementById('emp-email').value,
-                phone: document.getElementById('emp-phone').value,
-                photo: photo,
-                isHead: document.getElementById('emp-is-head').checked
-            });
-            
-            this.closeModal();
-        };
-        
-        const closeHandler = () => this.closeModal();
-        
-        saveBtn.onclick = saveHandler;
-        cancelBtn.onclick = closeHandler;
-        if (closeBtn) closeBtn.onclick = closeHandler;
-        
-        document.getElementById('emp-name')?.focus();
+        });
     }
+    
+    const saveBtn = document.getElementById('org-modal-save');
+    const cancelBtn = document.getElementById('org-modal-cancel');
+    const closeBtn = modal.querySelector('.org-modal-close');
+    
+    const saveHandler = async () => {
+        const name = document.getElementById('emp-name').value.trim();
+        if (!name) {
+            alert('Введите ФИО сотрудника');
+            return;
+        }
+        
+        const departmentId = parseInt(document.getElementById('emp-department').value);
+        const positionId = parseInt(document.getElementById('emp-position').value);
+        const email = document.getElementById('emp-email').value;
+        const phone = document.getElementById('emp-phone').value;
+        const isHead = document.getElementById('emp-is-head').checked;
+        
+        // Создаем сотрудника
+        const newEmployee = this.dataManager.addEmployee({
+            name,
+            departmentId,
+            positionId,
+            email,
+            phone,
+            photo: null, // сначала без фото
+            isHead,
+            startDate: new Date().toISOString().split('T')[0]
+        });
+        
+        // Если есть фото, сохраняем в IndexedDB
+        if (newPhotoBase64) {
+            if (this.dataManager.saveEmployeePhotoToIndexedDB) {
+                await this.dataManager.saveEmployeePhotoToIndexedDB(newEmployee.id, newPhotoBase64);
+                // Обновляем ссылку на фото
+                this.dataManager.updateEmployee(newEmployee.id, { photo: `__INDEXEDDB__${newEmployee.id}` });
+            }
+        }
+        
+        this.closeModal();
+        await this.render();
+        this.showNotification(`✅ Сотрудник "${name}" добавлен`, 'success');
+    };
+    
+    const closeHandler = () => {
+        this.closeModal();
+    };
+    
+    saveBtn.onclick = saveHandler;
+    cancelBtn.onclick = closeHandler;
+    if (closeBtn) closeBtn.onclick = closeHandler;
+    
+    document.getElementById('emp-name')?.focus();
+}
     
     editDepartment(id) {
         const dept = this.dataManager.departments.find(d => d.id === id);
