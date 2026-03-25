@@ -9,174 +9,176 @@ class OrgChartRenderer {
         this.searchQuery = '';
         this.filterDepartment = '';
         this.filterPosition = '';
+        this.filterStatus = '';
         
         this.init();
     }
-   async init() {
-    this.setupEventListeners();
     
-    // 1. Сначала загружаем сохраненное состояние развернутых узлов
-    const savedExpanded = localStorage.getItem('org_expanded_nodes');
-    if (savedExpanded) {
-        try {
-            const expandedArray = JSON.parse(savedExpanded);
-            this.expandedNodes = new Set(expandedArray);
-            console.log('📂 Загружено состояние развернутых узлов:', this.expandedNodes.size);
-        } catch(e) {
-            console.error('Ошибка загрузки состояния:', e);
+    async init() {
+        this.setupEventListeners();
+        
+        // 1. Сначала загружаем сохраненное состояние развернутых узлов
+        const savedExpanded = localStorage.getItem('org_expanded_nodes');
+        if (savedExpanded) {
+            try {
+                const expandedArray = JSON.parse(savedExpanded);
+                this.expandedNodes = new Set(expandedArray);
+                console.log('📂 Загружено состояние развернутых узлов:', this.expandedNodes.size);
+            } catch(e) {
+                console.error('Ошибка загрузки состояния:', e);
+            }
         }
-    }
-    
-    // 2. Если нет сохраненного состояния, разворачиваем корневые узлы ДО синхронизации фото
-    if (!savedExpanded || this.expandedNodes.size === 0) {
-        const roots = this.dataManager.departments.filter(d => d.parentId === null);
-        roots.forEach(root => this.expandedNodes.add(root.id));
-        // Сразу сохраняем состояние, чтобы при следующей загрузке оно было
-        localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
-        console.log('📂 Развернуты корневые узлы:', roots.length);
-    }
-    
-    // 3. Синхронизируем фото из IndexedDB
-    if (this.dataManager.syncPhotosFromIndexedDB) {
-        await this.dataManager.syncPhotosFromIndexedDB();
-        console.log('📸 Фото синхронизированы');
-    }
-    
-    // 4. Рендерим дерево
-    await this.render();
-    console.log('🎨 Дерево отрисовано');
-    
-    // 5. Подписка на изменения данных (после рендера)
-    this.dataManager.subscribe('renderer', async () => {
-        console.log('🔄 Данные изменились, обновляем дерево');
+        
+        // 2. Если нет сохраненного состояния, разворачиваем корневые узлы
+        if (!savedExpanded || this.expandedNodes.size === 0) {
+            const roots = this.dataManager.departments.filter(d => d.parentId === null);
+            roots.forEach(root => this.expandedNodes.add(root.id));
+            localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
+            console.log('📂 Развернуты корневые узлы:', roots.length);
+        }
+        
+        // 3. Синхронизируем фото из IndexedDB
+        if (this.dataManager.syncPhotosFromIndexedDB) {
+            await this.dataManager.syncPhotosFromIndexedDB();
+            console.log('📸 Фото синхронизированы');
+        }
+        
+        // 4. Рендерим дерево
         await this.render();
-    });
-}
+        console.log('🎨 Дерево отрисовано');
+        
+        // 5. Рендерим графики в правой колонке
+        setTimeout(() => {
+            this.renderChartsInDetails();
+        }, 100);
+        
+        // 6. Подписка на изменения данных
+        this.dataManager.subscribe('renderer', async () => {
+            console.log('🔄 Данные изменились, обновляем дерево');
+            await this.render();
+            setTimeout(() => {
+                this.renderChartsInDetails();
+            }, 50);
+        });
+    }
     
-  setupEventListeners() {
-    // Поиск (расширенный - по отделам и сотрудникам)
-    const searchInput = document.getElementById('org-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            this.searchQuery = e.target.value.toLowerCase().trim();
-            
-            if (this.searchQuery) {
-                // Функция для разворачивания узлов, содержащих результаты поиска
-                const expandMatchingNodes = (depts) => {
-                    depts.forEach(dept => {
-                        // Проверяем сам отдел
-                        const deptMatches = dept.name.toLowerCase().includes(this.searchQuery);
-                        // Проверяем сотрудников отдела
-                        const employeesMatch = dept.employees.some(emp => 
-                            emp.name.toLowerCase().includes(this.searchQuery) ||
-                            (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(this.searchQuery) ||
-                            (emp.email && emp.email.toLowerCase().includes(this.searchQuery)) ||
-                            (emp.phone && emp.phone.toLowerCase().includes(this.searchQuery))
-                        );
-                        
-                        // Если есть совпадение в отделе или сотрудниках - разворачиваем
-                        if (deptMatches || employeesMatch) {
-                            this.expandedNodes.add(dept.id);
-                            if (dept.children && dept.children.length) {
-                                expandMatchingNodes(dept.children);
-                            }
-                        } else {
-                            // Проверяем дочерние отделы
-                            const hasMatchingChild = dept.children.some(child => 
-                                this.hasMatchingDescendant(child)
-                            );
-                            if (hasMatchingChild) {
-                                this.expandedNodes.add(dept.id);
-                                expandMatchingNodes(dept.children);
-                            }
-                        }
-                    });
-                };
+    setupEventListeners() {
+        // Поиск
+        const searchInput = document.getElementById('org-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.toLowerCase().trim();
                 
-                const tree = this.dataManager.getDepartmentTree();
-                expandMatchingNodes(tree);
-            }
-            
-            this.render();
-        });
+                if (this.searchQuery) {
+                    const expandMatchingNodes = (depts) => {
+                        depts.forEach(dept => {
+                            const deptMatches = dept.name.toLowerCase().includes(this.searchQuery);
+                            const employeesMatch = dept.employees.some(emp => 
+                                emp.name.toLowerCase().includes(this.searchQuery) ||
+                                (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(this.searchQuery) ||
+                                (emp.email && emp.email.toLowerCase().includes(this.searchQuery)) ||
+                                (emp.phone && emp.phone.toLowerCase().includes(this.searchQuery))
+                            );
+                            
+                            if (deptMatches || employeesMatch) {
+                                this.expandedNodes.add(dept.id);
+                                if (dept.children && dept.children.length) {
+                                    expandMatchingNodes(dept.children);
+                                }
+                            } else {
+                                const hasMatchingChild = dept.children.some(child => 
+                                    this.hasMatchingDescendant(child)
+                                );
+                                if (hasMatchingChild) {
+                                    this.expandedNodes.add(dept.id);
+                                    expandMatchingNodes(dept.children);
+                                }
+                            }
+                        });
+                    };
+                    
+                    const tree = this.dataManager.getDepartmentTree();
+                    expandMatchingNodes(tree);
+                }
+                
+                this.render();
+            });
+        }
+        
+        // Фильтр по отделам
+        const filterDept = document.getElementById('org-filter-department');
+        if (filterDept) {
+            filterDept.addEventListener('change', (e) => {
+                this.filterDepartment = e.target.value;
+                this.filterStatus = '';
+                this.render();
+            });
+            this.updateDepartmentFilter();
+        }
+        
+        // Фильтр по должностям
+        const filterPos = document.getElementById('org-filter-position');
+        if (filterPos) {
+            filterPos.addEventListener('change', (e) => {
+                this.filterPosition = e.target.value;
+                this.filterStatus = '';
+                this.render();
+            });
+            this.updatePositionFilter();
+        }
+        
+        // Сброс фильтров
+        const clearBtn = document.getElementById('org-filter-clear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.searchQuery = '';
+                this.filterDepartment = '';
+                this.filterPosition = '';
+                this.filterStatus = '';
+                if (searchInput) searchInput.value = '';
+                if (filterDept) filterDept.value = '';
+                if (filterPos) filterPos.value = '';
+                
+                const savedExpanded = localStorage.getItem('org_expanded_nodes');
+                if (savedExpanded) {
+                    try {
+                        const expandedArray = JSON.parse(savedExpanded);
+                        this.expandedNodes = new Set(expandedArray);
+                    } catch(e) {}
+                } else {
+                    const roots = this.dataManager.departments.filter(d => d.parentId === null);
+                    roots.forEach(root => this.expandedNodes.add(root.id));
+                }
+                
+                this.render();
+            });
+        }
+        
+        // Кнопки управления
+        const expandAll = document.getElementById('org-expand-all');
+        if (expandAll) expandAll.addEventListener('click', () => this.expandAll());
+        
+        const collapseAll = document.getElementById('org-collapse-all');
+        if (collapseAll) collapseAll.addEventListener('click', () => this.collapseAll());
+        
+        const addDept = document.getElementById('org-add-department');
+        if (addDept) addDept.addEventListener('click', () => this.showAddDepartmentModal());
+        
+        const addEmployee = document.getElementById('org-add-employee');
+        if (addEmployee) addEmployee.addEventListener('click', () => this.showAddEmployeeModal());
+        
+        const exportJsonBtn = document.getElementById('org-export-json');
+        if (exportJsonBtn) exportJsonBtn.addEventListener('click', () => this.exportData());
+        
+        const exportExcelBtn = document.getElementById('org-export-excel');
+        if (exportExcelBtn) exportExcelBtn.addEventListener('click', () => this.exportToExcel());
+        
+        const importJsonBtn = document.getElementById('org-import-json');
+        if (importJsonBtn) importJsonBtn.addEventListener('click', () => this.importData());
+        
+        const importExcelBtn = document.getElementById('org-import-excel');
+        if (importExcelBtn) importExcelBtn.addEventListener('click', () => this.importFromExcel());
     }
-    
-    // Фильтр по отделам
-    const filterDept = document.getElementById('org-filter-department');
-    if (filterDept) {
-        filterDept.addEventListener('change', (e) => {
-            this.filterDepartment = e.target.value;
-            this.render();
-        });
-        this.updateDepartmentFilter();
-    }
-    
-    // Фильтр по должностям
-    const filterPos = document.getElementById('org-filter-position');
-    if (filterPos) {
-        filterPos.addEventListener('change', (e) => {
-            this.filterPosition = e.target.value;
-            this.render();
-        });
-        this.updatePositionFilter();
-    }
-    
-    // Сброс фильтров
-    const clearBtn = document.getElementById('org-filter-clear');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            this.searchQuery = '';
-            this.filterDepartment = '';
-            this.filterPosition = '';
-            if (searchInput) searchInput.value = '';
-            if (filterDept) filterDept.value = '';
-            if (filterPos) filterPos.value = '';
-            
-            // Восстанавливаем сохраненное состояние развернутых узлов
-            const savedExpanded = localStorage.getItem('org_expanded_nodes');
-            if (savedExpanded) {
-                try {
-                    const expandedArray = JSON.parse(savedExpanded);
-                    this.expandedNodes = new Set(expandedArray);
-                } catch(e) {}
-            } else {
-                const roots = this.dataManager.departments.filter(d => d.parentId === null);
-                roots.forEach(root => this.expandedNodes.add(root.id));
-            }
-            
-            this.render();
-        });
-    }
-    
-    // Кнопки управления
-    const expandAll = document.getElementById('org-expand-all');
-    if (expandAll) expandAll.addEventListener('click', () => this.expandAll());
-    
-    const collapseAll = document.getElementById('org-collapse-all');
-    if (collapseAll) collapseAll.addEventListener('click', () => this.collapseAll());
-    
-    const addDept = document.getElementById('org-add-department');
-    if (addDept) addDept.addEventListener('click', () => this.showAddDepartmentModal());
-    
-    const addEmployee = document.getElementById('org-add-employee');
-    if (addEmployee) addEmployee.addEventListener('click', () => this.showAddEmployeeModal());
-    
-    // Экспорт JSON
-    const exportJsonBtn = document.getElementById('org-export-json');
-    if (exportJsonBtn) exportJsonBtn.addEventListener('click', () => this.exportData());
-    
-    // Экспорт Excel
-    const exportExcelBtn = document.getElementById('org-export-excel');
-    if (exportExcelBtn) exportExcelBtn.addEventListener('click', () => this.exportToExcel());
-    
-    // Импорт JSON
-    const importJsonBtn = document.getElementById('org-import-json');
-    if (importJsonBtn) importJsonBtn.addEventListener('click', () => this.importData());
-    
-    // Импорт Excel
-    const importExcelBtn = document.getElementById('org-import-excel');
-    if (importExcelBtn) importExcelBtn.addEventListener('click', () => this.importFromExcel());
-}
     
     updateDepartmentFilter() {
         const select = document.getElementById('org-filter-department');
@@ -195,88 +197,94 @@ class OrgChartRenderer {
             this.dataManager.positions.map(p => `<option value="${p.id}">${this.escapeHtml(p.name)}</option>`).join('');
     }
     
- filterTree(departments) {
-    let result = [...departments];
-    
-    // Фильтр по поиску
-    if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase();
+    filterTree(departments) {
+        let result = [...departments];
         
-        result = result.filter(dept => {
-            // Проверяем, подходит ли сам отдел
-            const deptMatches = dept.name.toLowerCase().includes(query);
+        // Фильтр по поиску
+        if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
             
-            // Если отдел подходит по названию - показываем ВСЕХ его сотрудников
-            if (deptMatches) {
-                return true;
-            }
-            
-            // Проверяем сотрудников отдела (только если отдел не подошел)
-            const employeesMatches = dept.employees.some(emp => 
-                emp.name.toLowerCase().includes(query) ||
-                (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(query) ||
-                (emp.email && emp.email.toLowerCase().includes(query)) ||
-                (emp.phone && emp.phone.toLowerCase().includes(query))
-            );
-            
-            // Проверяем дочерние отделы
-            const childrenMatches = this.filterTree(dept.children).length > 0;
-            
-            // Если есть совпадения в сотрудниках или детях - показываем
-            return employeesMatches || childrenMatches;
-        }).map(dept => {
-            // Проверяем, подходит ли сам отдел
-            const deptMatches = dept.name.toLowerCase().includes(query);
-            
-            // Если отдел подошел - показываем ВСЕХ сотрудников
-            if (deptMatches) {
-                return {
-                    ...dept,
-                    employees: dept.employees, // Все сотрудники
-                    children: this.filterTree(dept.children)
-                };
-            }
-            
-            // Иначе фильтруем сотрудников
-            return {
-                ...dept,
-                employees: dept.employees.filter(emp => 
+            result = result.filter(dept => {
+                const deptMatches = dept.name.toLowerCase().includes(query);
+                if (deptMatches) return true;
+                
+                const employeesMatches = dept.employees.some(emp => 
                     emp.name.toLowerCase().includes(query) ||
                     (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(query) ||
                     (emp.email && emp.email.toLowerCase().includes(query)) ||
                     (emp.phone && emp.phone.toLowerCase().includes(query))
+                );
+                
+                const childrenMatches = this.filterTree(dept.children).length > 0;
+                return employeesMatches || childrenMatches;
+            }).map(dept => {
+                const deptMatches = dept.name.toLowerCase().includes(query);
+                if (deptMatches) {
+                    return {
+                        ...dept,
+                        employees: dept.employees,
+                        children: this.filterTree(dept.children)
+                    };
+                }
+                return {
+                    ...dept,
+                    employees: dept.employees.filter(emp => 
+                        emp.name.toLowerCase().includes(query) ||
+                        (this.dataManager.positions.find(p => p.id === emp.positionId)?.name || '').toLowerCase().includes(query) ||
+                        (emp.email && emp.email.toLowerCase().includes(query)) ||
+                        (emp.phone && emp.phone.toLowerCase().includes(query))
+                    ),
+                    children: this.filterTree(dept.children)
+                };
+            });
+        }
+        
+        // Фильтр по статусу (активные/уволенные)
+        if (this.filterStatus) {
+            result = result.map(dept => ({
+                ...dept,
+                employees: dept.employees.filter(emp => 
+                    this.filterStatus === 'active' ? emp.isActive : !emp.isActive
                 ),
-                children: this.filterTree(dept.children)
-            };
-        });
+                children: this.filterTreeByStatus(dept.children)
+            })).filter(dept => dept.employees.length > 0 || dept.children.length > 0);
+        }
+        
+        // Фильтр по отделу
+        if (this.filterDepartment) {
+            const filterId = parseInt(this.filterDepartment);
+            result = result.filter(dept => {
+                if (dept.id === filterId) return true;
+                if (this.hasDepartment(dept, filterId)) return true;
+                return false;
+            }).map(dept => ({
+                ...dept,
+                children: this.filterTreeByDepartment(dept.children, filterId)
+            }));
+        }
+        
+        // Фильтр по должности
+        if (this.filterPosition) {
+            const filterPosId = parseInt(this.filterPosition);
+            result = result.map(dept => ({
+                ...dept,
+                employees: dept.employees.filter(emp => emp.positionId === filterPosId),
+                children: this.filterTreeByPosition(dept.children, filterPosId)
+            })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, filterPosId));
+        }
+        
+        return result;
     }
     
-    // Фильтр по отделу
-    if (this.filterDepartment) {
-        const filterId = parseInt(this.filterDepartment);
-        result = result.filter(dept => {
-            if (dept.id === filterId) return true;
-            if (this.hasDepartment(dept, filterId)) return true;
-            return false;
-        }).map(dept => ({
+    filterTreeByStatus(departments) {
+        return departments.map(dept => ({
             ...dept,
-            children: this.filterTreeByDepartment(dept.children, filterId)
-        }));
+            employees: dept.employees.filter(emp => 
+                this.filterStatus === 'active' ? emp.isActive : !emp.isActive
+            ),
+            children: this.filterTreeByStatus(dept.children)
+        })).filter(dept => dept.employees.length > 0 || dept.children.length > 0);
     }
-    
-    // Фильтр по должности
-    if (this.filterPosition) {
-        const filterPosId = parseInt(this.filterPosition);
-        result = result.map(dept => ({
-            ...dept,
-            employees: dept.employees.filter(emp => emp.positionId === filterPosId),
-            children: this.filterTreeByPosition(dept.children, filterPosId)
-        })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, filterPosId));
-    }
-    
-    return result;
-}
-
     
     hasDepartment(dept, targetId) {
         if (dept.id === targetId) return true;
@@ -307,132 +315,94 @@ class OrgChartRenderer {
         })).filter(dept => dept.employees.length > 0 || this.hasEmployeesWithPosition(dept, positionId));
     }
     
-async renderEmployeeAsync(employee) {
-    const position = this.dataManager.positions.find(p => p.id === employee.positionId);
-    const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
-    
-    let photoUrl = null;
-    if (employee.photo) {
-        if (employee.photo.startsWith('__INDEXEDDB__')) {
-            if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
-                photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(employee.id);
+    async renderEmployeeAsync(employee) {
+        const position = this.dataManager.positions.find(p => p.id === employee.positionId);
+        const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
+        
+        let photoUrl = null;
+        if (employee.photo) {
+            if (employee.photo.startsWith('__INDEXEDDB__')) {
+                if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
+                    photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(employee.id);
+                }
+            } else {
+                photoUrl = employee.photo;
             }
-        } else {
-            photoUrl = employee.photo;
         }
-    }
-    
-    // Для уволенных сотрудников - особое оформление
-    if (!employee.isActive) {
+        
+        // Для уволенных сотрудников
+        if (!employee.isActive) {
+            let avatarHtml = '';
+            if (photoUrl && photoUrl.startsWith('data:image')) {
+                avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; filter: grayscale(0.5); opacity: 0.7;">`;
+            } else {
+                avatarHtml = `<div class="org-employee-avatar" style="background: #f1f5f9; filter: grayscale(0.3);">🚪</div>`;
+            }
+            
+            return `
+                <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
+                     data-id="${employee.id}" 
+                     data-type="employee"
+                     onclick="orgApp.selectItem('employee', ${employee.id})"
+                     style="border-left: 3px solid #ef4444; background: #fef2f2;">
+                    ${avatarHtml}
+                    <div class="org-employee-info">
+                        <div class="org-employee-name" style="color: #991b1b;">
+                            ${this.escapeHtml(employee.name)}
+                            <span class="org-badge-vacancy" style="font-size: 0.65rem; padding: 2px 8px; background: #ef4444; color: white; border-radius: 20px; font-weight: 500; margin-left: 8px;">Вакансия</span>
+                        </div>
+                        <div class="org-employee-position" style="color: #b91c1c;">
+                            <s>${position ? this.escapeHtml(position.name) : ''}</s>
+                            <span style="color: #dc2626; font-size: 0.7rem; margin-left: 6px;">Уволен: ${employee.fireDate || '—'}</span>
+                        </div>
+                        ${employee.fireReason ? `
+                            <div class="org-employee-fire-reason" style="font-size: 0.65rem; color: #b91c1c; margin-top: 2px;">
+                                📋 Причина: ${this.escapeHtml(employee.fireReason)}
+                            </div>
+                        ` : ''}
+                        ${employee.email ? `<div class="org-employee-contact" style="color: #9ca3af;">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
+                        ${employee.phone ? `<div class="org-employee-contact" style="color: #9ca3af;">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
+                    </div>
+                    <div class="org-employee-actions">
+                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.rehireEmployee(${employee.id})" title="Восстановить" style="color: #10b981;">🔄</button>
+                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Активный сотрудник
         let avatarHtml = '';
         if (photoUrl && photoUrl.startsWith('data:image')) {
-            avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; filter: grayscale(0.5); opacity: 0.7;">`;
+            avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
         } else {
-            avatarHtml = `<div class="org-employee-avatar" style="background: #f1f5f9; filter: grayscale(0.3);">🚪</div>`;
+            avatarHtml = `<div class="org-employee-avatar">${employee.isHead ? '👔' : '👤'}</div>`;
         }
         
         return `
             <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
                  data-id="${employee.id}" 
                  data-type="employee"
-                 onclick="orgApp.selectItem('employee', ${employee.id})"
-                 style="border-left: 3px solid #ef4444; background: #fef2f2;">
+                 onclick="orgApp.selectItem('employee', ${employee.id})">
                 ${avatarHtml}
                 <div class="org-employee-info">
-                    <div class="org-employee-name" style="color: #991b1b;">
+                    <div class="org-employee-name">
                         ${this.escapeHtml(employee.name)}
-                        <span class="org-badge-vacancy" style="font-size: 0.65rem; padding: 2px 8px; background: #ef4444; color: white; border-radius: 20px; font-weight: 500; margin-left: 8px;">Вакансия</span>
+                        ${employee.isHead ? '<span class="org-badge-head">Руководитель</span>' : ''}
                     </div>
-                    <div class="org-employee-position" style="color: #b91c1c;">
-                        <s>${position ? this.escapeHtml(position.name) : ''}</s>
-                        <span style="color: #dc2626; font-size: 0.7rem; margin-left: 6px;">Уволен: ${employee.fireDate || '—'}</span>
-                    </div>
-                    ${employee.fireReason ? `
-                        <div class="org-employee-fire-reason" style="font-size: 0.65rem; color: #b91c1c; margin-top: 2px;">
-                            📋 Причина: ${this.escapeHtml(employee.fireReason)}
-                        </div>
-                    ` : ''}
-                    ${employee.email ? `<div class="org-employee-contact" style="color: #9ca3af;">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
-                    ${employee.phone ? `<div class="org-employee-contact" style="color: #9ca3af;">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
+                    <div class="org-employee-position">${position ? this.escapeHtml(position.name) : ''}</div>
+                    ${employee.email ? `<div class="org-employee-contact">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
+                    ${employee.phone ? `<div class="org-employee-contact">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
                 </div>
                 <div class="org-employee-actions">
-                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.rehireEmployee(${employee.id})" title="Восстановить" style="color: #10b981;">🔄</button>
+                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadEmployeePhoto(${employee.id})" title="Загрузить фото">🖼️</button>
                     <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
+                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.fireEmployee(${employee.id})" title="Уволить">🚪</button>
                 </div>
             </div>
         `;
     }
     
-    // Активный сотрудник - обычное отображение
-    let avatarHtml = '';
-    if (photoUrl && photoUrl.startsWith('data:image')) {
-        avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
-    } else {
-        avatarHtml = `<div class="org-employee-avatar">${employee.isHead ? '👔' : '👤'}</div>`;
-    }
-    
-    return `
-        <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
-             data-id="${employee.id}" 
-             data-type="employee"
-             onclick="orgApp.selectItem('employee', ${employee.id})">
-            ${avatarHtml}
-            <div class="org-employee-info">
-                <div class="org-employee-name">
-                    ${this.escapeHtml(employee.name)}
-                    ${employee.isHead ? '<span class="org-badge-head">Руководитель</span>' : ''}
-                </div>
-                <div class="org-employee-position">${position ? this.escapeHtml(position.name) : ''}</div>
-                ${employee.email ? `<div class="org-employee-contact">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
-                ${employee.phone ? `<div class="org-employee-contact">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
-            </div>
-            <div class="org-employee-actions">
-                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadEmployeePhoto(${employee.id})" title="Загрузить фото">🖼️</button>
-                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
-                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.fireEmployee(${employee.id})" title="Уволить">🚪</button>
-            </div>
-        </div>
-    `;
-}
-// Добавьте этот метод для отображения уволенных сотрудников (Вакансий)
-renderFiredEmployee(employee) {
-    const position = this.dataManager.positions.find(p => p.id === employee.positionId);
-    const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
-    
-    // Для уволенных используем серый аватар или иконку
-    let avatarHtml = `<div class="org-employee-avatar" style="background: #f1f5f9; filter: grayscale(0.3);">🚪</div>`;
-    
-    return `
-        <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
-             data-id="${employee.id}" 
-             data-type="employee"
-             onclick="orgApp.selectItem('employee', ${employee.id})"
-             style="border-left: 3px solid #ef4444; background: #fef2f2;">
-            ${avatarHtml}
-            <div class="org-employee-info">
-                <div class="org-employee-name" style="color: #991b1b;">
-                    ${this.escapeHtml(employee.name)}
-                    <span class="org-badge-vacancy" style="font-size: 0.65rem; padding: 2px 8px; background: #ef4444; color: white; border-radius: 20px; font-weight: 500;">Вакансия</span>
-                </div>
-                <div class="org-employee-position" style="color: #b91c1c;">
-                    <s>${position ? this.escapeHtml(position.name) : ''}</s>
-                    <span style="color: #dc2626; font-size: 0.7rem; margin-left: 6px;">Уволен: ${employee.fireDate || '—'}</span>
-                </div>
-                ${employee.fireReason ? `
-                    <div class="org-employee-fire-reason" style="font-size: 0.65rem; color: #b91c1c; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
-                        📋 Причина: ${this.escapeHtml(employee.fireReason)}
-                    </div>
-                ` : ''}
-                ${employee.email ? `<div class="org-employee-contact" style="color: #9ca3af;">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
-                ${employee.phone ? `<div class="org-employee-contact" style="color: #9ca3af;">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
-            </div>
-            <div class="org-employee-actions">
-                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.rehireEmployee(${employee.id})" title="Восстановить" style="color: #10b981;">🔄</button>
-                <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
-            </div>
-        </div>
-    `;
-}
     async renderTreeAsync(departments, level = 0) {
         if (!departments.length) return '';
         
@@ -498,629 +468,465 @@ renderFiredEmployee(employee) {
         return html.join('');
     }
     
-async render() {
-    if (!this.container) return;
+    async render() {
+        if (!this.container) return;
+        
+        const tree = this.dataManager.getDepartmentTree();
+        const filteredTree = this.filterTree(tree);
+        
+        const html = await this.renderTreeAsync(filteredTree);
+        this.container.innerHTML = `<div class="org-chart">${html}</div>`;
+    }
     
-    const tree = this.dataManager.getDepartmentTree();
-    const filteredTree = this.filterTree(tree);
-    
-    // Подсчет активных и уволенных сотрудников
-    const totalEmployees = this.dataManager.employees.filter(e => e.isActive).length;
-    const totalFired = this.dataManager.employees.filter(e => !e.isActive).length;
-    
-    const html = await this.renderTreeAsync(filteredTree);
-    
-    // Добавляем счетчик и диаграммы
-    this.container.innerHTML = `
-        <div style="position: relative;">
-            <!-- Счетчик сотрудников в правом верхнем углу -->
-            <div style="position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; padding: 12px 16px; background: white; border-bottom: 1px solid #e2e8f0; margin-bottom: 8px;">
-                <div style="display: flex; gap: 16px; background: #f8fafc; padding: 8px 16px; border-radius: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 1.2rem;">👥</span>
-                        <div>
-                            <div style="font-size: 0.7rem; color: #64748b;">Всего сотрудников</div>
-                            <div style="font-size: 1.2rem; font-weight: 700; color: #1e293b;">${totalEmployees}</div>
-                        </div>
+    renderChartsInDetails() {
+        const stats = this.renderStatistics();
+        const detailsPanel = document.getElementById('org-details-panel');
+        if (!detailsPanel) return;
+        
+        let chartsContainer = document.getElementById('org-charts-in-details');
+        if (!chartsContainer) {
+            chartsContainer = document.createElement('div');
+            chartsContainer.id = 'org-charts-in-details';
+            chartsContainer.style.cssText = `
+                margin-top: 20px;
+                padding: 16px;
+                background: white;
+                border-radius: 16px;
+                border: 1px solid #e2e8f0;
+            `;
+            detailsPanel.appendChild(chartsContainer);
+        }
+        
+        chartsContainer.innerHTML = `
+            <div style="margin-bottom: 16px;">
+                <h4 style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 12px;">📊 Статистика</h4>
+            </div>
+            
+            <!-- Диаграмма 1: Активные vs Уволенные -->
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #64748b;">Статус сотрудников</span>
+                    <span style="font-size: 0.65rem; color: #94a3b8;">Всего: ${stats.totalEmployees}</span>
+                </div>
+                <canvas id="org-status-chart-details" style="height: 140px; width: 100%;"></canvas>
+                <div style="display: flex; justify-content: center; gap: 16px; margin-top: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="orgApp.filterByStatus('active')">
+                        <span style="width: 10px; height: 10px; background: #10b981; border-radius: 50%;"></span>
+                        <span style="font-size: 0.65rem; color: #475569;">Активные: ${stats.activeCount}</span>
                     </div>
-                    <div style="width: 1px; background: #e2e8f0;"></div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 1.2rem;">🚪</span>
-                        <div>
-                            <div style="font-size: 0.7rem; color: #64748b;">Вакансии</div>
-                            <div style="font-size: 1.2rem; font-weight: 700; color: #dc2626;">${totalFired}</div>
-                        </div>
+                    <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">
+                        <span style="width: 10px; height: 10px; background: #ef4444; border-radius: 50%;"></span>
+                        <span style="font-size: 0.65rem; color: #475569;">Вакансии: ${stats.firedCount}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="orgApp.clearFilters()">
+                        <span style="font-size: 0.65rem; color: #3b82f6;">Сброс</span>
                     </div>
                 </div>
             </div>
             
-            <!-- Контейнер для диаграмм -->
-            <div id="org-charts-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; padding: 0 20px;"></div>
+            <!-- Диаграмма 2: Топ отделов -->
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #64748b;">Топ отделов</span>
+                    <span style="font-size: 0.65rem; color: #94a3b8;">по числу сотрудников</span>
+                </div>
+                <canvas id="org-departments-chart-details" style="height: 160px; width: 100%;"></canvas>
+            </div>
             
-            <div class="org-chart">${html}</div>
-        </div>
-    `;
+            <!-- Диаграмма 3: Топ должностей -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #64748b;">Топ должностей</span>
+                    <span style="font-size: 0.65rem; color: #94a3b8;">активные сотрудники</span>
+                </div>
+                <canvas id="org-positions-chart-details" style="height: 160px; width: 100%;"></canvas>
+            </div>
+        `;
+        
+        this.drawStatusChartDetails(stats);
+        this.drawDepartmentsChartDetails(stats);
+        this.drawPositionsChartDetails(stats);
+    }
     
-    // Рендерим диаграммы
-    setTimeout(() => {
-        this.renderCharts();
-    }, 50);
-}
+    drawStatusChartDetails(stats) {
+        const ctx = document.getElementById('org-status-chart-details')?.getContext('2d');
+        if (!ctx) return;
+        
+        if (this.statusChartDetails) this.statusChartDetails.destroy();
+        
+        this.statusChartDetails = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Активные', 'Вакансии'],
+                datasets: [{
+                    data: [stats.activeCount, stats.firedCount],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '55%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = stats.activeCount + stats.firedCount;
+                                const percentage = total ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    drawDepartmentsChartDetails(stats) {
+        const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
+        if (!ctx) return;
+        
+        if (this.deptsChartDetails) this.deptsChartDetails.destroy();
+        
+        const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
+        
+        this.deptsChartDetails = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: stats.deptStats.map(d => d.name.length > 18 ? d.name.substring(0, 15) + '...' : d.name),
+                datasets: [{
+                    data: stats.deptStats.map(d => d.count),
+                    backgroundColor: colors.slice(0, stats.deptStats.length),
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 8,
+                            font: { size: 8 },
+                            padding: 6
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = stats.deptStats.reduce((sum, d) => sum + d.count, 0);
+                                const percentage = total ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                onClick: (e, els) => {
+                    if (els.length > 0) {
+                        const index = els[0].index;
+                        const deptName = stats.deptStats[index].name;
+                        const dept = this.dataManager.departments.find(d => d.name === deptName);
+                        if (dept) {
+                            this.filterDepartment = dept.id.toString();
+                            this.filterPosition = '';
+                            this.searchQuery = '';
+                            this.filterStatus = '';
+                            const searchInput = document.getElementById('org-search');
+                            if (searchInput) searchInput.value = '';
+                            this.render();
+                            this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    drawPositionsChartDetails(stats) {
+        const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
+        if (!ctx) return;
+        
+        if (this.positionsChartDetails) this.positionsChartDetails.destroy();
+        
+        const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185'];
+        
+        this.positionsChartDetails = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: stats.positionStats.map(p => p.name.length > 15 ? p.name.substring(0, 12) + '...' : p.name),
+                datasets: [{
+                    data: stats.positionStats.map(p => p.count),
+                    backgroundColor: colors.slice(0, stats.positionStats.length),
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 8,
+                            font: { size: 8 },
+                            padding: 6
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = stats.positionStats.reduce((sum, p) => sum + p.count, 0);
+                                const percentage = total ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                onClick: (e, els) => {
+                    if (els.length > 0) {
+                        const index = els[0].index;
+                        const positionName = stats.positionStats[index].name;
+                        const position = this.dataManager.positions.find(p => p.name === positionName);
+                        if (position) {
+                            this.filterPosition = position.id.toString();
+                            this.filterDepartment = '';
+                            this.searchQuery = '';
+                            this.filterStatus = '';
+                            const searchInput = document.getElementById('org-search');
+                            if (searchInput) searchInput.value = '';
+                            this.render();
+                            this.showNotification(`🔍 Фильтр по должности: ${positionName}`, 'info');
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    filterByStatus(status) {
+        this.filterStatus = status;
+        this.filterDepartment = '';
+        this.filterPosition = '';
+        this.searchQuery = '';
+        const searchInput = document.getElementById('org-search');
+        if (searchInput) searchInput.value = '';
+        this.render();
+        this.showNotification(status === 'active' ? '👥 Показаны только активные сотрудники' : '🚪 Показаны только вакансии', 'info');
+    }
+    
+    clearFilters() {
+        this.filterDepartment = '';
+        this.filterPosition = '';
+        this.searchQuery = '';
+        this.filterStatus = '';
+        const searchInput = document.getElementById('org-search');
+        if (searchInput) searchInput.value = '';
+        
+        const savedExpanded = localStorage.getItem('org_expanded_nodes');
+        if (savedExpanded) {
+            try {
+                const expandedArray = JSON.parse(savedExpanded);
+                this.expandedNodes = new Set(expandedArray);
+            } catch(e) {}
+        } else {
+            const roots = this.dataManager.departments.filter(d => d.parentId === null);
+            roots.forEach(root => this.expandedNodes.add(root.id));
+        }
+        
+        this.render();
+        this.showNotification('✅ Все фильтры сброшены', 'success');
+    }
+    
+    renderStatistics() {
+        const snapshot = this.dataManager.getSnapshot();
+        const employees = snapshot.employees;
+        const departments = snapshot.departments;
+        
+        const deptStats = departments
+            .filter(d => d.id !== 1)
+            .map(dept => ({
+                name: dept.name,
+                count: employees.filter(e => e.departmentId === dept.id && e.isActive).length,
+                total: employees.filter(e => e.departmentId === dept.id).length,
+                fired: employees.filter(e => e.departmentId === dept.id && !e.isActive).length
+            }))
+            .filter(d => d.count > 0 || d.fired > 0)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 8);
+        
+        const activeCount = employees.filter(e => e.isActive).length;
+        const firedCount = employees.filter(e => !e.isActive).length;
+        
+        const positions = snapshot.positions;
+        const positionStats = positions
+            .map(pos => ({
+                name: pos.name,
+                count: employees.filter(e => e.positionId === pos.id && e.isActive).length
+            }))
+            .filter(p => p.count > 0)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 6);
+        
+        return {
+            deptStats,
+            activeCount,
+            firedCount,
+            positionStats,
+            totalEmployees: employees.length
+        };
+    }
     
     selectItem(type, id) {
         this.selectedType = type;
         this.selectedItem = id;
         this.render();
         this.showDetails(type, id);
+        setTimeout(() => {
+            this.renderChartsInDetails();
+        }, 50);
     }
-  showDetails(type, id) {
-    const detailsContainer = document.getElementById('org-details-content');
-    if (!detailsContainer) return;
     
-    if (type === 'department') {
-        const dept = this.dataManager.departments.find(d => d.id === id);
-        if (!dept) return;
+    showDetails(type, id) {
+        const detailsContainer = document.getElementById('org-details-content');
+        if (!detailsContainer) return;
         
-        const parent = this.dataManager.departments.find(d => d.id === dept.parentId);
-        const head = this.dataManager.getDepartmentHead(id);
-        const employees = this.dataManager.getDepartmentEmployees(id);
-        const children = this.dataManager.departments.filter(d => d.parentId === id);
-        
-        detailsContainer.innerHTML = `
-            <div class="org-details">
-                <div class="org-details-header">
-                    <h3>🏢 ${this.escapeHtml(dept.name)}</h3>
-                    <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
-                </div>
-                <div class="org-details-body">
-                    <div class="org-details-row">
-                        <span class="org-details-label">Родительский отдел:</span>
-                        <span>${parent ? this.escapeHtml(parent.name) : '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Руководитель:</span>
-                        <span>${head ? this.escapeHtml(head.name) : '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Сотрудников:</span>
-                        <span>${employees.length}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Подотделов:</span>
-                        <span>${children.length}</span>
-                    </div>
-                    ${dept.description ? `
-                        <div class="org-details-row">
-                            <span class="org-details-label">Описание:</span>
-                            <span>${this.escapeHtml(dept.description)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="org-details-actions">
-                    <button class="btn-secondary" onclick="orgApp.editDepartment(${dept.id})">✏️ Редактировать</button>
-                    <button class="btn-danger" onclick="orgApp.deleteDepartment(${dept.id})">🗑️ Удалить</button>
-                    <button class="btn-primary" onclick="orgApp.showAddEmployeeModal(${dept.id})">➕ Добавить сотрудника</button>
-                </div>
-            </div>
-        `;
-    } else if (type === 'employee') {
-        const emp = this.dataManager.employees.find(e => e.id === id);
-        if (!emp) return;
-        
-        const department = this.dataManager.departments.find(d => d.id === emp.departmentId);
-        const position = this.dataManager.positions.find(p => p.id === emp.positionId);
-        
-        detailsContainer.innerHTML = `
-            <div class="org-details">
-                <div class="org-details-header">
-                    <h3>👤 ${this.escapeHtml(emp.name)}</h3>
-                    <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
-                </div>
-                <div class="org-details-body">
-                    <div class="org-details-row">
-                        <span class="org-details-label">Должность:</span>
-                        <span>${position ? this.escapeHtml(position.name) : '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Отдел:</span>
-                        <span>${department ? this.escapeHtml(department.name) : '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Email:</span>
-                        <span>${emp.email || '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Телефон:</span>
-                        <span>${emp.phone || '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Дата начала:</span>
-                        <span>${emp.startDate || '—'}</span>
-                    </div>
-                    <div class="org-details-row">
-                        <span class="org-details-label">Статус:</span>
-                        <select id="employee-status-select" class="org-status-select" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer;">
-                            <option value="true" ${emp.isActive ? 'selected' : ''}>✅ Активен</option>
-                            <option value="false" ${!emp.isActive ? 'selected' : ''}>❌ Уволен</option>
-                        </select>
-                    </div>
-                    ${!emp.isActive ? `
-                        <div class="org-details-row">
-                            <span class="org-details-label">Дата увольнения:</span>
-                            <span>${emp.fireDate || '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Причина увольнения:</span>
-                            <input type="text" id="employee-fire-reason" value="${this.escapeHtml(emp.fireReason || '')}" 
-                                   style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem;" 
-                                   placeholder="Введите причину увольнения">
-                        </div>
-                    ` : ''}
-                    ${emp.isActive ? `
-                        <div class="org-details-row">
-                            <span class="org-details-label">Дата увольнения:</span>
-                            <span>—</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Причина увольнения:</span>
-                            <input type="text" id="employee-fire-reason" value="" 
-                                   style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem;" 
-                                   placeholder="Причина (заполнится при увольнении)">
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="org-details-actions">
-                    <button class="btn-secondary" onclick="orgApp.editEmployee(${emp.id})">✏️ Редактировать</button>
-                    <button class="btn-primary" onclick="orgApp.updateEmployeeStatus(${emp.id})">💾 Сохранить статус</button>
-                    ${emp.isActive ? 
-                        `<button class="btn-danger" onclick="orgApp.fireEmployeeWithReason(${emp.id})">🚪 Уволить</button>` :
-                        `<button class="btn-success" onclick="orgApp.rehireEmployee(${emp.id})">🔄 Восстановить</button>`
-                    }
-                </div>
-            </div>
-        `;
-    }
-}
-    async updateEmployeeStatus(id) {
-    const statusSelect = document.getElementById('employee-status-select');
-    const fireReasonInput = document.getElementById('employee-fire-reason');
-    
-    if (!statusSelect) return;
-    
-    const newStatus = statusSelect.value === 'true';
-    const fireReason = fireReasonInput ? fireReasonInput.value.trim() : '';
-    
-    const employee = this.dataManager.employees.find(e => e.id === id);
-    if (!employee) return;
-    
-    // Если статус не изменился
-    if (newStatus === employee.isActive) {
-        // Если уволен и изменилась причина - обновляем причину
-        if (!newStatus && fireReason !== employee.fireReason) {
-            this.dataManager.updateEmployee(id, { fireReason: fireReason });
-            this.showNotification(`📝 Причина увольнения обновлена`, 'info');
-            await this.render();
-            this.showDetails('employee', id);
+        if (type === 'department') {
+            const dept = this.dataManager.departments.find(d => d.id === id);
+            if (!dept) return;
             
-            // ✅ Сохраняем в GitHub после изменения
-            await this.saveToGitHubAfterChange();
-        }
-        return;
-    }
-    
-    // Меняем статус
-    if (newStatus && !employee.isActive) {
-        // Восстанавливаем сотрудника
-        this.dataManager.rehireEmployee(id);
-        this.showNotification(`✅ Сотрудник "${employee.name}" восстановлен`, 'success');
-    } else if (!newStatus && employee.isActive) {
-        // Увольняем сотрудника
-        const reason = fireReason || prompt('Причина увольнения:', '');
-        this.dataManager.fireEmployee(id, reason);
-        this.showNotification(`❌ Сотрудник "${employee.name}" уволен`, 'info');
-    }
-    
-    // Обновляем отображение
-    await this.render();
-    this.showDetails('employee', id);
-    
-    // ✅ Сохраняем в GitHub после изменения статуса
-    await this.saveToGitHubAfterChange();
-}
-    renderStatistics() {
-    const snapshot = this.dataManager.getSnapshot();
-    const employees = snapshot.employees;
-    const departments = snapshot.departments;
-    
-    // Статистика по отделам (количество сотрудников)
-    const deptStats = departments
-        .filter(d => d.id !== 1)
-        .map(dept => ({
-            name: dept.name,
-            count: employees.filter(e => e.departmentId === dept.id && e.isActive).length,
-            total: employees.filter(e => e.departmentId === dept.id).length,
-            fired: employees.filter(e => e.departmentId === dept.id && !e.isActive).length
-        }))
-        .filter(d => d.count > 0 || d.fired > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 8); // Показываем топ-8 отделов
-    
-    // Статистика по статусам (активные/уволенные)
-    const activeCount = employees.filter(e => e.isActive).length;
-    const firedCount = employees.filter(e => !e.isActive).length;
-    
-    // Статистика по должностям (топ-5)
-    const positions = snapshot.positions;
-    const positionStats = positions
-        .map(pos => ({
-            name: pos.name,
-            count: employees.filter(e => e.positionId === pos.id && e.isActive).length
-        }))
-        .filter(p => p.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6);
-    
-    // Статистика по руководителям
-    const headsCount = employees.filter(e => e.isHead && e.isActive).length;
-    
-    return {
-        deptStats,
-        activeCount,
-        firedCount,
-        positionStats,
-        headsCount,
-        totalEmployees: employees.length
-    };
-}
-    renderCharts() {
-    const stats = this.renderStatistics();
-    
-    // Создаем контейнер для диаграмм, если его нет
-    let chartsContainer = document.getElementById('org-charts-container');
-    if (!chartsContainer) {
-        const container = this.container.parentElement;
-        chartsContainer = document.createElement('div');
-        chartsContainer.id = 'org-charts-container';
-        chartsContainer.style.cssText = `
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
-            padding: 0 20px;
-        `;
-        container.insertBefore(chartsContainer, this.container);
-    }
-    
-    chartsContainer.innerHTML = `
-        <!-- Диаграмма 1: Активные vs Уволенные -->
-        <div class="org-chart-card" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h4 style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Статус сотрудников</h4>
-                <span style="font-size: 0.7rem; color: #94a3b8;">Всего: ${stats.totalEmployees}</span>
-            </div>
-            <canvas id="org-status-chart" style="height: 180px; width: 100%;"></canvas>
-            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 12px;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 10px; height: 10px; background: #10b981; border-radius: 50%;"></span>
-                    <span style="font-size: 0.7rem; color: #475569;">Активные: ${stats.activeCount}</span>
+            const parent = this.dataManager.departments.find(d => d.id === dept.parentId);
+            const head = this.dataManager.getDepartmentHead(id);
+            const employees = this.dataManager.getDepartmentEmployees(id);
+            const children = this.dataManager.departments.filter(d => d.parentId === id);
+            
+            detailsContainer.innerHTML = `
+                <div class="org-details">
+                    <div class="org-details-header">
+                        <h3>🏢 ${this.escapeHtml(dept.name)}</h3>
+                        <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
+                    </div>
+                    <div class="org-details-body">
+                        <div class="org-details-row">
+                            <span class="org-details-label">Родительский отдел:</span>
+                            <span>${parent ? this.escapeHtml(parent.name) : '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Руководитель:</span>
+                            <span>${head ? this.escapeHtml(head.name) : '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Сотрудников:</span>
+                            <span>${employees.length}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Подотделов:</span>
+                            <span>${children.length}</span>
+                        </div>
+                        ${dept.description ? `
+                            <div class="org-details-row">
+                                <span class="org-details-label">Описание:</span>
+                                <span>${this.escapeHtml(dept.description)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="org-details-actions">
+                        <button class="btn-secondary" onclick="orgApp.editDepartment(${dept.id})">✏️ Редактировать</button>
+                        <button class="btn-danger" onclick="orgApp.deleteDepartment(${dept.id})">🗑️ Удалить</button>
+                        <button class="btn-primary" onclick="orgApp.showAddEmployeeModal(${dept.id})">➕ Добавить сотрудника</button>
+                    </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 10px; height: 10px; background: #ef4444; border-radius: 50%;"></span>
-                    <span style="font-size: 0.7rem; color: #475569;">Вакансии: ${stats.firedCount}</span>
+            `;
+        } else if (type === 'employee') {
+            const emp = this.dataManager.employees.find(e => e.id === id);
+            if (!emp) return;
+            
+            const department = this.dataManager.departments.find(d => d.id === emp.departmentId);
+            const position = this.dataManager.positions.find(p => p.id === emp.positionId);
+            
+            detailsContainer.innerHTML = `
+                <div class="org-details">
+                    <div class="org-details-header">
+                        <h3>👤 ${this.escapeHtml(emp.name)}</h3>
+                        <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
+                    </div>
+                    <div class="org-details-body">
+                        <div class="org-details-row">
+                            <span class="org-details-label">Должность:</span>
+                            <span>${position ? this.escapeHtml(position.name) : '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Отдел:</span>
+                            <span>${department ? this.escapeHtml(department.name) : '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Email:</span>
+                            <span>${emp.email || '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Телефон:</span>
+                            <span>${emp.phone || '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Дата начала:</span>
+                            <span>${emp.startDate || '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Статус:</span>
+                            <select id="employee-status-select" class="org-status-select" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer;">
+                                <option value="true" ${emp.isActive ? 'selected' : ''}>✅ Активен</option>
+                                <option value="false" ${!emp.isActive ? 'selected' : ''}>❌ Уволен</option>
+                            </select>
+                        </div>
+                        ${!emp.isActive ? `
+                            <div class="org-details-row">
+                                <span class="org-details-label">Дата увольнения:</span>
+                                <span>${emp.fireDate || '—'}</span>
+                            </div>
+                            <div class="org-details-row">
+                                <span class="org-details-label">Причина увольнения:</span>
+                                <input type="text" id="employee-fire-reason" value="${this.escapeHtml(emp.fireReason || '')}" 
+                                       style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem;" 
+                                       placeholder="Введите причину увольнения">
+                            </div>
+                        ` : ''}
+                        ${emp.isActive ? `
+                            <div class="org-details-row">
+                                <span class="org-details-label">Дата увольнения:</span>
+                                <span>—</span>
+                            </div>
+                            <div class="org-details-row">
+                                <span class="org-details-label">Причина увольнения:</span>
+                                <input type="text" id="employee-fire-reason" value="" 
+                                       style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem;" 
+                                       placeholder="Причина (заполнится при увольнении)">
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="org-details-actions">
+                        <button class="btn-secondary" onclick="orgApp.editEmployee(${emp.id})">✏️ Редактировать</button>
+                        <button class="btn-primary" onclick="orgApp.updateEmployeeStatus(${emp.id})">💾 Сохранить статус</button>
+                        ${emp.isActive ? 
+                            `<button class="btn-danger" onclick="orgApp.fireEmployeeWithReason(${emp.id})">🚪 Уволить</button>` :
+                            `<button class="btn-success" onclick="orgApp.rehireEmployee(${emp.id})">🔄 Восстановить</button>`
+                        }
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Диаграмма 2: Топ отделов по сотрудникам -->
-        <div class="org-chart-card" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h4 style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Топ отделов</h4>
-                <span style="font-size: 0.7rem; color: #94a3b8;">по числу сотрудников</span>
-            </div>
-            <canvas id="org-departments-chart" style="height: 180px; width: 100%;"></canvas>
-        </div>
-        
-        <!-- Диаграмма 3: Топ должностей -->
-        <div class="org-chart-card" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h4 style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Топ должностей</h4>
-                <span style="font-size: 0.7rem; color: #94a3b8;">активные сотрудники</span>
-            </div>
-            <canvas id="org-positions-chart" style="height: 180px; width: 100%;"></canvas>
-        </div>
-    `;
-    
-    // Рисуем диаграммы
-    this.drawStatusChart(stats);
-    this.drawDepartmentsChart(stats);
-    this.drawPositionsChart(stats);
-}
-
-drawStatusChart(stats) {
-    const ctx = document.getElementById('org-status-chart')?.getContext('2d');
-    if (!ctx) return;
-    
-    if (this.statusChart) this.statusChart.destroy();
-    
-    this.statusChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Активные', 'Вакансии'],
-            datasets: [{
-                data: [stats.activeCount, stats.firedCount],
-                backgroundColor: ['#10b981', '#ef4444'],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            cutout: '60%',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = stats.activeCount + stats.firedCount;
-                            const percentage = total ? Math.round((value / total) * 100) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            },
-            onClick: (e, els) => {
-                if (els.length > 0) {
-                    const index = els[0].index;
-                    if (index === 0) {
-                        // Показать только активных
-                        this.filterDepartment = '';
-                        this.filterPosition = '';
-                        this.searchQuery = '';
-                        const searchInput = document.getElementById('org-search');
-                        if (searchInput) searchInput.value = '';
-                        this.render();
-                    } else if (index === 1) {
-                        // Показать только уволенных
-                        this.searchQuery = '';
-                        this.filterDepartment = '';
-                        this.filterPosition = '';
-                        this.render();
-                        // Можно добавить фильтрацию по уволенным
-                    }
-                }
-            }
+            `;
         }
-    });
-}
-
-drawDepartmentsChart(stats) {
-    const ctx = document.getElementById('org-departments-chart')?.getContext('2d');
-    if (!ctx) return;
-    
-    if (this.deptsChart) this.deptsChart.destroy();
-    
-    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
-    
-    this.deptsChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: stats.deptStats.map(d => d.name.length > 20 ? d.name.substring(0, 18) + '...' : d.name),
-            datasets: [{
-                data: stats.deptStats.map(d => d.count),
-                backgroundColor: colors.slice(0, stats.deptStats.length),
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        boxWidth: 10,
-                        font: { size: 9 },
-                        padding: 8
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = stats.deptStats.reduce((sum, d) => sum + d.count, 0);
-                            const percentage = total ? Math.round((value / total) * 100) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            },
-            onClick: (e, els) => {
-                if (els.length > 0) {
-                    const index = els[0].index;
-                    const deptName = stats.deptStats[index].name;
-                    const dept = this.dataManager.departments.find(d => d.name === deptName);
-                    if (dept) {
-                        this.filterDepartment = dept.id.toString();
-                        this.filterPosition = '';
-                        this.searchQuery = '';
-                        const searchInput = document.getElementById('org-search');
-                        if (searchInput) searchInput.value = '';
-                        this.render();
-                        this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
-                    }
-                }
-            }
-        }
-    });
-}
-
-drawPositionsChart(stats) {
-    const ctx = document.getElementById('org-positions-chart')?.getContext('2d');
-    if (!ctx) return;
-    
-    if (this.positionsChart) this.positionsChart.destroy();
-    
-    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185'];
-    
-    this.positionsChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: stats.positionStats.map(p => p.name.length > 15 ? p.name.substring(0, 13) + '...' : p.name),
-            datasets: [{
-                data: stats.positionStats.map(p => p.count),
-                backgroundColor: colors.slice(0, stats.positionStats.length),
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        boxWidth: 10,
-                        font: { size: 9 },
-                        padding: 8
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = stats.positionStats.reduce((sum, p) => sum + p.count, 0);
-                            const percentage = total ? Math.round((value / total) * 100) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            },
-            onClick: (e, els) => {
-                if (els.length > 0) {
-                    const index = els[0].index;
-                    const positionName = stats.positionStats[index].name;
-                    const position = this.dataManager.positions.find(p => p.name === positionName);
-                    if (position) {
-                        this.filterPosition = position.id.toString();
-                        this.filterDepartment = '';
-                        this.searchQuery = '';
-                        const searchInput = document.getElementById('org-search');
-                        if (searchInput) searchInput.value = '';
-                        this.render();
-                        this.showNotification(`🔍 Фильтр по должности: ${positionName}`, 'info');
-                    }
-                }
-            }
-        }
-    });
-}
-async saveToGitHubAfterChange() {
-    // Проверяем, есть ли сохраненный токен
-    const savedToken = localStorage.getItem('github_token');
-    if (!savedToken) {
-        console.log('⚠️ GitHub токен не найден, данные сохранены только локально');
-        this.showNotification('💾 Данные сохранены локально. Для синхронизации с GitHub нажмите "Сохранить в GitHub"', 'info');
-        return;
     }
     
-    try {
-        console.log('🔄 Автоматическое сохранение в GitHub...');
-        
-        // Получаем актуальные данные
-        const snapshot = this.dataManager.getSnapshot();
-        const calculatorData = JSON.parse(localStorage.getItem('gko_calculator_data_v1') || '{}');
-        
-        const allData = {
-            version: "3.0",
-            exportDate: new Date().toISOString(),
-            npas: window.appData || [],
-            dashboards: window.dashboardsData || [],
-            orgStructure: {
-                departments: snapshot.departments,
-                employees: snapshot.employees,
-                positions: snapshot.positions,
-                version: "3.0"
-            },
-            calculator: calculatorData,
-            metadata: {
-                npaCount: window.appData?.length || 0,
-                dashboardsCount: window.dashboardsData?.length || 0,
-                departmentsCount: snapshot.departments.length,
-                employeesCount: snapshot.employees.length,
-                lastUpdated: new Date().toISOString()
-            }
-        };
-        
-        const content = JSON.stringify(allData, null, 2);
-        const owner = 'mark98molchanov-a11y';
-        const repo = 'a13y.gko-registry-system';
-        const path = 'gko_all_data.json';
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-        
-        // Получаем sha существующего файла
-        let sha = null;
-        try {
-            const res = await fetch(apiUrl, {
-                headers: {
-                    'Authorization': `token ${savedToken}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                sha = data.sha;
-            }
-        } catch (e) {
-            console.log('📁 Файл не существует, будет создан новый');
-        }
-        
-        // Сохраняем в GitHub
-        const response = await fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${savedToken}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.github.v3+json'
-            },
-            body: JSON.stringify({
-                message: `Автосохранение: изменение статуса сотрудника ${new Date().toLocaleString('ru-RU')}`,
-                content: btoa(unescape(encodeURIComponent(content))),
-                sha: sha
-            })
-        });
-        
-        if (response.ok) {
-            console.log('✅ Автосохранение в GitHub выполнено');
-            this.showNotification('💾 Изменения сохранены в GitHub', 'success');
-        } else {
-            console.error('❌ Ошибка автосохранения:', await response.text());
-        }
-        
-    } catch (error) {
-        console.error('❌ Ошибка автосохранения в GitHub:', error);
-        this.showNotification('⚠️ Не удалось сохранить в GitHub, данные сохранены локально', 'warning');
-    }
-}
-// Добавьте метод для увольнения с причиной
-async fireEmployeeWithReason(id) {
-    const emp = this.dataManager.employees.find(e => e.id === id);
-    if (!emp) return;
-    
-    const reason = prompt('Причина увольнения:', '');
-    if (confirm(`Уволить сотрудника "${emp.name}"?`)) {
-        this.dataManager.fireEmployee(id, reason);
-        await this.render();
-        this.showDetails('employee', id);
-        this.showNotification(`❌ Сотрудник "${emp.name}" уволен`, 'info');
-    }
-}
     closeDetails() {
         this.selectedType = null;
         this.selectedItem = null;
@@ -1129,94 +935,224 @@ async fireEmployeeWithReason(id) {
         if (detailsContainer) {
             detailsContainer.innerHTML = `
                 <div class="org-details-empty">
-                    <div class="org-details-icon">📋</div>
-                    <p>Выберите отдел или сотрудника</p>
-                    <p class="org-details-hint">Нажмите на элемент в структуре слева</p>
+                    <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                        <p>Выберите отдел или сотрудника</p>
+                        <p style="font-size: 0.75rem; margin-top: 8px;">Нажмите на элемент в структуре слева</p>
+                    </div>
                 </div>
             `;
         }
         
+        setTimeout(() => {
+            this.renderChartsInDetails();
+        }, 50);
+        
         this.render();
     }
     
-shouldShowChildren(dept) {
-    // Если есть активный поиск - показываем все узлы, которые содержат результат поиска
-    if (this.searchQuery) {
-        // Проверяем, есть ли в этом отделе или его потомках совпадение
-        if (this.hasMatchingDescendant(dept)) {
-            return true;
+    shouldShowChildren(dept) {
+        if (this.searchQuery) {
+            if (this.hasMatchingDescendant(dept)) return true;
+            if (this.nodeMatchesSearch(dept, this.searchQuery)) return true;
+            return false;
         }
-        // Если узел сам подходит под поиск, показываем его дочерние
-        if (this.nodeMatchesSearch(dept, this.searchQuery)) {
-            return true;
+        return this.expandedNodes.has(dept.id);
+    }
+    
+    hasMatchingDescendant(node, query = this.searchQuery) {
+        if (!query) return false;
+        
+        const lowerQuery = query.toLowerCase();
+        
+        if (node.name.toLowerCase().includes(lowerQuery)) return true;
+        
+        for (const child of node.children) {
+            if (this.hasMatchingDescendant(child, query)) return true;
         }
+        
+        if (node.employees && node.employees.length) {
+            for (const emp of node.employees) {
+                const position = this.dataManager.positions.find(p => p.id === emp.positionId);
+                if (emp.name.toLowerCase().includes(lowerQuery) ||
+                    (position && position.name.toLowerCase().includes(lowerQuery)) ||
+                    (emp.email && emp.email.toLowerCase().includes(lowerQuery)) ||
+                    (emp.phone && emp.phone.toLowerCase().includes(lowerQuery))) {
+                    return true;
+                }
+            }
+        }
+        
         return false;
     }
     
-    // Если нет поиска, используем обычное состояние развернутости
-    return this.expandedNodes.has(dept.id);
-}
-hasMatchingDescendant(node, query = this.searchQuery) {
-    if (!query) return false;
-    
-    const lowerQuery = query.toLowerCase();
-    
-    // Проверяем самого узла
-    if (node.name.toLowerCase().includes(lowerQuery)) {
-        return true;
-    }
-    
-    // Проверяем дочерние узлы
-    for (const child of node.children) {
-        if (this.hasMatchingDescendant(child, query)) {
-            return true;
-        }
-    }
-    
-    // Проверяем сотрудников
-    if (node.employees && node.employees.length) {
-        for (const emp of node.employees) {
-            const position = this.dataManager.positions.find(p => p.id === emp.positionId);
-            if (emp.name.toLowerCase().includes(lowerQuery) ||
-                (position && position.name.toLowerCase().includes(lowerQuery)) ||
-                (emp.email && emp.email.toLowerCase().includes(lowerQuery)) ||
-                (emp.phone && emp.phone.toLowerCase().includes(lowerQuery))) {
-                return true;
+    nodeMatchesSearch(node, query = this.searchQuery) {
+        if (!query) return false;
+        
+        const lowerQuery = query.toLowerCase();
+        
+        if (node.name.toLowerCase().includes(lowerQuery)) return true;
+        if (node.description && node.description.toLowerCase().includes(lowerQuery)) return true;
+        
+        if (node.employees && node.employees.length) {
+            for (const emp of node.employees) {
+                if (emp.name.toLowerCase().includes(lowerQuery)) return true;
+                const position = this.dataManager.positions.find(p => p.id === emp.positionId);
+                if (position && position.name.toLowerCase().includes(lowerQuery)) return true;
+                if (emp.email && emp.email.toLowerCase().includes(lowerQuery)) return true;
+                if (emp.phone && emp.phone.toLowerCase().includes(lowerQuery)) return true;
             }
         }
+        
+        return false;
     }
     
-    return false;
-}
-    
-nodeMatchesSearch(node, query = this.searchQuery) {
-    if (!query) return false;
-    
-    const lowerQuery = query.toLowerCase();
-    
-    // Проверяем название отдела
-    if (node.name.toLowerCase().includes(lowerQuery)) {
-        return true;
+    async updateEmployeeStatus(id) {
+        const statusSelect = document.getElementById('employee-status-select');
+        const fireReasonInput = document.getElementById('employee-fire-reason');
+        
+        if (!statusSelect) return;
+        
+        const newStatus = statusSelect.value === 'true';
+        const fireReason = fireReasonInput ? fireReasonInput.value.trim() : '';
+        
+        const employee = this.dataManager.employees.find(e => e.id === id);
+        if (!employee) return;
+        
+        if (newStatus === employee.isActive) {
+            if (!newStatus && fireReason !== employee.fireReason) {
+                this.dataManager.updateEmployee(id, { fireReason: fireReason });
+                this.showNotification(`📝 Причина увольнения обновлена`, 'info');
+                await this.render();
+                this.showDetails('employee', id);
+                await this.saveToGitHubAfterChange();
+            }
+            return;
+        }
+        
+        if (newStatus && !employee.isActive) {
+            this.dataManager.rehireEmployee(id);
+            this.showNotification(`✅ Сотрудник "${employee.name}" восстановлен`, 'success');
+        } else if (!newStatus && employee.isActive) {
+            const reason = fireReason || prompt('Причина увольнения:', '');
+            this.dataManager.fireEmployee(id, reason);
+            this.showNotification(`❌ Сотрудник "${employee.name}" уволен`, 'info');
+        }
+        
+        await this.render();
+        this.showDetails('employee', id);
+        await this.saveToGitHubAfterChange();
     }
     
-    // Проверяем описание
-    if (node.description && node.description.toLowerCase().includes(lowerQuery)) {
-        return true;
-    }
-    
-    // Проверяем сотрудников
-    if (node.employees && node.employees.length) {
-        for (const emp of node.employees) {
-            if (emp.name.toLowerCase().includes(lowerQuery)) return true;
-            const position = this.dataManager.positions.find(p => p.id === emp.positionId);
-            if (position && position.name.toLowerCase().includes(lowerQuery)) return true;
-            if (emp.email && emp.email.toLowerCase().includes(lowerQuery)) return true;
-            if (emp.phone && emp.phone.toLowerCase().includes(lowerQuery)) return true;
+    async saveToGitHubAfterChange() {
+        const savedToken = localStorage.getItem('github_token');
+        if (!savedToken) {
+            this.showNotification('💾 Данные сохранены локально. Для синхронизации с GitHub нажмите "Сохранить в GitHub"', 'info');
+            return;
+        }
+        
+        try {
+            const snapshot = this.dataManager.getSnapshot();
+            const calculatorData = JSON.parse(localStorage.getItem('gko_calculator_data_v1') || '{}');
+            
+            const allData = {
+                version: "3.0",
+                exportDate: new Date().toISOString(),
+                npas: window.appData || [],
+                dashboards: window.dashboardsData || [],
+                orgStructure: {
+                    departments: snapshot.departments,
+                    employees: snapshot.employees,
+                    positions: snapshot.positions,
+                    version: "3.0"
+                },
+                calculator: calculatorData,
+                metadata: {
+                    npaCount: window.appData?.length || 0,
+                    dashboardsCount: window.dashboardsData?.length || 0,
+                    departmentsCount: snapshot.departments.length,
+                    employeesCount: snapshot.employees.length,
+                    lastUpdated: new Date().toISOString()
+                }
+            };
+            
+            const content = JSON.stringify(allData, null, 2);
+            const owner = 'mark98molchanov-a11y';
+            const repo = 'a13y.gko-registry-system';
+            const path = 'gko_all_data.json';
+            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+            
+            let sha = null;
+            try {
+                const res = await fetch(apiUrl, {
+                    headers: { 'Authorization': `token ${savedToken}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    sha = data.sha;
+                }
+            } catch (e) {}
+            
+            const response = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${savedToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Автосохранение: изменение статуса сотрудника ${new Date().toLocaleString('ru-RU')}`,
+                    content: btoa(unescape(encodeURIComponent(content))),
+                    sha: sha
+                })
+            });
+            
+            if (response.ok) {
+                this.showNotification('💾 Изменения сохранены в GitHub', 'success');
+            }
+        } catch (error) {
+            this.showNotification('⚠️ Не удалось сохранить в GitHub, данные сохранены локально', 'warning');
         }
     }
     
-    return false;
-}
+    async fireEmployeeWithReason(id) {
+        const emp = this.dataManager.employees.find(e => e.id === id);
+        if (!emp) return;
+        
+        const reason = prompt('Причина увольнения:', '');
+        if (confirm(`Уволить сотрудника "${emp.name}"?`)) {
+            this.dataManager.fireEmployee(id, reason);
+            await this.render();
+            this.showDetails('employee', id);
+            this.showNotification(`❌ Сотрудник "${emp.name}" уволен`, 'info');
+        }
+    }
+    
+    fireEmployee(id) {
+        const emp = this.dataManager.employees.find(e => e.id === id);
+        if (!emp) return;
+        
+        const reason = prompt('Причина увольнения (необязательно):', '');
+        if (confirm(`Уволить сотрудника "${emp.name}"?`)) {
+            this.dataManager.fireEmployee(id, reason);
+            if (this.selectedType === 'employee' && this.selectedItem === id) {
+                this.showDetails('employee', id);
+            }
+            this.render();
+        }
+    }
+    
+    rehireEmployee(id) {
+        const emp = this.dataManager.employees.find(e => e.id === id);
+        if (!emp) return;
+        
+        if (confirm(`Восстановить сотрудника "${emp.name}"?`)) {
+            this.dataManager.rehireEmployee(id);
+            if (this.selectedType === 'employee' && this.selectedItem === id) {
+                this.showDetails('employee', id);
+            }
+            this.render();
+        }
+    }
     
     uploadEmployeePhoto(employeeId) {
         const input = document.createElement('input');
@@ -1269,8 +1205,6 @@ nodeMatchesSearch(node, query = this.searchQuery) {
     }
     
     toggleExpand(id) {
-        console.log('🔄 Переключение узла:', id);
-        
         if (this.searchQuery) {
             const node = this.dataManager.departments.find(d => d.id === id);
             if (node && this.hasMatchingDescendant(node)) {
@@ -1284,10 +1218,8 @@ nodeMatchesSearch(node, query = this.searchQuery) {
         
         if (this.expandedNodes.has(id)) {
             this.expandedNodes.delete(id);
-            console.log('📁 Узел свернут');
         } else {
             this.expandedNodes.add(id);
-            console.log('📂 Узел развернут');
         }
         
         localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
@@ -1295,8 +1227,6 @@ nodeMatchesSearch(node, query = this.searchQuery) {
     }
     
     expandAll() {
-        console.log('📂 Разворачиваем все узлы...');
-        
         const addAllIds = (depts) => {
             depts.forEach(dept => {
                 this.expandedNodes.add(dept.id);
@@ -1315,228 +1245,213 @@ nodeMatchesSearch(node, query = this.searchQuery) {
     }
     
     collapseAll() {
-        console.log('📁 Сворачиваем все узлы...');
-        
         this.expandedNodes.clear();
-        
         localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
         this.render();
         this.showNotification('✅ Все отделы свернуты', 'success');
     }
     
     toggleDepartmentExpand(id) {
-        console.log('🔄 Клик по заголовку отдела:', id);
         this.toggleExpand(id);
     }
     
- showAddDepartmentModal(parentId = null) {
-    const departments = this.dataManager.departments.filter(d => d.id !== 1);
-    
-    const modal = document.getElementById('org-modal');
-    const modalBody = document.getElementById('org-modal-body');
-    const modalTitle = document.getElementById('org-modal-title');
-    
-    modalTitle.textContent = '➕ Добавление отдела';
-    
-    modalBody.innerHTML = `
-        <div class="form-group">
-            <label>Название отдела *</label>
-            <input type="text" id="dept-name" placeholder="Введите название отдела" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label>Родительский отдел</label>
-            <select id="dept-parent">
-                <option value="">— Корневой отдел —</option>
-                ${departments.map(d => `
-                    <option value="${d.id}" ${parentId === d.id ? 'selected' : ''}>
-                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                    </option>
-                `).join('')}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Описание</label>
-            <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
-        </div>
-    `;
-    
-    modal.style.display = 'flex';
-    
-    const saveBtn = document.getElementById('org-modal-save');
-    const cancelBtn = document.getElementById('org-modal-cancel');
-    const closeBtn = modal.querySelector('.org-modal-close');
-    
-    const saveHandler = () => {
-        const name = document.getElementById('dept-name').value.trim();
-        if (!name) {
-            alert('Введите название отдела');
-            return;
-        }
+    showAddDepartmentModal(parentId = null) {
+        const departments = this.dataManager.departments.filter(d => d.id !== 1);
         
-        const parentId = document.getElementById('dept-parent').value;
-        const description = document.getElementById('dept-description').value;
+        const modal = document.getElementById('org-modal');
+        const modalBody = document.getElementById('org-modal-body');
+        const modalTitle = document.getElementById('org-modal-title');
         
-        this.dataManager.addDepartment(name, parentId ? parseInt(parentId) : null, description);
+        modalTitle.textContent = '➕ Добавление отдела';
         
-        this.closeModal();
-        this.render();
-        this.showNotification(`✅ Отдел "${name}" добавлен`, 'success');
-    };
-    
-    const closeHandler = () => {
-        this.closeModal();
-    };
-    
-    saveBtn.onclick = saveHandler;
-    cancelBtn.onclick = closeHandler;
-    if (closeBtn) closeBtn.onclick = closeHandler;
-    
-    document.getElementById('dept-name')?.focus();
-}
-    
- showAddEmployeeModal(departmentId = null) {
-    const departments = this.dataManager.departments.filter(d => d.id !== 1);
-    const positions = this.dataManager.positions;
-    
-    const modal = document.getElementById('org-modal');
-    const modalBody = document.getElementById('org-modal-body');
-    const modalTitle = document.getElementById('org-modal-title');
-    
-    modalTitle.textContent = '👤 Добавление сотрудника';
-    
-    let newPhotoBase64 = null;
-    
-    modalBody.innerHTML = `
-        <div class="form-group">
-            <label>ФИО сотрудника *</label>
-            <input type="text" id="emp-name" placeholder="Иванов Иван Иванович" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label>Отдел *</label>
-            <select id="emp-department">
-                ${departments.map(d => `
-                    <option value="${d.id}" ${departmentId === d.id ? 'selected' : ''}>
-                        ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
-                    </option>
-                `).join('')}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Должность *</label>
-            <select id="emp-position">
-                ${positions.map(p => `
-                    <option value="${p.id}">${this.escapeHtml(p.name)}</option>
-                `).join('')}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="emp-email" placeholder="example@domain.ru">
-        </div>
-        <div class="form-group">
-            <label>Телефон</label>
-            <input type="tel" id="emp-phone" placeholder="+7 (495) 123-45-67">
-        </div>
-        <div class="form-group">
-            <label>Фото сотрудника</label>
-            <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
-            <div id="emp-photo-preview" style="margin-top: 10px; display: none;">
-                <img style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
+        modalBody.innerHTML = `
+            <div class="form-group">
+                <label>Название отдела *</label>
+                <input type="text" id="dept-name" placeholder="Введите название отдела" autocomplete="off">
             </div>
-        </div>
-        <div class="form-group">
-            <label>
-                <input type="checkbox" id="emp-is-head"> Назначить руководителем отдела
-            </label>
-        </div>
-    `;
-    
-    modal.style.display = 'flex';
-    
-    const photoInput = document.getElementById('emp-photo');
-    const photoPreview = document.getElementById('emp-photo-preview');
-    const previewImg = photoPreview?.querySelector('img');
-    
-    // Предпросмотр фото
-    if (photoInput) {
-        photoInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                if (file.size > 2 * 1024 * 1024) {
-                    alert('Файл слишком большой. Максимум 2MB');
-                    photoInput.value = '';
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    newPhotoBase64 = event.target.result;
-                    if (previewImg) {
-                        previewImg.src = newPhotoBase64;
-                        photoPreview.style.display = 'block';
-                    }
-                };
-                reader.readAsDataURL(file);
-            } else {
-                photoPreview.style.display = 'none';
-                newPhotoBase64 = null;
+            <div class="form-group">
+                <label>Родительский отдел</label>
+                <select id="dept-parent">
+                    <option value="">— Корневой отдел —</option>
+                    ${departments.map(d => `
+                        <option value="${d.id}" ${parentId === d.id ? 'selected' : ''}>
+                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Описание</label>
+                <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
+            </div>
+        `;
+        
+        modal.style.display = 'flex';
+        
+        const saveBtn = document.getElementById('org-modal-save');
+        const cancelBtn = document.getElementById('org-modal-cancel');
+        const closeBtn = modal.querySelector('.org-modal-close');
+        
+        const saveHandler = () => {
+            const name = document.getElementById('dept-name').value.trim();
+            if (!name) {
+                alert('Введите название отдела');
+                return;
             }
-        });
+            
+            const parentId = document.getElementById('dept-parent').value;
+            const description = document.getElementById('dept-description').value;
+            
+            this.dataManager.addDepartment(name, parentId ? parseInt(parentId) : null, description);
+            this.closeModal();
+            this.render();
+            this.showNotification(`✅ Отдел "${name}" добавлен`, 'success');
+        };
+        
+        const closeHandler = () => this.closeModal();
+        
+        saveBtn.onclick = saveHandler;
+        cancelBtn.onclick = closeHandler;
+        if (closeBtn) closeBtn.onclick = closeHandler;
+        
+        document.getElementById('dept-name')?.focus();
     }
     
-    const saveBtn = document.getElementById('org-modal-save');
-    const cancelBtn = document.getElementById('org-modal-cancel');
-    const closeBtn = modal.querySelector('.org-modal-close');
-    
-    const saveHandler = async () => {
-        const name = document.getElementById('emp-name').value.trim();
-        if (!name) {
-            alert('Введите ФИО сотрудника');
-            return;
+    showAddEmployeeModal(departmentId = null) {
+        const departments = this.dataManager.departments.filter(d => d.id !== 1);
+        const positions = this.dataManager.positions;
+        
+        const modal = document.getElementById('org-modal');
+        const modalBody = document.getElementById('org-modal-body');
+        const modalTitle = document.getElementById('org-modal-title');
+        
+        modalTitle.textContent = '👤 Добавление сотрудника';
+        
+        let newPhotoBase64 = null;
+        
+        modalBody.innerHTML = `
+            <div class="form-group">
+                <label>ФИО сотрудника *</label>
+                <input type="text" id="emp-name" placeholder="Иванов Иван Иванович" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Отдел *</label>
+                <select id="emp-department">
+                    ${departments.map(d => `
+                        <option value="${d.id}" ${departmentId === d.id ? 'selected' : ''}>
+                            ${this.escapeHtml(this.dataManager.getDepartmentPath(d.id))}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Должность *</label>
+                <select id="emp-position">
+                    ${positions.map(p => `
+                        <option value="${p.id}">${this.escapeHtml(p.name)}</option>
+                    `).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="emp-email" placeholder="example@domain.ru">
+            </div>
+            <div class="form-group">
+                <label>Телефон</label>
+                <input type="tel" id="emp-phone" placeholder="+7 (495) 123-45-67">
+            </div>
+            <div class="form-group">
+                <label>Фото сотрудника</label>
+                <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
+                <div id="emp-photo-preview" style="margin-top: 10px; display: none;">
+                    <img style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="emp-is-head"> Назначить руководителем отдела
+                </label>
+            </div>
+        `;
+        
+        modal.style.display = 'flex';
+        
+        const photoInput = document.getElementById('emp-photo');
+        const photoPreview = document.getElementById('emp-photo-preview');
+        const previewImg = photoPreview?.querySelector('img');
+        
+        if (photoInput) {
+            photoInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 2 * 1024 * 1024) {
+                        alert('Файл слишком большой. Максимум 2MB');
+                        photoInput.value = '';
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        newPhotoBase64 = event.target.result;
+                        if (previewImg) {
+                            previewImg.src = newPhotoBase64;
+                            photoPreview.style.display = 'block';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    photoPreview.style.display = 'none';
+                    newPhotoBase64 = null;
+                }
+            });
         }
         
-        const departmentId = parseInt(document.getElementById('emp-department').value);
-        const positionId = parseInt(document.getElementById('emp-position').value);
-        const email = document.getElementById('emp-email').value;
-        const phone = document.getElementById('emp-phone').value;
-        const isHead = document.getElementById('emp-is-head').checked;
+        const saveBtn = document.getElementById('org-modal-save');
+        const cancelBtn = document.getElementById('org-modal-cancel');
+        const closeBtn = modal.querySelector('.org-modal-close');
         
-        // Создаем сотрудника
-        const newEmployee = this.dataManager.addEmployee({
-            name,
-            departmentId,
-            positionId,
-            email,
-            phone,
-            photo: null, // сначала без фото
-            isHead,
-            startDate: new Date().toISOString().split('T')[0]
-        });
-        
-        // Если есть фото, сохраняем в IndexedDB
-        if (newPhotoBase64) {
-            if (this.dataManager.saveEmployeePhotoToIndexedDB) {
+        const saveHandler = async () => {
+            const name = document.getElementById('emp-name').value.trim();
+            if (!name) {
+                alert('Введите ФИО сотрудника');
+                return;
+            }
+            
+            const departmentId = parseInt(document.getElementById('emp-department').value);
+            const positionId = parseInt(document.getElementById('emp-position').value);
+            const email = document.getElementById('emp-email').value;
+            const phone = document.getElementById('emp-phone').value;
+            const isHead = document.getElementById('emp-is-head').checked;
+            
+            const newEmployee = this.dataManager.addEmployee({
+                name,
+                departmentId,
+                positionId,
+                email,
+                phone,
+                photo: null,
+                isHead,
+                startDate: new Date().toISOString().split('T')[0]
+            });
+            
+            if (newPhotoBase64 && this.dataManager.saveEmployeePhotoToIndexedDB) {
                 await this.dataManager.saveEmployeePhotoToIndexedDB(newEmployee.id, newPhotoBase64);
-                // Обновляем ссылку на фото
                 this.dataManager.updateEmployee(newEmployee.id, { photo: `__INDEXEDDB__${newEmployee.id}` });
             }
-        }
+            
+            this.closeModal();
+            await this.render();
+            this.showNotification(`✅ Сотрудник "${name}" добавлен`, 'success');
+        };
         
-        this.closeModal();
-        await this.render();
-        this.showNotification(`✅ Сотрудник "${name}" добавлен`, 'success');
-    };
-    
-    const closeHandler = () => {
-        this.closeModal();
-    };
-    
-    saveBtn.onclick = saveHandler;
-    cancelBtn.onclick = closeHandler;
-    if (closeBtn) closeBtn.onclick = closeHandler;
-    
-    document.getElementById('emp-name')?.focus();
-}
+        const closeHandler = () => this.closeModal();
+        
+        saveBtn.onclick = saveHandler;
+        cancelBtn.onclick = closeHandler;
+        if (closeBtn) closeBtn.onclick = closeHandler;
+        
+        document.getElementById('emp-name')?.focus();
+    }
     
     editDepartment(id) {
         const dept = this.dataManager.departments.find(d => d.id === id);
@@ -1624,7 +1539,6 @@ nodeMatchesSearch(node, query = this.searchQuery) {
         let removePhoto = false;
         const originalPhoto = emp.photo;
         
-        // Загружаем фото для предпросмотра
         let displayPhoto = originalPhoto;
         if (originalPhoto && originalPhoto.startsWith('__INDEXEDDB__')) {
             if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
@@ -1713,7 +1627,6 @@ nodeMatchesSearch(node, query = this.searchQuery) {
                             photoStatus.textContent = '✅ Новое фото выбрано';
                             photoStatus.style.color = '#10b981';
                         }
-                        console.log('📸 Новое фото загружено, длина:', newPhotoBase64.length);
                     };
                     reader.readAsDataURL(file);
                 }
@@ -1734,7 +1647,6 @@ nodeMatchesSearch(node, query = this.searchQuery) {
                     photoStatus.textContent = '🗑️ Фото будет удалено';
                     photoStatus.style.color = '#dc2626';
                 }
-                console.log('🗑️ Фото будет удалено');
             });
         }
         
@@ -1753,20 +1665,17 @@ nodeMatchesSearch(node, query = this.searchQuery) {
             
             if (removePhoto) {
                 finalPhoto = null;
-                console.log('📸 Результат: фото удалено');
                 if (window.photoDB) {
                     await window.photoDB.deletePhoto(id);
                 }
             } else if (newPhotoBase64) {
                 finalPhoto = newPhotoBase64;
-                console.log('📸 Результат: новое фото, длина:', finalPhoto.length);
                 if (this.dataManager.saveEmployeePhotoToIndexedDB) {
                     await this.dataManager.saveEmployeePhotoToIndexedDB(id, finalPhoto);
                     finalPhoto = `__INDEXEDDB__${id}`;
                 }
             } else {
                 finalPhoto = originalPhoto;
-                console.log('📸 Результат: фото без изменений');
             }
             
             const updates = {
@@ -1779,20 +1688,13 @@ nodeMatchesSearch(node, query = this.searchQuery) {
                 isHead: document.getElementById('emp-is-head').checked
             };
             
-            console.log('💾 Сохраняем сотрудника:', { id, updates });
-            console.log('📸 Сохраняемое фото:', updates.photo ? (updates.photo.startsWith('__INDEXEDDB__') ? 'в IndexedDB' : 'base64') : 'нет');
-            
             this.dataManager.updateEmployee(id, updates);
-            
             this.closeModal();
             await this.render();
-            
             this.showNotification('✅ Сотрудник сохранен' + (finalPhoto ? ' с фото' : ''), 'success');
         };
         
-        const closeHandler = () => {
-            this.closeModal();
-        };
+        const closeHandler = () => this.closeModal();
         
         saveBtn.onclick = saveHandler;
         cancelBtn.onclick = closeHandler;
@@ -1815,33 +1717,6 @@ nodeMatchesSearch(node, query = this.searchQuery) {
             } catch (error) {
                 alert(error.message);
             }
-        }
-    }
-    
-    fireEmployee(id) {
-        const emp = this.dataManager.employees.find(e => e.id === id);
-        if (!emp) return;
-        
-        const reason = prompt('Причина увольнения (необязательно):', '');
-        if (confirm(`Уволить сотрудника "${emp.name}"?`)) {
-            this.dataManager.fireEmployee(id, reason);
-            if (this.selectedType === 'employee' && this.selectedItem === id) {
-                this.showDetails('employee', id);
-            }
-            this.render();
-        }
-    }
-    
-    rehireEmployee(id) {
-        const emp = this.dataManager.employees.find(e => e.id === id);
-        if (!emp) return;
-        
-        if (confirm(`Восстановить сотрудника "${emp.name}"?`)) {
-            this.dataManager.rehireEmployee(id);
-            if (this.selectedType === 'employee' && this.selectedItem === id) {
-                this.showDetails('employee', id);
-            }
-            this.render();
         }
     }
     
@@ -1893,204 +1768,168 @@ nodeMatchesSearch(node, query = this.searchQuery) {
         if (closeBtn) closeBtn.onclick = null;
     }
     
-    plural(n) {
-        if (n % 10 === 1 && n % 100 !== 11) return '';
-        if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'а';
-        return 'ов';
-    }
-    
-    escapeHtml(str) {
-        if (!str) return '';
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-    
-async exportToExcel() {
-    this.showNotification('📦 Подготовка данных для экспорта...', 'info');
-    
-    const snapshot = this.dataManager.getSnapshot();
-    const employees = snapshot.employees;
-    const departments = snapshot.departments;
-    const positions = snapshot.positions;
-    
-    // Создаем ZIP архив
-    const zip = new JSZip();
-    
-    // 1. Подготавливаем данные для отделов
-    const deptData = departments.map(dept => {
-        let parentName = '';
-        if (dept.parentId) {
-            const parent = departments.find(d => d.id === dept.parentId);
-            if (parent) parentName = parent.name;
-        }
+    async exportToExcel() {
+        this.showNotification('📦 Подготовка данных для экспорта...', 'info');
         
-        return {
-            'ID': dept.id,
-            'Название отдела': dept.name,
-            'Родительский отдел (ID)': dept.parentId || '',
-            'Родительский отдел (название)': parentName,
-            'Уровень': dept.level,
-            'Порядок': dept.order,
-            'Описание': dept.description || '',
-            'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
-            'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
-        };
-    });
-    
-    // 2. Подготавливаем данные для сотрудников
-    const empData = [];
-    let photoCount = 0;
-    
-    for (const emp of employees) {
-        let photoUrl = null;
-        let hasPhoto = false;
+        const snapshot = this.dataManager.getSnapshot();
+        const employees = snapshot.employees;
+        const departments = snapshot.departments;
+        const positions = snapshot.positions;
         
-        // Загружаем фото из IndexedDB
-        if (emp.photo) {
-            if (emp.photo.startsWith('__INDEXEDDB__')) {
-                if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
-                    photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
-                    hasPhoto = !!photoUrl;
-                }
-            } else if (emp.photo.startsWith('data:image')) {
-                photoUrl = emp.photo;
-                hasPhoto = true;
+        const zip = new JSZip();
+        
+        const deptData = departments.map(dept => {
+            let parentName = '';
+            if (dept.parentId) {
+                const parent = departments.find(d => d.id === dept.parentId);
+                if (parent) parentName = parent.name;
             }
-        }
-        
-        const department = departments.find(d => d.id === emp.departmentId);
-        const position = positions.find(p => p.id === emp.positionId);
-        
-        empData.push({
-            'ID': emp.id,
-            'ФИО': emp.name,
-            'Отдел': department ? department.name : '',
-            'ID отдела': emp.departmentId || '',
-            'Должность': position ? position.name : '',
-            'Email': emp.email || '',
-            'Телефон': emp.phone || '',
-            'Руководитель': emp.isHead ? 'Да' : 'Нет',
-            'Статус': emp.isActive ? 'Активен' : 'Уволен',
-            'Дата начала': emp.startDate || '',
-            'Дата увольнения': emp.fireDate || '',
-            'Причина увольнения': emp.fireReason || '',
-            'Есть фото': hasPhoto ? 'Да' : 'Нет',
-            'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
+            
+            return {
+                'ID': dept.id,
+                'Название отдела': dept.name,
+                'Родительский отдел (ID)': dept.parentId || '',
+                'Родительский отдел (название)': parentName,
+                'Уровень': dept.level,
+                'Порядок': dept.order,
+                'Описание': dept.description || '',
+                'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
+                'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
+            };
         });
         
-        // Добавляем фото в ZIP если есть
-        if (photoUrl && photoUrl.startsWith('data:image')) {
-            const base64Data = photoUrl.split(',')[1];
-            if (base64Data) {
-                const filename = `${emp.id}_${this.sanitizeFilename(emp.name)}.jpg`;
-                zip.file(`photos/${filename}`, base64Data, { base64: true });
-                photoCount++;
+        const empData = [];
+        let photoCount = 0;
+        
+        for (const emp of employees) {
+            let photoUrl = null;
+            let hasPhoto = false;
+            
+            if (emp.photo) {
+                if (emp.photo.startsWith('__INDEXEDDB__')) {
+                    if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
+                        photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
+                        hasPhoto = !!photoUrl;
+                    }
+                } else if (emp.photo.startsWith('data:image')) {
+                    photoUrl = emp.photo;
+                    hasPhoto = true;
+                }
+            }
+            
+            const department = departments.find(d => d.id === emp.departmentId);
+            const position = positions.find(p => p.id === emp.positionId);
+            
+            empData.push({
+                'ID': emp.id,
+                'ФИО': emp.name,
+                'Отдел': department ? department.name : '',
+                'ID отдела': emp.departmentId || '',
+                'Должность': position ? position.name : '',
+                'Email': emp.email || '',
+                'Телефон': emp.phone || '',
+                'Руководитель': emp.isHead ? 'Да' : 'Нет',
+                'Статус': emp.isActive ? 'Активен' : 'Уволен',
+                'Дата начала': emp.startDate || '',
+                'Дата увольнения': emp.fireDate || '',
+                'Причина увольнения': emp.fireReason || '',
+                'Есть фото': hasPhoto ? 'Да' : 'Нет',
+                'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
+            });
+            
+            if (photoUrl && photoUrl.startsWith('data:image')) {
+                const base64Data = photoUrl.split(',')[1];
+                if (base64Data) {
+                    const filename = `${emp.id}_${this.sanitizeFilename(emp.name)}.jpg`;
+                    zip.file(`photos/${filename}`, base64Data, { base64: true });
+                    photoCount++;
+                }
             }
         }
+        
+        const wb = XLSX.utils.book_new();
+        
+        const deptSheet = XLSX.utils.json_to_sheet(deptData);
+        deptSheet['!cols'] = [
+            { wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 30 },
+            { wch: 8 }, { wch: 8 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
+        ];
+        XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
+        
+        const empSheet = XLSX.utils.json_to_sheet(empData);
+        empSheet['!cols'] = [
+            { wch: 8 }, { wch: 30 }, { wch: 35 }, { wch: 10 },
+            { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 10 },
+            { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 30 },
+            { wch: 8 }, { wch: 12 }
+        ];
+        XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
+        
+        const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        zip.file('org_structure.xlsx', excelBuffer);
+        
+        const content = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `org_structure_${new Date().toISOString().split('T')[0]}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        this.showNotification(`✅ Экспортировано: ${departments.length} отделов, ${employees.length} сотрудников, ${photoCount} фото`, 'success');
     }
     
-    // 3. Создаем единый Excel файл с двумя листами
-    const wb = XLSX.utils.book_new();
+    sanitizeFilename(name) {
+        if (!name) return 'unknown';
+        return name
+            .replace(/[^а-яА-Яa-zA-Z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '')
+            .substring(0, 50);
+    }
     
-    // Лист "Отделы"
-    const deptSheet = XLSX.utils.json_to_sheet(deptData);
-    deptSheet['!cols'] = [
-        { wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 30 },
-        { wch: 8 }, { wch: 8 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
-    ];
-    XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
-    
-    // Лист "Сотрудники"
-    const empSheet = XLSX.utils.json_to_sheet(empData);
-    empSheet['!cols'] = [
-        { wch: 8 }, { wch: 30 }, { wch: 35 }, { wch: 10 },
-        { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 10 },
-        { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 30 },
-        { wch: 8 }, { wch: 12 }
-    ];
-    XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
-    
-    // Сохраняем Excel в ZIP
-    const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-    zip.file('org_structure.xlsx', excelBuffer);
-    
-    // 4. Создаем и скачиваем ZIP
-    const content = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(content);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `org_structure_${new Date().toISOString().split('T')[0]}.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    this.showNotification(`✅ Экспортировано: ${departments.length} отделов, ${employees.length} сотрудников, ${photoCount} фото`, 'success');
-}
-
-// Вспомогательный метод для очистки имени файла
-sanitizeFilename(name) {
-    if (!name) return 'unknown';
-    return name
-        .replace(/[^а-яА-Яa-zA-Z0-9]/g, '_')
-        .replace(/_+/g, '_')
-        .replace(/^_|_$/g, '')
-        .substring(0, 50);
-}
-    
- importFromExcel() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.xlsx, .xls, .zip';
-    
-    input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    importFromExcel() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx, .xls, .zip';
         
-        this.showNotification('📦 Обработка файла...', 'info');
-        
-        try {
-            const isZip = file.name.toLowerCase().endsWith('.zip');
-            let deptData = [];
-            let empData = [];
-            let photoMap = new Map();
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
             
-            if (isZip) {
-                // ===== ИМПОРТ ИЗ ZIP АРХИВА =====
-                const zip = await JSZip.loadAsync(file);
+            this.showNotification('📦 Обработка файла...', 'info');
+            
+            try {
+                const isZip = file.name.toLowerCase().endsWith('.zip');
+                let deptData = [];
+                let empData = [];
+                let photoMap = new Map();
                 
-                // 1. Загружаем Excel файл
-                const excelFile = zip.file('org_structure.xlsx');
-                if (!excelFile) {
-                    throw new Error('Файл org_structure.xlsx не найден в архиве');
-                }
-                
-                const excelBuffer = await excelFile.async('arraybuffer');
-                const workbook = XLSX.read(excelBuffer, { type: 'array' });
-                
-                // 2. Загружаем лист "Отделы"
-                const deptSheet = workbook.Sheets['Отделы'];
-                if (deptSheet) {
-                    deptData = XLSX.utils.sheet_to_json(deptSheet);
-                    console.log(`📁 Загружено ${deptData.length} отделов`);
-                } else {
-                    throw new Error('Лист "Отделы" не найден в файле');
-                }
-                
-                // 3. Загружаем лист "Сотрудники"
-                const empSheet = workbook.Sheets['Сотрудники'];
-                if (empSheet) {
-                    empData = XLSX.utils.sheet_to_json(empSheet);
-                    console.log(`👥 Загружено ${empData.length} сотрудников`);
-                } else {
-                    throw new Error('Лист "Сотрудники" не найден в файле');
-                }
-                
-                // 4. Загружаем фото из папки photos/
-                const photosFolder = zip.folder('photos');
-                if (photosFolder) {
+                if (isZip) {
+                    const zip = await JSZip.loadAsync(file);
+                    
+                    const excelFile = zip.file('org_structure.xlsx');
+                    if (!excelFile) {
+                        throw new Error('Файл org_structure.xlsx не найден в архиве');
+                    }
+                    
+                    const excelBuffer = await excelFile.async('arraybuffer');
+                    const workbook = XLSX.read(excelBuffer, { type: 'array' });
+                    
+                    const deptSheet = workbook.Sheets['Отделы'];
+                    if (deptSheet) {
+                        deptData = XLSX.utils.sheet_to_json(deptSheet);
+                    } else {
+                        throw new Error('Лист "Отделы" не найден в файле');
+                    }
+                    
+                    const empSheet = workbook.Sheets['Сотрудники'];
+                    if (empSheet) {
+                        empData = XLSX.utils.sheet_to_json(empSheet);
+                    } else {
+                        throw new Error('Лист "Сотрудники" не найден в файле');
+                    }
+                    
                     const photoFiles = Object.keys(zip.files).filter(name => 
                         name.startsWith('photos/') && !name.endsWith('/')
                     );
@@ -2101,236 +1940,200 @@ sanitizeFilename(name) {
                             if (photoFile) {
                                 const base64 = await photoFile.async('base64');
                                 const filename = photoPath.replace('photos/', '');
-                                // Из имени файла извлекаем ID сотрудника (формат: {id}_{name}.jpg)
                                 const match = filename.match(/^(\d+)_/);
                                 if (match) {
                                     const employeeId = parseInt(match[1]);
                                     photoMap.set(employeeId, `data:image/jpeg;base64,${base64}`);
-                                    console.log(`📸 Загружено фото для сотрудника ID: ${employeeId}`);
                                 }
                             }
                         } catch (err) {
                             console.warn(`Не удалось загрузить фото: ${photoPath}`, err);
                         }
                     }
-                    console.log(`📸 Загружено ${photoMap.size} фото`);
+                } else {
+                    const data = new Uint8Array(await file.arrayBuffer());
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const deptSheet = workbook.Sheets['Отделы'];
+                    const empSheet = workbook.Sheets['Сотрудники'];
+                    
+                    deptData = deptSheet ? XLSX.utils.sheet_to_json(deptSheet) : [];
+                    empData = empSheet ? XLSX.utils.sheet_to_json(empSheet) : [];
                 }
                 
-            } else {
-                // ===== СТАРЫЙ ИМПОРТ ИЗ ОБЫЧНОГО EXCEL (для обратной совместимости) =====
-                const data = new Uint8Array(await file.arrayBuffer());
-                const workbook = XLSX.read(data, { type: 'array' });
-                
-                const deptSheet = workbook.Sheets['Отделы'];
-                const empSheet = workbook.Sheets['Сотрудники'];
-                
-                deptData = deptSheet ? XLSX.utils.sheet_to_json(deptSheet) : [];
-                empData = empSheet ? XLSX.utils.sheet_to_json(empSheet) : [];
-            }
-            
-            if (deptData.length === 0 && empData.length === 0) {
-                alert('Файл не содержит данных. Убедитесь, что есть листы "Отделы" и "Сотрудники"');
-                return;
-            }
-            
-            // Сохраняем текущие фото сотрудников (для обратной совместимости)
-            const currentEmployees = this.dataManager.employees;
-            const existingPhotoMap = new Map();
-            currentEmployees.forEach(emp => {
-                if (emp.photo) {
-                    existingPhotoMap.set(emp.name, emp.photo);
+                if (deptData.length === 0 && empData.length === 0) {
+                    alert('Файл не содержит данных. Убедитесь, что есть листы "Отделы" и "Сотрудники"');
+                    return;
                 }
-            });
-            
-            if (confirm(`Найдено:\n- ${deptData.length} отделов\n- ${empData.length} сотрудников\n- ${photoMap.size} фото\n\nИмпортировать?`)) {
-                // Передаем photoMap в processImportData
-                await this.processImportData(deptData, empData, existingPhotoMap, photoMap);
+                
+                const currentEmployees = this.dataManager.employees;
+                const existingPhotoMap = new Map();
+                currentEmployees.forEach(emp => {
+                    if (emp.photo) {
+                        existingPhotoMap.set(emp.name, emp.photo);
+                    }
+                });
+                
+                if (confirm(`Найдено:\n- ${deptData.length} отделов\n- ${empData.length} сотрудников\n- ${photoMap.size} фото\n\nИмпортировать?`)) {
+                    await this.processImportData(deptData, empData, existingPhotoMap, photoMap);
+                }
+                
+            } catch (error) {
+                console.error('Ошибка импорта:', error);
+                alert('Ошибка при обработке файла: ' + error.message);
             }
-            
-        } catch (error) {
-            console.error('Ошибка импорта:', error);
-            alert('Ошибка при обработке файла: ' + error.message);
-        }
-    };
-    
-    input.click();
-}
-    
- async processImportData(deptData, empData, existingPhotoMap = new Map(), zipPhotoMap = new Map()) {
-    console.log('📥 Начинаем импорт данных...');
-    console.log('Отделов для импорта:', deptData.length);
-    console.log('Сотрудников для импорта:', empData.length);
-    console.log('Фото из ZIP:', zipPhotoMap.size);
-    
-    const currentPositions = this.dataManager.positions;
-    const nameToIdMap = new Map();
-    const newDepartments = [];
-    let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
-    
-    // 1. Создаем отделы
-    for (const row of deptData) {
-        let id = row['ID'];
-        const name = row['Название отдела'] || row['Название'] || row['name'];
-        if (!name) continue;
-        
-        if (!id || isNaN(parseInt(id))) {
-            id = nextId++;
-        } else {
-            id = parseInt(id);
-            if (id >= nextId) nextId = id + 1;
-        }
-        
-        const parentIdRaw = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
-        let parentId = null;
-        
-        if (parentIdRaw && parentIdRaw !== '' && !isNaN(parseInt(parentIdRaw))) {
-            parentId = parseInt(parentIdRaw);
-        }
-        
-        const newDept = {
-            id: id,
-            name: name,
-            parentId: parentId,
-            level: row['Уровень'] || 0,
-            order: row['Порядок'] || 0,
-            description: row['Описание'] || '',
-            headId: null,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
         };
         
-        nameToIdMap.set(name, id);
-        newDepartments.push(newDept);
-        console.log(`📁 Отдел: ${name} (ID: ${id}, parentId: ${parentId})`);
+        input.click();
     }
     
-    // 2. Обновляем parentId по именам
-    for (const dept of newDepartments) {
-        const originalRow = deptData.find(r => {
-            const rowId = r['ID'];
-            const rowName = r['Название отдела'] || r['Название'];
-            return (rowId && parseInt(rowId) === dept.id) || rowName === dept.name;
-        });
+    async processImportData(deptData, empData, existingPhotoMap = new Map(), zipPhotoMap = new Map()) {
+        const currentPositions = this.dataManager.positions;
+        const nameToIdMap = new Map();
+        const newDepartments = [];
+        let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
         
-        if (originalRow) {
-            const parentName = originalRow['Родительский отдел (название)'] || originalRow['Родительский отдел'];
-            if (parentName && typeof parentName === 'string' && isNaN(parseInt(parentName)) && parentName !== '') {
-                if (nameToIdMap.has(parentName)) {
-                    dept.parentId = nameToIdMap.get(parentName);
-                    console.log(`🔗 Привязан отдел "${dept.name}" к родителю "${parentName}" (ID: ${dept.parentId})`);
+        for (const row of deptData) {
+            let id = row['ID'];
+            const name = row['Название отдела'] || row['Название'] || row['name'];
+            if (!name) continue;
+            
+            if (!id || isNaN(parseInt(id))) {
+                id = nextId++;
+            } else {
+                id = parseInt(id);
+                if (id >= nextId) nextId = id + 1;
+            }
+            
+            const parentIdRaw = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
+            let parentId = null;
+            
+            if (parentIdRaw && parentIdRaw !== '' && !isNaN(parseInt(parentIdRaw))) {
+                parentId = parseInt(parentIdRaw);
+            }
+            
+            const newDept = {
+                id: id,
+                name: name,
+                parentId: parentId,
+                level: row['Уровень'] || 0,
+                order: row['Порядок'] || 0,
+                description: row['Описание'] || '',
+                headId: null,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            
+            nameToIdMap.set(name, id);
+            newDepartments.push(newDept);
+        }
+        
+        for (const dept of newDepartments) {
+            const originalRow = deptData.find(r => {
+                const rowId = r['ID'];
+                const rowName = r['Название отдела'] || r['Название'];
+                return (rowId && parseInt(rowId) === dept.id) || rowName === dept.name;
+            });
+            
+            if (originalRow) {
+                const parentName = originalRow['Родительский отдел (название)'] || originalRow['Родительский отдел'];
+                if (parentName && typeof parentName === 'string' && isNaN(parseInt(parentName)) && parentName !== '') {
+                    if (nameToIdMap.has(parentName)) {
+                        dept.parentId = nameToIdMap.get(parentName);
+                    }
                 }
             }
         }
-    }
-    
-    // 3. Создаем сотрудников
-    const newEmployees = [];
-    const positionMap = new Map();
-    currentPositions.forEach(pos => positionMap.set(pos.name, pos.id));
-    
-    for (const row of empData) {
-        const name = row['ФИО'] || row['name'];
-        if (!name) continue;
         
-        let id = row['ID'];
-        if (!id || isNaN(parseInt(id))) {
-            id = nextId++;
-        } else {
-            id = parseInt(id);
-            if (id >= nextId) nextId = id + 1;
-        }
+        const newEmployees = [];
+        const positionMap = new Map();
+        currentPositions.forEach(pos => positionMap.set(pos.name, pos.id));
         
-        const deptName = row['Отдел'] || row['department'];
-        let departmentId = null;
-        
-        if (deptName && nameToIdMap.has(deptName)) {
-            departmentId = nameToIdMap.get(deptName);
-        } else if (deptName) {
-            const existingDept = this.dataManager.departments.find(d => d.name === deptName);
-            if (existingDept) departmentId = existingDept.id;
-        }
-        
-        const positionName = row['Должность'] || row['position'];
-        let positionId = positionMap.get(positionName);
-        
-        if (positionName && !positionId) {
-            const newPosition = this.dataManager.addPosition(positionName);
-            positionId = newPosition.id;
-            positionMap.set(positionName, positionId);
-        }
-        
-        const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
-        const isActive = row['Статус'] !== 'Уволен';
-        const startDate = this.parseExcelDateString(row['Дата начала'] || row['startDate']);
-        
-        // ✅ Фото: сначала из ZIP, потом из существующих
-        let photo = null;
-        
-        // 1. Проверяем фото из ZIP по ID
-        if (zipPhotoMap.has(id)) {
-            photo = zipPhotoMap.get(id);
-            console.log(`📸 Загружено фото из ZIP для ID ${id} (${name})`);
-        }
-        // 2. Проверяем фото из ZIP по имени файла в строке
-        else if (row['Фото'] && row['Фoto'].startsWith('data:image')) {
-            photo = row['Фото'];
-            console.log(`📸 Найдено фото в строке для: ${name}`);
-        }
-        // 3. Сохраняем существующее фото
-        else if (existingPhotoMap.has(name)) {
-            photo = existingPhotoMap.get(name);
-            console.log(`📸 Сохранено существующее фото для: ${name}`);
-        }
-        
-        // Сохраняем фото в IndexedDB
-        if (photo && photo.startsWith('data:image')) {
-            if (this.dataManager.saveEmployeePhotoToIndexedDB) {
-                await this.dataManager.saveEmployeePhotoToIndexedDB(id, photo);
-                photo = `__INDEXEDDB__${id}`;
+        for (const row of empData) {
+            const name = row['ФИО'] || row['name'];
+            if (!name) continue;
+            
+            let id = row['ID'];
+            if (!id || isNaN(parseInt(id))) {
+                id = nextId++;
+            } else {
+                id = parseInt(id);
+                if (id >= nextId) nextId = id + 1;
             }
+            
+            const deptName = row['Отдел'] || row['department'];
+            let departmentId = null;
+            
+            if (deptName && nameToIdMap.has(deptName)) {
+                departmentId = nameToIdMap.get(deptName);
+            } else if (deptName) {
+                const existingDept = this.dataManager.departments.find(d => d.name === deptName);
+                if (existingDept) departmentId = existingDept.id;
+            }
+            
+            const positionName = row['Должность'] || row['position'];
+            let positionId = positionMap.get(positionName);
+            
+            if (positionName && !positionId) {
+                const newPosition = this.dataManager.addPosition(positionName);
+                positionId = newPosition.id;
+                positionMap.set(positionName, positionId);
+            }
+            
+            const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
+            const isActive = row['Статус'] !== 'Уволен';
+            const startDate = this.parseExcelDateString(row['Дата начала'] || row['startDate']);
+            
+            let photo = null;
+            
+            if (zipPhotoMap.has(id)) {
+                photo = zipPhotoMap.get(id);
+            } else if (row['Фото'] && row['Фото'].startsWith('data:image')) {
+                photo = row['Фото'];
+            } else if (existingPhotoMap.has(name)) {
+                photo = existingPhotoMap.get(name);
+            }
+            
+            if (photo && photo.startsWith('data:image')) {
+                if (this.dataManager.saveEmployeePhotoToIndexedDB) {
+                    await this.dataManager.saveEmployeePhotoToIndexedDB(id, photo);
+                    photo = `__INDEXEDDB__${id}`;
+                }
+            }
+            
+            newEmployees.push({
+                id: id,
+                name: name,
+                departmentId: departmentId,
+                positionId: positionId || 8,
+                email: row['Email'] || '',
+                phone: row['Телефон'] || '',
+                photo: photo,
+                isHead: isHead,
+                isActive: isActive,
+                startDate: startDate,
+                fireDate: row['Дата увольнения'] || null,
+                fireReason: row['Причина увольнения'] || null,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            });
         }
         
-        newEmployees.push({
-            id: id,
-            name: name,
-            departmentId: departmentId,
-            positionId: positionId || 8,
-            email: row['Email'] || '',
-            phone: row['Телефон'] || '',
-            photo: photo,
-            isHead: isHead,
-            isActive: isActive,
-            startDate: startDate,
-            fireDate: row['Дата увольнения'] || null,
-            fireReason: row['Причина увольнения'] || null,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
+        this.dataManager.departments = newDepartments;
+        this.dataManager.employees = newEmployees;
+        
+        newEmployees.forEach(emp => {
+            if (emp.isHead && emp.departmentId) {
+                const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
+                if (dept) dept.headId = emp.id;
+            }
         });
         
-        console.log(`👤 Сотрудник: ${name} -> отдел: ${deptName} (ID: ${departmentId}) ${photo ? '📸 с фото' : ''}`);
+        this.dataManager.saveData();
+        await this.render();
+        
+        this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
     }
-    
-    // 4. Заменяем данные
-    this.dataManager.departments = newDepartments;
-    this.dataManager.employees = newEmployees;
-    
-    // 5. Обновляем руководителей
-    newEmployees.forEach(emp => {
-        if (emp.isHead && emp.departmentId) {
-            const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
-            if (dept) dept.headId = emp.id;
-        }
-    });
-    
-    // 6. Сохраняем
-    this.dataManager.saveData();
-    await this.render();
-    
-    console.log('✅ Импорт завершен!');
-    console.log(`📊 Итог: ${newDepartments.length} отделов, ${newEmployees.length} сотрудников`);
-    
-    this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
-}
     
     parseExcelDateString(dateValue) {
         if (!dateValue) return new Date().toISOString().split('T')[0];
@@ -2359,6 +2162,22 @@ sanitizeFilename(name) {
         }
         
         return new Date().toISOString().split('T')[0];
+    }
+    
+    plural(n) {
+        if (n % 10 === 1 && n % 100 !== 11) return '';
+        if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'а';
+        return 'ов';
+    }
+    
+    escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
     
     showNotification(message, type = 'info') {
