@@ -454,24 +454,29 @@ class OrgDataManager {
         }));
     }
     
-    getDepartmentEmployees(departmentId, includeSub = false) {
-        let employees = this.employees
-            .filter(e => e.departmentId === departmentId && e.isActive)
-            .sort((a, b) => {
-                const posA = this.positions.find(p => p.id === a.positionId)?.level || 0;
-                const posB = this.positions.find(p => p.id === b.positionId)?.level || 0;
-                return posB - posA;
-            });
-        
-        if (includeSub) {
-            const subDepts = this.departments.filter(d => d.parentId === departmentId);
-            subDepts.forEach(sub => {
-                employees = [...employees, ...this.getDepartmentEmployees(sub.id, true)];
-            });
-        }
-        
-        return employees;
+ getDepartmentEmployees(departmentId, includeSub = false) {
+    // Показываем ВСЕХ сотрудников (и активных, и уволенных)
+    let employees = this.employees
+        .filter(e => e.departmentId === departmentId)
+        .sort((a, b) => {
+            const posA = this.positions.find(p => p.id === a.positionId)?.level || 0;
+            const posB = this.positions.find(p => p.id === b.positionId)?.level || 0;
+            // Активные сотрудники выше уволенных
+            if (a.isActive !== b.isActive) {
+                return a.isActive ? -1 : 1;
+            }
+            return posB - posA;
+        });
+    
+    if (includeSub) {
+        const subDepts = this.departments.filter(d => d.parentId === departmentId);
+        subDepts.forEach(sub => {
+            employees = [...employees, ...this.getDepartmentEmployees(sub.id, true)];
+        });
     }
+    
+    return employees;
+}
     
     getDepartmentHead(departmentId) {
         const head = this.employees.find(e => e.departmentId === departmentId && e.isHead && e.isActive);
