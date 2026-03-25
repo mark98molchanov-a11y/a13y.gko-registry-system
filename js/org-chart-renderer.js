@@ -640,6 +640,9 @@ renderFiredEmployee(employee) {
             this.showNotification(`📝 Причина увольнения обновлена`, 'info');
             await this.render();
             this.showDetails('employee', id);
+            
+            // ✅ Сохраняем в GitHub после изменения
+            await this.saveToGitHubAfterChange();
         }
         return;
     }
@@ -659,8 +662,97 @@ renderFiredEmployee(employee) {
     // Обновляем отображение
     await this.render();
     this.showDetails('employee', id);
+    
+    // ✅ Сохраняем в GitHub после изменения статуса
+    await this.saveToGitHubAfterChange();
 }
-
+async saveToGitHubAfterChange() {
+    // Проверяем, есть ли сохраненный токен
+    const savedToken = localStorage.getItem('github_token');
+    if (!savedToken) {
+        console.log('⚠️ GitHub токен не найден, данные сохранены только локально');
+        this.showNotification('💾 Данные сохранены локально. Для синхронизации с GitHub нажмите "Сохранить в GitHub"', 'info');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Автоматическое сохранение в GitHub...');
+        
+        // Получаем актуальные данные
+        const snapshot = this.dataManager.getSnapshot();
+        const calculatorData = JSON.parse(localStorage.getItem('gko_calculator_data_v1') || '{}');
+        
+        const allData = {
+            version: "3.0",
+            exportDate: new Date().toISOString(),
+            npas: window.appData || [],
+            dashboards: window.dashboardsData || [],
+            orgStructure: {
+                departments: snapshot.departments,
+                employees: snapshot.employees,
+                positions: snapshot.positions,
+                version: "3.0"
+            },
+            calculator: calculatorData,
+            metadata: {
+                npaCount: window.appData?.length || 0,
+                dashboardsCount: window.dashboardsData?.length || 0,
+                departmentsCount: snapshot.departments.length,
+                employeesCount: snapshot.employees.length,
+                lastUpdated: new Date().toISOString()
+            }
+        };
+        
+        const content = JSON.stringify(allData, null, 2);
+        const owner = 'mark98molchanov-a11y';
+        const repo = 'a13y.gko-registry-system';
+        const path = 'gko_all_data.json';
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        
+        // Получаем sha существующего файла
+        let sha = null;
+        try {
+            const res = await fetch(apiUrl, {
+                headers: {
+                    'Authorization': `token ${savedToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                sha = data.sha;
+            }
+        } catch (e) {
+            console.log('📁 Файл не существует, будет создан новый');
+        }
+        
+        // Сохраняем в GitHub
+        const response = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${savedToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify({
+                message: `Автосохранение: изменение статуса сотрудника ${new Date().toLocaleString('ru-RU')}`,
+                content: btoa(unescape(encodeURIComponent(content))),
+                sha: sha
+            })
+        });
+        
+        if (response.ok) {
+            console.log('✅ Автосохранение в GitHub выполнено');
+            this.showNotification('💾 Изменения сохранены в GitHub', 'success');
+        } else {
+            console.error('❌ Ошибка автосохранения:', await response.text());
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка автосохранения в GitHub:', error);
+        this.showNotification('⚠️ Не удалось сохранить в GitHub, данные сохранены локально', 'warning');
+    }
+}
 // Добавьте метод для увольнения с причиной
 async fireEmployeeWithReason(id) {
     const emp = this.dataManager.employees.find(e => e.id === id);
