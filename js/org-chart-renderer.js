@@ -1225,76 +1225,130 @@ class OrgChartRenderer {
             .replace(/'/g, '&#39;');
     }
     
-    exportToExcel() {
-        const snapshot = this.dataManager.getSnapshot();
-        const departments = snapshot.departments;
-        const employees = snapshot.employees;
-        const positions = snapshot.positions;
+async exportToExcel() {
+    this.showNotification('📦 Подготовка данных для экспорта...', 'info');
+    
+    const snapshot = this.dataManager.getSnapshot();
+    const employees = snapshot.employees;
+    const departments = snapshot.departments;
+    const positions = snapshot.positions;
+    
+    // Создаем ZIP архив
+    const zip = new JSZip();
+    
+    // 1. Подготавливаем данные для Excel (сотрудники)
+    const excelData = [];
+    let photoCount = 0;
+    
+    for (const emp of employees) {
+        let photoUrl = null;
+        let hasPhoto = false;
         
-        const deptData = departments.map(dept => {
-            let parentName = '';
-            if (dept.parentId) {
-                const parent = departments.find(d => d.id === dept.parentId);
-                if (parent) parentName = parent.name;
+        // Загружаем фото из IndexedDB если нужно
+        if (emp.photo) {
+            if (emp.photo.startsWith('__INDEXEDDB__')) {
+                if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
+                    photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
+                    hasPhoto = !!photoUrl;
+                }
+            } else if (emp.photo.startsWith('data:image')) {
+                photoUrl = emp.photo;
+                hasPhoto = true;
             }
-            
-            return {
-                'ID': dept.id,
-                'Название отдела': dept.name,
-                'Родительский отдел (ID)': dept.parentId || '',
-                'Родительский отдел (название)': parentName,
-                'Уровень': dept.level,
-                'Порядок': dept.order,
-                'Описание': dept.description || '',
-                'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
-                'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
-            };
+        }
+        
+        const department = departments.find(d => d.id === emp.departmentId);
+        const position = positions.find(p => p.id === emp.positionId);
+        
+        excelData.push({
+            'ID': emp.id,
+            'ФИО': emp.name,
+            'Отдел': department ? department.name : '',
+            'Должность': position ? position.name : '',
+            'Email': emp.email || '',
+            'Телефон': emp.phone || '',
+            'Руководитель': emp.isHead ? 'Да' : 'Нет',
+            'Статус': emp.isActive ? 'Активен' : 'Уволен',
+            'Дата начала': emp.startDate || '',
+            'Дата увольнения': emp.fireDate || '',
+            'Причина увольнения': emp.fireReason || '',
+            'Есть фото': hasPhoto ? 'Да' : 'Нет'
         });
         
-        const empData = employees.map(emp => {
-            const department = departments.find(d => d.id === emp.departmentId);
-            const position = positions.find(p => p.id === emp.positionId);
-            return {
-                'ID': emp.id,
-                'ФИО': emp.name,
-                'Отдел': department ? department.name : '',
-                'ID отдела': emp.departmentId || '',
-                'Должность': position ? position.name : '',
-                'Email': emp.email || '',
-                'Телефон': emp.phone || '',
-                'Фото': emp.photo || '',
-                'Руководитель': emp.isHead ? 'Да' : 'Нет',
-                'Статус': emp.isActive ? 'Активен' : 'Уволен',
-                'Дата начала': emp.startDate || '',
-                'Дата увольнения': emp.fireDate || '',
-                'Причина увольнения': emp.fireReason || '',
-                'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
-            };
-        });
-        
-        const wb = XLSX.utils.book_new();
-        
-        const deptSheet = XLSX.utils.json_to_sheet(deptData);
-        deptSheet['!cols'] = [
-            { wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 30 },
-            { wch: 8 }, { wch: 8 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
-        ];
-        XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
-        
-        const empSheet = XLSX.utils.json_to_sheet(empData);
-        empSheet['!cols'] = [
-            { wch: 8 }, { wch: 30 }, { wch: 35 }, { wch: 10 },
-            { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 30 },
-            { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
-            { wch: 30 }, { wch: 12 }
-        ];
-        XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
-        
-        const fileName = `org_structure_${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-        
-        this.showNotification(`✅ Экспортировано ${departments.length} отделов и ${employees.length} сотрудников`, 'success');
+        // Добавляем фото в ZIP если есть
+        if (photoUrl && photoUrl.startsWith('data:image')) {
+            const base64Data = photoUrl.split(',')[1];
+            if (base64Data) {
+                const filename = `${emp.id}_${this.sanitizeFilename(emp.name)}.jpg`;
+                zip.file(`photos/${filename}`, base64Data, { base64: true });
+                photoCount++;
+            }
+        }
     }
+    
+    // 2. Создаем Excel файл с сотрудниками
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Сотрудники');
+    
+    ws['!cols'] = [
+        { wch: 8 }, { wch: 30 }, { wch: 35 }, { wch: 25 },
+        { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
+        { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 8 }
+    ];
+    
+    const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    zip.file('employees.xlsx', excelBuffer);
+    
+    // 3. Добавляем отделы в отдельный Excel файл
+    const deptData = departments.map(dept => {
+        let parentName = '';
+        if (dept.parentId) {
+            const parent = departments.find(d => d.id === dept.parentId);
+            if (parent) parentName = parent.name;
+        }
+        
+        return {
+            'ID': dept.id,
+            'Название отдела': dept.name,
+            'Родительский отдел (ID)': dept.parentId || '',
+            'Родительский отдел (название)': parentName,
+            'Уровень': dept.level,
+            'Порядок': dept.order,
+            'Описание': dept.description || '',
+            'Кол-во сотрудников': employees.filter(e => e.departmentId === dept.id && e.isActive).length,
+            'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
+            'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
+        };
+    });
+    
+    const deptWs = XLSX.utils.json_to_sheet(deptData);
+    const deptWb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(deptWb, deptWs, 'Отделы');
+    const deptExcelBuffer = XLSX.write(deptWb, { type: 'array', bookType: 'xlsx' });
+    zip.file('departments.xlsx', deptExcelBuffer);
+    
+    // 4. Создаем и скачиваем ZIP
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `org_structure_${new Date().toISOString().split('T')[0]}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.showNotification(`✅ Экспортировано: ${employees.length} сотрудников, ${photoCount} фото в ZIP архиве`, 'success');
+}
+
+// Вспомогательный метод для очистки имени файла
+sanitizeFilename(name) {
+    if (!name) return 'unknown';
+    return name
+        .replace(/[^а-яА-Яa-zA-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .substring(0, 50);
+}
     
     importFromExcel() {
         const input = document.createElement('input');
