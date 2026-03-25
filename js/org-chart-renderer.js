@@ -529,75 +529,81 @@ renderChartsInDetails() {
     
     chartsContainer.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 0.65rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
-            <button onclick="orgApp.clearFilters()" style="font-size: 0.55rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
+            <span style="font-size: 0.6rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
+            <button onclick="orgApp.clearFilters()" style="font-size: 0.5rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
         </div>
         
-        <!-- Статус - компактная полоска -->
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <div style="flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+        <!-- Статус полоска -->
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
                 <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <span style="font-size: 0.6rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥 ${stats.activeCount}</span>
-                <span style="font-size: 0.6rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪 ${stats.firedCount}</span>
+            <div style="display: flex; gap: 6px;">
+                <span style="font-size: 0.55rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
+                <span style="font-size: 0.55rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
             </div>
         </div>
         
-        <!-- Диаграмма отделов -->
-        <div style="margin-bottom: 10px;">
-            <canvas id="org-departments-chart-details" style="height: 110px; width: 100%;"></canvas>
-        </div>
-        
-        <!-- Диаграмма должностей -->
-        <div>
-            <canvas id="org-positions-chart-details" style="height: 110px; width: 100%;"></canvas>
+        <!-- Три диаграммы в одну строку -->
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <div style="flex: 1; text-align: center;">
+                <canvas id="org-departments-chart-details" style="height: 70px; width: 100%;"></canvas>
+                <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
+            </div>
+            <div style="flex: 1; text-align: center;">
+                <canvas id="org-positions-chart-details" style="height: 70px; width: 100%;"></canvas>
+                <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
+            </div>
         </div>
     `;
     
-    this.drawDepartmentsChartCompact(stats);
-    this.drawPositionsChartCompact(stats);
+    this.drawDepartmentsChartMini(stats);
+    this.drawPositionsChartMini(stats);
 }
 
-drawDepartmentsChartCompact(stats) {
+drawDepartmentsChartMini(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
     if (!ctx) return;
     
     if (this.deptsChartDetails) this.deptsChartDetails.destroy();
     
-    const allDepts = stats.deptStats.filter(d => d.count > 0);
+    const allDepts = stats.deptStats.filter(d => d.count > 0).slice(0, 6);
+    const othersCount = stats.deptStats.slice(6).reduce((sum, d) => sum + d.count, 0);
     
-    const colors = [
-        '#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', 
-        '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'
-    ];
+    let labels = allDepts.map(d => d.name.length > 8 ? d.name.substring(0, 6) + '..' : d.name);
+    let data = allDepts.map(d => d.count);
+    
+    if (othersCount > 0) {
+        labels.push('...');
+        data.push(othersCount);
+    }
+    
+    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#94a3b8'];
     
     this.deptsChartDetails = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: allDepts.map(d => d.name),
+            labels: labels,
             datasets: [{
-                data: allDepts.map(d => d.count),
-                backgroundColor: colors.slice(0, allDepts.length),
+                data: data,
+                backgroundColor: colors.slice(0, data.length),
                 borderWidth: 0,
-                hoverOffset: 6
+                hoverOffset: 4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            cutout: '55%',
+            cutout: '60%',
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    bodyFont: { size: 10 },
+                    bodyFont: { size: 9 },
                     callbacks: {
                         label: function(context) {
-                            const label = context.label || '';
+                            const label = context.label === '...' ? 'Остальные отделы' : context.label;
                             const value = context.raw || 0;
-                            const total = allDepts.reduce((sum, d) => sum + d.count, 0);
-                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
+                            return `${label}: ${value}`;
                         }
                     }
                 }
@@ -605,8 +611,8 @@ drawDepartmentsChartCompact(stats) {
             onClick: (e, els) => {
                 if (els.length > 0) {
                     const index = els[0].index;
-                    const dept = allDepts[index];
-                    if (dept) {
+                    if (index < allDepts.length) {
+                        const dept = allDepts[index];
                         this.filterDepartment = dept.id.toString();
                         this.filterPosition = '';
                         this.searchQuery = '';
@@ -615,6 +621,73 @@ drawDepartmentsChartCompact(stats) {
                         if (searchInput) searchInput.value = '';
                         this.render();
                         this.showNotification(`🔍 Фильтр по отделу: ${dept.name}`, 'info');
+                    }
+                }
+            }
+        }
+    });
+}
+
+drawPositionsChartMini(stats) {
+    const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
+    if (!ctx) return;
+    
+    if (this.positionsChartDetails) this.positionsChartDetails.destroy();
+    
+    const allPositions = stats.positionStats.filter(p => p.count > 0).slice(0, 6);
+    const othersCount = stats.positionStats.slice(6).reduce((sum, p) => sum + p.count, 0);
+    
+    let labels = allPositions.map(p => p.name.length > 8 ? p.name.substring(0, 6) + '..' : p.name);
+    let data = allPositions.map(p => p.count);
+    
+    if (othersCount > 0) {
+        labels.push('...');
+        data.push(othersCount);
+    }
+    
+    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#94a3b8'];
+    
+    this.positionsChartDetails = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, data.length),
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    bodyFont: { size: 9 },
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label === '...' ? 'Остальные должности' : context.label;
+                            const value = context.raw || 0;
+                            return `${label}: ${value}`;
+                        }
+                    }
+                }
+            },
+            onClick: (e, els) => {
+                if (els.length > 0) {
+                    const index = els[0].index;
+                    if (index < allPositions.length) {
+                        const position = allPositions[index];
+                        this.filterPosition = position.id.toString();
+                        this.filterDepartment = '';
+                        this.searchQuery = '';
+                        this.filterStatus = '';
+                        const searchInput = document.getElementById('org-search');
+                        if (searchInput) searchInput.value = '';
+                        this.render();
+                        this.showNotification(`🔍 Фильтр по должности: ${position.name}`, 'info');
                     }
                 }
             }
