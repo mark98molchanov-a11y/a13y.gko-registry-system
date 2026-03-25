@@ -1236,71 +1236,7 @@ async exportToExcel() {
     // Создаем ZIP архив
     const zip = new JSZip();
     
-    // 1. Подготавливаем данные для Excel (сотрудники)
-    const excelData = [];
-    let photoCount = 0;
-    
-    for (const emp of employees) {
-        let photoUrl = null;
-        let hasPhoto = false;
-        
-        // Загружаем фото из IndexedDB если нужно
-        if (emp.photo) {
-            if (emp.photo.startsWith('__INDEXEDDB__')) {
-                if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
-                    photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
-                    hasPhoto = !!photoUrl;
-                }
-            } else if (emp.photo.startsWith('data:image')) {
-                photoUrl = emp.photo;
-                hasPhoto = true;
-            }
-        }
-        
-        const department = departments.find(d => d.id === emp.departmentId);
-        const position = positions.find(p => p.id === emp.positionId);
-        
-        excelData.push({
-            'ID': emp.id,
-            'ФИО': emp.name,
-            'Отдел': department ? department.name : '',
-            'Должность': position ? position.name : '',
-            'Email': emp.email || '',
-            'Телефон': emp.phone || '',
-            'Руководитель': emp.isHead ? 'Да' : 'Нет',
-            'Статус': emp.isActive ? 'Активен' : 'Уволен',
-            'Дата начала': emp.startDate || '',
-            'Дата увольнения': emp.fireDate || '',
-            'Причина увольнения': emp.fireReason || '',
-            'Есть фото': hasPhoto ? 'Да' : 'Нет'
-        });
-        
-        // Добавляем фото в ZIP если есть
-        if (photoUrl && photoUrl.startsWith('data:image')) {
-            const base64Data = photoUrl.split(',')[1];
-            if (base64Data) {
-                const filename = `${emp.id}_${this.sanitizeFilename(emp.name)}.jpg`;
-                zip.file(`photos/${filename}`, base64Data, { base64: true });
-                photoCount++;
-            }
-        }
-    }
-    
-    // 2. Создаем Excel файл с сотрудниками
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Сотрудники');
-    
-    ws['!cols'] = [
-        { wch: 8 }, { wch: 30 }, { wch: 35 }, { wch: 25 },
-        { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
-        { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 8 }
-    ];
-    
-    const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-    zip.file('employees.xlsx', excelBuffer);
-    
-    // 3. Добавляем отделы в отдельный Excel файл
+    // 1. Подготавливаем данные для отделов
     const deptData = departments.map(dept => {
         let parentName = '';
         if (dept.parentId) {
@@ -1316,17 +1252,87 @@ async exportToExcel() {
             'Уровень': dept.level,
             'Порядок': dept.order,
             'Описание': dept.description || '',
-            'Кол-во сотрудников': employees.filter(e => e.departmentId === dept.id && e.isActive).length,
             'Дата создания': new Date(dept.createdAt).toLocaleDateString('ru-RU'),
             'Дата обновления': new Date(dept.updatedAt).toLocaleDateString('ru-RU')
         };
     });
     
-    const deptWs = XLSX.utils.json_to_sheet(deptData);
-    const deptWb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(deptWb, deptWs, 'Отделы');
-    const deptExcelBuffer = XLSX.write(deptWb, { type: 'array', bookType: 'xlsx' });
-    zip.file('departments.xlsx', deptExcelBuffer);
+    // 2. Подготавливаем данные для сотрудников
+    const empData = [];
+    let photoCount = 0;
+    
+    for (const emp of employees) {
+        let photoUrl = null;
+        let hasPhoto = false;
+        
+        // Загружаем фото из IndexedDB
+        if (emp.photo) {
+            if (emp.photo.startsWith('__INDEXEDDB__')) {
+                if (this.dataManager.loadEmployeePhotoFromIndexedDB) {
+                    photoUrl = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
+                    hasPhoto = !!photoUrl;
+                }
+            } else if (emp.photo.startsWith('data:image')) {
+                photoUrl = emp.photo;
+                hasPhoto = true;
+            }
+        }
+        
+        const department = departments.find(d => d.id === emp.departmentId);
+        const position = positions.find(p => p.id === emp.positionId);
+        
+        empData.push({
+            'ID': emp.id,
+            'ФИО': emp.name,
+            'Отдел': department ? department.name : '',
+            'ID отдела': emp.departmentId || '',
+            'Должность': position ? position.name : '',
+            'Email': emp.email || '',
+            'Телефон': emp.phone || '',
+            'Руководитель': emp.isHead ? 'Да' : 'Нет',
+            'Статус': emp.isActive ? 'Активен' : 'Уволен',
+            'Дата начала': emp.startDate || '',
+            'Дата увольнения': emp.fireDate || '',
+            'Причина увольнения': emp.fireReason || '',
+            'Есть фото': hasPhoto ? 'Да' : 'Нет',
+            'Дата создания': new Date(emp.createdAt).toLocaleDateString('ru-RU')
+        });
+        
+        // Добавляем фото в ZIP если есть
+        if (photoUrl && photoUrl.startsWith('data:image')) {
+            const base64Data = photoUrl.split(',')[1];
+            if (base64Data) {
+                const filename = `${emp.id}_${this.sanitizeFilename(emp.name)}.jpg`;
+                zip.file(`photos/${filename}`, base64Data, { base64: true });
+                photoCount++;
+            }
+        }
+    }
+    
+    // 3. Создаем единый Excel файл с двумя листами
+    const wb = XLSX.utils.book_new();
+    
+    // Лист "Отделы"
+    const deptSheet = XLSX.utils.json_to_sheet(deptData);
+    deptSheet['!cols'] = [
+        { wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 30 },
+        { wch: 8 }, { wch: 8 }, { wch: 40 }, { wch: 12 }, { wch: 12 }
+    ];
+    XLSX.utils.book_append_sheet(wb, deptSheet, 'Отделы');
+    
+    // Лист "Сотрудники"
+    const empSheet = XLSX.utils.json_to_sheet(empData);
+    empSheet['!cols'] = [
+        { wch: 8 }, { wch: 30 }, { wch: 35 }, { wch: 10 },
+        { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 10 },
+        { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 30 },
+        { wch: 8 }, { wch: 12 }
+    ];
+    XLSX.utils.book_append_sheet(wb, empSheet, 'Сотрудники');
+    
+    // Сохраняем Excel в ZIP
+    const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    zip.file('org_structure.xlsx', excelBuffer);
     
     // 4. Создаем и скачиваем ZIP
     const content = await zip.generateAsync({ type: 'blob' });
@@ -1337,7 +1343,7 @@ async exportToExcel() {
     a.click();
     URL.revokeObjectURL(url);
     
-    this.showNotification(`✅ Экспортировано: ${employees.length} сотрудников, ${photoCount} фото в ZIP архиве`, 'success');
+    this.showNotification(`✅ Экспортировано: ${departments.length} отделов, ${employees.length} сотрудников, ${photoCount} фото`, 'success');
 }
 
 // Вспомогательный метод для очистки имени файла
@@ -1350,210 +1356,297 @@ sanitizeFilename(name) {
         .substring(0, 50);
 }
     
-    importFromExcel() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.xlsx, .xls';
+ importFromExcel() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx, .xls, .zip';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        this.showNotification('📦 Обработка файла...', 'info');
+        
+        try {
+            const isZip = file.name.toLowerCase().endsWith('.zip');
+            let deptData = [];
+            let empData = [];
+            let photoMap = new Map();
             
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    const deptSheet = workbook.Sheets['Отделы'];
-                    const empSheet = workbook.Sheets['Сотрудники'];
-                    
-                    const deptData = deptSheet ? XLSX.utils.sheet_to_json(deptSheet) : [];
-                    const empData = empSheet ? XLSX.utils.sheet_to_json(empSheet) : [];
-                    
-                    if (deptData.length === 0 && empData.length === 0) {
-                        alert('Файл не содержит данных. Убедитесь, что есть листы "Отделы" и "Сотрудники"');
-                        return;
-                    }
-                    
-                    const currentEmployees = this.dataManager.employees;
-                    const photoMap = new Map();
-                    currentEmployees.forEach(emp => {
-                        if (emp.photo) {
-                            photoMap.set(emp.name, emp.photo);
-                        }
-                    });
-                    
-                    if (confirm(`Найдено:\n- ${deptData.length} отделов\n- ${empData.length} сотрудников\n\nИмпортировать? Текущие данные будут заменены, но фото сотрудников сохранятся.`)) {
-                        await this.processImportData(deptData, empData, photoMap);
-                    }
-                    
-                } catch (error) {
-                    console.error('Ошибка импорта:', error);
-                    alert('Ошибка при обработке файла: ' + error.message);
+            if (isZip) {
+                // ===== ИМПОРТ ИЗ ZIP АРХИВА =====
+                const zip = await JSZip.loadAsync(file);
+                
+                // 1. Загружаем Excel файл
+                const excelFile = zip.file('org_structure.xlsx');
+                if (!excelFile) {
+                    throw new Error('Файл org_structure.xlsx не найден в архиве');
                 }
-            };
-            reader.readAsArrayBuffer(file);
+                
+                const excelBuffer = await excelFile.async('arraybuffer');
+                const workbook = XLSX.read(excelBuffer, { type: 'array' });
+                
+                // 2. Загружаем лист "Отделы"
+                const deptSheet = workbook.Sheets['Отделы'];
+                if (deptSheet) {
+                    deptData = XLSX.utils.sheet_to_json(deptSheet);
+                    console.log(`📁 Загружено ${deptData.length} отделов`);
+                } else {
+                    throw new Error('Лист "Отделы" не найден в файле');
+                }
+                
+                // 3. Загружаем лист "Сотрудники"
+                const empSheet = workbook.Sheets['Сотрудники'];
+                if (empSheet) {
+                    empData = XLSX.utils.sheet_to_json(empSheet);
+                    console.log(`👥 Загружено ${empData.length} сотрудников`);
+                } else {
+                    throw new Error('Лист "Сотрудники" не найден в файле');
+                }
+                
+                // 4. Загружаем фото из папки photos/
+                const photosFolder = zip.folder('photos');
+                if (photosFolder) {
+                    const photoFiles = Object.keys(zip.files).filter(name => 
+                        name.startsWith('photos/') && !name.endsWith('/')
+                    );
+                    
+                    for (const photoPath of photoFiles) {
+                        try {
+                            const photoFile = zip.file(photoPath);
+                            if (photoFile) {
+                                const base64 = await photoFile.async('base64');
+                                const filename = photoPath.replace('photos/', '');
+                                // Из имени файла извлекаем ID сотрудника (формат: {id}_{name}.jpg)
+                                const match = filename.match(/^(\d+)_/);
+                                if (match) {
+                                    const employeeId = parseInt(match[1]);
+                                    photoMap.set(employeeId, `data:image/jpeg;base64,${base64}`);
+                                    console.log(`📸 Загружено фото для сотрудника ID: ${employeeId}`);
+                                }
+                            }
+                        } catch (err) {
+                            console.warn(`Не удалось загрузить фото: ${photoPath}`, err);
+                        }
+                    }
+                    console.log(`📸 Загружено ${photoMap.size} фото`);
+                }
+                
+            } else {
+                // ===== СТАРЫЙ ИМПОРТ ИЗ ОБЫЧНОГО EXCEL (для обратной совместимости) =====
+                const data = new Uint8Array(await file.arrayBuffer());
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                const deptSheet = workbook.Sheets['Отделы'];
+                const empSheet = workbook.Sheets['Сотрудники'];
+                
+                deptData = deptSheet ? XLSX.utils.sheet_to_json(deptSheet) : [];
+                empData = empSheet ? XLSX.utils.sheet_to_json(empSheet) : [];
+            }
+            
+            if (deptData.length === 0 && empData.length === 0) {
+                alert('Файл не содержит данных. Убедитесь, что есть листы "Отделы" и "Сотрудники"');
+                return;
+            }
+            
+            // Сохраняем текущие фото сотрудников (для обратной совместимости)
+            const currentEmployees = this.dataManager.employees;
+            const existingPhotoMap = new Map();
+            currentEmployees.forEach(emp => {
+                if (emp.photo) {
+                    existingPhotoMap.set(emp.name, emp.photo);
+                }
+            });
+            
+            if (confirm(`Найдено:\n- ${deptData.length} отделов\n- ${empData.length} сотрудников\n- ${photoMap.size} фото\n\nИмпортировать?`)) {
+                // Передаем photoMap в processImportData
+                await this.processImportData(deptData, empData, existingPhotoMap, photoMap);
+            }
+            
+        } catch (error) {
+            console.error('Ошибка импорта:', error);
+            alert('Ошибка при обработке файла: ' + error.message);
+        }
+    };
+    
+    input.click();
+}
+    
+ async processImportData(deptData, empData, existingPhotoMap = new Map(), zipPhotoMap = new Map()) {
+    console.log('📥 Начинаем импорт данных...');
+    console.log('Отделов для импорта:', deptData.length);
+    console.log('Сотрудников для импорта:', empData.length);
+    console.log('Фото из ZIP:', zipPhotoMap.size);
+    
+    const currentPositions = this.dataManager.positions;
+    const nameToIdMap = new Map();
+    const newDepartments = [];
+    let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
+    
+    // 1. Создаем отделы
+    for (const row of deptData) {
+        let id = row['ID'];
+        const name = row['Название отдела'] || row['Название'] || row['name'];
+        if (!name) continue;
+        
+        if (!id || isNaN(parseInt(id))) {
+            id = nextId++;
+        } else {
+            id = parseInt(id);
+            if (id >= nextId) nextId = id + 1;
+        }
+        
+        const parentIdRaw = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
+        let parentId = null;
+        
+        if (parentIdRaw && parentIdRaw !== '' && !isNaN(parseInt(parentIdRaw))) {
+            parentId = parseInt(parentIdRaw);
+        }
+        
+        const newDept = {
+            id: id,
+            name: name,
+            parentId: parentId,
+            level: row['Уровень'] || 0,
+            order: row['Порядок'] || 0,
+            description: row['Описание'] || '',
+            headId: null,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
         };
         
-        input.click();
+        nameToIdMap.set(name, id);
+        newDepartments.push(newDept);
+        console.log(`📁 Отдел: ${name} (ID: ${id}, parentId: ${parentId})`);
     }
     
-    async processImportData(deptData, empData, existingPhotoMap = new Map()) {
-        console.log('📥 Начинаем импорт данных...');
-        console.log('Отделов для импорта:', deptData.length);
-        console.log('Сотрудников для импорта:', empData.length);
-        
-        const currentPositions = this.dataManager.positions;
-        const nameToIdMap = new Map();
-        const newDepartments = [];
-        let nextId = Math.max(0, ...this.dataManager.departments.map(d => d.id), 100) + 1;
-        
-        for (const row of deptData) {
-            let id = row['ID'];
-            const name = row['Название отдела'] || row['Название'] || row['name'];
-            if (!name) continue;
-            
-            if (!id || isNaN(parseInt(id))) {
-                id = nextId++;
-            } else {
-                id = parseInt(id);
-                if (id >= nextId) nextId = id + 1;
-            }
-            
-            const parentIdRaw = row['Родительский отдел (ID)'] || row['Родительский отдел'] || row['parent'];
-            let parentId = null;
-            
-            if (parentIdRaw && parentIdRaw !== '' && !isNaN(parseInt(parentIdRaw))) {
-                parentId = parseInt(parentIdRaw);
-            }
-            
-            const newDept = {
-                id: id,
-                name: name,
-                parentId: parentId,
-                level: row['Уровень'] || 0,
-                order: row['Порядок'] || 0,
-                description: row['Описание'] || '',
-                headId: null,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            };
-            
-            nameToIdMap.set(name, id);
-            newDepartments.push(newDept);
-            console.log(`📁 Отдел: ${name} (ID: ${id}, parentId: ${parentId})`);
-        }
-        
-        for (const dept of newDepartments) {
-            const originalRow = deptData.find(r => {
-                const rowId = r['ID'];
-                const rowName = r['Название отдела'] || r['Название'];
-                return (rowId && parseInt(rowId) === dept.id) || rowName === dept.name;
-            });
-            
-            if (originalRow) {
-                const parentName = originalRow['Родительский отдел (ID)'] || originalRow['Родительский отдел'];
-                if (parentName && typeof parentName === 'string' && isNaN(parseInt(parentName)) && parentName !== '') {
-                    if (nameToIdMap.has(parentName)) {
-                        dept.parentId = nameToIdMap.get(parentName);
-                        console.log(`🔗 Привязан отдел "${dept.name}" к родителю "${parentName}" (ID: ${dept.parentId})`);
-                    }
-                }
-            }
-        }
-        
-        const newEmployees = [];
-        const positionMap = new Map();
-        currentPositions.forEach(pos => positionMap.set(pos.name, pos.id));
-        
-        for (const row of empData) {
-            const name = row['ФИО'] || row['name'];
-            if (!name) continue;
-            
-            let id = row['ID'];
-            if (!id || isNaN(parseInt(id))) {
-                id = nextId++;
-            } else {
-                id = parseInt(id);
-                if (id >= nextId) nextId = id + 1;
-            }
-            
-            const deptName = row['Отдел'] || row['department'];
-            let departmentId = null;
-            
-            if (deptName && nameToIdMap.has(deptName)) {
-                departmentId = nameToIdMap.get(deptName);
-            } else if (deptName) {
-                const existingDept = this.dataManager.departments.find(d => d.name === deptName);
-                if (existingDept) departmentId = existingDept.id;
-            }
-            
-            const positionName = row['Должность'] || row['position'];
-            let positionId = positionMap.get(positionName);
-            
-            if (positionName && !positionId) {
-                const newPosition = this.dataManager.addPosition(positionName);
-                positionId = newPosition.id;
-                positionMap.set(positionName, positionId);
-            }
-            
-            const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
-            const isActive = row['Статус'] !== 'Уволен';
-            const startDate = this.parseExcelDateString(row['Дата начала'] || row['startDate']);
-            
-            let photo = null;
-            const importedPhoto = row['Фото'] || row['photo'];
-            if (importedPhoto && importedPhoto.startsWith('data:image')) {
-                photo = importedPhoto;
-                console.log(`📸 Загружено фото из импорта для: ${name}`);
-                if (this.dataManager.saveEmployeePhotoToIndexedDB) {
-                    await this.dataManager.saveEmployeePhotoToIndexedDB(id, photo);
-                    photo = `__INDEXEDDB__${id}`;
-                }
-            } else if (existingPhotoMap.has(name)) {
-                photo = existingPhotoMap.get(name);
-                console.log(`📸 Сохранено существующее фото для: ${name}`);
-            }
-            
-            newEmployees.push({
-                id: id,
-                name: name,
-                departmentId: departmentId,
-                positionId: positionId || 8,
-                email: row['Email'] || '',
-                phone: row['Телефон'] || '',
-                photo: photo,
-                isHead: isHead,
-                isActive: isActive,
-                startDate: startDate,
-                fireDate: row['Дата увольнения'] || null,
-                fireReason: row['Причина увольнения'] || null,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            });
-            
-            console.log(`👤 Сотрудник: ${name} -> отдел: ${deptName} (ID: ${departmentId}) ${photo ? '📸 с фото' : ''}`);
-        }
-        
-        this.dataManager.departments = newDepartments;
-        this.dataManager.employees = newEmployees;
-        
-        newEmployees.forEach(emp => {
-            if (emp.isHead && emp.departmentId) {
-                const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
-                if (dept) dept.headId = emp.id;
-            }
+    // 2. Обновляем parentId по именам
+    for (const dept of newDepartments) {
+        const originalRow = deptData.find(r => {
+            const rowId = r['ID'];
+            const rowName = r['Название отдела'] || r['Название'];
+            return (rowId && parseInt(rowId) === dept.id) || rowName === dept.name;
         });
         
-        this.dataManager.saveData();
-        await this.render();
-        
-        console.log('✅ Импорт завершен!');
-        console.log(`📊 Итог: ${newDepartments.length} отделов, ${newEmployees.length} сотрудников`);
-        
-        this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников (фото сохранены)`, 'success');
+        if (originalRow) {
+            const parentName = originalRow['Родительский отдел (название)'] || originalRow['Родительский отдел'];
+            if (parentName && typeof parentName === 'string' && isNaN(parseInt(parentName)) && parentName !== '') {
+                if (nameToIdMap.has(parentName)) {
+                    dept.parentId = nameToIdMap.get(parentName);
+                    console.log(`🔗 Привязан отдел "${dept.name}" к родителю "${parentName}" (ID: ${dept.parentId})`);
+                }
+            }
+        }
     }
+    
+    // 3. Создаем сотрудников
+    const newEmployees = [];
+    const positionMap = new Map();
+    currentPositions.forEach(pos => positionMap.set(pos.name, pos.id));
+    
+    for (const row of empData) {
+        const name = row['ФИО'] || row['name'];
+        if (!name) continue;
+        
+        let id = row['ID'];
+        if (!id || isNaN(parseInt(id))) {
+            id = nextId++;
+        } else {
+            id = parseInt(id);
+            if (id >= nextId) nextId = id + 1;
+        }
+        
+        const deptName = row['Отдел'] || row['department'];
+        let departmentId = null;
+        
+        if (deptName && nameToIdMap.has(deptName)) {
+            departmentId = nameToIdMap.get(deptName);
+        } else if (deptName) {
+            const existingDept = this.dataManager.departments.find(d => d.name === deptName);
+            if (existingDept) departmentId = existingDept.id;
+        }
+        
+        const positionName = row['Должность'] || row['position'];
+        let positionId = positionMap.get(positionName);
+        
+        if (positionName && !positionId) {
+            const newPosition = this.dataManager.addPosition(positionName);
+            positionId = newPosition.id;
+            positionMap.set(positionName, positionId);
+        }
+        
+        const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
+        const isActive = row['Статус'] !== 'Уволен';
+        const startDate = this.parseExcelDateString(row['Дата начала'] || row['startDate']);
+        
+        // ✅ Фото: сначала из ZIP, потом из существующих
+        let photo = null;
+        
+        // 1. Проверяем фото из ZIP по ID
+        if (zipPhotoMap.has(id)) {
+            photo = zipPhotoMap.get(id);
+            console.log(`📸 Загружено фото из ZIP для ID ${id} (${name})`);
+        }
+        // 2. Проверяем фото из ZIP по имени файла в строке
+        else if (row['Фото'] && row['Фoto'].startsWith('data:image')) {
+            photo = row['Фото'];
+            console.log(`📸 Найдено фото в строке для: ${name}`);
+        }
+        // 3. Сохраняем существующее фото
+        else if (existingPhotoMap.has(name)) {
+            photo = existingPhotoMap.get(name);
+            console.log(`📸 Сохранено существующее фото для: ${name}`);
+        }
+        
+        // Сохраняем фото в IndexedDB
+        if (photo && photo.startsWith('data:image')) {
+            if (this.dataManager.saveEmployeePhotoToIndexedDB) {
+                await this.dataManager.saveEmployeePhotoToIndexedDB(id, photo);
+                photo = `__INDEXEDDB__${id}`;
+            }
+        }
+        
+        newEmployees.push({
+            id: id,
+            name: name,
+            departmentId: departmentId,
+            positionId: positionId || 8,
+            email: row['Email'] || '',
+            phone: row['Телефон'] || '',
+            photo: photo,
+            isHead: isHead,
+            isActive: isActive,
+            startDate: startDate,
+            fireDate: row['Дата увольнения'] || null,
+            fireReason: row['Причина увольнения'] || null,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        });
+        
+        console.log(`👤 Сотрудник: ${name} -> отдел: ${deptName} (ID: ${departmentId}) ${photo ? '📸 с фото' : ''}`);
+    }
+    
+    // 4. Заменяем данные
+    this.dataManager.departments = newDepartments;
+    this.dataManager.employees = newEmployees;
+    
+    // 5. Обновляем руководителей
+    newEmployees.forEach(emp => {
+        if (emp.isHead && emp.departmentId) {
+            const dept = this.dataManager.departments.find(d => d.id === emp.departmentId);
+            if (dept) dept.headId = emp.id;
+        }
+    });
+    
+    // 6. Сохраняем
+    this.dataManager.saveData();
+    await this.render();
+    
+    console.log('✅ Импорт завершен!');
+    console.log(`📊 Итог: ${newDepartments.length} отделов, ${newEmployees.length} сотрудников`);
+    
+    this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников`, 'success');
+}
     
     parseExcelDateString(dateValue) {
         if (!dateValue) return new Date().toISOString().split('T')[0];
