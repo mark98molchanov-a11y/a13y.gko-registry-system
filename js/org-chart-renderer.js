@@ -767,8 +767,7 @@ expandAll() {
     document.getElementById('dept-name')?.focus();
 }
 
-    
- showAddEmployeeModal(departmentId = null) {
+showAddEmployeeModal(departmentId = null) {
     const departments = this.dataManager.departments.filter(d => d.id !== 1);
     const positions = this.dataManager.positions;
     
@@ -954,7 +953,7 @@ expandAll() {
     document.getElementById('dept-name')?.focus();
 }
     
-  editEmployee(id) {
+editEmployee(id) {
     const emp = this.dataManager.employees.find(e => e.id === id);
     if (!emp) return;
     
@@ -1002,11 +1001,13 @@ expandAll() {
         </div>
         <div class="form-group">
             <label>Фото сотрудника</label>
-            <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="file" id="emp-photo" accept="image/jpeg,image/png,image/gif,image/webp">
+                <button type="button" id="remove-emp-photo" style="background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>
+            </div>
             <div id="emp-photo-preview" style="margin-top: 10px; ${!emp.photo ? 'display: none;' : ''}">
                 <img src="${emp.photo || ''}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
             </div>
-            ${emp.photo ? '<button type="button" id="remove-emp-photo" style="margin-top: 8px; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>' : ''}
         </div>
         <div class="form-group">
             <label>
@@ -1023,6 +1024,9 @@ expandAll() {
     const photoPreview = document.getElementById('emp-photo-preview');
     const previewImg = photoPreview.querySelector('img');
     
+    // Переменная для отслеживания удаления
+    let shouldRemovePhoto = false;
+    
     if (photoInput) {
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -1031,6 +1035,7 @@ expandAll() {
                 reader.onload = (event) => {
                     previewImg.src = event.target.result;
                     photoPreview.style.display = 'block';
+                    shouldRemovePhoto = false; // если загрузили новое, отменяем удаление
                 };
                 reader.readAsDataURL(file);
             }
@@ -1044,7 +1049,7 @@ expandAll() {
             previewImg.src = '';
             photoPreview.style.display = 'none';
             if (photoInput) photoInput.value = '';
-            window._removeEmployeePhoto = true;
+            shouldRemovePhoto = true;  // ✅ Флаг удаления
         });
     }
     
@@ -1061,9 +1066,8 @@ expandAll() {
         
         // Определяем, что делать с фото
         let photo = emp.photo;
-        if (window._removeEmployeePhoto) {
+        if (shouldRemovePhoto) {
             photo = null;
-            delete window._removeEmployeePhoto;
         } else if (photoInput.files && photoInput.files[0]) {
             photo = previewImg.src;
         }
@@ -1083,7 +1087,6 @@ expandAll() {
     };
     
     const closeHandler = () => {
-        delete window._removeEmployeePhoto;
         this.closeModal();
     };
     
