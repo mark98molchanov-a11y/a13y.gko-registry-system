@@ -276,13 +276,8 @@ renderTree(departments, level = 0) {
         const employees = dept.employees || [];
         const isSelected = this.selectedType === 'department' && this.selectedItem === dept.id;
         
-        // Определяем, что показывать: фото или иконку
-        let iconHtml = '';
-        if (dept.image && dept.image.startsWith('data:image')) {
-            iconHtml = `<img src="${dept.image}" class="org-department-img" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">`;
-        } else {
-            iconHtml = `<div class="org-node-icon">${hasChildren ? (isExpanded ? '📂' : '📁') : '📄'}</div>`;
-        }
+        // Простая иконка без фото
+        const iconHtml = `<div class="org-node-icon">${hasChildren ? (isExpanded ? '📂' : '📁') : '📄'}</div>`;
         
         return `
             <div class="org-node org-department-node" data-id="${dept.id}" data-type="department">
@@ -298,11 +293,7 @@ renderTree(departments, level = 0) {
                     </div>
                     <div class="org-node-actions">
                         <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editDepartment(${dept.id})" title="Редактировать">✏️</button>
-                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.uploadDepartmentImage(${dept.id})" title="Загрузить фото">🖼️</button>
-                        ${dept.image ? `
-                            <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.removeDepartmentImage(${dept.id})" title="Удалить фото">🗑️</button>
-                        ` : ''}
-                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.deleteDepartment(${dept.id})" title="Удалить отдел">❌</button>
+                        <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.deleteDepartment(${dept.id})" title="Удалить">🗑️</button>
                         ${hasChildren ? `
                             <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.toggleExpand(${dept.id})" title="${isExpanded ? 'Свернуть' : 'Развернуть'}">
                                 ${isExpanded ? '▲' : '▼'}
@@ -333,6 +324,7 @@ renderTree(departments, level = 0) {
         `;
     }).join('');
 }
+
     
 renderEmployee(employee) {
     const position = this.dataManager.positions.find(p => p.id === employee.positionId);
@@ -589,65 +581,7 @@ shouldShowChildren(dept) {
     
     return false;
 }
-    uploadDepartmentImage(departmentId) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg, image/png, image/gif, image/webp';
     
-    input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        // Проверяем размер файла (макс 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            alert('Файл слишком большой. Максимальный размер 2MB');
-            return;
-        }
-        
-        // Проверяем тип файла
-        if (!file.type.startsWith('image/')) {
-            alert('Пожалуйста, выберите изображение');
-            return;
-        }
-        
-        try {
-            // Показываем индикатор загрузки
-            this.showNotification('⏳ Загрузка фото...', 'info');
-            
-            // Конвертируем в base64
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64Image = event.target.result;
-                
-                // Обновляем отдел с фото
-                this.dataManager.updateDepartment(departmentId, {
-                    image: base64Image
-                });
-                
-                // Обновляем отображение
-                this.render();
-                this.showNotification('✅ Фото отдела загружено', 'success');
-            };
-            reader.readAsDataURL(file);
-        } catch (error) {
-            console.error('Ошибка загрузки фото:', error);
-            alert('Ошибка при загрузке фото');
-        }
-    };
-    
-    input.click();
-}
-
-
-removeDepartmentImage(departmentId) {
-    if (confirm('Удалить фото этого отдела?')) {
-        this.dataManager.updateDepartment(departmentId, {
-            image: null
-        });
-        this.render();
-        this.showNotification('✅ Фото отдела удалено', 'success');
-    }
-}
     uploadEmployeePhoto(employeeId) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -773,7 +707,7 @@ expandAll() {
     console.log('🔄 Клик по заголовку отдела:', id);
     this.toggleExpand(id);
 }
-   showAddDepartmentModal(parentId = null) {
+ showAddDepartmentModal(parentId = null) {
     const departments = this.dataManager.departments.filter(d => d.id !== 1);
     
     const modal = document.getElementById('org-modal');
@@ -802,37 +736,9 @@ expandAll() {
             <label>Описание</label>
             <textarea id="dept-description" rows="3" placeholder="Описание отдела"></textarea>
         </div>
-        <div class="form-group">
-            <label>Фото отдела</label>
-            <input type="file" id="dept-image" accept="image/jpeg,image/png,image/gif,image/webp">
-            <div id="dept-image-preview" style="margin-top: 10px; display: none;">
-                <img style="max-width: 100px; max-height: 100px; border-radius: 8px;">
-            </div>
-        </div>
-    `;
+    `;  // Убрали блок с фото
     
     modal.style.display = 'flex';
-    
-    // Предпросмотр фото
-    const imageInput = document.getElementById('dept-image');
-    const imagePreview = document.getElementById('dept-image-preview');
-    const previewImg = imagePreview.querySelector('img');
-    
-    if (imageInput) {
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    previewImg.src = event.target.result;
-                    imagePreview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                imagePreview.style.display = 'none';
-            }
-        });
-    }
     
     const saveBtn = document.getElementById('org-modal-save');
     const cancelBtn = document.getElementById('org-modal-cancel');
@@ -848,13 +754,7 @@ expandAll() {
         const parent = document.getElementById('dept-parent').value;
         const description = document.getElementById('dept-description').value;
         
-        // Получаем фото, если есть
-        let image = null;
-        if (imageInput.files && imageInput.files[0]) {
-            image = previewImg.src;
-        }
-        
-        this.dataManager.addDepartment(name, parent ? parseInt(parent) : null, description, image);
+        this.dataManager.addDepartment(name, parent ? parseInt(parent) : null, description);
         this.closeModal();
     };
     
@@ -866,6 +766,7 @@ expandAll() {
     
     document.getElementById('dept-name')?.focus();
 }
+
     
  showAddEmployeeModal(departmentId = null) {
     const departments = this.dataManager.departments.filter(d => d.id !== 1);
@@ -1016,48 +917,9 @@ expandAll() {
             <label>Описание</label>
             <textarea id="dept-description" rows="3">${dept.description || ''}</textarea>
         </div>
-        <div class="form-group">
-            <label>Фото отдела</label>
-            <input type="file" id="dept-image" accept="image/jpeg,image/png,image/gif,image/webp">
-            <div id="dept-image-preview" style="margin-top: 10px; ${!dept.image ? 'display: none;' : ''}">
-                <img src="${dept.image || ''}" style="max-width: 100px; max-height: 100px; border-radius: 8px;">
-            </div>
-            ${dept.image ? '<button type="button" id="remove-dept-image" style="margin-top: 8px; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;">🗑️ Удалить фото</button>' : ''}
-        </div>
-    `;
+    `;  // Убрали блок с фото
     
     modal.style.display = 'flex';
-    
-    // Предпросмотр нового фото
-    const imageInput = document.getElementById('dept-image');
-    const imagePreview = document.getElementById('dept-image-preview');
-    const previewImg = imagePreview.querySelector('img');
-    
-    if (imageInput) {
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    previewImg.src = event.target.result;
-                    imagePreview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-    
-    // Кнопка удаления фото
-    const removeBtn = document.getElementById('remove-dept-image');
-    if (removeBtn) {
-        removeBtn.addEventListener('click', () => {
-            previewImg.src = '';
-            imagePreview.style.display = 'none';
-            if (imageInput) imageInput.value = '';
-            // Помечаем, что фото нужно удалить
-            window._removeImage = true;
-        });
-    }
     
     const saveBtn = document.getElementById('org-modal-save');
     const cancelBtn = document.getElementById('org-modal-cancel');
@@ -1073,30 +935,17 @@ expandAll() {
         const parent = document.getElementById('dept-parent').value;
         const description = document.getElementById('dept-description').value;
         
-        // Определяем, что делать с фото
-        let image = dept.image;
-        if (window._removeImage) {
-            image = null;
-            delete window._removeImage;
-        } else if (imageInput.files && imageInput.files[0]) {
-            image = previewImg.src;
-        }
-        
         this.dataManager.updateDepartment(id, {
             name,
             parentId: parent ? parseInt(parent) : null,
-            description,
-            image: image
+            description
         });
         
         this.closeModal();
         this.render();
     };
     
-    const closeHandler = () => {
-        delete window._removeImage;
-        this.closeModal();
-    };
+    const closeHandler = () => this.closeModal();
     
     saveBtn.onclick = saveHandler;
     cancelBtn.onclick = closeHandler;
