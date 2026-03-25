@@ -1542,93 +1542,96 @@
     let orgApp = null;
     let orgData = null;
     
-    document.addEventListener('DOMContentLoaded', async function() {
-        console.log('🚀 Инициализация организационной структуры...');
-        
-        const container = document.getElementById('org-chart-container');
-        if (!container) {
-            console.error('❌ Контейнер org-chart-container не найден');
-            return;
-        }
-        
-        if (typeof OrgDataManager === 'undefined') {
-            console.error('❌ OrgDataManager не загружен');
-            return;
-        }
-        
-        // Инициализируем OrgDataManager
-        if (window.pendingOrgData) {
-            console.log('📦 Загружаем ожидающие данные из GitHub...');
-            orgData = new OrgDataManager();
-            orgData.departments = window.pendingOrgData.departments || [];
-            orgData.employees = window.pendingOrgData.employees || [];
-            orgData.positions = window.pendingOrgData.positions || [];
-            orgData.saveData();
-            delete window.pendingOrgData;
-        } else {
-            orgData = new OrgDataManager();
-        }
-        
-        if (typeof OrgChartRenderer === 'undefined') {
-            console.error('❌ OrgChartRenderer не загружен');
-            return;
-        }
-        
-        // Создаем рендерер (он сам вызовет render после инициализации)
-        orgApp = new OrgChartRenderer('org-chart-container', orgData);
-        window.orgApp = orgApp;
-        window.orgData = orgData;
-        
-        // Обработчики кнопок
-        const addDeptBtn = document.getElementById('org-add-department');
-        if (addDeptBtn) addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
-        
-        const addEmpBtn = document.getElementById('org-add-employee');
-        if (addEmpBtn) addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
-        
-        const expandAllBtn = document.getElementById('org-expand-all');
-        if (expandAllBtn) expandAllBtn.onclick = () => orgApp.expandAll();
-        
-        const collapseAllBtn = document.getElementById('org-collapse-all');
-        if (collapseAllBtn) collapseAllBtn.onclick = () => orgApp.collapseAll();
-        
-        const exportExcelBtn = document.getElementById('org-export-excel');
-        if (exportExcelBtn) exportExcelBtn.onclick = () => orgApp.exportToExcel();
-        
-        const importExcelBtn = document.getElementById('org-import-excel');
-        if (importExcelBtn) importExcelBtn.onclick = () => orgApp.importFromExcel();
-        
-        // Кнопка очистки поиска
-        const searchClearBtn = document.getElementById('org-search-clear');
-        if (searchClearBtn) {
-            searchClearBtn.addEventListener('click', () => {
-                const searchInput = document.getElementById('org-search');
-                if (searchInput) {
-                    searchInput.value = '';
-                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    searchInput.focus();
+ document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Инициализация организационной структуры...');
+    
+    const container = document.getElementById('org-chart-container');
+    if (!container) {
+        console.error('❌ Контейнер org-chart-container не найден');
+        return;
+    }
+    
+    if (typeof OrgDataManager === 'undefined') {
+        console.error('❌ OrgDataManager не загружен');
+        return;
+    }
+    
+    // ===== ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ =====
+    if (window.pendingOrgData) {
+        console.log('📦 Загружаем ожидающие данные из GitHub...');
+        orgData = new OrgDataManager();
+        await orgData.init(); // Ждем загрузки IndexedDB
+        orgData.departments = window.pendingOrgData.departments || [];
+        orgData.employees = window.pendingOrgData.employees || [];
+        orgData.positions = window.pendingOrgData.positions || [];
+        await orgData.saveData();
+        delete window.pendingOrgData;
+    } else {
+        orgData = new OrgDataManager();
+        await orgData.init(); // Ждем загрузки IndexedDB
+    }
+    // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
+    
+    if (typeof OrgChartRenderer === 'undefined') {
+        console.error('❌ OrgChartRenderer не загружен');
+        return;
+    }
+    
+    // Создаем рендерер
+    orgApp = new OrgChartRenderer('org-chart-container', orgData);
+    window.orgApp = orgApp;
+    window.orgData = orgData;
+    
+    // Обработчики кнопок
+    const addDeptBtn = document.getElementById('org-add-department');
+    if (addDeptBtn) addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
+    
+    const addEmpBtn = document.getElementById('org-add-employee');
+    if (addEmpBtn) addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
+    
+    const expandAllBtn = document.getElementById('org-expand-all');
+    if (expandAllBtn) expandAllBtn.onclick = () => orgApp.expandAll();
+    
+    const collapseAllBtn = document.getElementById('org-collapse-all');
+    if (collapseAllBtn) collapseAllBtn.onclick = () => orgApp.collapseAll();
+    
+    const exportExcelBtn = document.getElementById('org-export-excel');
+    if (exportExcelBtn) exportExcelBtn.onclick = () => orgApp.exportToExcel();
+    
+    const importExcelBtn = document.getElementById('org-import-excel');
+    if (importExcelBtn) importExcelBtn.onclick = () => orgApp.importFromExcel();
+    
+    // Кнопка очистки поиска
+    const searchClearBtn = document.getElementById('org-search-clear');
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            const searchInput = document.getElementById('org-search');
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.focus();
+            }
+        });
+    }
+    
+    // Активный класс при поиске
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) {
+        const searchContainer = document.getElementById('org-search-container');
+        searchInput.addEventListener('input', (e) => {
+            if (searchContainer) {
+                if (e.target.value.trim()) {
+                    searchContainer.classList.add('active-search');
+                } else {
+                    searchContainer.classList.remove('active-search');
                 }
-            });
-        }
-        
-        // Активный класс при поиске
-        const searchInput = document.getElementById('org-search');
-        if (searchInput) {
-            const searchContainer = document.getElementById('org-search-container');
-            searchInput.addEventListener('input', (e) => {
-                if (searchContainer) {
-                    if (e.target.value.trim()) {
-                        searchContainer.classList.add('active-search');
-                    } else {
-                        searchContainer.classList.remove('active-search');
-                    }
-                }
-            });
-        }
-        
-        console.log('✅ Организационная структура инициализирована');
-        console.log(`📊 Текущие данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников`);
-    });
+            }
+        });
+    }
+    
+    console.log('✅ Организационная структура инициализирована');
+    console.log(`📊 Текущие данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников`);
+});
 </script>
 <!-- Модальное окно -->
 <div id="org-modal" class="org-modal" style="display: none;">
