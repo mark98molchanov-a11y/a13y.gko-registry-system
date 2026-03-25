@@ -12,38 +12,46 @@ class OrgChartRenderer {
         
         this.init();
     }
+   async init() {
+    this.setupEventListeners();
     
-    async init() {
-        this.setupEventListeners();
-        
-        // Загружаем сохраненное состояние развернутых узлов
-        const savedExpanded = localStorage.getItem('org_expanded_nodes');
-        if (savedExpanded) {
-            try {
-                const expandedArray = JSON.parse(savedExpanded);
-                this.expandedNodes = new Set(expandedArray);
-                console.log('📂 Загружено состояние развернутых узлов:', this.expandedNodes.size);
-            } catch(e) {
-                console.error('Ошибка загрузки состояния:', e);
-            }
-        }
-        
-        // Синхронизируем фото из IndexedDB
-        if (this.dataManager.syncPhotosFromIndexedDB) {
-            await this.dataManager.syncPhotosFromIndexedDB();
-        }
-        
-        await this.render();
-        
-        // Подписка на изменения данных
-        this.dataManager.subscribe('renderer', () => this.render());
-        
-        // Если нет сохраненного состояния, разворачиваем корневые узлы
-        if (!savedExpanded) {
-            const roots = this.dataManager.departments.filter(d => d.parentId === null);
-            roots.forEach(root => this.expandedNodes.add(root.id));
+    // 1. Сначала загружаем сохраненное состояние развернутых узлов
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+            console.log('📂 Загружено состояние развернутых узлов:', this.expandedNodes.size);
+        } catch(e) {
+            console.error('Ошибка загрузки состояния:', e);
         }
     }
+    
+    // 2. Если нет сохраненного состояния, разворачиваем корневые узлы ДО синхронизации фото
+    if (!savedExpanded || this.expandedNodes.size === 0) {
+        const roots = this.dataManager.departments.filter(d => d.parentId === null);
+        roots.forEach(root => this.expandedNodes.add(root.id));
+        // Сразу сохраняем состояние, чтобы при следующей загрузке оно было
+        localStorage.setItem('org_expanded_nodes', JSON.stringify(Array.from(this.expandedNodes)));
+        console.log('📂 Развернуты корневые узлы:', roots.length);
+    }
+    
+    // 3. Синхронизируем фото из IndexedDB
+    if (this.dataManager.syncPhotosFromIndexedDB) {
+        await this.dataManager.syncPhotosFromIndexedDB();
+        console.log('📸 Фото синхронизированы');
+    }
+    
+    // 4. Рендерим дерево
+    await this.render();
+    console.log('🎨 Дерево отрисовано');
+    
+    // 5. Подписка на изменения данных (после рендера)
+    this.dataManager.subscribe('renderer', async () => {
+        console.log('🔄 Данные изменились, обновляем дерево');
+        await this.render();
+    });
+}
     
     setupEventListeners() {
         // Поиск
