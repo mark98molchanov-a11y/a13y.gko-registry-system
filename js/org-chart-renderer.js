@@ -966,6 +966,9 @@ editEmployee(id) {
     
     modalTitle.textContent = '✏️ Редактирование сотрудника';
     
+    // Сохраняем исходное фото для сравнения
+    let originalPhoto = emp.photo;
+    
     modalBody.innerHTML = `
         <div class="form-group">
             <label>ФИО сотрудника *</label>
@@ -1019,23 +1022,25 @@ editEmployee(id) {
     
     modal.style.display = 'flex';
     
-    // Предпросмотр нового фото
     const photoInput = document.getElementById('emp-photo');
     const photoPreview = document.getElementById('emp-photo-preview');
-    const previewImg = photoPreview.querySelector('img');
-    
-    // Переменная для отслеживания удаления
+    const previewImg = photoPreview?.querySelector('img');
+    let newPhotoData = null;
     let shouldRemovePhoto = false;
     
+    // Предпросмотр нового фото
     if (photoInput) {
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    previewImg.src = event.target.result;
-                    photoPreview.style.display = 'block';
-                    shouldRemovePhoto = false; // если загрузили новое, отменяем удаление
+                    newPhotoData = event.target.result;
+                    if (previewImg) {
+                        previewImg.src = newPhotoData;
+                        photoPreview.style.display = 'block';
+                    }
+                    shouldRemovePhoto = false;
                 };
                 reader.readAsDataURL(file);
             }
@@ -1046,10 +1051,13 @@ editEmployee(id) {
     const removeBtn = document.getElementById('remove-emp-photo');
     if (removeBtn) {
         removeBtn.addEventListener('click', () => {
-            previewImg.src = '';
-            photoPreview.style.display = 'none';
+            newPhotoData = null;
+            shouldRemovePhoto = true;
+            if (previewImg) {
+                previewImg.src = '';
+                photoPreview.style.display = 'none';
+            }
             if (photoInput) photoInput.value = '';
-            shouldRemovePhoto = true;  // ✅ Флаг удаления
         });
     }
     
@@ -1064,21 +1072,25 @@ editEmployee(id) {
             return;
         }
         
-        // Определяем, что делать с фото
-        let photo = emp.photo;
+        // ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: определяем финальное фото
+        let finalPhoto = originalPhoto;
+        
         if (shouldRemovePhoto) {
-            photo = null;
-        } else if (photoInput.files && photoInput.files[0]) {
-            photo = previewImg.src;
+            finalPhoto = null;
+            console.log('🗑️ Фото удалено');
+        } else if (newPhotoData) {
+            finalPhoto = newPhotoData;
+            console.log('📸 Новое фото загружено');
         }
         
+        // Обновляем сотрудника
         this.dataManager.updateEmployee(id, {
-            name,
+            name: name,
             departmentId: parseInt(document.getElementById('emp-department').value),
             positionId: parseInt(document.getElementById('emp-position').value),
             email: document.getElementById('emp-email').value,
             phone: document.getElementById('emp-phone').value,
-            photo: photo,
+            photo: finalPhoto,
             isHead: document.getElementById('emp-is-head').checked
         });
         
