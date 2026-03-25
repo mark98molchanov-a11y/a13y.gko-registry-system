@@ -325,14 +325,15 @@ renderTree(departments, level = 0) {
     }).join('');
 }
 
-    
 renderEmployee(employee) {
     const position = this.dataManager.positions.find(p => p.id === employee.positionId);
     const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
     
-    // Определяем, что показывать: фото или аватар по умолчанию
     let avatarHtml = '';
+    
+    // Проверяем наличие фото
     if (employee.photo && employee.photo.startsWith('data:image')) {
+        console.log(`📸 Отображение фото для ${employee.name}, длина: ${employee.photo.length}`);
         avatarHtml = `<img src="${employee.photo}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
     } else {
         avatarHtml = `<div class="org-employee-avatar">${employee.isHead ? '👔' : '👤'}</div>`;
