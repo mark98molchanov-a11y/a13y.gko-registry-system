@@ -256,11 +256,6 @@ class OrgChartRenderer {
     }
     
 async renderEmployeeAsync(employee) {
-    // Если сотрудник уволен - показываем как вакансию
-    if (!employee.isActive) {
-        return this.renderFiredEmployee(employee);
-    }
-    
     const position = this.dataManager.positions.find(p => p.id === employee.positionId);
     const isSelected = this.selectedType === 'employee' && this.selectedItem === employee.id;
     
@@ -275,6 +270,48 @@ async renderEmployeeAsync(employee) {
         }
     }
     
+    // Для уволенных сотрудников - особое оформление
+    if (!employee.isActive) {
+        let avatarHtml = '';
+        if (photoUrl && photoUrl.startsWith('data:image')) {
+            avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; filter: grayscale(0.5); opacity: 0.7;">`;
+        } else {
+            avatarHtml = `<div class="org-employee-avatar" style="background: #f1f5f9; filter: grayscale(0.3);">🚪</div>`;
+        }
+        
+        return `
+            <div class="org-employee-card ${isSelected ? 'selected' : ''}" 
+                 data-id="${employee.id}" 
+                 data-type="employee"
+                 onclick="orgApp.selectItem('employee', ${employee.id})"
+                 style="border-left: 3px solid #ef4444; background: #fef2f2;">
+                ${avatarHtml}
+                <div class="org-employee-info">
+                    <div class="org-employee-name" style="color: #991b1b;">
+                        ${this.escapeHtml(employee.name)}
+                        <span class="org-badge-vacancy" style="font-size: 0.65rem; padding: 2px 8px; background: #ef4444; color: white; border-radius: 20px; font-weight: 500; margin-left: 8px;">Вакансия</span>
+                    </div>
+                    <div class="org-employee-position" style="color: #b91c1c;">
+                        <s>${position ? this.escapeHtml(position.name) : ''}</s>
+                        <span style="color: #dc2626; font-size: 0.7rem; margin-left: 6px;">Уволен: ${employee.fireDate || '—'}</span>
+                    </div>
+                    ${employee.fireReason ? `
+                        <div class="org-employee-fire-reason" style="font-size: 0.65rem; color: #b91c1c; margin-top: 2px;">
+                            📋 Причина: ${this.escapeHtml(employee.fireReason)}
+                        </div>
+                    ` : ''}
+                    ${employee.email ? `<div class="org-employee-contact" style="color: #9ca3af;">✉️ ${this.escapeHtml(employee.email)}</div>` : ''}
+                    ${employee.phone ? `<div class="org-employee-contact" style="color: #9ca3af;">📞 ${this.escapeHtml(employee.phone)}</div>` : ''}
+                </div>
+                <div class="org-employee-actions">
+                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.rehireEmployee(${employee.id})" title="Восстановить" style="color: #10b981;">🔄</button>
+                    <button class="org-btn-icon" onclick="event.stopPropagation(); orgApp.editEmployee(${employee.id})" title="Редактировать">✏️</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Активный сотрудник - обычное отображение
     let avatarHtml = '';
     if (photoUrl && photoUrl.startsWith('data:image')) {
         avatarHtml = `<img src="${photoUrl}" class="org-employee-photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">`;
@@ -305,7 +342,6 @@ async renderEmployeeAsync(employee) {
         </div>
     `;
 }
-
 // Добавьте этот метод для отображения уволенных сотрудников (Вакансий)
 renderFiredEmployee(employee) {
     const position = this.dataManager.positions.find(p => p.id === employee.positionId);
@@ -456,122 +492,188 @@ renderFiredEmployee(employee) {
         this.render();
         this.showDetails(type, id);
     }
+  showDetails(type, id) {
+    const detailsContainer = document.getElementById('org-details-content');
+    if (!detailsContainer) return;
     
-    showDetails(type, id) {
-        const detailsContainer = document.getElementById('org-details-content');
-        if (!detailsContainer) return;
+    if (type === 'department') {
+        const dept = this.dataManager.departments.find(d => d.id === id);
+        if (!dept) return;
         
-        if (type === 'department') {
-            const dept = this.dataManager.departments.find(d => d.id === id);
-            if (!dept) return;
-            
-            const parent = this.dataManager.departments.find(d => d.id === dept.parentId);
-            const head = this.dataManager.getDepartmentHead(id);
-            const employees = this.dataManager.getDepartmentEmployees(id);
-            const children = this.dataManager.departments.filter(d => d.parentId === id);
-            
-            detailsContainer.innerHTML = `
-                <div class="org-details">
-                    <div class="org-details-header">
-                        <h3>🏢 ${this.escapeHtml(dept.name)}</h3>
-                        <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
-                    </div>
-                    <div class="org-details-body">
-                        <div class="org-details-row">
-                            <span class="org-details-label">Родительский отдел:</span>
-                            <span>${parent ? this.escapeHtml(parent.name) : '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Руководитель:</span>
-                            <span>${head ? this.escapeHtml(head.name) : '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Сотрудников:</span>
-                            <span>${employees.length}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Подотделов:</span>
-                            <span>${children.length}</span>
-                        </div>
-                        ${dept.description ? `
-                            <div class="org-details-row">
-                                <span class="org-details-label">Описание:</span>
-                                <span>${this.escapeHtml(dept.description)}</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="org-details-actions">
-                        <button class="btn-secondary" onclick="orgApp.editDepartment(${dept.id})">✏️ Редактировать</button>
-                        <button class="btn-danger" onclick="orgApp.deleteDepartment(${dept.id})">🗑️ Удалить</button>
-                        <button class="btn-primary" onclick="orgApp.showAddEmployeeModal(${dept.id})">➕ Добавить сотрудника</button>
-                    </div>
+        const parent = this.dataManager.departments.find(d => d.id === dept.parentId);
+        const head = this.dataManager.getDepartmentHead(id);
+        const employees = this.dataManager.getDepartmentEmployees(id);
+        const children = this.dataManager.departments.filter(d => d.parentId === id);
+        
+        detailsContainer.innerHTML = `
+            <div class="org-details">
+                <div class="org-details-header">
+                    <h3>🏢 ${this.escapeHtml(dept.name)}</h3>
+                    <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
                 </div>
-            `;
-        } else if (type === 'employee') {
-            const emp = this.dataManager.employees.find(e => e.id === id);
-            if (!emp) return;
-            
-            const department = this.dataManager.departments.find(d => d.id === emp.departmentId);
-            const position = this.dataManager.positions.find(p => p.id === emp.positionId);
-            
-            detailsContainer.innerHTML = `
-                <div class="org-details">
-                    <div class="org-details-header">
-                        <h3>👤 ${this.escapeHtml(emp.name)}</h3>
-                        <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
+                <div class="org-details-body">
+                    <div class="org-details-row">
+                        <span class="org-details-label">Родительский отдел:</span>
+                        <span>${parent ? this.escapeHtml(parent.name) : '—'}</span>
                     </div>
-                    <div class="org-details-body">
-                        <div class="org-details-row">
-                            <span class="org-details-label">Должность:</span>
-                            <span>${position ? this.escapeHtml(position.name) : '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Отдел:</span>
-                            <span>${department ? this.escapeHtml(department.name) : '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Email:</span>
-                            <span>${emp.email || '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Телефон:</span>
-                            <span>${emp.phone || '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Дата начала:</span>
-                            <span>${emp.startDate || '—'}</span>
-                        </div>
-                        <div class="org-details-row">
-                            <span class="org-details-label">Статус:</span>
-                            <span class="org-status ${emp.isActive ? 'active' : 'inactive'}">
-                                ${emp.isActive ? 'Активен' : 'Уволен'}
-                            </span>
-                        </div>
-                        ${emp.fireDate ? `
-                            <div class="org-details-row">
-                                <span class="org-details-label">Дата увольнения:</span>
-                                <span>${emp.fireDate}</span>
-                            </div>
-                        ` : ''}
-                        ${emp.fireReason ? `
-                            <div class="org-details-row">
-                                <span class="org-details-label">Причина:</span>
-                                <span>${this.escapeHtml(emp.fireReason)}</span>
-                            </div>
-                        ` : ''}
+                    <div class="org-details-row">
+                        <span class="org-details-label">Руководитель:</span>
+                        <span>${head ? this.escapeHtml(head.name) : '—'}</span>
                     </div>
-                    <div class="org-details-actions">
-                        <button class="btn-secondary" onclick="orgApp.editEmployee(${emp.id})">✏️ Редактировать</button>
-                        ${emp.isActive ? 
-                            `<button class="btn-danger" onclick="orgApp.fireEmployee(${emp.id})">🚪 Уволить</button>` :
-                            `<button class="btn-success" onclick="orgApp.rehireEmployee(${emp.id})">🔄 Восстановить</button>`
-                        }
+                    <div class="org-details-row">
+                        <span class="org-details-label">Сотрудников:</span>
+                        <span>${employees.length}</span>
                     </div>
+                    <div class="org-details-row">
+                        <span class="org-details-label">Подотделов:</span>
+                        <span>${children.length}</span>
+                    </div>
+                    ${dept.description ? `
+                        <div class="org-details-row">
+                            <span class="org-details-label">Описание:</span>
+                            <span>${this.escapeHtml(dept.description)}</span>
+                        </div>
+                    ` : ''}
                 </div>
-            `;
+                <div class="org-details-actions">
+                    <button class="btn-secondary" onclick="orgApp.editDepartment(${dept.id})">✏️ Редактировать</button>
+                    <button class="btn-danger" onclick="orgApp.deleteDepartment(${dept.id})">🗑️ Удалить</button>
+                    <button class="btn-primary" onclick="orgApp.showAddEmployeeModal(${dept.id})">➕ Добавить сотрудника</button>
+                </div>
+            </div>
+        `;
+    } else if (type === 'employee') {
+        const emp = this.dataManager.employees.find(e => e.id === id);
+        if (!emp) return;
+        
+        const department = this.dataManager.departments.find(d => d.id === emp.departmentId);
+        const position = this.dataManager.positions.find(p => p.id === emp.positionId);
+        
+        detailsContainer.innerHTML = `
+            <div class="org-details">
+                <div class="org-details-header">
+                    <h3>👤 ${this.escapeHtml(emp.name)}</h3>
+                    <button class="org-btn-icon" onclick="orgApp.closeDetails()">✕</button>
+                </div>
+                <div class="org-details-body">
+                    <div class="org-details-row">
+                        <span class="org-details-label">Должность:</span>
+                        <span>${position ? this.escapeHtml(position.name) : '—'}</span>
+                    </div>
+                    <div class="org-details-row">
+                        <span class="org-details-label">Отдел:</span>
+                        <span>${department ? this.escapeHtml(department.name) : '—'}</span>
+                    </div>
+                    <div class="org-details-row">
+                        <span class="org-details-label">Email:</span>
+                        <span>${emp.email || '—'}</span>
+                    </div>
+                    <div class="org-details-row">
+                        <span class="org-details-label">Телефон:</span>
+                        <span>${emp.phone || '—'}</span>
+                    </div>
+                    <div class="org-details-row">
+                        <span class="org-details-label">Дата начала:</span>
+                        <span>${emp.startDate || '—'}</span>
+                    </div>
+                    <div class="org-details-row">
+                        <span class="org-details-label">Статус:</span>
+                        <select id="employee-status-select" class="org-status-select" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; font-size: 0.85rem; cursor: pointer;">
+                            <option value="true" ${emp.isActive ? 'selected' : ''}>✅ Активен</option>
+                            <option value="false" ${!emp.isActive ? 'selected' : ''}>❌ Уволен</option>
+                        </select>
+                    </div>
+                    ${!emp.isActive ? `
+                        <div class="org-details-row">
+                            <span class="org-details-label">Дата увольнения:</span>
+                            <span>${emp.fireDate || '—'}</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Причина увольнения:</span>
+                            <input type="text" id="employee-fire-reason" value="${this.escapeHtml(emp.fireReason || '')}" 
+                                   style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem;" 
+                                   placeholder="Введите причину увольнения">
+                        </div>
+                    ` : ''}
+                    ${emp.isActive ? `
+                        <div class="org-details-row">
+                            <span class="org-details-label">Дата увольнения:</span>
+                            <span>—</span>
+                        </div>
+                        <div class="org-details-row">
+                            <span class="org-details-label">Причина увольнения:</span>
+                            <input type="text" id="employee-fire-reason" value="" 
+                                   style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem;" 
+                                   placeholder="Причина (заполнится при увольнении)">
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="org-details-actions">
+                    <button class="btn-secondary" onclick="orgApp.editEmployee(${emp.id})">✏️ Редактировать</button>
+                    <button class="btn-primary" onclick="orgApp.updateEmployeeStatus(${emp.id})">💾 Сохранить статус</button>
+                    ${emp.isActive ? 
+                        `<button class="btn-danger" onclick="orgApp.fireEmployeeWithReason(${emp.id})">🚪 Уволить</button>` :
+                        `<button class="btn-success" onclick="orgApp.rehireEmployee(${emp.id})">🔄 Восстановить</button>`
+                    }
+                </div>
+            </div>
+        `;
+    }
+}
+    async updateEmployeeStatus(id) {
+    const statusSelect = document.getElementById('employee-status-select');
+    const fireReasonInput = document.getElementById('employee-fire-reason');
+    
+    if (!statusSelect) return;
+    
+    const newStatus = statusSelect.value === 'true';
+    const fireReason = fireReasonInput ? fireReasonInput.value.trim() : '';
+    
+    const employee = this.dataManager.employees.find(e => e.id === id);
+    if (!employee) return;
+    
+    // Если статус не изменился
+    if (newStatus === employee.isActive) {
+        // Если уволен и изменилась причина - обновляем причину
+        if (!newStatus && fireReason !== employee.fireReason) {
+            this.dataManager.updateEmployee(id, { fireReason: fireReason });
+            this.showNotification(`📝 Причина увольнения обновлена`, 'info');
+            await this.render();
+            this.showDetails('employee', id);
         }
+        return;
     }
     
+    // Меняем статус
+    if (newStatus && !employee.isActive) {
+        // Восстанавливаем сотрудника
+        this.dataManager.rehireEmployee(id);
+        this.showNotification(`✅ Сотрудник "${employee.name}" восстановлен`, 'success');
+    } else if (!newStatus && employee.isActive) {
+        // Увольняем сотрудника
+        const reason = fireReason || prompt('Причина увольнения:', '');
+        this.dataManager.fireEmployee(id, reason);
+        this.showNotification(`❌ Сотрудник "${employee.name}" уволен`, 'info');
+    }
+    
+    // Обновляем отображение
+    await this.render();
+    this.showDetails('employee', id);
+}
+
+// Добавьте метод для увольнения с причиной
+async fireEmployeeWithReason(id) {
+    const emp = this.dataManager.employees.find(e => e.id === id);
+    if (!emp) return;
+    
+    const reason = prompt('Причина увольнения:', '');
+    if (confirm(`Уволить сотрудника "${emp.name}"?`)) {
+        this.dataManager.fireEmployee(id, reason);
+        await this.render();
+        this.showDetails('employee', id);
+        this.showNotification(`❌ Сотрудник "${emp.name}" уволен`, 'info');
+    }
+}
     closeDetails() {
         this.selectedType = null;
         this.selectedItem = null;
