@@ -467,16 +467,44 @@ class OrgChartRenderer {
         
         return html.join('');
     }
+   async render() {
+    if (!this.container) return;
     
-    async render() {
-        if (!this.container) return;
-        
-        const tree = this.dataManager.getDepartmentTree();
-        const filteredTree = this.filterTree(tree);
-        
-        const html = await this.renderTreeAsync(filteredTree);
-        this.container.innerHTML = `<div class="org-chart">${html}</div>`;
-    }
+    const tree = this.dataManager.getDepartmentTree();
+    const filteredTree = this.filterTree(tree);
+    
+    // Подсчет активных и уволенных сотрудников
+    const totalEmployees = this.dataManager.employees.filter(e => e.isActive).length;
+    const totalFired = this.dataManager.employees.filter(e => !e.isActive).length;
+    
+    const html = await this.renderTreeAsync(filteredTree);
+    
+    // Добавляем счетчик вверху
+    this.container.innerHTML = `
+        <div style="position: relative;">
+            <div style="position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; padding: 8px 16px; background: white; border-bottom: 1px solid #e2e8f0; margin-bottom: 8px;">
+                <div style="display: flex; gap: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 30px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1rem;">👥</span>
+                        <div>
+                            <div style="font-size: 0.6rem; color: #64748b;">Всего</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #1e293b;">${totalEmployees}</div>
+                        </div>
+                    </div>
+                    <div style="width: 1px; background: #e2e8f0;"></div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1rem;">🚪</span>
+                        <div>
+                            <div style="font-size: 0.6rem; color: #64748b;">Вакансии</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #dc2626;">${totalFired}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="org-chart">${html}</div>
+        </div>
+    `;
+}
     
   renderChartsInDetails() {
     const stats = this.renderStatistics();
@@ -583,15 +611,27 @@ drawDepartmentsChartDetails(stats) {
     
     if (this.deptsChartDetails) this.deptsChartDetails.destroy();
     
-    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
+    // Берем топ-8 отделов для читаемости диаграммы
+    const topDepts = stats.deptStats.slice(0, 8);
+    const othersCount = stats.deptStats.slice(8).reduce((sum, d) => sum + d.count, 0);
+    
+    let labels = topDepts.map(d => d.name.length > 12 ? d.name.substring(0, 10) + '..' : d.name);
+    let data = topDepts.map(d => d.count);
+    
+    if (othersCount > 0) {
+        labels.push('Остальные');
+        data.push(othersCount);
+    }
+    
+    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#94a3b8'];
     
     this.deptsChartDetails = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: stats.deptStats.map(d => d.name.length > 12 ? d.name.substring(0, 10) + '..' : d.name),
+            labels: labels,
             datasets: [{
-                data: stats.deptStats.map(d => d.count),
-                backgroundColor: colors.slice(0, stats.deptStats.length),
+                data: data,
+                backgroundColor: colors.slice(0, data.length),
                 borderWidth: 0,
                 hoverOffset: 4
             }]
@@ -614,7 +654,7 @@ drawDepartmentsChartDetails(stats) {
                         label: function(context) {
                             const label = context.label || '';
                             const value = context.raw || 0;
-                            const total = stats.deptStats.reduce((sum, d) => sum + d.count, 0);
+                            const total = data.reduce((a, b) => a + b, 0);
                             const percentage = total ? Math.round((value / total) * 100) : 0;
                             return `${label}: ${value} (${percentage}%)`;
                         }
@@ -624,17 +664,16 @@ drawDepartmentsChartDetails(stats) {
             onClick: (e, els) => {
                 if (els.length > 0) {
                     const index = els[0].index;
-                    const deptName = stats.deptStats[index].name;
-                    const dept = this.dataManager.departments.find(d => d.name === deptName);
-                    if (dept) {
-                        this.filterDepartment = dept.id.toString();
+                    if (index < topDepts.length) {
+                        const deptId = topDepts[index].id;
+                        this.filterDepartment = deptId.toString();
                         this.filterPosition = '';
                         this.searchQuery = '';
                         this.filterStatus = '';
                         const searchInput = document.getElementById('org-search');
                         if (searchInput) searchInput.value = '';
                         this.render();
-                        this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
+                        this.showNotification(`🔍 Фильтр по отделу: ${topDepts[index].name}`, 'info');
                     }
                 }
             }
@@ -648,15 +687,27 @@ drawPositionsChartDetails(stats) {
     
     if (this.positionsChartDetails) this.positionsChartDetails.destroy();
     
-    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185'];
+    // Берем топ-6 должностей
+    const topPositions = stats.positionStats.slice(0, 6);
+    const othersCount = stats.positionStats.slice(6).reduce((sum, p) => sum + p.count, 0);
+    
+    let labels = topPositions.map(p => p.name.length > 10 ? p.name.substring(0, 8) + '..' : p.name);
+    let data = topPositions.map(p => p.count);
+    
+    if (othersCount > 0) {
+        labels.push('Остальные');
+        data.push(othersCount);
+    }
+    
+    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#94a3b8'];
     
     this.positionsChartDetails = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: stats.positionStats.map(p => p.name.length > 12 ? p.name.substring(0, 10) + '..' : p.name),
+            labels: labels,
             datasets: [{
-                data: stats.positionStats.map(p => p.count),
-                backgroundColor: colors.slice(0, stats.positionStats.length),
+                data: data,
+                backgroundColor: colors.slice(0, data.length),
                 borderWidth: 0,
                 hoverOffset: 4
             }]
@@ -679,7 +730,7 @@ drawPositionsChartDetails(stats) {
                         label: function(context) {
                             const label = context.label || '';
                             const value = context.raw || 0;
-                            const total = stats.positionStats.reduce((sum, p) => sum + p.count, 0);
+                            const total = data.reduce((a, b) => a + b, 0);
                             const percentage = total ? Math.round((value / total) * 100) : 0;
                             return `${label}: ${value} (${percentage}%)`;
                         }
@@ -689,24 +740,22 @@ drawPositionsChartDetails(stats) {
             onClick: (e, els) => {
                 if (els.length > 0) {
                     const index = els[0].index;
-                    const positionName = stats.positionStats[index].name;
-                    const position = this.dataManager.positions.find(p => p.name === positionName);
-                    if (position) {
-                        this.filterPosition = position.id.toString();
+                    if (index < topPositions.length) {
+                        const positionId = topPositions[index].id;
+                        this.filterPosition = positionId.toString();
                         this.filterDepartment = '';
                         this.searchQuery = '';
                         this.filterStatus = '';
                         const searchInput = document.getElementById('org-search');
                         if (searchInput) searchInput.value = '';
                         this.render();
-                        this.showNotification(`🔍 Фильтр по должности: ${positionName}`, 'info');
+                        this.showNotification(`🔍 Фильтр по должности: ${topPositions[index].name}`, 'info');
                     }
                 }
             }
         }
     });
 }
-
 drawPositionsChartDetails(stats) {
     const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
     if (!ctx) return;
@@ -806,44 +855,50 @@ drawPositionsChartDetails(stats) {
         this.showNotification('✅ Все фильтры сброшены', 'success');
     }
     
-    renderStatistics() {
-        const snapshot = this.dataManager.getSnapshot();
-        const employees = snapshot.employees;
-        const departments = snapshot.departments;
-        
-        const deptStats = departments
-            .filter(d => d.id !== 1)
-            .map(dept => ({
-                name: dept.name,
-                count: employees.filter(e => e.departmentId === dept.id && e.isActive).length,
-                total: employees.filter(e => e.departmentId === dept.id).length,
-                fired: employees.filter(e => e.departmentId === dept.id && !e.isActive).length
-            }))
-            .filter(d => d.count > 0 || d.fired > 0)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 8);
-        
-        const activeCount = employees.filter(e => e.isActive).length;
-        const firedCount = employees.filter(e => !e.isActive).length;
-        
-        const positions = snapshot.positions;
-        const positionStats = positions
-            .map(pos => ({
-                name: pos.name,
-                count: employees.filter(e => e.positionId === pos.id && e.isActive).length
-            }))
-            .filter(p => p.count > 0)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 6);
-        
-        return {
-            deptStats,
-            activeCount,
-            firedCount,
-            positionStats,
-            totalEmployees: employees.length
-        };
-    }
+   renderStatistics() {
+    const snapshot = this.dataManager.getSnapshot();
+    const employees = snapshot.employees;
+    const departments = snapshot.departments;
+    
+    // Получаем ВСЕ отделы (включая подотделы)
+    const allDepartments = departments.filter(d => d.id !== 1);
+    
+    // Статистика по отделам - ВСЕ отделы
+    const deptStats = allDepartments
+        .map(dept => ({
+            id: dept.id,
+            name: dept.name,
+            count: employees.filter(e => e.departmentId === dept.id && e.isActive).length,
+            total: employees.filter(e => e.departmentId === dept.id).length,
+            fired: employees.filter(e => e.departmentId === dept.id && !e.isActive).length
+        }))
+        .filter(d => d.count > 0 || d.fired > 0)
+        .sort((a, b) => b.count - a.count);
+    
+    // Статистика по статусам
+    const activeCount = employees.filter(e => e.isActive).length;
+    const firedCount = employees.filter(e => !e.isActive).length;
+    
+    // Статистика по должностям
+    const positions = snapshot.positions;
+    const positionStats = positions
+        .map(pos => ({
+            id: pos.id,
+            name: pos.name,
+            count: employees.filter(e => e.positionId === pos.id && e.isActive).length
+        }))
+        .filter(p => p.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+    
+    return {
+        deptStats,
+        activeCount,
+        firedCount,
+        positionStats,
+        totalEmployees: employees.length
+    };
+}
     
     selectItem(type, id) {
         this.selectedType = type;
