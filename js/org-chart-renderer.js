@@ -1237,7 +1237,6 @@ exportToExcel() {
         };
     });
     
-    // Данные для сотрудников с указанием наличия фото
     const empData = employees.map(emp => {
         const department = departments.find(d => d.id === emp.departmentId);
         const position = positions.find(p => p.id === emp.positionId);
@@ -1249,7 +1248,7 @@ exportToExcel() {
             'Должность': position ? position.name : '',
             'Email': emp.email || '',
             'Телефон': emp.phone || '',
-            'Есть фото': emp.photo ? 'Да' : 'Нет',  // 👈 ПОЛЕ ДЛЯ ИНФОРМАЦИИ О ФОТО
+            'Фото': emp.photo || '',  // 👈 ДОБАВЛЯЕМ колонку с фото
             'Руководитель': emp.isHead ? 'Да' : 'Нет',
             'Статус': emp.isActive ? 'Активен' : 'Уволен',
             'Дата начала': emp.startDate || '',
@@ -1337,7 +1336,7 @@ importFromExcel() {
     input.click();
 }
     
-  async processImportData(deptData, empData, existingPhotoMap = new Map()) {
+async processImportData(deptData, empData, existingPhotoMap = new Map()) {
     console.log('📥 Начинаем импорт данных...');
     console.log('Отделов для импорта:', deptData.length);
     console.log('Сотрудников для импорта:', empData.length);
@@ -1447,11 +1446,19 @@ importFromExcel() {
         
         const startDate = this.parseExcelDateString(row['Дата начала'] || row['startDate']);
         
-        // ВАЖНО: сохраняем фото, если оно было в существующем сотруднике
+        // ✅ ГЛАВНОЕ ИСПРАВЛЕНИЕ: сохраняем фото из импортируемых данных
         let photo = null;
-        if (existingPhotoMap.has(name)) {
+        
+        // 1. Сначала проверяем, есть ли фото в импортируемых данных
+        const importedPhoto = row['Фото'] || row['photo'];
+        if (importedPhoto && importedPhoto.startsWith('data:image')) {
+            photo = importedPhoto;
+            console.log(`📸 Загружено фото из импорта для: ${name}`);
+        }
+        // 2. Если нет, пробуем найти в существующих (для сохранения при обновлении)
+        else if (existingPhotoMap.has(name)) {
             photo = existingPhotoMap.get(name);
-            console.log(`📸 Сохранено фото для сотрудника: ${name}`);
+            console.log(`📸 Сохранено существующее фото для: ${name}`);
         }
         
         newEmployees.push({
@@ -1461,7 +1468,7 @@ importFromExcel() {
             positionId: positionId || 8,
             email: row['Email'] || '',
             phone: row['Телефон'] || '',
-            photo: photo,  // 👈 Сохраняем существующее фото
+            photo: photo,  // 👈 Сохраняем фото
             isHead: isHead,
             isActive: isActive,
             startDate: startDate,
@@ -1497,7 +1504,6 @@ importFromExcel() {
     
     this.showNotification(`✅ Импортировано ${newDepartments.length} отделов и ${newEmployees.length} сотрудников (фото сохранены)`, 'success');
 }
-
 parseExcelDateString(dateValue) {
     if (!dateValue) return new Date().toISOString().split('T')[0];
     
