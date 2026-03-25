@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-03-25T11:38:52.925Z",
+  "exportDate": "2026-03-25T12:10:51.769Z",
   "npas": [
     {
       "id": 2,
@@ -2339,12 +2339,12 @@
         "phone": "6-71-11",
         "photo": null,
         "isHead": false,
-        "isActive": true,
+        "isActive": false,
         "startDate": "2025-12-31",
-        "fireDate": null,
-        "fireReason": null,
+        "fireDate": "2026-03-25",
+        "fireReason": "По собственному желанию",
         "createdAt": 1774438570403,
-        "updatedAt": 1774438570403
+        "updatedAt": 1774440588355
       },
       {
         "id": 303,
@@ -4086,22 +4086,6 @@
                   "updatedAt": 1774438570403
                 },
                 {
-                  "id": 302,
-                  "name": "Урасбактеев Самат Маратович",
-                  "departmentId": 226,
-                  "positionId": 5,
-                  "email": "SMUrasbakteev@yanao.ru",
-                  "phone": "6-71-11",
-                  "photo": null,
-                  "isHead": false,
-                  "isActive": true,
-                  "startDate": "2025-12-31",
-                  "fireDate": null,
-                  "fireReason": null,
-                  "createdAt": 1774438570403,
-                  "updatedAt": 1774438570403
-                },
-                {
                   "id": 303,
                   "name": "Семёнова Любовь Борисовна",
                   "departmentId": 226,
@@ -4132,6 +4116,22 @@
                   "fireReason": null,
                   "createdAt": 1774438570411,
                   "updatedAt": 1774438570411
+                },
+                {
+                  "id": 302,
+                  "name": "Урасбактеев Самат Маратович",
+                  "departmentId": 226,
+                  "positionId": 5,
+                  "email": "SMUrasbakteev@yanao.ru",
+                  "phone": "6-71-11",
+                  "photo": null,
+                  "isHead": false,
+                  "isActive": false,
+                  "startDate": "2025-12-31",
+                  "fireDate": "2026-03-25",
+                  "fireReason": "По собственному желанию",
+                  "createdAt": 1774438570403,
+                  "updatedAt": 1774440588355
                 }
               ],
               "head": {
