@@ -510,10 +510,7 @@ renderChartsInDetails() {
     const detailsPanel = document.getElementById('org-details-panel');
     if (!detailsPanel) return;
     
-    // Проверяем, существует ли уже контейнер для графиков
     let chartsContainer = document.getElementById('org-charts-in-details');
-    
-    // Если контейнер существует, просто обновляем его содержимое, не пересоздавая
     if (!chartsContainer) {
         chartsContainer = document.createElement('div');
         chartsContainer.id = 'org-charts-in-details';
@@ -523,7 +520,6 @@ renderChartsInDetails() {
             background: #f8fafc;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
-            transition: all 0.2s ease;
         `;
         detailsPanel.appendChild(chartsContainer);
     }
@@ -531,7 +527,6 @@ renderChartsInDetails() {
     const total = stats.activeCount + stats.firedCount;
     const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
     
-    // Обновляем содержимое, но не пересоздаем canvas
     chartsContainer.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span style="font-size: 0.55rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
@@ -540,7 +535,7 @@ renderChartsInDetails() {
         
         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
             <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
-                <div style="width: ${activePercent}%; height: 100%; background: #10b981; transition: width 0.3s ease;"></div>
+                <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
             </div>
             <div style="display: flex; gap: 6px;">
                 <span style="font-size: 0.5rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
@@ -562,44 +557,21 @@ renderChartsInDetails() {
         </div>
     `;
     
-    // Используем requestAnimationFrame для синхронизации с отрисовкой
-    requestAnimationFrame(() => {
-        this.drawDepartmentsChartMini(stats);
-        this.drawPositionsChartMini(stats);
+    this.drawDepartmentsChartMini(stats);
+    this.drawPositionsChartMini(stats);
+    
+    // Добавляем небольшую задержку, чтобы DOM успел обновиться
+    setTimeout(() => {
         this.renderLegends(stats);
-    });
+    }, 10);
 }
 drawDepartmentsChartMini(stats) {
-    const canvas = document.getElementById('org-departments-chart-details');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
     if (!ctx) return;
     
-    // Уничтожаем старый график, если он существует
-    if (this.deptsChartDetails) {
-        this.deptsChartDetails.destroy();
-        this.deptsChartDetails = null;
-    }
+    if (this.deptsChartDetails) this.deptsChartDetails.destroy();
     
     const allDepts = stats.deptStats.filter(d => d.count > 0);
-    
-    if (allDepts.length === 0) {
-        // Если нет данных, показываем пустой график
-        this.deptsChartDetails = new Chart(ctx, {
-            type: 'doughnut',
-            data: { labels: ['Нет данных'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }] },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                cutout: '60%',
-                animation: false, // Отключаем анимацию для пустого графика
-                plugins: { legend: { display: false }, tooltip: { enabled: false } }
-            }
-        });
-        return;
-    }
-    
     const labels = allDepts.map((_, index) => `${index + 1}`);
     const data = allDepts.map(d => d.count);
     
@@ -610,22 +582,9 @@ drawDepartmentsChartMini(stats) {
     
     this.deptsChartDetails = new Chart(ctx, {
         type: 'doughnut',
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                data: data, 
-                backgroundColor: colors.slice(0, allDepts.length), 
-                borderWidth: 0, 
-                hoverOffset: 6 
-            }] 
-        },
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allDepts.length), borderWidth: 0, hoverOffset: 6 }] },
         options: {
-            responsive: true, 
-            maintainAspectRatio: true, 
-            cutout: '60%',
-            animation: {
-                duration: 0 // Отключаем анимацию полностью
-            },
+            responsive: true, maintainAspectRatio: true, cutout: '60%',
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -663,36 +622,12 @@ drawDepartmentsChartMini(stats) {
 }
 
 drawPositionsChartMini(stats) {
-    const canvas = document.getElementById('org-positions-chart-details');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
     if (!ctx) return;
     
-    // Уничтожаем старый график, если он существует
-    if (this.positionsChartDetails) {
-        this.positionsChartDetails.destroy();
-        this.positionsChartDetails = null;
-    }
+    if (this.positionsChartDetails) this.positionsChartDetails.destroy();
     
     const allPositions = stats.positionStats.filter(p => p.count > 0);
-    
-    if (allPositions.length === 0) {
-        // Если нет данных, показываем пустой график
-        this.positionsChartDetails = new Chart(ctx, {
-            type: 'doughnut',
-            data: { labels: ['Нет данных'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }] },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                cutout: '60%',
-                animation: false,
-                plugins: { legend: { display: false }, tooltip: { enabled: false } }
-            }
-        });
-        return;
-    }
-    
     const labels = allPositions.map((_, index) => `${index + 1}`);
     const data = allPositions.map(p => p.count);
     
@@ -703,22 +638,9 @@ drawPositionsChartMini(stats) {
     
     this.positionsChartDetails = new Chart(ctx, {
         type: 'doughnut',
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                data: data, 
-                backgroundColor: colors.slice(0, allPositions.length), 
-                borderWidth: 0, 
-                hoverOffset: 6 
-            }] 
-        },
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allPositions.length), borderWidth: 0, hoverOffset: 6 }] },
         options: {
-            responsive: true, 
-            maintainAspectRatio: true, 
-            cutout: '60%',
-            animation: {
-                duration: 0 // Отключаем анимацию полностью
-            },
+            responsive: true, maintainAspectRatio: true, cutout: '60%',
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -754,7 +676,6 @@ drawPositionsChartMini(stats) {
         }
     });
 }
-
 filterByDepartment(deptId, deptName) {
     // Сбрасываем другие фильтры
     this.filterDepartment = deptId.toString();
@@ -816,17 +737,16 @@ filterByPosition(posId, posName) {
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
-мrenderLegends(stats) {
+renderLegends(stats) {
+    console.log('🎨 renderLegends вызван');
+    
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
+    console.log('deptsLegend найден:', !!deptsLegend);
+    
     if (deptsLegend) {
         const allDepts = stats.deptStats.filter(d => d.count > 0);
         const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
-        
-        if (allDepts.length === 0) {
-            deptsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
-            return;
-        }
         
         deptsLegend.innerHTML = allDepts.map((dept, index) => {
             let shortName = dept.name;
@@ -843,18 +763,16 @@ filterByPosition(posId, posName) {
                 </div>
             `;
         }).join('');
+        console.log('✅ Легенда отделов отрисована, элементов:', allDepts.length);
     }
     
     // Легенда для должностей
     const positionsLegend = document.getElementById('org-positions-legend');
+    console.log('positionsLegend найден:', !!positionsLegend);
+    
     if (positionsLegend) {
         const allPositions = stats.positionStats.filter(p => p.count > 0);
         const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
-        
-        if (allPositions.length === 0) {
-            positionsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
-            return;
-        }
         
         positionsLegend.innerHTML = allPositions.map((pos, index) => {
             let shortName = pos.name;
@@ -871,6 +789,7 @@ filterByPosition(posId, posName) {
                 </div>
             `;
         }).join('');
+        console.log('✅ Легенда должностей отрисована, элементов:', allPositions.length);
     }
 }
     filterByStatus(status) {
