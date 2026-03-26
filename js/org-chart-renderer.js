@@ -676,8 +676,68 @@ drawPositionsChartMini(stats) {
         }
     });
 }
+filterByDepartment(deptId, deptName) {
+    // Сбрасываем другие фильтры
+    this.filterDepartment = deptId.toString();
+    this.filterPosition = '';
+    this.searchQuery = '';
+    this.filterStatus = '';
+    
+    // Очищаем поле поиска
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) searchInput.value = '';
+    
+    // Очищаем другие фильтры в UI
+    const filterDept = document.getElementById('org-filter-department');
+    if (filterDept) filterDept.value = deptId.toString();
+    
+    const filterPos = document.getElementById('org-filter-position');
+    if (filterPos) filterPos.value = '';
+    
+    // Перерисовываем дерево
+    this.render();
+    
+    // Показываем уведомление
+    this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
+    
+    // Прокручиваем к отфильтрованному отделу
+    setTimeout(() => {
+        const selectedDept = document.querySelector(`.org-department-node[data-id="${deptId}"]`);
+        if (selectedDept) {
+            selectedDept.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            selectedDept.style.backgroundColor = '#fef3c7';
+            setTimeout(() => {
+                selectedDept.style.backgroundColor = '';
+            }, 2000);
+        }
+    }, 100);
+}
 
-  renderLegends(stats) {
+filterByPosition(posId, posName) {
+    // Сбрасываем другие фильтры
+    this.filterPosition = posId.toString();
+    this.filterDepartment = '';
+    this.searchQuery = '';
+    this.filterStatus = '';
+    
+    // Очищаем поле поиска
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) searchInput.value = '';
+    
+    // Очищаем другие фильтры в UI
+    const filterDept = document.getElementById('org-filter-department');
+    if (filterDept) filterDept.value = '';
+    
+    const filterPos = document.getElementById('org-filter-position');
+    if (filterPos) filterPos.value = posId.toString();
+    
+    // Перерисовываем дерево
+    this.render();
+    
+    // Показываем уведомление
+    this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
+}
+renderLegends(stats) {
     console.log('🎨 renderLegends вызван');
     
     // Легенда для отделов
@@ -694,7 +754,9 @@ drawPositionsChartMini(stats) {
                 shortName = shortName.substring(0, 10) + '..';
             }
             return `
-                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'")}')" title="${dept.name}">
+                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" 
+                     onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
+                     title="${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
                     <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
                     <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
                     <span style="font-size: 0.4rem; color: #94a3b8;">(${dept.count})</span>
@@ -718,7 +780,9 @@ drawPositionsChartMini(stats) {
                 shortName = shortName.substring(0, 10) + '..';
             }
             return `
-                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'")}')" title="${pos.name}">
+                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" 
+                     onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
+                     title="${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
                     <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
                     <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
                     <span style="font-size: 0.4rem; color: #94a3b8;">(${pos.count})</span>
