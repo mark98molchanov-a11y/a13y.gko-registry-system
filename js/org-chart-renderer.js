@@ -670,7 +670,8 @@ drawPositionsChartMini(stats) {
         }
     });
 }
-    renderLegends(stats) {
+
+   renderLegends(stats) {
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
     if (deptsLegend) {
