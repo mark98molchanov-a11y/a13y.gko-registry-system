@@ -1605,7 +1605,7 @@
     let orgApp = null;
     let orgData = null;
     
- document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Инициализация организационной структуры...');
     
     const container = document.getElementById('org-chart-container');
@@ -1619,33 +1619,99 @@
         return;
     }
     
-    // ===== ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ =====
+    // ===== 1. СОЗДАЕМ МЕНЕДЖЕР =====
+    orgData = new OrgDataManager();
+    await orgData.init();
+    console.log('✅ OrgDataManager инициализирован');
+    
+    // ===== 2. ПРОВЕРЯЕМ НАЛИЧИЕ ДАННЫХ =====
+    let hasData = false;
+    
+    // Проверяем данные из GitHub (pending)
     if (window.pendingOrgData) {
         console.log('📦 Загружаем ожидающие данные из GitHub...');
-        orgData = new OrgDataManager();
-        await orgData.init(); // Ждем загрузки IndexedDB
         orgData.departments = window.pendingOrgData.departments || [];
         orgData.employees = window.pendingOrgData.employees || [];
         orgData.positions = window.pendingOrgData.positions || [];
         await orgData.saveData();
+        hasData = true;
         delete window.pendingOrgData;
-    } else {
-        orgData = new OrgDataManager();
-        await orgData.init(); // Ждем загрузки IndexedDB
+        console.log(`✅ Загружено из GitHub: ${orgData.departments.length} отделов`);
     }
-    // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
     
+    // Проверяем данные из localStorage
+    if (!hasData) {
+        const savedOrgData = localStorage.getItem('org_data_v3');
+        if (savedOrgData) {
+            try {
+                const parsed = JSON.parse(savedOrgData);
+                if (parsed.departments && parsed.departments.length > 0) {
+                    orgData.departments = parsed.departments;
+                    orgData.employees = parsed.employees || [];
+                    orgData.positions = parsed.positions || [];
+                    await orgData.saveData();
+                    hasData = true;
+                    console.log(`📁 Загружено из localStorage: ${orgData.departments.length} отделов`);
+                }
+            } catch(e) {
+                console.error('Ошибка парсинга org_data_v3:', e);
+            }
+        }
+    }
+    
+    // ===== 3. ЕСЛИ ДАННЫХ НЕТ - ПОКАЗЫВАЕМ СООБЩЕНИЕ =====
+    if (!hasData || orgData.departments.length === 0) {
+        console.log('⚠️ Нет данных для отображения структуры ДИО');
+        
+        // Показываем сообщение в контейнере
+        const chartContainer = document.getElementById('org-chart-container');
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div style="padding: 60px 20px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                    <p style="color: #64748b; margin-bottom: 8px;">Нет данных для отображения</p>
+                    <p style="color: #94a3b8; font-size: 0.875rem;">Данные структуры ДИО не загружены</p>
+                    <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 12px;">Проверьте подключение к GitHub или импортируйте данные вручную</p>
+                </div>
+            `;
+        }
+        
+        // Показываем сообщение в панели деталей
+        const detailsContainer = document.getElementById('org-details-content');
+        if (detailsContainer) {
+            detailsContainer.innerHTML = `
+                <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <p>Данные не загружены</p>
+                    <p style="font-size: 0.75rem; margin-top: 8px;">Используйте кнопку "Импорт JSON" для загрузки данных</p>
+                </div>
+            `;
+        }
+        
+        // Создаем пустой рендерер (чтобы не было ошибок)
+        if (typeof OrgChartRenderer !== 'undefined') {
+            orgApp = new OrgChartRenderer('org-chart-container', orgData);
+            window.orgApp = orgApp;
+        }
+        window.orgData = orgData;
+        
+        console.log('⚠️ Инициализация завершена без данных');
+        return;
+    }
+    
+    console.log(`📊 Итоговые данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников, ${orgData.positions.length} должностей`);
+    
+    // ===== 4. СОЗДАЕМ РЕНДЕРЕР =====
     if (typeof OrgChartRenderer === 'undefined') {
         console.error('❌ OrgChartRenderer не загружен');
         return;
     }
     
-    // Создаем рендерер
     orgApp = new OrgChartRenderer('org-chart-container', orgData);
     window.orgApp = orgApp;
     window.orgData = orgData;
     
-    // Обработчики кнопок
+    // ===== 5. ОБРАБОТЧИКИ КНОПОК =====
     const addDeptBtn = document.getElementById('org-add-department');
     if (addDeptBtn) addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
     
@@ -1693,7 +1759,6 @@
     }
     
     console.log('✅ Организационная структура инициализирована');
-    console.log(`📊 Текущие данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников`);
 });
 </script>
 <!-- Модальное окно -->
@@ -2502,10 +2567,11 @@ async function loadFromGitHub() {
                 window.orgData.departments = json.orgStructure.departments;
                 window.orgData.employees = json.orgStructure.employees || [];
                 window.orgData.positions = json.orgStructure.positions || [];
-                window.orgData.saveData();
+                await window.orgData.saveData();
                 
                 if (window.orgApp) {
-                    window.orgApp.render();
+                    await window.orgApp.render();
+                    console.log('✅ Дерево обновлено после загрузки из GitHub');
                 }
             } else {
                 console.log('⏳ OrgDataManager еще не инициализирован, сохраняем в pending');
@@ -3002,7 +3068,7 @@ function switchTab(tabName) {
         'dashboards': 'navDashboards', 
         'calculator': 'navCalculator',
         'dio': 'navDIO',
-        'parser': 'navParser' // 👈 ДОБАВЛЕНО
+        'parser': 'navParser'
     };
     
     const navId = navIdMap[tabName];
@@ -3033,17 +3099,14 @@ function switchTab(tabName) {
     
     if (resetBtn) {
         if (tabName === 'dio') {
-            // Полностью скрываем кнопку на вкладке ДИО
             resetBtn.style.display = 'none';
         } else {
-            // Показываем кнопку на остальных вкладках
             resetBtn.style.display = 'inline-flex';
         }
     }
     // ===== КОНЕЦ УПРАВЛЕНИЯ КНОПКОЙ СБРОСА =====
     
     if (tabName === 'dio') {
-        // Скрываем все кнопки и надписи
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden');
@@ -3054,11 +3117,16 @@ function switchTab(tabName) {
         document.getElementById('bulkToolbar').classList.add('hidden');
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
-        if (typeof window.initTreeInTab === 'function' && !window.treeInitialized) {
-            setTimeout(() => {
-                window.initTreeInTab('dioTabContent');
-            }, 100);
-        }
+        setTimeout(() => {
+            if (window.orgApp) {
+                window.orgApp.render();
+                setTimeout(() => {
+                    if (window.orgApp.renderChartsInDetails) {
+                        window.orgApp.renderChartsInDetails();
+                    }
+                }, 100);
+            }
+        }, 100);
     } else if (tabName === 'npas') {
         document.getElementById('npaImportButtons').classList.remove('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
@@ -3111,9 +3179,7 @@ function switchTab(tabName) {
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
         initCalculator();
-    } 
-    // 👇 ДОБАВЛЕН НОВЫЙ БЛОК ДЛЯ ПАРСЕРА 👇
-    else if (tabName === 'parser') {
+    } else if (tabName === 'parser') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden');
@@ -3124,14 +3190,12 @@ function switchTab(tabName) {
         document.getElementById('bulkToolbar').classList.add('hidden');
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
-        // Инициализируем парсер
         if (typeof window.initParserTab === 'function') {
             setTimeout(() => {
                 window.initParserTab('parser-root');
             }, 100);
         }
     }
-    // 👆 КОНЕЦ НОВОГО БЛОКА 👆
     
     // Триггерим событие для внешних скриптов
     window.dispatchEvent(new CustomEvent('tabChanged', { detail: { tab: tabName } }));
@@ -3149,17 +3213,23 @@ function hardResetCurrent() {
             initCalculator();
             showNotification('Данные калькулятора очищены', 'success');
         }
-    } else if (currentTab === 'dio') {
-        if (confirm("Очистить все данные дерева?")) {
-            if (typeof window.clearTreeData === 'function') {
-                window.clearTreeData();
-            } else {
-                localStorage.removeItem('treeData');
-                localStorage.removeItem('gko_all_data');
-                showNotification('Данные ДИО очищены', 'success');
+   } else if (currentTab === 'dio') {
+    if (confirm("Очистить все данные дерева?")) {
+        if (window.orgData) {
+            // Очищаем данные
+            window.orgData.departments = [];
+            window.orgData.employees = [];
+            window.orgData.positions = [];
+            window.orgData.saveData();
+            
+            // Обновляем отображение
+            if (window.orgApp) {
+                window.orgApp.render();
             }
         }
-    } 
+        showNotification('Данные ДИО очищены', 'success');
+    }
+}
     // ===== ДОБАВЬТЕ ЭТОТ БЛОК =====
     else if (currentTab === 'parser') {
         if (confirm("Сбросить состояние парсера?")) {
