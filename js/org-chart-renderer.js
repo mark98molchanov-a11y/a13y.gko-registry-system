@@ -559,7 +559,11 @@ renderChartsInDetails() {
     
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
-    this.renderLegends(stats);  // 👈 ВОТ ЭТО ВАЖНО - ДОБАВЛЯЕМ ВЫЗОВ
+    
+    // Добавляем небольшую задержку, чтобы DOM успел обновиться
+    setTimeout(() => {
+        this.renderLegends(stats);
+    }, 10);
 }
 drawDepartmentsChartMini(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
@@ -673,9 +677,13 @@ drawPositionsChartMini(stats) {
     });
 }
 
-   renderLegends(stats) {
+  renderLegends(stats) {
+    console.log('🎨 renderLegends вызван');
+    
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
+    console.log('deptsLegend найден:', !!deptsLegend);
+    
     if (deptsLegend) {
         const allDepts = stats.deptStats.filter(d => d.count > 0);
         const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
@@ -693,10 +701,13 @@ drawPositionsChartMini(stats) {
                 </div>
             `;
         }).join('');
+        console.log('✅ Легенда отделов отрисована, элементов:', allDepts.length);
     }
     
     // Легенда для должностей
     const positionsLegend = document.getElementById('org-positions-legend');
+    console.log('positionsLegend найден:', !!positionsLegend);
+    
     if (positionsLegend) {
         const allPositions = stats.positionStats.filter(p => p.count > 0);
         const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
@@ -714,6 +725,7 @@ drawPositionsChartMini(stats) {
                 </div>
             `;
         }).join('');
+        console.log('✅ Легенда должностей отрисована, элементов:', allPositions.length);
     }
 }
     filterByStatus(status) {
