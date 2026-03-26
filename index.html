@@ -2671,15 +2671,13 @@ async function loadFromGitHub() {
             console.log(`📸 Восстановлено фото: ${restoredPhotoCount} из ${photosInFile}`);
             
             // Показываем уведомление с правильными цифрами
-            if (restoredPhotoCount === photosInFile && photosInFile > 0) {
-                showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, все ${restoredPhotoCount} фото восстановлены`, 'success');
-            } else if (restoredPhotoCount > 0) {
-                showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, ${restoredPhotoCount} из ${photosInFile} фото`, 'success');
-            } else if (photosInFile > 0 && restoredPhotoCount === 0) {
-                showNotification(`⚠️ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, но фото не восстановлены (${photosInFile} фото в файле)`, 'warning');
-            } else {
-                showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников`, 'success');
-            }
+   if (restoredPhotoCount === photosInFile && photosInFile > 0) {
+    showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, все ${restoredPhotoCount} фото восстановлены`, 'success');
+} else if (restoredPhotoCount > 0) {
+    showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, ${restoredPhotoCount} из ${photosInFile} фото`, 'success');
+} else {
+    showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников`, 'success');
+}
         }
         
         // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
