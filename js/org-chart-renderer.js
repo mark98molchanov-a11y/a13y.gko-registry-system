@@ -1127,75 +1127,125 @@ renderLegends(stats) {
         await this.saveToGitHubAfterChange();
     }
     
-    async saveToGitHubAfterChange() {
-        const savedToken = localStorage.getItem('github_token');
-        if (!savedToken) {
-            this.showNotification('💾 Данные сохранены локально. Для синхронизации с GitHub нажмите "Сохранить в GitHub"', 'info');
-            return;
+async saveToGitHubAfterChange() {
+    const savedToken = localStorage.getItem('github_token');
+    if (!savedToken) {
+        this.showNotification('💾 Данные сохранены локально. Для синхронизации с GitHub нажмите "Сохранить в GitHub"', 'info');
+        return;
+    }
+    
+    try {
+        const snapshot = this.dataManager.getSnapshot();
+        
+        // ===== ВАЖНО: ЗАГРУЖАЕМ ФОТО ИЗ INDEXEDDB И ВСТРАИВАЕМ В JSON =====
+        const employeesWithPhotos = [];
+        let photoCount = 0;
+        
+        console.log(`📸 Загрузка фото для ${snapshot.employees.length} сотрудников...`);
+        
+        for (const emp of snapshot.employees) {
+            const empCopy = { ...emp };
+            
+            // Загружаем фото из IndexedDB
+            if (emp.photo && emp.photo.startsWith('__INDEXEDDB__')) {
+                try {
+                    const photoData = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
+                    if (photoData && photoData.startsWith('data:image')) {
+                        empCopy.photo = photoData; // ВСТРАИВАЕМ фото в JSON
+                        photoCount++;
+                        console.log(`📸 Фото для ${emp.name} встроено (${Math.round(photoData.length / 1024)} KB)`);
+                    } else {
+                        console.warn(`⚠️ Не удалось загрузить фото для ${emp.name}`);
+                        empCopy.photo = null;
+                    }
+                } catch (err) {
+                    console.error(`❌ Ошибка загрузки фото для ${emp.name}:`, err);
+                    empCopy.photo = null;
+                }
+            } else if (emp.photo && emp.photo.startsWith('data:image')) {
+                // Фото уже в base64
+                empCopy.photo = emp.photo;
+                photoCount++;
+            }
+            
+            employeesWithPhotos.push(empCopy);
         }
         
-        try {
-            const snapshot = this.dataManager.getSnapshot();
-            const calculatorData = JSON.parse(localStorage.getItem('gko_calculator_data_v1') || '{}');
-            
-            const allData = {
-                version: "3.0",
-                exportDate: new Date().toISOString(),
-                npas: window.appData || [],
-                dashboards: window.dashboardsData || [],
-                orgStructure: {
-                    departments: snapshot.departments,
-                    employees: snapshot.employees,
-                    positions: snapshot.positions,
-                    version: "3.0"
-                },
-                calculator: calculatorData,
-                metadata: {
-                    npaCount: window.appData?.length || 0,
-                    dashboardsCount: window.dashboardsData?.length || 0,
-                    departmentsCount: snapshot.departments.length,
-                    employeesCount: snapshot.employees.length,
-                    lastUpdated: new Date().toISOString()
-                }
-            };
-            
-            const content = JSON.stringify(allData, null, 2);
-            const owner = 'mark98molchanov-a11y';
-            const repo = 'a13y.gko-registry-system';
-            const path = 'gko_all_data.json';
-            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-            
-            let sha = null;
-            try {
-                const res = await fetch(apiUrl, {
-                    headers: { 'Authorization': `token ${savedToken}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    sha = data.sha;
-                }
-            } catch (e) {}
-            
-            const response = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${savedToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `Автосохранение: изменение статуса сотрудника ${new Date().toLocaleString('ru-RU')}`,
-                    content: btoa(unescape(encodeURIComponent(content))),
-                    sha: sha
-                })
-            });
-            
-            if (response.ok) {
-                this.showNotification('💾 Изменения сохранены в GitHub', 'success');
+        console.log(`📸 Встроено ${photoCount} фото в JSON для GitHub`);
+        
+        const calculatorData = JSON.parse(localStorage.getItem('gko_calculator_data_v1') || '{}');
+        
+        const allData = {
+            version: "3.0",
+            exportDate: new Date().toISOString(),
+            npas: window.appData || [],
+            dashboards: window.dashboardsData || [],
+            orgStructure: {
+                departments: snapshot.departments,
+                employees: employeesWithPhotos, // С ВСТРОЕННЫМИ фото!
+                positions: snapshot.positions,
+                version: "3.0"
+            },
+            calculator: calculatorData,
+            metadata: {
+                npaCount: window.appData?.length || 0,
+                dashboardsCount: window.dashboardsData?.length || 0,
+                departmentsCount: snapshot.departments.length,
+                employeesCount: snapshot.employees.length,
+                photosEmbedded: photoCount,
+                lastUpdated: new Date().toISOString()
             }
-        } catch (error) {
-            this.showNotification('⚠️ Не удалось сохранить в GitHub, данные сохранены локально', 'warning');
+        };
+        
+        const content = JSON.stringify(allData, null, 2);
+        const contentSize = Math.round(content.length / 1024);
+        console.log(`📤 Размер JSON: ${contentSize} KB, фото: ${photoCount}`);
+        
+        const owner = 'mark98molchanov-a11y';
+        const repo = 'a13y.gko-registry-system';
+        const path = 'gko_all_data.json';
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        
+        let sha = null;
+        try {
+            const res = await fetch(apiUrl, {
+                headers: { 'Authorization': `token ${savedToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                sha = data.sha;
+                console.log('📁 Существующий файл найден, sha:', sha);
+            }
+        } catch (e) {
+            console.log('📁 Файл не существует, будет создан новый');
         }
+        
+        const response = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${savedToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: `Автосохранение: ${photoCount} фото, ${new Date().toLocaleString('ru-RU')}`,
+                content: btoa(unescape(encodeURIComponent(content))),
+                sha: sha
+            })
+        });
+        
+        if (response.ok) {
+            this.showNotification(`💾 Изменения сохранены в GitHub (${photoCount} фото)`, 'success');
+        } else {
+            const error = await response.json();
+            console.error('❌ Ошибка GitHub:', error);
+            this.showNotification(`⚠️ Ошибка сохранения: ${error.message}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка:', error);
+        this.showNotification('⚠️ Не удалось сохранить в GitHub, данные сохранены локально', 'warning');
     }
+}
     
     async fireEmployeeWithReason(id) {
         const emp = this.dataManager.employees.find(e => e.id === id);
