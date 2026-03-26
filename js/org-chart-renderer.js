@@ -547,18 +547,20 @@ renderChartsInDetails() {
             <div style="flex: 1; text-align: center;">
                 <canvas id="org-departments-chart-details" style="height: 80px; width: 100%;"></canvas>
                 <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
+                <div id="org-departments-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
             </div>
             <div style="flex: 1; text-align: center;">
                 <canvas id="org-positions-chart-details" style="height: 80px; width: 100%;"></canvas>
                 <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
+                <div id="org-positions-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
             </div>
         </div>
     `;
     
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
+    this.renderLegends(stats);  // 👈 ВОТ ЭТО ВАЖНО - ДОБАВЛЯЕМ ВЫЗОВ
 }
-
 drawDepartmentsChartMini(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
     if (!ctx) return;
