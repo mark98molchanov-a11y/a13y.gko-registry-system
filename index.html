@@ -2535,7 +2535,10 @@ async function loadFromGitHub() {
         
         const json = await response.json();
         console.log('📦 Получен JSON, версия:', json.version);
-        console.log('📸 Фото в файле:', json.metadata?.photosEmbedded || 0);
+        
+        // Сохраняем количество фото из метаданных ДО изменения
+        const photosInFile = json.metadata?.photosEmbedded || 0;
+        console.log('📸 Фото в файле:', photosInFile);
         
         // ===== ЗАГРУЖАЕМ НПА =====
         if (json.npas && Array.isArray(json.npas)) {
@@ -2568,11 +2571,13 @@ async function loadFromGitHub() {
             console.log('🏢 Загружаем организационную структуру...');
             console.log(`📁 Отделов: ${json.orgStructure.departments.length}`);
             console.log(`👥 Сотрудников: ${json.orgStructure.employees?.length || 0}`);
+            console.log(`📸 Фото в файле: ${photosInFile}`);
             
             const departments = json.orgStructure.departments;
             const positions = json.orgStructure.positions || [];
             let employeesToRestore = [...(json.orgStructure.employees || [])];
             let restoredPhotoCount = 0;
+            let failedPhotoCount = 0;
             
             // Если есть OrgDataManager, восстанавливаем данные ТОЛЬКО в IndexedDB
             if (window.orgData) {
@@ -2588,7 +2593,7 @@ async function loadFromGitHub() {
                     
                     // Восстанавливаем фото из base64 в IndexedDB
                     if (emp.photo && emp.photo.startsWith('data:image')) {
-                        console.log(`📸 Восстановление фото для ${emp.name}...`);
+                        console.log(`📸 Восстановление фото для ${emp.name} (${Math.round(emp.photo.length / 1024)} KB)...`);
                         
                         try {
                             if (window.orgData.saveEmployeePhotoToIndexedDB) {
@@ -2596,14 +2601,22 @@ async function loadFromGitHub() {
                                 if (saved) {
                                     empCopy.photo = `__INDEXEDDB__${emp.id}`;
                                     restoredPhotoCount++;
+                                    console.log(`✅ Фото для ${emp.name} восстановлено`);
+                                } else {
+                                    console.warn(`⚠️ Не удалось сохранить фото для ${emp.name}`);
+                                    failedPhotoCount++;
+                                    empCopy.photo = null;
                                 }
                             }
                         } catch (err) {
                             console.error(`❌ Ошибка сохранения фото для ${emp.name}:`, err);
+                            failedPhotoCount++;
                             empCopy.photo = null;
                         }
                     } else if (emp.photo && emp.photo.startsWith('__INDEXEDDB__')) {
+                        // Уже ссылка на IndexedDB
                         empCopy.photo = emp.photo;
+                        console.log(`📸 Фото для ${emp.name} уже в IndexedDB (ссылка)`);
                     } else {
                         empCopy.photo = null;
                     }
@@ -2613,8 +2626,12 @@ async function loadFromGitHub() {
                 
                 window.orgData.employees = restoredEmployees;
                 console.log(`✅ Сохранено ${restoredEmployees.length} сотрудников`);
+                console.log(`📸 Восстановлено фото: ${restoredPhotoCount} из ${photosInFile}`);
+                if (failedPhotoCount > 0) {
+                    console.warn(`⚠️ Не удалось восстановить: ${failedPhotoCount} фото`);
+                }
                 
-                // Сохраняем ТОЛЬКО в IndexedDB, НЕ в localStorage!
+                // Сохраняем ТОЛЬКО в IndexedDB
                 await window.orgData.saveData();
                 console.log('✅ Данные сохранены в IndexedDB');
                 
@@ -2638,9 +2655,6 @@ async function loadFromGitHub() {
                     }, 100);
                 }
                 
-                // ⚠️ НЕ СОХРАНЯЕМ В localStorage, чтобы избежать переполнения!
-                // localStorage.setItem('org_data_v3', ...) - УБИРАЕМ!
-                
             } else {
                 // Если OrgDataManager еще не инициализирован, сохраняем в pending
                 console.log('⏳ OrgDataManager еще не инициализирован, сохраняем в pending');
@@ -2649,15 +2663,23 @@ async function loadFromGitHub() {
                     employees: employeesToRestore,
                     positions: positions,
                     version: "3.0",
-                    photosToRestore: restoredPhotoCount
+                    photosToRestore: photosInFile
                 };
-                // ⚠️ Тоже не сохраняем в localStorage, только в память
             }
             
             console.log(`📁 Загружено ${departments.length} отделов и ${employeesToRestore.length} сотрудников`);
-            console.log(`📸 Восстановлено фото: ${restoredPhotoCount}`);
+            console.log(`📸 Восстановлено фото: ${restoredPhotoCount} из ${photosInFile}`);
             
-            showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, ${restoredPhotoCount} фото`, 'success');
+            // Показываем уведомление с правильными цифрами
+            if (restoredPhotoCount === photosInFile && photosInFile > 0) {
+                showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, все ${restoredPhotoCount} фото восстановлены`, 'success');
+            } else if (restoredPhotoCount > 0) {
+                showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, ${restoredPhotoCount} из ${photosInFile} фото`, 'success');
+            } else if (photosInFile > 0 && restoredPhotoCount === 0) {
+                showNotification(`⚠️ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, но фото не восстановлены (${photosInFile} фото в файле)`, 'warning');
+            } else {
+                showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников`, 'success');
+            }
         }
         
         // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
