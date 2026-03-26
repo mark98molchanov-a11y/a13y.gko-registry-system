@@ -2555,51 +2555,68 @@ async function loadFromGitHub() {
             }
         }
         
-        // ===== ЗАГРУЖАЕМ НОВУЮ ОРГАНИЗАЦИОННУЮ СТРУКТУРУ С ВОССТАНОВЛЕНИЕМ ФОТО =====
+        // ===== ЗАГРУЖАЕМ НОВУЮ ОРГАНИЗАЦИОННУЮ СТРУКТУРУ =====
         if (json.orgStructure && json.orgStructure.departments) {
             console.log('🏢 Загружаем организационную структуру...');
+            console.log(`📁 Отделов: ${json.orgStructure.departments.length}`);
+            console.log(`👥 Сотрудников: ${json.orgStructure.employees?.length || 0}`);
             
-            // Копируем данные для восстановления фото
-            const employeesToRestore = [...(json.orgStructure.employees || [])];
+            // Копируем данные для восстановления
+            const departments = json.orgStructure.departments;
+            const positions = json.orgStructure.positions || [];
+            let employeesToRestore = [...(json.orgStructure.employees || [])];
             let restoredPhotoCount = 0;
-            let restoredEmployees = [];
             
-            // Если есть OrgDataManager, восстанавливаем фото в IndexedDB
+            // ПРОВЕРЯЕМ: есть ли у сотрудников departmentId
+            const employeesByDept = {};
+            employeesToRestore.forEach(emp => {
+                if (!employeesByDept[emp.departmentId]) {
+                    employeesByDept[emp.departmentId] = [];
+                }
+                employeesByDept[emp.departmentId].push(emp);
+            });
+            
+            console.log('📊 Распределение сотрудников по отделам:', 
+                Object.keys(employeesByDept).map(deptId => {
+                    const dept = departments.find(d => d.id == deptId);
+                    return `${dept?.name || deptId}: ${employeesByDept[deptId].length}`;
+                }).join(', ')
+            );
+            
+            // Если есть OrgDataManager, восстанавливаем данные
             if (window.orgData) {
-                console.log('🔄 Восстанавливаем фото в IndexedDB...');
+                console.log('🔄 Обновляем OrgDataManager...');
+                
+                // Сохраняем отделы и должности
+                window.orgData.departments = departments;
+                window.orgData.positions = positions;
+                
+                // Восстанавливаем сотрудников и фото
+                const restoredEmployees = [];
                 
                 for (const emp of employeesToRestore) {
                     const empCopy = { ...emp };
                     
-                    // Если в JSON есть фото (base64), сохраняем в IndexedDB
+                    // Восстанавливаем фото из base64 в IndexedDB
                     if (emp.photo && emp.photo.startsWith('data:image')) {
                         console.log(`📸 Восстановление фото для ${emp.name} (${Math.round(emp.photo.length / 1024)} KB)...`);
                         
                         try {
-                            // Сохраняем фото в IndexedDB
                             if (window.orgData.saveEmployeePhotoToIndexedDB) {
                                 const saved = await window.orgData.saveEmployeePhotoToIndexedDB(emp.id, emp.photo);
                                 if (saved) {
-                                    empCopy.photo = `__INDEXEDDB__${emp.id}`; // Заменяем на ссылку
+                                    empCopy.photo = `__INDEXEDDB__${emp.id}`;
                                     restoredPhotoCount++;
-                                    console.log(`✅ Фото для ${emp.name} восстановлено в IndexedDB`);
-                                } else {
-                                    console.warn(`⚠️ Не удалось сохранить фото для ${emp.name}`);
-                                    empCopy.photo = null;
+                                    console.log(`✅ Фото для ${emp.name} восстановлено`);
                                 }
-                            } else {
-                                // Если нет метода сохранения, оставляем как есть
-                                console.warn(`⚠️ saveEmployeePhotoToIndexedDB не доступен`);
-                                empCopy.photo = emp.photo;
                             }
                         } catch (err) {
                             console.error(`❌ Ошибка сохранения фото для ${emp.name}:`, err);
                             empCopy.photo = null;
                         }
                     } else if (emp.photo && emp.photo.startsWith('__INDEXEDDB__')) {
-                        // Фото уже в IndexedDB (ссылка)
+                        // Уже ссылка на IndexedDB
                         console.log(`📸 Фото для ${emp.name} уже в IndexedDB`);
-                        empCopy.photo = emp.photo;
                     } else {
                         empCopy.photo = null;
                     }
@@ -2607,52 +2624,64 @@ async function loadFromGitHub() {
                     restoredEmployees.push(empCopy);
                 }
                 
-                console.log(`✅ Восстановлено ${restoredPhotoCount} фото в IndexedDB`);
-                
-                // Обновляем данные в OrgDataManager
-                window.orgData.departments = json.orgStructure.departments;
                 window.orgData.employees = restoredEmployees;
-                window.orgData.positions = json.orgStructure.positions || [];
-                await window.orgData.saveData();
+                console.log(`✅ Сохранено ${restoredEmployees.length} сотрудников в OrgDataManager`);
                 
+                // Сохраняем в IndexedDB
+                await window.orgData.saveData();
+                console.log('✅ Данные сохранены в IndexedDB');
+                
+                // Обновляем отображение
                 if (window.orgApp) {
+                    // Сбрасываем фильтры перед отображением
+                    window.orgApp.filterDepartment = '';
+                    window.orgApp.filterPosition = '';
+                    window.orgApp.searchQuery = '';
+                    window.orgApp.filterStatus = '';
+                    
+                    // Очищаем поле поиска
+                    const searchInput = document.getElementById('org-search');
+                    if (searchInput) searchInput.value = '';
+                    
+                    // Принудительно обновляем дерево
                     await window.orgApp.render();
-                    console.log('✅ Дерево обновлено после загрузки из GitHub');
+                    console.log('✅ Дерево обновлено');
+                    
+                    // Обновляем статистику в правой панели
+                    setTimeout(() => {
+                        if (window.orgApp.renderChartsInDetails) {
+                            window.orgApp.renderChartsInDetails();
+                        }
+                    }, 100);
                 }
                 
                 // Сохраняем в localStorage для обратной совместимости
                 const orgDataToSave = {
-                    departments: json.orgStructure.departments,
+                    departments: departments,
                     employees: restoredEmployees,
-                    positions: json.orgStructure.positions || [],
+                    positions: positions,
                     version: "3.0"
                 };
                 localStorage.setItem('org_data_v3', JSON.stringify(orgDataToSave));
                 
             } else {
-                // Если OrgDataManager еще не инициализирован, сохраняем в pending для последующего восстановления
+                // Если OrgDataManager еще не инициализирован, сохраняем в pending
                 console.log('⏳ OrgDataManager еще не инициализирован, сохраняем в pending');
-                
-                // Сохраняем в pending, но уже с обработанными фото
-                const pendingData = {
-                    departments: json.orgStructure.departments,
-                    employees: restoredEmployees,
-                    positions: json.orgStructure.positions || [],
+                window.pendingOrgData = {
+                    departments: departments,
+                    employees: employeesToRestore,
+                    positions: positions,
                     version: "3.0",
                     photosToRestore: restoredPhotoCount
                 };
-                window.pendingOrgData = pendingData;
-                localStorage.setItem('org_data_v3', JSON.stringify(pendingData));
+                localStorage.setItem('org_data_v3', JSON.stringify(window.pendingOrgData));
             }
             
-            console.log(`📁 Загружено ${json.orgStructure.departments.length} отделов и ${json.orgStructure.employees?.length || 0} сотрудников`);
+            console.log(`📁 Загружено ${departments.length} отделов и ${employeesToRestore.length} сотрудников`);
             console.log(`📸 Восстановлено фото: ${restoredPhotoCount}`);
-        }
-        
-        // ===== ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ: если есть старое дерево =====
-        if (json.tree && !json.orgStructure) {
-            console.log('🌳 Найдены данные старого дерева, конвертируем...');
-            // Здесь можно добавить конвертацию из старого формата в новый
+            
+            // Показываем уведомление с количеством сотрудников
+            showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, ${restoredPhotoCount} фото`, 'success');
         }
         
         // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
@@ -2660,10 +2689,6 @@ async function loadFromGitHub() {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
         }
-        
-        // Показываем детальное уведомление
-        const photoMsg = json.metadata?.photosEmbedded ? `, ${json.metadata.photosEmbedded} фото восстановлено` : '';
-        showNotification(`✅ Данные загружены из GitHub: ${json.orgStructure?.departments?.length || 0} отделов, ${json.orgStructure?.employees?.length || 0} сотрудников${photoMsg}`, 'success');
         
         console.log('=== ЗАГРУЗКА ЗАВЕРШЕНА УСПЕШНО ===');
         
