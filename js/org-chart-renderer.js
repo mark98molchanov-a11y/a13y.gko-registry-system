@@ -1803,40 +1803,117 @@ renderLegends(stats) {
         }
     }
     
-    exportData() {
-        const data = this.dataManager.exportData();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `org_structure_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+ async exportData() {
+    this.showNotification('📦 Экспорт данных с фото...', 'info');
+    
+    const snapshot = this.dataManager.getSnapshot();
+    
+    // Создаем копию сотрудников и загружаем их фото
+    const employeesWithPhotos = [];
+    let photoCount = 0;
+    
+    for (const emp of snapshot.employees) {
+        const empCopy = { ...emp };
+        
+        // Загружаем фото из IndexedDB и встраиваем в JSON
+        if (emp.photo && emp.photo.startsWith('__INDEXEDDB__')) {
+            const photoData = await this.dataManager.loadEmployeePhotoFromIndexedDB(emp.id);
+            if (photoData) {
+                empCopy.photo = photoData; // ВСТРАИВАЕМ фото в JSON
+                photoCount++;
+                console.log(`📸 Фото для ${emp.name} встроено в JSON (${Math.round(photoData.length / 1024)} KB)`);
+            }
+        }
+        
+        employeesWithPhotos.push(empCopy);
     }
     
-    importData() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    this.dataManager.importData(data);
-                    this.render();
-                    alert('Данные успешно импортированы');
-                } catch (error) {
-                    alert('Ошибка импорта: ' + error.message);
+    const exportData = {
+        version: '3.0',
+        exportDate: new Date().toISOString(),
+        departments: snapshot.departments,
+        employees: employeesWithPhotos, // Здесь фото уже встроены
+        positions: snapshot.positions,
+        metadata: {
+            photoCount: photoCount,
+            totalEmployees: snapshot.employees.length,
+            exportFormat: 'v3_with_embedded_photos'
+        }
+    };
+    
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `org_structure_with_photos_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.showNotification(`✅ Экспортировано: ${snapshot.departments.length} отделов, ${snapshot.employees.length} сотрудников, ${photoCount} фото встроено в JSON`, 'success');
+}
+   async importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        this.showNotification('⏳ Импорт данных с фото...', 'info');
+        
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                
+                console.log('📦 Импорт данных, фото в файле:', data.metadata?.photoCount || 0);
+                
+                // Загружаем отделы и должности
+                if (data.departments) this.dataManager.departments = data.departments;
+                if (data.positions) this.dataManager.positions = data.positions;
+                
+                // Восстанавливаем сотрудников и сохраняем фото в IndexedDB
+                let restoredPhotoCount = 0;
+                
+                if (data.employees) {
+                    for (const emp of data.employees) {
+                        // Если в JSON есть фото (base64), сохраняем в IndexedDB
+                        if (emp.photo && emp.photo.startsWith('data:image')) {
+                            console.log(`📸 Сохранение фото для ${emp.name} в IndexedDB...`);
+                            
+                            // Сохраняем фото в IndexedDB
+                            if (this.dataManager.saveEmployeePhotoToIndexedDB) {
+                                await this.dataManager.saveEmployeePhotoToIndexedDB(emp.id, emp.photo);
+                                emp.photo = `__INDEXEDDB__${emp.id}`; // Меняем на ссылку
+                                restoredPhotoCount++;
+                            }
+                        }
+                    }
+                    this.dataManager.employees = data.employees;
                 }
-            };
-            reader.readAsText(file);
+                
+                // Сохраняем данные
+                await this.dataManager.saveData();
+                await this.render();
+                
+                this.showNotification(
+                    `✅ Импорт завершен!\n` +
+                    `📁 Отделов: ${data.departments?.length || 0}\n` +
+                    `👥 Сотрудников: ${data.employees?.length || 0}\n` +
+                    `📸 Фото восстановлено: ${restoredPhotoCount}`,
+                    'success'
+                );
+                
+            } catch (error) {
+                console.error('❌ Ошибка импорта:', error);
+                alert('Ошибка при импорте: ' + error.message);
+            }
         };
-        input.click();
-    }
+        reader.readAsText(file);
+    };
+    input.click();
+}
     
     closeModal() {
         const modal = document.getElementById('org-modal');
