@@ -584,7 +584,10 @@ drawDepartmentsChartMini(stats) {
         type: 'doughnut',
         data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allDepts.length), borderWidth: 0, hoverOffset: 6 }] },
         options: {
-            responsive: true, maintainAspectRatio: true, cutout: '60%',
+            responsive: true, 
+            maintainAspectRatio: true, 
+            cutout: '60%',
+            animation: false, // ← ДОБАВИТЬ ЭТУ СТРОКУ - отключает анимацию
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -640,7 +643,10 @@ drawPositionsChartMini(stats) {
         type: 'doughnut',
         data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allPositions.length), borderWidth: 0, hoverOffset: 6 }] },
         options: {
-            responsive: true, maintainAspectRatio: true, cutout: '60%',
+            responsive: true, 
+            maintainAspectRatio: true, 
+            cutout: '60%',
+            animation: false, // ← ДОБАВИТЬ ЭТУ СТРОКУ
             plugins: {
                 legend: { display: false },
                 tooltip: {
