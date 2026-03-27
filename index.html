@@ -912,6 +912,34 @@
         grid-template-columns: 1fr !important;
     }
 }
+      #org-departments-legend,
+#org-positions-legend {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+#org-departments-legend::-webkit-scrollbar,
+#org-positions-legend::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+#org-departments-legend::-webkit-scrollbar-track,
+#org-positions-legend::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 2px;
+}
+
+#org-departments-legend::-webkit-scrollbar-thumb,
+#org-positions-legend::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+#org-departments-legend::-webkit-scrollbar-thumb:hover,
+#org-positions-legend::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
