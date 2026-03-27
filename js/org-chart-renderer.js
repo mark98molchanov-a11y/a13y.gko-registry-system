@@ -2423,126 +2423,159 @@ async saveToGitHubAfterChange() {
         }, 3000);
     }
     
-    // ← ВОТ ЗДЕСЬ ВСТАВЬТЕ renderChartsInDetails()
-    renderChartsInDetails() {
-        const stats = this.renderStatistics();
-        const detailsPanel = document.getElementById('org-details-panel');
-        if (!detailsPanel) return;
+  renderChartsInDetails() {
+    const stats = this.renderStatistics();
+    const detailsPanel = document.getElementById('org-details-panel');
+    if (!detailsPanel) return;
+    
+    let chartsContainer = document.getElementById('org-charts-in-details');
+    
+    if (!chartsContainer) {
+        chartsContainer = document.createElement('div');
+        chartsContainer.id = 'org-charts-in-details';
+        chartsContainer.style.cssText = `
+            margin-top: 8px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        `;
+        detailsPanel.appendChild(chartsContainer);
         
-        let chartsContainer = document.getElementById('org-charts-in-details');
+        chartsContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
+                <button id="clear-filters-btn" style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; border: none; cursor: pointer; padding: 4px 12px; border-radius: 6px;">Сбросить все</button>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="font-size: 0.7rem; color: #475569;">Активные сотрудники</span>
+                    <span id="active-count-label" style="font-size: 0.7rem; font-weight: 500; color: #10b981;">0 из 0</span>
+                </div>
+                <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                    <div id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button id="filter-active-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
+                    👥 Активные <span id="active-count">0</span>
+                </button>
+                <button id="filter-fired-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
+                    🚪 Вакансии <span id="fired-count">0</span>
+                </button>
+            </div>
+            
+            <div style="display: flex; gap: 16px;">
+                <div style="flex: 1;">
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
+                    </div>
+                    <div style="position: relative; height: 120px;">
+                        <canvas id="org-departments-chart-details" style="height: 120px; width: 100%; cursor: pointer;"></canvas>
+                    </div>
+                    <div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
+                </div>
+                <div style="flex: 1;">
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
+                    </div>
+                    <div style="position: relative; height: 120px;">
+                        <canvas id="org-positions-chart-details" style="height: 120px; width: 100%; cursor: pointer;"></canvas>
+                    </div>
+                    <div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        `;
         
-        if (!chartsContainer) {
-            chartsContainer = document.createElement('div');
-            chartsContainer.id = 'org-charts-in-details';
-            chartsContainer.style.cssText = `
-                margin-top: 8px;
-                padding: 12px;
-                background: #f8fafc;
-                border-radius: 8px;
-                border: 1px solid #e2e8f0;
-            `;
-            detailsPanel.appendChild(chartsContainer);
-            
-            chartsContainer.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
-                    <button id="clear-filters-btn" style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; border: none; cursor: pointer; padding: 4px 12px; border-radius: 6px;">Сбросить все</button>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <span style="font-size: 0.7rem; color: #475569;">Активные сотрудники</span>
-                        <span id="active-count-label" style="font-size: 0.7rem; font-weight: 500; color: #10b981;">0 из 0</span>
-                    </div>
-                    <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-                        <div id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button id="filter-active-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
-                        👥 Активные <span id="active-count">0</span>
-                    </button>
-                    <button id="filter-fired-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
-                        🚪 Вакансии <span id="fired-count">0</span>
-                    </button>
-                </div>
-                
-                <div style="display: flex; gap: 16px;">
-                    <div style="flex: 1;">
-                        <div style="text-align: center; margin-bottom: 8px;">
-                            <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
-                        </div>
-                        <div style="position: relative; height: 120px;">
-                            <canvas id="org-departments-chart-details" style="height: 120px; width: 100%;"></canvas>
-                        </div>
-                        <div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
-                    </div>
-                    <div style="flex: 1;">
-                        <div style="text-align: center; margin-bottom: 8px;">
-                            <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
-                        </div>
-                        <div style="position: relative; height: 120px;">
-                            <canvas id="org-positions-chart-details" style="height: 120px; width: 100%;"></canvas>
-                        </div>
-                        <div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('clear-filters-btn')?.addEventListener('click', () => this.clearFilters());
-            document.getElementById('filter-active-btn')?.addEventListener('click', () => this.filterByStatus('active'));
-            document.getElementById('filter-fired-btn')?.addEventListener('click', () => this.filterByStatus('fired'));
-            
-            this.chartsInitialized = true;
+        document.getElementById('clear-filters-btn')?.addEventListener('click', () => this.clearFilters());
+        document.getElementById('filter-active-btn')?.addEventListener('click', () => this.filterByStatus('active'));
+        document.getElementById('filter-fired-btn')?.addEventListener('click', () => this.filterByStatus('fired'));
+        
+        // Добавляем обработчики клика на графики
+        const deptsCanvas = document.getElementById('org-departments-chart-details');
+        const positionsCanvas = document.getElementById('org-positions-chart-details');
+        
+        if (deptsCanvas) {
+            deptsCanvas.addEventListener('click', (e) => {
+                if (this.deptsChartDetails && this.deptsChartDetails.getElementsAtEvent) {
+                    const activePoints = this.deptsChartDetails.getElementsAtEvent(e);
+                    if (activePoints && activePoints.length > 0) {
+                        const index = activePoints[0].index;
+                        const dept = stats.deptStats.filter(d => d.count > 0)[index];
+                        if (dept) {
+                            this.filterByDepartment(dept.id, dept.name);
+                        }
+                    }
+                }
+            });
         }
         
-        const total = stats.activeCount + stats.firedCount;
-        const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
-        
-        const progressFill = document.getElementById('progress-fill');
-        if (progressFill) progressFill.style.width = `${activePercent}%`;
-        
-        const activeCountLabel = document.getElementById('active-count-label');
-        if (activeCountLabel) activeCountLabel.textContent = `${stats.activeCount} из ${total}`;
-        
-        const activeCountSpan = document.getElementById('active-count');
-        if (activeCountSpan) activeCountSpan.textContent = stats.activeCount;
-        
-        const firedCountSpan = document.getElementById('fired-count');
-        if (firedCountSpan) firedCountSpan.textContent = stats.firedCount;
-        
-        const activeBtn = document.getElementById('filter-active-btn');
-        const firedBtn = document.getElementById('filter-fired-btn');
-        
-        if (activeBtn) {
-            if (this.filterStatus === 'active') {
-                activeBtn.style.background = '#10b981';
-                activeBtn.style.color = 'white';
-                activeBtn.style.border = 'none';
-            } else {
-                activeBtn.style.background = '#f1f5f9';
-                activeBtn.style.color = '#475569';
-                activeBtn.style.border = '1px solid #e2e8f0';
-            }
+        if (positionsCanvas) {
+            positionsCanvas.addEventListener('click', (e) => {
+                if (this.positionsChartDetails && this.positionsChartDetails.getElementsAtEvent) {
+                    const activePoints = this.positionsChartDetails.getElementsAtEvent(e);
+                    if (activePoints && activePoints.length > 0) {
+                        const index = activePoints[0].index;
+                        const position = stats.positionStats.filter(p => p.count > 0)[index];
+                        if (position) {
+                            this.filterByPosition(position.id, position.name);
+                        }
+                    }
+                }
+            });
         }
         
-        if (firedBtn) {
-            if (this.filterStatus === 'fired') {
-                firedBtn.style.background = '#ef4444';
-                firedBtn.style.color = 'white';
-                firedBtn.style.border = 'none';
-            } else {
-                firedBtn.style.background = '#f1f5f9';
-                firedBtn.style.color = '#475569';
-                firedBtn.style.border = '1px solid #e2e8f0';
-            }
-        }
-        
-        this.drawDepartmentsChartMini(stats);
-        this.drawPositionsChartMini(stats);
-        this.renderLegends(stats);
+        this.chartsInitialized = true;
     }
+    
+    const total = stats.activeCount + stats.firedCount;
+    const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
+    
+    const progressFill = document.getElementById('progress-fill');
+    if (progressFill) progressFill.style.width = `${activePercent}%`;
+    
+    const activeCountLabel = document.getElementById('active-count-label');
+    if (activeCountLabel) activeCountLabel.textContent = `${stats.activeCount} из ${total}`;
+    
+    const activeCountSpan = document.getElementById('active-count');
+    if (activeCountSpan) activeCountSpan.textContent = stats.activeCount;
+    
+    const firedCountSpan = document.getElementById('fired-count');
+    if (firedCountSpan) firedCountSpan.textContent = stats.firedCount;
+    
+    const activeBtn = document.getElementById('filter-active-btn');
+    const firedBtn = document.getElementById('filter-fired-btn');
+    
+    if (activeBtn) {
+        if (this.filterStatus === 'active') {
+            activeBtn.style.background = '#10b981';
+            activeBtn.style.color = 'white';
+            activeBtn.style.border = 'none';
+        } else {
+            activeBtn.style.background = '#f1f5f9';
+            activeBtn.style.color = '#475569';
+            activeBtn.style.border = '1px solid #e2e8f0';
+        }
+    }
+    
+    if (firedBtn) {
+        if (this.filterStatus === 'fired') {
+            firedBtn.style.background = '#ef4444';
+            firedBtn.style.color = 'white';
+            firedBtn.style.border = 'none';
+        } else {
+            firedBtn.style.background = '#f1f5f9';
+            firedBtn.style.color = '#475569';
+            firedBtn.style.border = '1px solid #e2e8f0';
+        }
+    }
+    
+    this.drawDepartmentsChartMini(stats);
+    this.drawPositionsChartMini(stats);
+    this.renderLegends(stats);
+}
     
 } // ← ЗАКРЫВАЮЩАЯ СКОБКА КЛАССА
 
