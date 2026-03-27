@@ -509,91 +509,104 @@ this.dataManager.subscribe('renderer', async () => {
     `;
 }
 renderChartsInDetails() {
-    // Защита от повторных вызовов
-    if (this.isRendering) {
-        console.log('⏳ Рендеринг уже выполняется, пропускаем');
+    const stats = this.renderStatistics();
+    const detailsPanel = document.getElementById('org-details-panel');
+    if (!detailsPanel) return;
+    
+    let chartsContainer = document.getElementById('org-charts-in-details');
+    if (!chartsContainer) {
+        chartsContainer = document.createElement('div');
+        chartsContainer.id = 'org-charts-in-details';
+        chartsContainer.style.cssText = `
+            margin-top: 8px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        `;
+        detailsPanel.appendChild(chartsContainer);
+    }
+    
+    const total = stats.activeCount + stats.firedCount;
+    const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
+    
+    // Создаем HTML для легенды как в Superset
+    chartsContainer.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.7rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
+            <button onclick="orgApp.clearFilters()" style="font-size: 0.65rem; color: #3b82f6; background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 4px;">Сбросить фильтры</button>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <span style="font-size: 0.65rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥 Активных: ${stats.activeCount}</span>
+                <span style="font-size: 0.65rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪 Вакансий: ${stats.firedCount}</span>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 16px; margin-top: 8px;">
+            <!-- График отделов -->
+            <div style="flex: 1;">
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
+                </div>
+                <div style="position: relative; height: 140px;">
+                    <canvas id="org-departments-chart-details" style="height: 140px; width: 100%;"></canvas>
+                </div>
+                <div id="org-departments-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
+            </div>
+            
+            <!-- График должностей -->
+            <div style="flex: 1;">
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
+                </div>
+                <div style="position: relative; height: 140px;">
+                    <canvas id="org-positions-chart-details" style="height: 140px; width: 100%;"></canvas>
+                </div>
+                <div id="org-positions-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    `;
+    
+    // Рисуем графики
+    this.drawDepartmentsChartMini(stats);
+    this.drawPositionsChartMini(stats);
+    
+    // Заполняем легенды
+    this.renderLegends(stats);
+}
+drawDepartmentsChartMini(stats) {
+    const canvas = document.getElementById('org-departments-chart-details');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    if (this.deptsChartDetails) {
+        this.deptsChartDetails.destroy();
+        this.deptsChartDetails = null;
+    }
+    
+    const allDepts = stats.deptStats.filter(d => d.count > 0);
+    
+    if (allDepts.length === 0) {
+        this.deptsChartDetails = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: ['Нет данных'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '60%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
         return;
     }
     
-    this.isRendering = true;
-    
-    try {
-        const stats = this.renderStatistics();
-        const detailsPanel = document.getElementById('org-details-panel');
-        if (!detailsPanel) {
-            return;
-        }
-        
-        let chartsContainer = document.getElementById('org-charts-in-details');
-        if (!chartsContainer) {
-            chartsContainer = document.createElement('div');
-            chartsContainer.id = 'org-charts-in-details';
-            chartsContainer.style.cssText = `
-                margin-top: 8px;
-                padding: 6px 8px;
-                background: #f8fafc;
-                border-radius: 8px;
-                border: 1px solid #e2e8f0;
-            `;
-            detailsPanel.appendChild(chartsContainer);
-        }
-        
-        const total = stats.activeCount + stats.firedCount;
-        const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
-        
-        chartsContainer.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="font-size: 0.55rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
-                <button onclick="orgApp.clearFilters()" style="font-size: 0.5rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
-                </div>
-                <div style="display: flex; gap: 6px;">
-                    <span style="font-size: 0.5rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
-                    <span style="font-size: 0.5rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 8px;">
-                <div style="flex: 1; text-align: center;">
-                    <canvas id="org-departments-chart-details" style="height: 80px; width: 100%;"></canvas>
-                    <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
-                    <div id="org-departments-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
-                </div>
-                <div style="flex: 1; text-align: center;">
-                    <canvas id="org-positions-chart-details" style="height: 80px; width: 100%;"></canvas>
-                    <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
-                    <div id="org-positions-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
-                </div>
-            </div>
-        `;
-        
-        this.drawDepartmentsChartMini(stats);
-        this.drawPositionsChartMini(stats);
-        
-        // Используем debounce для легенды
-        if (this.legendTimeout) clearTimeout(this.legendTimeout);
-        this.legendTimeout = setTimeout(() => {
-            this.renderLegends(stats);
-        }, 50);
-        
-    } finally {
-        // Снимаем блокировку после завершения
-        setTimeout(() => {
-            this.isRendering = false;
-        }, 100);
-    }
-}
-drawDepartmentsChartMini(stats) {
-    const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
-    if (!ctx) return;
-    
-    if (this.deptsChartDetails) this.deptsChartDetails.destroy();
-    
-    const allDepts = stats.deptStats.filter(d => d.count > 0);
     const labels = allDepts.map((_, index) => `${index + 1}`);
     const data = allDepts.map(d => d.count);
     
@@ -604,16 +617,22 @@ drawDepartmentsChartMini(stats) {
     
     this.deptsChartDetails = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allDepts.length), borderWidth: 0, hoverOffset: 6 }] },
+        data: { 
+            labels: labels, 
+            datasets: [{ 
+                data: data, 
+                backgroundColor: colors.slice(0, allDepts.length), 
+                borderWidth: 0,
+                hoverOffset: 10
+            }] 
+        },
         options: {
             responsive: true, 
             maintainAspectRatio: true, 
-            cutout: '60%',
-            animation: false, // ← ДОБАВИТЬ ЭТУ СТРОКУ - отключает анимацию
+            cutout: '65%',
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    bodyFont: { size: 10 },
                     callbacks: {
                         label: function(context) {
                             const index = context.dataIndex;
@@ -621,31 +640,14 @@ drawDepartmentsChartMini(stats) {
                             const value = context.raw || 0;
                             const total = allDepts.reduce((sum, d) => sum + d.count, 0);
                             const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${dept.name}: ${value} чел. (${percentage}%)`;
+                            return `${dept.name}: ${value} (${percentage}%)`;
                         }
-                    }
-                }
-            },
-            onClick: (e, els) => {
-                if (els.length > 0) {
-                    const index = els[0].index;
-                    const dept = allDepts[index];
-                    if (dept) {
-                        this.filterDepartment = dept.id.toString();
-                        this.filterPosition = '';
-                        this.searchQuery = '';
-                        this.filterStatus = '';
-                        const searchInput = document.getElementById('org-search');
-                        if (searchInput) searchInput.value = '';
-                        this.render();
-                        this.showNotification(`🔍 Фильтр по отделу: ${dept.name}`, 'info');
                     }
                 }
             }
         }
     });
 }
-
 drawPositionsChartMini(stats) {
     const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
     if (!ctx) return;
@@ -766,65 +768,61 @@ filterByPosition(posId, posName) {
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
 renderLegends(stats) {
-    // Временно отключаем проверку хэша, чтобы легенды обновлялись
-    // if (this.lastLegendsHash === currentHash) { return; }
-    
-    console.log('🎨 renderLegends вызван');
-    
-    // Легенда для отделов
+    // Легенда для отделов (как в Superset)
     const deptsLegend = document.getElementById('org-departments-legend');
     if (deptsLegend) {
         const allDepts = stats.deptStats.filter(d => d.count > 0);
         const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
         
         if (allDepts.length === 0) {
-            deptsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
+            deptsLegend.innerHTML = '<div style="text-align: center; padding: 8px; color: #94a3b8; font-size: 0.7rem;">Нет данных</div>';
             return;
         }
         
-        deptsLegend.innerHTML = allDepts.map((dept, index) => {
-            let shortName = dept.name;
-            if (shortName.length > 12) {
-                shortName = shortName.substring(0, 10) + '..';
-            }
-            return `
-                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" 
-                     onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
-                     title="${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
-                    <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
-                    <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
-                    <span style="font-size: 0.4rem; color: #94a3b8;">(${dept.count})</span>
-                </div>
-            `;
-        }).join('');
+        // Стиль как в Superset - компактный список
+        deptsLegend.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px;">
+                ${allDepts.map((dept, index) => `
+                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.2s;" 
+                         onmouseover="this.style.backgroundColor='#f1f5f9'"
+                         onmouseout="this.style.backgroundColor='transparent'"
+                         onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
+                         title="${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
+                        <span style="width: 10px; height: 10px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
+                        <span style="font-size: 0.7rem; color: #334155; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(dept.name)}</span>
+                        <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">${dept.count}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
     }
     
-    // Легенда для должностей
+    // Легенда для должностей (как в Superset)
     const positionsLegend = document.getElementById('org-positions-legend');
     if (positionsLegend) {
         const allPositions = stats.positionStats.filter(p => p.count > 0);
         const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
         
         if (allPositions.length === 0) {
-            positionsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
+            positionsLegend.innerHTML = '<div style="text-align: center; padding: 8px; color: #94a3b8; font-size: 0.7rem;">Нет данных</div>';
             return;
         }
         
-        positionsLegend.innerHTML = allPositions.map((pos, index) => {
-            let shortName = pos.name;
-            if (shortName.length > 12) {
-                shortName = shortName.substring(0, 10) + '..';
-            }
-            return `
-                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" 
-                     onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
-                     title="${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
-                    <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
-                    <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
-                    <span style="font-size: 0.4rem; color: #94a3b8;">(${pos.count})</span>
-                </div>
-            `;
-        }).join('');
+        positionsLegend.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px;">
+                ${allPositions.map((pos, index) => `
+                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.2s;"
+                         onmouseover="this.style.backgroundColor='#f1f5f9'"
+                         onmouseout="this.style.backgroundColor='transparent'"
+                         onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
+                         title="${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
+                        <span style="width: 10px; height: 10px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
+                        <span style="font-size: 0.7rem; color: #334155; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(pos.name)}</span>
+                        <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">${pos.count}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
     }
 }
     filterByStatus(status) {
