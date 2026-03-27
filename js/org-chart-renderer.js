@@ -507,20 +507,9 @@ constructor(containerId, dataManager) {
     `;
 }
 renderChartsInDetails() {
-    // Защита от повторных вызовов
-    if (this.isRendering) {
-        console.log('⏳ Рендеринг уже выполняется, пропускаем');
-        return;
-    }
-    
-    this.isRendering = true;
-    
     const stats = this.renderStatistics();
     const detailsPanel = document.getElementById('org-details-panel');
-    if (!detailsPanel) {
-        this.isRendering = false;
-        return;
-    }
+    if (!detailsPanel) return;
     
     let chartsContainer = document.getElementById('org-charts-in-details');
     if (!chartsContainer) {
@@ -528,7 +517,7 @@ renderChartsInDetails() {
         chartsContainer.id = 'org-charts-in-details';
         chartsContainer.style.cssText = `
             margin-top: 8px;
-            padding: 6px 8px;
+            padding: 12px;
             background: #f8fafc;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
@@ -539,45 +528,71 @@ renderChartsInDetails() {
     const total = stats.activeCount + stats.firedCount;
     const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
     
+    // Определяем активный фильтр статуса
+    const isActiveFilter = this.filterStatus === 'active';
+    const isFiredFilter = this.filterStatus === 'fired';
+    const noStatusFilter = !this.filterStatus;
+    
     chartsContainer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="font-size: 0.55rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
-            <button onclick="orgApp.clearFilters()" style="font-size: 0.5rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
+            <button onclick="orgApp.clearFilters()" style="font-size: 0.65rem; color: #3b82f6; background: none; border: none; cursor: pointer; padding: 4px 12px; border-radius: 6px; background: #eff6ff; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#dbeafe'" onmouseout="this.style.backgroundColor='#eff6ff'">Сбросить все</button>
         </div>
         
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-            <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
-                <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
+        <!-- Прогресс-бар -->
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="font-size: 0.7rem; color: #475569;">Активные сотрудники</span>
+                <span style="font-size: 0.7rem; font-weight: 500; color: #10b981;">${stats.activeCount} из ${total}</span>
             </div>
-            <div style="display: flex; gap: 6px;">
-                <span style="font-size: 0.5rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
-                <span style="font-size: 0.5rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
+            <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                <div style="width: ${activePercent}%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>
             </div>
         </div>
         
-        <div style="display: flex; gap: 8px;">
-            <div style="flex: 1; text-align: center;">
-                <canvas id="org-departments-chart-details" style="height: 80px; width: 100%;"></canvas>
-                <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
-                <div id="org-departments-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
+        <!-- Кнопки фильтра по статусу - красивые как в Superset -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button onclick="orgApp.filterByStatus('active')" 
+                    style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none;
+                           ${isActiveFilter ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);' : 'background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;'}"
+                    onmouseover="${!isActiveFilter ? "this.style.backgroundColor='#e2e8f0'" : ""}"
+                    onmouseout="${!isActiveFilter ? "this.style.backgroundColor='#f1f5f9'" : ""}">
+                👥 Активные <span style="font-weight: 600; margin-left: 4px;">${stats.activeCount}</span>
+            </button>
+            <button onclick="orgApp.filterByStatus('fired')" 
+                    style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none;
+                           ${isFiredFilter ? 'background: #ef4444; color: white; box-shadow: 0 1px 3px rgba(239, 68, 68, 0.3);' : 'background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;'}"
+                    onmouseover="${!isFiredFilter ? "this.style.backgroundColor='#e2e8f0'" : ""}"
+                    onmouseout="${!isFiredFilter ? "this.style.backgroundColor='#f1f5f9'" : ""}">
+                🚪 Вакансии <span style="font-weight: 600; margin-left: 4px;">${stats.firedCount}</span>
+            </button>
+        </div>
+        
+        <div style="display: flex; gap: 16px;">
+            <div style="flex: 1;">
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
+                </div>
+                <div style="position: relative; height: 120px;">
+                    <canvas id="org-departments-chart-details" style="height: 120px; width: 100%;"></canvas>
+                </div>
+                <div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
             </div>
-            <div style="flex: 1; text-align: center;">
-                <canvas id="org-positions-chart-details" style="height: 80px; width: 100%;"></canvas>
-                <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
-                <div id="org-positions-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
+            <div style="flex: 1;">
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
+                </div>
+                <div style="position: relative; height: 120px;">
+                    <canvas id="org-positions-chart-details" style="height: 120px; width: 100%;"></canvas>
+                </div>
+                <div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
             </div>
         </div>
     `;
     
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
-    
-    // Используем debounce для легенды
-    if (this.legendTimeout) clearTimeout(this.legendTimeout);
-    this.legendTimeout = setTimeout(() => {
-        this.renderLegends(stats);
-        this.isRendering = false; // Снимаем блокировку после завершения
-    }, 50);
+    this.renderLegends(stats);
 }
 drawDepartmentsChartMini(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
@@ -822,39 +837,81 @@ renderLegends(stats) {
         `;
     }
 }
-    filterByStatus(status) {
+filterByStatus(status) {
+    // Сбрасываем другие фильтры
+    this.filterDepartment = '';
+    this.filterPosition = '';
+    this.searchQuery = '';
+    
+    // Устанавливаем или снимаем фильтр статуса
+    if (this.filterStatus === status) {
+        // Если уже активен - снимаем фильтр
+        this.filterStatus = '';
+    } else {
         this.filterStatus = status;
-        this.filterDepartment = '';
-        this.filterPosition = '';
-        this.searchQuery = '';
-        const searchInput = document.getElementById('org-search');
-        if (searchInput) searchInput.value = '';
-        this.render();
-        this.showNotification(status === 'active' ? '👥 Показаны только активные сотрудники' : '🚪 Показаны только вакансии', 'info');
     }
     
-    clearFilters() {
-        this.filterDepartment = '';
-        this.filterPosition = '';
-        this.searchQuery = '';
-        this.filterStatus = '';
-        const searchInput = document.getElementById('org-search');
-        if (searchInput) searchInput.value = '';
-        
-        const savedExpanded = localStorage.getItem('org_expanded_nodes');
-        if (savedExpanded) {
-            try {
-                const expandedArray = JSON.parse(savedExpanded);
-                this.expandedNodes = new Set(expandedArray);
-            } catch(e) {}
-        } else {
-            const roots = this.dataManager.departments.filter(d => d.parentId === null);
-            roots.forEach(root => this.expandedNodes.add(root.id));
-        }
-        
-        this.render();
-        this.showNotification('✅ Все фильтры сброшены', 'success');
+    // Очищаем поля
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) searchInput.value = '';
+    
+    const filterDept = document.getElementById('org-filter-department');
+    if (filterDept) filterDept.value = '';
+    
+    const filterPos = document.getElementById('org-filter-position');
+    if (filterPos) filterPos.value = '';
+    
+    // Перерисовываем
+    this.render();
+    
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 100);
+    
+    // Уведомление
+    if (this.filterStatus === 'active') {
+        this.showNotification('👥 Показаны только активные сотрудники', 'info');
+    } else if (this.filterStatus === 'fired') {
+        this.showNotification('🚪 Показаны только вакансии', 'info');
+    } else {
+        this.showNotification('✅ Показаны все сотрудники', 'success');
     }
+}
+    
+clearFilters() {
+    this.filterDepartment = '';
+    this.filterPosition = '';
+    this.searchQuery = '';
+    this.filterStatus = '';
+    
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) searchInput.value = '';
+    
+    const filterDept = document.getElementById('org-filter-department');
+    if (filterDept) filterDept.value = '';
+    
+    const filterPos = document.getElementById('org-filter-position');
+    if (filterPos) filterPos.value = '';
+    
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+        } catch(e) {}
+    } else {
+        const roots = this.dataManager.departments.filter(d => d.parentId === null);
+        roots.forEach(root => this.expandedNodes.add(root.id));
+    }
+    
+    this.render();
+    
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 100);
+    
+    this.showNotification('✅ Все фильтры сброшены', 'success');
+}
     
    renderStatistics() {
     const snapshot = this.dataManager.getSnapshot();
