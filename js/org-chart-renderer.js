@@ -642,6 +642,15 @@ async filterByDepartment(deptId, deptName) {
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = '';
     
+    // Сохраняем состояние развернутых узлов
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+        } catch(e) {}
+    }
+    
     // Перерисовываем дерево (async)
     await this.render();
     
@@ -809,6 +818,15 @@ async filterByPosition(posId, posName) {
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = posId.toString();
     
+    // Сохраняем состояние развернутых узлов
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+        } catch(e) {}
+    }
+    
     // Перерисовываем дерево (async)
     await this.render();
     
@@ -839,8 +857,6 @@ renderLegends(stats) {
             <div style="display: flex; flex-direction: column; gap: 4px;">
                 ${allDepts.map((dept, index) => `
                     <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 6px;"
-                         onmouseover="this.style.backgroundColor='#f1f5f9'"
-                         onmouseout="this.style.backgroundColor='transparent'"
                          onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
                         <span style="width: 10px; height: 10px; background: ${colors[index % colors.length]}; border-radius: 2px; flex-shrink: 0;"></span>
                         <span style="flex: 1; font-size: 0.7rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(dept.name)}</span>
@@ -870,8 +886,6 @@ renderLegends(stats) {
             <div style="display: flex; flex-direction: column; gap: 4px;">
                 ${allPositions.map((pos, index) => `
                     <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 6px;"
-                         onmouseover="this.style.backgroundColor='#f1f5f9'"
-                         onmouseout="this.style.backgroundColor='transparent'"
                          onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
                         <span style="width: 10px; height: 10px; background: ${colors[index % colors.length]}; border-radius: 2px; flex-shrink: 0;"></span>
                         <span style="flex: 1; font-size: 0.7rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(pos.name)}</span>
@@ -904,6 +918,15 @@ async filterByStatus(status) {
     
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = '';
+    
+    // Сохраняем состояние развернутых узлов
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+        } catch(e) {}
+    }
     
     // Перерисовываем дерево (async)
     await this.render();
@@ -951,9 +974,7 @@ async clearFilters() {
     await this.render();
     
     // Обновляем графики
-    setTimeout(() => {
-        this.renderChartsInDetails();
-    }, 100);
+    this.renderChartsInDetails();
     
     this.showNotification('✅ Все фильтры сброшены', 'success');
 }
