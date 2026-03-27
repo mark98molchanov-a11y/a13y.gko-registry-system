@@ -530,7 +530,7 @@ renderChartsInDetails() {
     const total = stats.activeCount + stats.firedCount;
     const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
     
-    // Создаем HTML для легенды как в Superset
+    // HTML с двумя диаграммами
     chartsContainer.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 0.7rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
@@ -548,7 +548,7 @@ renderChartsInDetails() {
         </div>
         
         <div style="display: flex; gap: 16px; margin-top: 8px;">
-            <!-- График отделов -->
+            <!-- Диаграмма отделов -->
             <div style="flex: 1;">
                 <div style="text-align: center; margin-bottom: 8px;">
                     <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
@@ -559,7 +559,7 @@ renderChartsInDetails() {
                 <div id="org-departments-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
             </div>
             
-            <!-- График должностей -->
+            <!-- Диаграмма должностей -->
             <div style="flex: 1;">
                 <div style="text-align: center; margin-bottom: 8px;">
                     <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
@@ -572,7 +572,7 @@ renderChartsInDetails() {
         </div>
     `;
     
-    // Рисуем графики
+    // Рисуем оба графика
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
     
@@ -727,6 +727,11 @@ filterByDepartment(deptId, deptName) {
     // Перерисовываем дерево
     this.render();
     
+    // Обновляем графики и легенды
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 100);
+    
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
     
@@ -740,7 +745,7 @@ filterByDepartment(deptId, deptName) {
                 selectedDept.style.backgroundColor = '';
             }, 2000);
         }
-    }, 100);
+    }, 150);
 }
 
 filterByPosition(posId, posName) {
@@ -764,13 +769,92 @@ filterByPosition(posId, posName) {
     // Перерисовываем дерево
     this.render();
     
+    // Обновляем графики и легенды
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 100);
+    
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
+renderChartsInDetails() {
+    const stats = this.renderStatistics();
+    const detailsPanel = document.getElementById('org-details-panel');
+    if (!detailsPanel) return;
+    
+    let chartsContainer = document.getElementById('org-charts-in-details');
+    if (!chartsContainer) {
+        chartsContainer = document.createElement('div');
+        chartsContainer.id = 'org-charts-in-details';
+        chartsContainer.style.cssText = `
+            margin-top: 8px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        `;
+        detailsPanel.appendChild(chartsContainer);
+    }
+    
+    const total = stats.activeCount + stats.firedCount;
+    const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
+    
+    // HTML с двумя диаграммами
+    chartsContainer.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.7rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
+            <button onclick="orgApp.clearFilters()" style="font-size: 0.65rem; color: #3b82f6; background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 4px;">Сбросить фильтры</button>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <span style="font-size: 0.65rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥 Активных: ${stats.activeCount}</span>
+                <span style="font-size: 0.65rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪 Вакансий: ${stats.firedCount}</span>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 16px; margin-top: 8px;">
+            <!-- Диаграмма отделов -->
+            <div style="flex: 1;">
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
+                </div>
+                <div style="position: relative; height: 140px;">
+                    <canvas id="org-departments-chart-details" style="height: 140px; width: 100%;"></canvas>
+                </div>
+                <div id="org-departments-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
+            </div>
+            
+            <!-- Диаграмма должностей -->
+            <div style="flex: 1;">
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
+                </div>
+                <div style="position: relative; height: 140px;">
+                    <canvas id="org-positions-chart-details" style="height: 140px; width: 100%;"></canvas>
+                </div>
+                <div id="org-positions-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    `;
+    
+    // Рисуем оба графика
+    this.drawDepartmentsChartMini(stats);
+    this.drawPositionsChartMini(stats);
+    
+    // Заполняем легенды
+    this.renderLegends(stats);
+}
+6. Убедитесь, что renderLegends() использует актуальные данные:
+javascript
 renderLegends(stats) {
-    // Легенда для отделов (как в Superset)
+    // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
     if (deptsLegend) {
+        // Используем deptStats из stats (уже отфильтрованные)
         const allDepts = stats.deptStats.filter(d => d.count > 0);
         const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
         
@@ -779,7 +863,6 @@ renderLegends(stats) {
             return;
         }
         
-        // Стиль как в Superset - компактный список
         deptsLegend.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px;">
                 ${allDepts.map((dept, index) => `
@@ -797,7 +880,7 @@ renderLegends(stats) {
         `;
     }
     
-    // Легенда для должностей (как в Superset)
+    // Легенда для должностей
     const positionsLegend = document.getElementById('org-positions-legend');
     if (positionsLegend) {
         const allPositions = stats.positionStats.filter(p => p.count > 0);
@@ -825,39 +908,59 @@ renderLegends(stats) {
         `;
     }
 }
-    filterByStatus(status) {
-        this.filterStatus = status;
-        this.filterDepartment = '';
-        this.filterPosition = '';
-        this.searchQuery = '';
-        const searchInput = document.getElementById('org-search');
-        if (searchInput) searchInput.value = '';
-        this.render();
-        this.showNotification(status === 'active' ? '👥 Показаны только активные сотрудники' : '🚪 Показаны только вакансии', 'info');
+filterByStatus(status) {
+    this.filterStatus = status;
+    this.filterDepartment = '';
+    this.filterPosition = '';
+    this.searchQuery = '';
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) searchInput.value = '';
+    
+    // Очищаем фильтры в UI
+    const filterDept = document.getElementById('org-filter-department');
+    if (filterDept) filterDept.value = '';
+    
+    const filterPos = document.getElementById('org-filter-position');
+    if (filterPos) filterPos.value = '';
+    
+    this.render();
+    
+    // Обновляем графики после фильтрации по статусу
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 100);
+    
+    this.showNotification(status === 'active' ? '👥 Показаны только активные сотрудники' : '🚪 Показаны только вакансии', 'info');
+}
+    
+clearFilters() {
+    this.filterDepartment = '';
+    this.filterPosition = '';
+    this.searchQuery = '';
+    this.filterStatus = '';
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) searchInput.value = '';
+    
+    const savedExpanded = localStorage.getItem('org_expanded_nodes');
+    if (savedExpanded) {
+        try {
+            const expandedArray = JSON.parse(savedExpanded);
+            this.expandedNodes = new Set(expandedArray);
+        } catch(e) {}
+    } else {
+        const roots = this.dataManager.departments.filter(d => d.parentId === null);
+        roots.forEach(root => this.expandedNodes.add(root.id));
     }
     
-    clearFilters() {
-        this.filterDepartment = '';
-        this.filterPosition = '';
-        this.searchQuery = '';
-        this.filterStatus = '';
-        const searchInput = document.getElementById('org-search');
-        if (searchInput) searchInput.value = '';
-        
-        const savedExpanded = localStorage.getItem('org_expanded_nodes');
-        if (savedExpanded) {
-            try {
-                const expandedArray = JSON.parse(savedExpanded);
-                this.expandedNodes = new Set(expandedArray);
-            } catch(e) {}
-        } else {
-            const roots = this.dataManager.departments.filter(d => d.parentId === null);
-            roots.forEach(root => this.expandedNodes.add(root.id));
-        }
-        
-        this.render();
-        this.showNotification('✅ Все фильтры сброшены', 'success');
-    }
+    this.render();
+    
+    // Обновляем графики после сброса фильтров
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 100);
+    
+    this.showNotification('✅ Все фильтры сброшены', 'success');
+}
     
  renderStatistics() {
     const snapshot = this.dataManager.getSnapshot();
