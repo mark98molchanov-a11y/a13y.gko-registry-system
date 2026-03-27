@@ -55,13 +55,14 @@ constructor(containerId, dataManager) {
         }, 100);
         
         // 6. Подписка на изменения данных
-        this.dataManager.subscribe('renderer', async () => {
-            console.log('🔄 Данные изменились, обновляем дерево');
-            await this.render();
-            setTimeout(() => {
-                this.renderChartsInDetails();
-            }, 50);
-        });
+this.dataManager.subscribe('renderer', async () => {
+    console.log('🔄 Данные изменились, обновляем дерево');
+    this.lastLegendsHash = ''; // Сбрасываем хэш
+    await this.render();
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 50);
+});
     }
     
     setupEventListeners() {
@@ -516,69 +517,75 @@ renderChartsInDetails() {
     
     this.isRendering = true;
     
-    const stats = this.renderStatistics();
-    const detailsPanel = document.getElementById('org-details-panel');
-    if (!detailsPanel) {
-        this.isRendering = false;
-        return;
-    }
-    
-    let chartsContainer = document.getElementById('org-charts-in-details');
-    if (!chartsContainer) {
-        chartsContainer = document.createElement('div');
-        chartsContainer.id = 'org-charts-in-details';
-        chartsContainer.style.cssText = `
-            margin-top: 8px;
-            padding: 6px 8px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
+    try {
+        const stats = this.renderStatistics();
+        const detailsPanel = document.getElementById('org-details-panel');
+        if (!detailsPanel) {
+            return;
+        }
+        
+        let chartsContainer = document.getElementById('org-charts-in-details');
+        if (!chartsContainer) {
+            chartsContainer = document.createElement('div');
+            chartsContainer.id = 'org-charts-in-details';
+            chartsContainer.style.cssText = `
+                margin-top: 8px;
+                padding: 6px 8px;
+                background: #f8fafc;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+            `;
+            detailsPanel.appendChild(chartsContainer);
+        }
+        
+        const total = stats.activeCount + stats.firedCount;
+        const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
+        
+        chartsContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 0.55rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
+                <button onclick="orgApp.clearFilters()" style="font-size: 0.5rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
+                    <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <span style="font-size: 0.5rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
+                    <span style="font-size: 0.5rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+                <div style="flex: 1; text-align: center;">
+                    <canvas id="org-departments-chart-details" style="height: 80px; width: 100%;"></canvas>
+                    <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
+                    <div id="org-departments-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
+                </div>
+                <div style="flex: 1; text-align: center;">
+                    <canvas id="org-positions-chart-details" style="height: 80px; width: 100%;"></canvas>
+                    <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
+                    <div id="org-positions-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
+                </div>
+            </div>
         `;
-        detailsPanel.appendChild(chartsContainer);
+        
+        this.drawDepartmentsChartMini(stats);
+        this.drawPositionsChartMini(stats);
+        
+        // Используем debounce для легенды
+        if (this.legendTimeout) clearTimeout(this.legendTimeout);
+        this.legendTimeout = setTimeout(() => {
+            this.renderLegends(stats);
+        }, 50);
+        
+    } finally {
+        // Снимаем блокировку после завершения
+        setTimeout(() => {
+            this.isRendering = false;
+        }, 100);
     }
-    
-    const total = stats.activeCount + stats.firedCount;
-    const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
-    
-    chartsContainer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="font-size: 0.55rem; font-weight: 600; color: #1e293b;">📊 Статистика</span>
-            <button onclick="orgApp.clearFilters()" style="font-size: 0.5rem; color: #3b82f6; background: none; border: none; cursor: pointer;">Сброс</button>
-        </div>
-        
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-            <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
-                <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-                <span style="font-size: 0.5rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥${stats.activeCount}</span>
-                <span style="font-size: 0.5rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪${stats.firedCount}</span>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 8px;">
-            <div style="flex: 1; text-align: center;">
-                <canvas id="org-departments-chart-details" style="height: 80px; width: 100%;"></canvas>
-                <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Отделы</div>
-                <div id="org-departments-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
-            </div>
-            <div style="flex: 1; text-align: center;">
-                <canvas id="org-positions-chart-details" style="height: 80px; width: 100%;"></canvas>
-                <div style="font-size: 0.45rem; color: #64748b; margin-top: 2px;">Должности</div>
-                <div id="org-positions-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px;"></div>
-            </div>
-        </div>
-    `;
-    
-    this.drawDepartmentsChartMini(stats);
-    this.drawPositionsChartMini(stats);
-    
-    // Используем debounce для легенды
-    if (this.legendTimeout) clearTimeout(this.legendTimeout);
-    this.legendTimeout = setTimeout(() => {
-        this.renderLegends(stats);
-        this.isRendering = false; // Снимаем блокировку после завершения
-    }, 50);
 }
 drawDepartmentsChartMini(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
@@ -759,20 +766,10 @@ filterByPosition(posId, posName) {
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
 renderLegends(stats) {
-    // Создаем хэш текущих данных для сравнения
-    const currentHash = JSON.stringify({
-        deptStats: stats.deptStats.map(d => ({ id: d.id, count: d.count })),
-        positionStats: stats.positionStats.map(p => ({ id: p.id, count: p.count }))
-    });
+    // Временно отключаем проверку хэша, чтобы легенды обновлялись
+    // if (this.lastLegendsHash === currentHash) { return; }
     
-    // Если данные не изменились, не перерисовываем
-    if (this.lastLegendsHash === currentHash) {
-        console.log('📊 Легенды не изменились, пропускаем перерисовку');
-        return;
-    }
-    this.lastLegendsHash = currentHash;
-    
-    console.log('🎨 renderLegends вызван, данные изменились');
+    console.log('🎨 renderLegends вызван');
     
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
@@ -864,13 +861,13 @@ renderLegends(stats) {
         this.showNotification('✅ Все фильтры сброшены', 'success');
     }
     
-   renderStatistics() {
+ renderStatistics() {
     const snapshot = this.dataManager.getSnapshot();
     const employees = snapshot.employees;
     const departments = snapshot.departments;
     
-    // Получаем ВСЕ отделы (включая подотделы)
-    const allDepartments = departments.filter(d => d.id !== 1);
+    // Получаем ВСЕ отделы (включая корневой с id=1)
+    const allDepartments = departments; // Убираем фильтр d.id !== 1
     
     // Статистика по отделам - ВСЕ отделы
     const deptStats = allDepartments
@@ -881,7 +878,7 @@ renderLegends(stats) {
             total: employees.filter(e => e.departmentId === dept.id).length,
             fired: employees.filter(e => e.departmentId === dept.id && !e.isActive).length
         }))
-        .filter(d => d.count > 0 || d.fired > 0)
+        .filter(d => d.count > 0 || d.fired > 0) // Показываем только отделы с сотрудниками
         .sort((a, b) => b.count - a.count);
     
     // Статистика по статусам
@@ -1072,11 +1069,13 @@ closeDetails() {
         `;
     }
     
+    // Обновляем графики
     setTimeout(() => {
         this.renderChartsInDetails();
     }, 50);
     
-    this.render();
+    // Не вызываем this.render() здесь, так как графики уже обновятся
+    // this.render();
 }
     
     shouldShowChildren(dept) {
