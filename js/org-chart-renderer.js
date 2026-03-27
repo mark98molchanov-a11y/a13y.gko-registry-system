@@ -2447,7 +2447,7 @@ async saveToGitHubAfterChange() {
         }, 3000);
     }
     
- renderChartsInDetails() {
+renderChartsInDetails() {
     const stats = this.renderStatistics();
     const detailsPanel = document.getElementById('org-details-panel');
     if (!detailsPanel) return;
@@ -2467,7 +2467,7 @@ async saveToGitHubAfterChange() {
         detailsPanel.appendChild(chartsContainer);
         
         chartsContainer.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
                 <button id="clear-filters-btn" style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; border: none; cursor: pointer; padding: 4px 12px; border-radius: 6px;">Сбросить все</button>
             </div>
@@ -2482,31 +2482,31 @@ async saveToGitHubAfterChange() {
                 </div>
             </div>
             
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                <button id="filter-active-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                <button id="filter-active-btn" style="flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
                     👥 Активные <span id="active-count">0</span>
                 </button>
-                <button id="filter-fired-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
+                <button id="filter-fired-btn" style="flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
                     🚪 Вакансии <span id="fired-count">0</span>
                 </button>
             </div>
             
-            <div style="display: flex; gap: 16px;">
-                <div style="flex: 1;">
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
                     <div style="text-align: center; margin-bottom: 8px;">
                         <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
                     </div>
-                    <div style="position: relative; height: 120px;">
-                        <canvas id="org-departments-chart-details" style="height: 120px; width: 100%;"></canvas>
+                    <div style="position: relative; height: 120px; max-width: 100%;">
+                        <canvas id="org-departments-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas>
                     </div>
                     <div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
                 </div>
-                <div style="flex: 1;">
+                <div style="flex: 1; min-width: 200px;">
                     <div style="text-align: center; margin-bottom: 8px;">
                         <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
                     </div>
-                    <div style="position: relative; height: 120px;">
-                        <canvas id="org-positions-chart-details" style="height: 120px; width: 100%;"></canvas>
+                    <div style="position: relative; height: 120px; max-width: 100%;">
+                        <canvas id="org-positions-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas>
                     </div>
                     <div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
                 </div>
@@ -2600,11 +2600,45 @@ async saveToGitHubAfterChange() {
         }
     }
     
+    // Обновляем графики с учетом размера контейнера
+    const deptsCanvas = document.getElementById('org-departments-chart-details');
+    const positionsCanvas = document.getElementById('org-positions-chart-details');
+    
+    if (deptsCanvas) {
+        // Устанавливаем размеры канваса в зависимости от родителя
+        const container = deptsCanvas.parentElement;
+        if (container) {
+            const containerWidth = container.clientWidth;
+            deptsCanvas.style.width = `${containerWidth}px`;
+            deptsCanvas.width = containerWidth;
+            deptsCanvas.height = 120;
+        }
+    }
+    
+    if (positionsCanvas) {
+        const container = positionsCanvas.parentElement;
+        if (container) {
+            const containerWidth = container.clientWidth;
+            positionsCanvas.style.width = `${containerWidth}px`;
+            positionsCanvas.width = containerWidth;
+            positionsCanvas.height = 120;
+        }
+    }
+    
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
     this.renderLegends(stats);
-}
     
-} // ← ЗАКРЫВАЮЩАЯ СКОБКА КЛАССА
+    // Добавляем обработчик изменения размера окна для адаптации графиков
+    if (!this.resizeHandler) {
+        this.resizeHandler = () => {
+            setTimeout(() => {
+                this.drawDepartmentsChartMini(this.renderStatistics());
+                this.drawPositionsChartMini(this.renderStatistics());
+            }, 100);
+        };
+        window.addEventListener('resize', this.resizeHandler);
+    }
+}
 
 window.OrgChartRenderer = OrgChartRenderer;
