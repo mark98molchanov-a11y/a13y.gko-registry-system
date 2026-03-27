@@ -545,9 +545,9 @@ renderChartsInDetails() {
                 <span style="font-size: 0.7rem; color: #475569;">Активные сотрудники</span>
                 <span style="font-size: 0.7rem; font-weight: 500; color: #10b981;">${stats.activeCount} из ${total}</span>
             </div>
-            <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-                <div style="width: ${activePercent}%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>
-            </div>
+<div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+    <div class="progress-fill" style="width: ${activePercent}%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>
+</div>
         </div>
         
         <!-- Кнопки фильтра по статусу - красивые как в Superset -->
@@ -718,11 +718,10 @@ filterByDepartment(deptId, deptName) {
     this.searchQuery = '';
     this.filterStatus = '';
     
-    // Очищаем поле поиска
+    // Очищаем поля поиска
     const searchInput = document.getElementById('org-search');
     if (searchInput) searchInput.value = '';
     
-    // Очищаем другие фильтры в UI
     const filterDept = document.getElementById('org-filter-department');
     if (filterDept) filterDept.value = deptId.toString();
     
@@ -730,12 +729,15 @@ filterByDepartment(deptId, deptName) {
     if (filterPos) filterPos.value = '';
     
     // Перерисовываем дерево
-    this.render();
+    await this.render();
+    
+    // Просто обновляем статистику и графики без полной перезагрузки
+    this.updateStatisticsAndCharts();
     
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по отделу: ${deptName}`, 'info');
     
-    // Прокручиваем к отфильтрованному отделу
+    // Прокручиваем к отделу
     setTimeout(() => {
         const selectedDept = document.querySelector(`.org-department-node[data-id="${deptId}"]`);
         if (selectedDept) {
@@ -747,7 +749,6 @@ filterByDepartment(deptId, deptName) {
         }
     }, 100);
 }
-
 filterByPosition(posId, posName) {
     // Сбрасываем другие фильтры
     this.filterPosition = posId.toString();
@@ -755,11 +756,10 @@ filterByPosition(posId, posName) {
     this.searchQuery = '';
     this.filterStatus = '';
     
-    // Очищаем поле поиска
+    // Очищаем поля
     const searchInput = document.getElementById('org-search');
     if (searchInput) searchInput.value = '';
     
-    // Очищаем другие фильтры в UI
     const filterDept = document.getElementById('org-filter-department');
     if (filterDept) filterDept.value = '';
     
@@ -767,7 +767,10 @@ filterByPosition(posId, posName) {
     if (filterPos) filterPos.value = posId.toString();
     
     // Перерисовываем дерево
-    this.render();
+    await this.render();
+    
+    // Обновляем статистику и графики
+    this.updateStatisticsAndCharts();
     
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
@@ -843,9 +846,8 @@ filterByStatus(status) {
     this.filterPosition = '';
     this.searchQuery = '';
     
-    // Устанавливаем или снимаем фильтр статуса
+    // Устанавливаем или снимаем фильтр
     if (this.filterStatus === status) {
-        // Если уже активен - снимаем фильтр
         this.filterStatus = '';
     } else {
         this.filterStatus = status;
@@ -861,12 +863,11 @@ filterByStatus(status) {
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = '';
     
-    // Перерисовываем
-    this.render();
+    // Перерисовываем дерево
+    await this.render();
     
-    setTimeout(() => {
-        this.renderChartsInDetails();
-    }, 100);
+    // Обновляем статистику и графики
+    this.updateStatisticsAndCharts();
     
     // Уведомление
     if (this.filterStatus === 'active') {
