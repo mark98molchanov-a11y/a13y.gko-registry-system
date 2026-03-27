@@ -836,7 +836,6 @@ async filterByPosition(posId, posName) {
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
-
 renderLegends(stats) {
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
