@@ -509,122 +509,101 @@ class OrgChartRenderer {
     `;
 }
 drawDepartmentsChartMini(stats) {
-    const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
+    const canvas = document.getElementById('org-departments-chart-details');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    if (this.deptsChartDetails) this.deptsChartDetails.destroy();
-    
     const allDepts = stats.deptStats.filter(d => d.count > 0);
+    
+    if (allDepts.length === 0) {
+        if (this.deptsChartDetails) {
+            this.deptsChartDetails.destroy();
+            this.deptsChartDetails = null;
+        }
+        return;
+    }
+    
     const labels = allDepts.map((_, index) => `${index + 1}`);
     const data = allDepts.map(d => d.count);
+    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
     
-    const colors = [
-        '#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', 
-        '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'
-    ];
-    
-    this.deptsChartDetails = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allDepts.length), borderWidth: 0, hoverOffset: 6 }] },
-        options: {
-            responsive: true, 
-            maintainAspectRatio: true, 
-            cutout: '60%',
-            animation: false, // ← ДОБАВИТЬ ЭТУ СТРОКУ - отключает анимацию
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    bodyFont: { size: 10 },
-                    callbacks: {
-                        label: function(context) {
-                            const index = context.dataIndex;
-                            const dept = allDepts[index];
-                            const value = context.raw || 0;
-                            const total = allDepts.reduce((sum, d) => sum + d.count, 0);
-                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${dept.name}: ${value} чел. (${percentage}%)`;
-                        }
-                    }
-                }
+    // Если график уже существует - обновляем данные, иначе создаем новый
+    if (this.deptsChartDetails) {
+        this.deptsChartDetails.data.datasets[0].data = data;
+        this.deptsChartDetails.update();
+    } else {
+        this.deptsChartDetails = new Chart(ctx, {
+            type: 'doughnut',
+            data: { 
+                labels: labels, 
+                datasets: [{ 
+                    data: data, 
+                    backgroundColor: colors.slice(0, allDepts.length), 
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }] 
             },
-            onClick: (e, els) => {
-                if (els.length > 0) {
-                    const index = els[0].index;
-                    const dept = allDepts[index];
-                    if (dept) {
-                        this.filterDepartment = dept.id.toString();
-                        this.filterPosition = '';
-                        this.searchQuery = '';
-                        this.filterStatus = '';
-                        const searchInput = document.getElementById('org-search');
-                        if (searchInput) searchInput.value = '';
-                        this.render();
-                        this.showNotification(`🔍 Фильтр по отделу: ${dept.name}`, 'info');
-                    }
-                }
+            options: {
+                responsive: true, 
+                maintainAspectRatio: true, 
+                cutout: '60%',
+                animation: false,
+                plugins: { legend: { display: false } }
             }
-        }
-    });
+        });
+    }
 }
 
 drawPositionsChartMini(stats) {
-    const ctx = document.getElementById('org-positions-chart-details')?.getContext('2d');
+    const canvas = document.getElementById('org-positions-chart-details');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    if (this.positionsChartDetails) this.positionsChartDetails.destroy();
-    
     const allPositions = stats.positionStats.filter(p => p.count > 0);
+    
+    if (allPositions.length === 0) {
+        if (this.positionsChartDetails) {
+            this.positionsChartDetails.destroy();
+            this.positionsChartDetails = null;
+        }
+        return;
+    }
+    
     const labels = allPositions.map((_, index) => `${index + 1}`);
     const data = allPositions.map(p => p.count);
+    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
     
-    const colors = [
-        '#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', 
-        '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'
-    ];
-    
-    this.positionsChartDetails = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, allPositions.length), borderWidth: 0, hoverOffset: 6 }] },
-        options: {
-            responsive: true, 
-            maintainAspectRatio: true, 
-            cutout: '60%',
-            animation: false, // ← ДОБАВИТЬ ЭТУ СТРОКУ
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    bodyFont: { size: 10 },
-                    callbacks: {
-                        label: function(context) {
-                            const index = context.dataIndex;
-                            const position = allPositions[index];
-                            const value = context.raw || 0;
-                            const total = allPositions.reduce((sum, p) => sum + p.count, 0);
-                            const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${position.name}: ${value} чел. (${percentage}%)`;
-                        }
-                    }
-                }
+    // Если график уже существует - обновляем данные, иначе создаем новый
+    if (this.positionsChartDetails) {
+        this.positionsChartDetails.data.datasets[0].data = data;
+        this.positionsChartDetails.update();
+    } else {
+        this.positionsChartDetails = new Chart(ctx, {
+            type: 'doughnut',
+            data: { 
+                labels: labels, 
+                datasets: [{ 
+                    data: data, 
+                    backgroundColor: colors.slice(0, allPositions.length), 
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }] 
             },
-            onClick: (e, els) => {
-                if (els.length > 0) {
-                    const index = els[0].index;
-                    const position = allPositions[index];
-                    if (position) {
-                        this.filterPosition = position.id.toString();
-                        this.filterDepartment = '';
-                        this.searchQuery = '';
-                        this.filterStatus = '';
-                        const searchInput = document.getElementById('org-search');
-                        if (searchInput) searchInput.value = '';
-                        this.render();
-                        this.showNotification(`🔍 Фильтр по должности: ${position.name}`, 'info');
-                    }
-                }
+            options: {
+                responsive: true, 
+                maintainAspectRatio: true, 
+                cutout: '60%',
+                animation: false,
+                plugins: { legend: { display: false } }
             }
-        }
-    });
+        });
+    }
 }
+
 async filterByDepartment(deptId, deptName) {
     // Сбрасываем другие фильтры
     this.filterDepartment = deptId.toString();
@@ -692,7 +671,6 @@ async filterByDepartment(deptId, deptName) {
         `;
         detailsPanel.appendChild(chartsContainer);
         
-        // Создаем HTML структуру один раз
         chartsContainer.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
@@ -711,10 +689,10 @@ async filterByDepartment(deptId, deptName) {
             
             <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                 <button id="filter-active-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
-                    👥 Активные <span id="active-count" style="font-weight: 600; margin-left: 4px;">0</span>
+                    👥 Активные <span id="active-count">0</span>
                 </button>
                 <button id="filter-fired-btn" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
-                    🚪 Вакансии <span id="fired-count" style="font-weight: 600; margin-left: 4px;">0</span>
+                    🚪 Вакансии <span id="fired-count">0</span>
                 </button>
             </div>
             
@@ -740,19 +718,22 @@ async filterByDepartment(deptId, deptName) {
             </div>
         `;
         
-        // Назначаем обработчики событий
         document.getElementById('clear-filters-btn')?.addEventListener('click', () => this.clearFilters());
         document.getElementById('filter-active-btn')?.addEventListener('click', () => this.filterByStatus('active'));
         document.getElementById('filter-fired-btn')?.addEventListener('click', () => this.filterByStatus('fired'));
+        
+        this.chartsInitialized = true;
     }
     
-    // Обновляем данные
+    // ===== ТОЛЬКО ОБНОВЛЯЕМ ДАННЫЕ, НЕ ПЕРЕСОЗДАЕМ ГРАФИКИ =====
     const total = stats.activeCount + stats.firedCount;
     const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
     
+    // Обновляем прогресс-бар
     const progressFill = document.getElementById('progress-fill');
     if (progressFill) progressFill.style.width = `${activePercent}%`;
     
+    // Обновляем счетчики
     const activeCountLabel = document.getElementById('active-count-label');
     if (activeCountLabel) activeCountLabel.textContent = `${stats.activeCount} из ${total}`;
     
@@ -771,12 +752,10 @@ async filterByDepartment(deptId, deptName) {
             activeBtn.style.background = '#10b981';
             activeBtn.style.color = 'white';
             activeBtn.style.border = 'none';
-            activeBtn.style.boxShadow = '0 1px 3px rgba(16, 185, 129, 0.3)';
         } else {
             activeBtn.style.background = '#f1f5f9';
             activeBtn.style.color = '#475569';
             activeBtn.style.border = '1px solid #e2e8f0';
-            activeBtn.style.boxShadow = 'none';
         }
     }
     
@@ -785,20 +764,18 @@ async filterByDepartment(deptId, deptName) {
             firedBtn.style.background = '#ef4444';
             firedBtn.style.color = 'white';
             firedBtn.style.border = 'none';
-            firedBtn.style.boxShadow = '0 1px 3px rgba(239, 68, 68, 0.3)';
         } else {
             firedBtn.style.background = '#f1f5f9';
             firedBtn.style.color = '#475569';
             firedBtn.style.border = '1px solid #e2e8f0';
-            firedBtn.style.boxShadow = 'none';
         }
     }
     
-    // Обновляем графики
+    // ОБНОВЛЯЕМ ГРАФИКИ (они уже существуют)
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
     
-    // Обновляем легенды
+    // ОБНОВЛЯЕМ ЛЕГЕНДЫ
     this.renderLegends(stats);
 }
 async filterByPosition(posId, posName) {
