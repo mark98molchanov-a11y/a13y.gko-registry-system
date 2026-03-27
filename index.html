@@ -2710,6 +2710,7 @@ async function saveToGitHub() {
     // ===== ПОЛУЧАЕМ ДАННЫЕ ИЗ НОВОЙ СИСТЕМЫ С ФОТО =====
     let orgData = null;
     let orgStructure = null;
+    let photoCount = 0; // ← ОБЪЯВЛЯЕМ ЗДЕСЬ, ВНЕ БЛОКА
     
     // Получаем данные из новой организационной структуры
     if (window.orgData) {
@@ -2718,7 +2719,6 @@ async function saveToGitHub() {
         
         // ===== ВАЖНО: ЗАГРУЖАЕМ ФОТО ИЗ INDEXEDDB =====
         const employeesWithPhotos = [];
-        let photoCount = 0;
         
         console.log(`📸 Загрузка фото для ${snapshot.employees.length} сотрудников...`);
         
@@ -2732,18 +2732,17 @@ async function saveToGitHub() {
                     if (photoData && photoData.startsWith('data:image')) {
                         empCopy.photo = photoData;
                         photoCount++;
-                        console.log(`📸 Фото ${emp.name} встроено (${Math.round(photoData.length / 1024)} KB)`);
+                        console.log(`📸 Фото для ${emp.name} встроено (${Math.round(photoData.length / 1024)} KB)`);
                     } else {
-                        console.warn(`⚠️ Нет фото для ${emp.name}`);
+                        console.warn(`⚠️ Не удалось загрузить фото для ${emp.name}`);
                         empCopy.photo = null;
                     }
                 } catch (err) {
-                    console.error(`❌ Ошибка загрузки фото ${emp.name}:`, err);
+                    console.error(`❌ Ошибка загрузки фото для ${emp.name}:`, err);
                     empCopy.photo = null;
                 }
             }
             // Если фото уже в base64, оставляем как есть
-            // else if (emp.photo && emp.photo.startsWith('data:image')) - это уже base64
             
             employeesWithPhotos.push(empCopy);
         }
@@ -2791,7 +2790,7 @@ async function saveToGitHub() {
             orgStructureVersion: "3.0",
             departmentsCount: orgData?.departments?.length || 0,
             employeesCount: orgData?.employees?.length || 0,
-            photosEmbedded: photoCount,
+            photosEmbedded: photoCount, // ← ТЕПЕРЬ photoCount ДОСТУПНА
             exportFormat: "combined_v3_with_photos",
             exportTimestamp: Date.now()
         }
