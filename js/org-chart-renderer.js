@@ -525,13 +525,16 @@ drawDepartmentsChartMini(stats) {
         return;
     }
     
-    const labels = allDepts.map((_, index) => `${index + 1}`);
+    const labels = allDepts.map(d => d.name);
     const data = allDepts.map(d => d.count);
     const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
     
-    // Если график уже существует - обновляем данные, иначе создаем новый
+    // Сохраняем данные для клика
+    this.deptsChartData = allDepts;
+    
     if (this.deptsChartDetails) {
         this.deptsChartDetails.data.datasets[0].data = data;
+        this.deptsChartDetails.data.labels = labels;
         this.deptsChartDetails.update();
     } else {
         this.deptsChartDetails = new Chart(ctx, {
@@ -550,6 +553,15 @@ drawDepartmentsChartMini(stats) {
                 maintainAspectRatio: true, 
                 cutout: '60%',
                 animation: false,
+                onClick: (event, activeElements) => {
+                    if (activeElements && activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const dept = this.deptsChartData[index];
+                        if (dept) {
+                            this.filterByDepartment(dept.id, dept.name);
+                        }
+                    }
+                },
                 plugins: { legend: { display: false } }
             }
         });
@@ -573,13 +585,16 @@ drawPositionsChartMini(stats) {
         return;
     }
     
-    const labels = allPositions.map((_, index) => `${index + 1}`);
+    const labels = allPositions.map(p => p.name);
     const data = allPositions.map(p => p.count);
     const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
     
-    // Если график уже существует - обновляем данные, иначе создаем новый
+    // Сохраняем данные для клика
+    this.positionsChartData = allPositions;
+    
     if (this.positionsChartDetails) {
         this.positionsChartDetails.data.datasets[0].data = data;
+        this.positionsChartDetails.data.labels = labels;
         this.positionsChartDetails.update();
     } else {
         this.positionsChartDetails = new Chart(ctx, {
@@ -598,6 +613,15 @@ drawPositionsChartMini(stats) {
                 maintainAspectRatio: true, 
                 cutout: '60%',
                 animation: false,
+                onClick: (event, activeElements) => {
+                    if (activeElements && activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const position = this.positionsChartData[index];
+                        if (position) {
+                            this.filterByPosition(position.id, position.name);
+                        }
+                    }
+                },
                 plugins: { legend: { display: false } }
             }
         });
