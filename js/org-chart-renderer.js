@@ -2506,43 +2506,6 @@ renderChartsInDetails() {
             firedBtn.addEventListener('click', function() { self.filterByStatus('fired'); });
         }
         
-        var deptsCanvas = document.getElementById('org-departments-chart-details');
-        var positionsCanvas = document.getElementById('org-positions-chart-details');
-        
-        if (deptsCanvas && !deptsCanvas.hasClickListener) {
-            deptsCanvas.style.cursor = 'pointer';
-            deptsCanvas.addEventListener('click', function(e) {
-                if (self.deptsChartDetails && self.deptsChartDetails.getElementsAtEvent) {
-                    var activePoints = self.deptsChartDetails.getElementsAtEvent(e);
-                    if (activePoints && activePoints.length > 0) {
-                        var index = activePoints[0].index;
-                        var dept = stats.deptStats.filter(function(d) { return d.count > 0; })[index];
-                        if (dept) {
-                            self.filterByDepartment(dept.id, dept.name);
-                        }
-                    }
-                }
-            });
-            deptsCanvas.hasClickListener = true;
-        }
-        
-        if (positionsCanvas && !positionsCanvas.hasClickListener) {
-            positionsCanvas.style.cursor = 'pointer';
-            positionsCanvas.addEventListener('click', function(e) {
-                if (self.positionsChartDetails && self.positionsChartDetails.getElementsAtEvent) {
-                    var activePoints = self.positionsChartDetails.getElementsAtEvent(e);
-                    if (activePoints && activePoints.length > 0) {
-                        var index = activePoints[0].index;
-                        var position = stats.positionStats.filter(function(p) { return p.count > 0; })[index];
-                        if (position) {
-                            self.filterByPosition(position.id, position.name);
-                        }
-                    }
-                }
-            });
-            positionsCanvas.hasClickListener = true;
-        }
-        
         this.chartsInitialized = true;
     }
     
