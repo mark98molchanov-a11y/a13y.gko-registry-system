@@ -553,21 +553,12 @@ drawDepartmentsChartMini(stats) {
                 maintainAspectRatio: true, 
                 cutout: '60%',
                 animation: false,
-                onClick: (event, activeElements) => {
-                    if (activeElements && activeElements.length > 0) {
-                        const index = activeElements[0].index;
-                        const dept = this.deptsChartData[index];
-                        if (dept) {
-                            this.filterByDepartment(dept.id, dept.name);
-                        }
-                    }
-                },
                 plugins: { legend: { display: false } }
+                // onClick УДАЛЕН!
             }
         });
     }
 }
-
 drawPositionsChartMini(stats) {
     const canvas = document.getElementById('org-positions-chart-details');
     if (!canvas) return;
@@ -613,16 +604,8 @@ drawPositionsChartMini(stats) {
                 maintainAspectRatio: true, 
                 cutout: '60%',
                 animation: false,
-                onClick: (event, activeElements) => {
-                    if (activeElements && activeElements.length > 0) {
-                        const index = activeElements[0].index;
-                        const position = this.positionsChartData[index];
-                        if (position) {
-                            this.filterByPosition(position.id, position.name);
-                        }
-                    }
-                },
                 plugins: { legend: { display: false } }
+                // onClick УДАЛЕН!
             }
         });
     }
