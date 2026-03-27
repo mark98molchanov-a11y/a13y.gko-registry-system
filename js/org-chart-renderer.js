@@ -758,21 +758,6 @@ filterByPosition(posId, posName) {
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
 renderLegends(stats) {
-    // Создаем хэш текущих данных для сравнения
-    const currentHash = JSON.stringify({
-        deptStats: stats.deptStats.map(d => ({ id: d.id, count: d.count })),
-        positionStats: stats.positionStats.map(p => ({ id: p.id, count: p.count }))
-    });
-    
-    // Если данные не изменились, не перерисовываем
-    if (this.lastLegendsHash === currentHash) {
-        console.log('📊 Легенды не изменились, пропускаем перерисовку');
-        return;
-    }
-    this.lastLegendsHash = currentHash;
-    
-    console.log('🎨 renderLegends вызван, данные изменились');
-    
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
     if (deptsLegend) {
@@ -780,25 +765,29 @@ renderLegends(stats) {
         const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
         
         if (allDepts.length === 0) {
-            deptsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
+            deptsLegend.innerHTML = '<div style="text-align: center; padding: 12px; color: #94a3b8;">Нет данных</div>';
             return;
         }
         
-        deptsLegend.innerHTML = allDepts.map((dept, index) => {
-            let shortName = dept.name;
-            if (shortName.length > 12) {
-                shortName = shortName.substring(0, 10) + '..';
-            }
-            return `
-                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" 
-                     onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
-                     title="${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
-                    <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
-                    <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
-                    <span style="font-size: 0.4rem; color: #94a3b8;">(${dept.count})</span>
-                </div>
-            `;
-        }).join('');
+        // Фиксированная высота + скролл
+        deptsLegend.style.height = '140px';
+        deptsLegend.style.overflowY = 'auto';
+        deptsLegend.style.paddingRight = '4px';
+        
+        deptsLegend.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                ${allDepts.map((dept, index) => `
+                    <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 6px;"
+                         onmouseover="this.style.backgroundColor='#f1f5f9'"
+                         onmouseout="this.style.backgroundColor='transparent'"
+                         onclick="orgApp.filterByDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
+                        <span style="width: 10px; height: 10px; background: ${colors[index % colors.length]}; border-radius: 2px; flex-shrink: 0;"></span>
+                        <span style="flex: 1; font-size: 0.7rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(dept.name)}</span>
+                        <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">${dept.count}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
     }
     
     // Легенда для должностей
@@ -808,25 +797,29 @@ renderLegends(stats) {
         const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
         
         if (allPositions.length === 0) {
-            positionsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
+            positionsLegend.innerHTML = '<div style="text-align: center; padding: 12px; color: #94a3b8;">Нет данных</div>';
             return;
         }
         
-        positionsLegend.innerHTML = allPositions.map((pos, index) => {
-            let shortName = pos.name;
-            if (shortName.length > 12) {
-                shortName = shortName.substring(0, 10) + '..';
-            }
-            return `
-                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 2px;" 
-                     onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
-                     title="${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}">
-                    <span style="width: 8px; height: 8px; background: ${colors[index % colors.length]}; border-radius: 2px;"></span>
-                    <span style="font-size: 0.45rem; color: #475569;">${shortName}</span>
-                    <span style="font-size: 0.4rem; color: #94a3b8;">(${pos.count})</span>
-                </div>
-            `;
-        }).join('');
+        // Фиксированная высота + скролл
+        positionsLegend.style.height = '140px';
+        positionsLegend.style.overflowY = 'auto';
+        positionsLegend.style.paddingRight = '4px';
+        
+        positionsLegend.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                ${allPositions.map((pos, index) => `
+                    <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 6px;"
+                         onmouseover="this.style.backgroundColor='#f1f5f9'"
+                         onmouseout="this.style.backgroundColor='transparent'"
+                         onclick="orgApp.filterByPosition(${pos.id}, '${pos.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
+                        <span style="width: 10px; height: 10px; background: ${colors[index % colors.length]}; border-radius: 2px; flex-shrink: 0;"></span>
+                        <span style="flex: 1; font-size: 0.7rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(pos.name)}</span>
+                        <span style="font-size: 0.65rem; font-weight: 500; color: #64748b;">${pos.count}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
     }
 }
     filterByStatus(status) {
