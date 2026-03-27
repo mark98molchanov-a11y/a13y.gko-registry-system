@@ -2434,6 +2434,4 @@ renderChartsInDetails() {
 }
 }
 
-} // ← ЗАКРЫВАЮЩАЯ СКОБКА КЛАССА
-
 window.OrgChartRenderer = OrgChartRenderer;
