@@ -2448,85 +2448,66 @@ async saveToGitHubAfterChange() {
     }
     
 renderChartsInDetails() {
-    const stats = this.renderStatistics();
-    const detailsPanel = document.getElementById('org-details-panel');
+    var self = this;
+    var stats = this.renderStatistics();
+    var detailsPanel = document.getElementById('org-details-panel');
     if (!detailsPanel) return;
     
-    let chartsContainer = document.getElementById('org-charts-in-details');
+    var chartsContainer = document.getElementById('org-charts-in-details');
     
     if (!chartsContainer) {
         chartsContainer = document.createElement('div');
         chartsContainer.id = 'org-charts-in-details';
-        chartsContainer.style.cssText = `
-            margin-top: 8px;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        `;
+        chartsContainer.style.cssText = 'margin-top: 8px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;';
         detailsPanel.appendChild(chartsContainer);
         
-        chartsContainer.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
-                <button id="clear-filters-btn" style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; border: none; cursor: pointer; padding: 4px 12px; border-radius: 6px;">Сбросить все</button>
-            </div>
-            
-            <div style="margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="font-size: 0.7rem; color: #475569;">Активные сотрудники</span>
-                    <span id="active-count-label" style="font-size: 0.7rem; font-weight: 500; color: #10b981;">0 из 0</span>
-                </div>
-                <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-                    <div id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-                <button id="filter-active-btn" style="flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
-                    👥 Активные <span id="active-count">0</span>
-                </button>
-                <button id="filter-fired-btn" style="flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
-                    🚪 Вакансии <span id="fired-count">0</span>
-                </button>
-            </div>
-            
-            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 200px;">
-                    <div style="text-align: center; margin-bottom: 8px;">
-                        <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
-                    </div>
-                    <div style="position: relative; height: 120px; max-width: 100%;">
-                        <canvas id="org-departments-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas>
-                    </div>
-                    <div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
-                </div>
-                <div style="flex: 1; min-width: 200px;">
-                    <div style="text-align: center; margin-bottom: 8px;">
-                        <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
-                    </div>
-                    <div style="position: relative; height: 120px; max-width: 100%;">
-                        <canvas id="org-positions-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas>
-                    </div>
-                    <div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
-                </div>
-            </div>
-        `;
+        chartsContainer.innerHTML = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">' +
+            '<span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>' +
+            '<button id="clear-filters-btn" style="font-size: 0.65rem; color: #3b82f6; background: #eff6ff; border: none; cursor: pointer; padding: 4px 12px; border-radius: 6px;">Сбросить все</button>' +
+            '</div>' +
+            '<div style="margin-bottom: 16px;">' +
+            '<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">' +
+            '<span style="font-size: 0.7rem; color: #475569;">Активные сотрудники</span>' +
+            '<span id="active-count-label" style="font-size: 0.7rem; font-weight: 500; color: #10b981;">0 из 0</span>' +
+            '</div>' +
+            '<div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">' +
+            '<div id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px;"></div>' +
+            '</div>' +
+            '</div>' +
+            '<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">' +
+            '<button id="filter-active-btn" style="flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">👥 Активные <span id="active-count">0</span></button>' +
+            '<button id="filter-fired-btn" style="flex: 1; min-width: 100px; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 500; cursor: pointer; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">🚪 Вакансии <span id="fired-count">0</span></button>' +
+            '</div>' +
+            '<div style="display: flex; gap: 16px; flex-wrap: wrap;">' +
+            '<div style="flex: 1; min-width: 200px;">' +
+            '<div style="text-align: center; margin-bottom: 8px;"><span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span></div>' +
+            '<div style="position: relative; height: 120px; max-width: 100%;"><canvas id="org-departments-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas></div>' +
+            '<div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>' +
+            '</div>' +
+            '<div style="flex: 1; min-width: 200px;">' +
+            '<div style="text-align: center; margin-bottom: 8px;"><span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span></div>' +
+            '<div style="position: relative; height: 120px; max-width: 100%;"><canvas id="org-positions-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas></div>' +
+            '<div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>' +
+            '</div>' +
+            '</div>';
         
         var clearBtn = document.getElementById('clear-filters-btn');
-        if (clearBtn) clearBtn.addEventListener('click', function() { this.clearFilters(); }.bind(this));
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() { self.clearFilters(); });
+        }
         
         var activeBtn = document.getElementById('filter-active-btn');
-        if (activeBtn) activeBtn.addEventListener('click', function() { this.filterByStatus('active'); }.bind(this));
+        if (activeBtn) {
+            activeBtn.addEventListener('click', function() { self.filterByStatus('active'); });
+        }
         
         var firedBtn = document.getElementById('filter-fired-btn');
-        if (firedBtn) firedBtn.addEventListener('click', function() { this.filterByStatus('fired'); }.bind(this));
+        if (firedBtn) {
+            firedBtn.addEventListener('click', function() { self.filterByStatus('fired'); });
+        }
         
-        // Добавляем обработчики клика на графики ТОЛЬКО ОДИН РАЗ при создании
         var deptsCanvas = document.getElementById('org-departments-chart-details');
         var positionsCanvas = document.getElementById('org-positions-chart-details');
-        
-        var self = this;
         
         if (deptsCanvas && !deptsCanvas.hasClickListener) {
             deptsCanvas.style.cursor = 'pointer';
@@ -2607,7 +2588,6 @@ renderChartsInDetails() {
         }
     }
     
-    // Обновляем графики с учетом размера контейнера
     var deptsCanvas = document.getElementById('org-departments-chart-details');
     var positionsCanvas = document.getElementById('org-positions-chart-details');
     
@@ -2635,9 +2615,7 @@ renderChartsInDetails() {
     this.drawPositionsChartMini(stats);
     this.renderLegends(stats);
     
-    // Добавляем обработчик изменения размера окна для адаптации графиков
     if (!this.resizeHandler) {
-        var self = this;
         this.resizeHandler = function() {
             setTimeout(function() {
                 var currentStats = self.renderStatistics();
@@ -2648,5 +2626,7 @@ renderChartsInDetails() {
         window.addEventListener('resize', this.resizeHandler);
     }
 }
+
+} // ← ЗАКРЫВАЮЩАЯ СКОБКА КЛАССА
 
 window.OrgChartRenderer = OrgChartRenderer;
