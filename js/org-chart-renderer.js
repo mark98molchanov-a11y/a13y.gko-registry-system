@@ -2513,24 +2513,31 @@ renderChartsInDetails() {
             </div>
         `;
         
-        document.getElementById('clear-filters-btn')?.addEventListener('click', () => this.clearFilters());
-        document.getElementById('filter-active-btn')?.addEventListener('click', () => this.filterByStatus('active'));
-        document.getElementById('filter-fired-btn')?.addEventListener('click', () => this.filterByStatus('fired'));
+        var clearBtn = document.getElementById('clear-filters-btn');
+        if (clearBtn) clearBtn.addEventListener('click', function() { this.clearFilters(); }.bind(this));
+        
+        var activeBtn = document.getElementById('filter-active-btn');
+        if (activeBtn) activeBtn.addEventListener('click', function() { this.filterByStatus('active'); }.bind(this));
+        
+        var firedBtn = document.getElementById('filter-fired-btn');
+        if (firedBtn) firedBtn.addEventListener('click', function() { this.filterByStatus('fired'); }.bind(this));
         
         // Добавляем обработчики клика на графики ТОЛЬКО ОДИН РАЗ при создании
-        const deptsCanvas = document.getElementById('org-departments-chart-details');
-        const positionsCanvas = document.getElementById('org-positions-chart-details');
+        var deptsCanvas = document.getElementById('org-departments-chart-details');
+        var positionsCanvas = document.getElementById('org-positions-chart-details');
+        
+        var self = this;
         
         if (deptsCanvas && !deptsCanvas.hasClickListener) {
             deptsCanvas.style.cursor = 'pointer';
-            deptsCanvas.addEventListener('click', (e) => {
-                if (this.deptsChartDetails && this.deptsChartDetails.getElementsAtEvent) {
-                    const activePoints = this.deptsChartDetails.getElementsAtEvent(e);
+            deptsCanvas.addEventListener('click', function(e) {
+                if (self.deptsChartDetails && self.deptsChartDetails.getElementsAtEvent) {
+                    var activePoints = self.deptsChartDetails.getElementsAtEvent(e);
                     if (activePoints && activePoints.length > 0) {
-                        const index = activePoints[0].index;
-                        const dept = stats.deptStats.filter(d => d.count > 0)[index];
+                        var index = activePoints[0].index;
+                        var dept = stats.deptStats.filter(function(d) { return d.count > 0; })[index];
                         if (dept) {
-                            this.filterByDepartment(dept.id, dept.name);
+                            self.filterByDepartment(dept.id, dept.name);
                         }
                     }
                 }
@@ -2540,14 +2547,14 @@ renderChartsInDetails() {
         
         if (positionsCanvas && !positionsCanvas.hasClickListener) {
             positionsCanvas.style.cursor = 'pointer';
-            positionsCanvas.addEventListener('click', (e) => {
-                if (this.positionsChartDetails && this.positionsChartDetails.getElementsAtEvent) {
-                    const activePoints = this.positionsChartDetails.getElementsAtEvent(e);
+            positionsCanvas.addEventListener('click', function(e) {
+                if (self.positionsChartDetails && self.positionsChartDetails.getElementsAtEvent) {
+                    var activePoints = self.positionsChartDetails.getElementsAtEvent(e);
                     if (activePoints && activePoints.length > 0) {
-                        const index = activePoints[0].index;
-                        const position = stats.positionStats.filter(p => p.count > 0)[index];
+                        var index = activePoints[0].index;
+                        var position = stats.positionStats.filter(function(p) { return p.count > 0; })[index];
                         if (position) {
-                            this.filterByPosition(position.id, position.name);
+                            self.filterByPosition(position.id, position.name);
                         }
                     }
                 }
@@ -2558,23 +2565,23 @@ renderChartsInDetails() {
         this.chartsInitialized = true;
     }
     
-    const total = stats.activeCount + stats.firedCount;
-    const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
+    var total = stats.activeCount + stats.firedCount;
+    var activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
     
-    const progressFill = document.getElementById('progress-fill');
-    if (progressFill) progressFill.style.width = `${activePercent}%`;
+    var progressFill = document.getElementById('progress-fill');
+    if (progressFill) progressFill.style.width = activePercent + '%';
     
-    const activeCountLabel = document.getElementById('active-count-label');
-    if (activeCountLabel) activeCountLabel.textContent = `${stats.activeCount} из ${total}`;
+    var activeCountLabel = document.getElementById('active-count-label');
+    if (activeCountLabel) activeCountLabel.textContent = stats.activeCount + ' из ' + total;
     
-    const activeCountSpan = document.getElementById('active-count');
+    var activeCountSpan = document.getElementById('active-count');
     if (activeCountSpan) activeCountSpan.textContent = stats.activeCount;
     
-    const firedCountSpan = document.getElementById('fired-count');
+    var firedCountSpan = document.getElementById('fired-count');
     if (firedCountSpan) firedCountSpan.textContent = stats.firedCount;
     
-    const activeBtn = document.getElementById('filter-active-btn');
-    const firedBtn = document.getElementById('filter-fired-btn');
+    var activeBtn = document.getElementById('filter-active-btn');
+    var firedBtn = document.getElementById('filter-fired-btn');
     
     if (activeBtn) {
         if (this.filterStatus === 'active') {
@@ -2601,25 +2608,24 @@ renderChartsInDetails() {
     }
     
     // Обновляем графики с учетом размера контейнера
-    const deptsCanvas = document.getElementById('org-departments-chart-details');
-    const positionsCanvas = document.getElementById('org-positions-chart-details');
+    var deptsCanvas = document.getElementById('org-departments-chart-details');
+    var positionsCanvas = document.getElementById('org-positions-chart-details');
     
     if (deptsCanvas) {
-        // Устанавливаем размеры канваса в зависимости от родителя
-        const container = deptsCanvas.parentElement;
+        var container = deptsCanvas.parentElement;
         if (container) {
-            const containerWidth = container.clientWidth;
-            deptsCanvas.style.width = `${containerWidth}px`;
+            var containerWidth = container.clientWidth;
+            deptsCanvas.style.width = containerWidth + 'px';
             deptsCanvas.width = containerWidth;
             deptsCanvas.height = 120;
         }
     }
     
     if (positionsCanvas) {
-        const container = positionsCanvas.parentElement;
+        var container = positionsCanvas.parentElement;
         if (container) {
-            const containerWidth = container.clientWidth;
-            positionsCanvas.style.width = `${containerWidth}px`;
+            var containerWidth = container.clientWidth;
+            positionsCanvas.style.width = containerWidth + 'px';
             positionsCanvas.width = containerWidth;
             positionsCanvas.height = 120;
         }
@@ -2631,10 +2637,12 @@ renderChartsInDetails() {
     
     // Добавляем обработчик изменения размера окна для адаптации графиков
     if (!this.resizeHandler) {
-        this.resizeHandler = () => {
-            setTimeout(() => {
-                this.drawDepartmentsChartMini(this.renderStatistics());
-                this.drawPositionsChartMini(this.renderStatistics());
+        var self = this;
+        this.resizeHandler = function() {
+            setTimeout(function() {
+                var currentStats = self.renderStatistics();
+                self.drawDepartmentsChartMini(currentStats);
+                self.drawPositionsChartMini(currentStats);
             }, 100);
         };
         window.addEventListener('resize', this.resizeHandler);
