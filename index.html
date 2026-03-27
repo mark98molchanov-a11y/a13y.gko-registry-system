@@ -2536,7 +2536,6 @@ async function loadFromGitHub() {
         const json = await response.json();
         console.log('📦 Получен JSON, версия:', json.version);
         
-        // Сохраняем количество фото из метаданных ДО изменения
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
         
@@ -2575,63 +2574,45 @@ async function loadFromGitHub() {
             
             const departments = json.orgStructure.departments;
             const positions = json.orgStructure.positions || [];
-            let employeesToRestore = [...(json.orgStructure.employees || [])];
+            const employees = [...(json.orgStructure.employees || [])];
             let restoredPhotoCount = 0;
-            let failedPhotoCount = 0;
             
-            // Если есть OrgDataManager, восстанавливаем данные ТОЛЬКО в IndexedDB
+            // Если OrgDataManager уже инициализирован
             if (window.orgData) {
-                console.log('🔄 Обновляем OrgDataManager (только IndexedDB)...');
+                console.log('🔄 Восстанавливаем фото в IndexedDB...');
                 
+                // Обновляем отделы и должности
                 window.orgData.departments = departments;
                 window.orgData.positions = positions;
                 
-                const restoredEmployees = [];
-                
-                for (const emp of employeesToRestore) {
-                    const empCopy = { ...emp };
-                    
-                    // Восстанавливаем фото из base64 в IndexedDB
+                // Восстанавливаем фото из base64 в IndexedDB
+                for (const emp of employees) {
                     if (emp.photo && emp.photo.startsWith('data:image')) {
-                        console.log(`📸 Восстановление фото для ${emp.name} (${Math.round(emp.photo.length / 1024)} KB)...`);
+                        console.log(`📸 Сохранение фото для ${emp.name}...`);
                         
                         try {
-                            if (window.orgData.saveEmployeePhotoToIndexedDB) {
-                                const saved = await window.orgData.saveEmployeePhotoToIndexedDB(emp.id, emp.photo);
-                                if (saved) {
-                                    empCopy.photo = `__INDEXEDDB__${emp.id}`;
-                                    restoredPhotoCount++;
-                                    console.log(`✅ Фото для ${emp.name} восстановлено`);
-                                } else {
-                                    console.warn(`⚠️ Не удалось сохранить фото для ${emp.name}`);
-                                    failedPhotoCount++;
-                                    empCopy.photo = null;
-                                }
+                            const saved = await window.orgData.saveEmployeePhotoToIndexedDB(emp.id, emp.photo);
+                            if (saved) {
+                                emp.photo = `__INDEXEDDB__${emp.id}`;
+                                restoredPhotoCount++;
+                                console.log(`✅ Фото для ${emp.name} восстановлено`);
+                            } else {
+                                console.warn(`⚠️ Не удалось сохранить фото для ${emp.name}`);
+                                emp.photo = null;
                             }
                         } catch (err) {
                             console.error(`❌ Ошибка сохранения фото для ${emp.name}:`, err);
-                            failedPhotoCount++;
-                            empCopy.photo = null;
+                            emp.photo = null;
                         }
-                    } else if (emp.photo && emp.photo.startsWith('__INDEXEDDB__')) {
-                        // Уже ссылка на IndexedDB
-                        empCopy.photo = emp.photo;
-                        console.log(`📸 Фото для ${emp.name} уже в IndexedDB (ссылка)`);
-                    } else {
-                        empCopy.photo = null;
                     }
-                    
-                    restoredEmployees.push(empCopy);
                 }
                 
-                window.orgData.employees = restoredEmployees;
-                console.log(`✅ Сохранено ${restoredEmployees.length} сотрудников`);
+                // Обновляем сотрудников
+                window.orgData.employees = employees;
+                console.log(`✅ Сохранено ${employees.length} сотрудников`);
                 console.log(`📸 Восстановлено фото: ${restoredPhotoCount} из ${photosInFile}`);
-                if (failedPhotoCount > 0) {
-                    console.warn(`⚠️ Не удалось восстановить: ${failedPhotoCount} фото`);
-                }
                 
-                // Сохраняем ТОЛЬКО в IndexedDB
+                // Сохраняем в IndexedDB
                 await window.orgData.saveData();
                 console.log('✅ Данные сохранены в IndexedDB');
                 
@@ -2660,24 +2641,24 @@ async function loadFromGitHub() {
                 console.log('⏳ OrgDataManager еще не инициализирован, сохраняем в pending');
                 window.pendingOrgData = {
                     departments: departments,
-                    employees: employeesToRestore,
+                    employees: employees,
                     positions: positions,
                     version: "3.0",
                     photosToRestore: photosInFile
                 };
+                console.log(`💾 Сохранено в pending: ${departments.length} отделов, ${employees.length} сотрудников`);
             }
             
-            console.log(`📁 Загружено ${departments.length} отделов и ${employeesToRestore.length} сотрудников`);
-            console.log(`📸 Восстановлено фото: ${restoredPhotoCount} из ${photosInFile}`);
-            
-            // Показываем уведомление с правильными цифрами
-   if (restoredPhotoCount === photosInFile && photosInFile > 0) {
-    showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, все ${restoredPhotoCount} фото восстановлены`, 'success');
-} else if (restoredPhotoCount > 0) {
-    showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников, ${restoredPhotoCount} из ${photosInFile} фото`, 'success');
-} else {
-    showNotification(`✅ Загружено: ${departments.length} отделов, ${employeesToRestore.length} сотрудников`, 'success');
-}
+            // Показываем уведомление
+            if (restoredPhotoCount === photosInFile && photosInFile > 0) {
+                showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников, все ${restoredPhotoCount} фото восстановлены`, 'success');
+            } else if (restoredPhotoCount > 0) {
+                showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников, ${restoredPhotoCount} из ${photosInFile} фото`, 'success');
+            } else if (photosInFile > 0) {
+                showNotification(`📥 Загружено: ${departments.length} отделов, ${employees.length} сотрудников. Фото загружаются...`, 'info');
+            } else {
+                showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников`, 'success');
+            }
         }
         
         // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
@@ -2738,7 +2719,6 @@ async function saveToGitHub() {
         // ===== ВАЖНО: ЗАГРУЖАЕМ ФОТО ИЗ INDEXEDDB =====
         const employeesWithPhotos = [];
         let photoCount = 0;
-        let photoErrors = 0;
         
         console.log(`📸 Загрузка фото для ${snapshot.employees.length} сотрудников...`);
         
@@ -2750,34 +2730,29 @@ async function saveToGitHub() {
                 try {
                     const photoData = await window.orgData.loadEmployeePhotoFromIndexedDB(emp.id);
                     if (photoData && photoData.startsWith('data:image')) {
-                        empCopy.photo = photoData; // ВСТРАИВАЕМ фото в JSON
+                        empCopy.photo = photoData;
                         photoCount++;
-                        console.log(`📸 Фото для ${emp.name} встроено (${Math.round(photoData.length / 1024)} KB)`);
+                        console.log(`📸 Фото ${emp.name} встроено (${Math.round(photoData.length / 1024)} KB)`);
                     } else {
-                        console.warn(`⚠️ Не удалось загрузить фото для ${emp.name}`);
-                        photoErrors++;
+                        console.warn(`⚠️ Нет фото для ${emp.name}`);
                         empCopy.photo = null;
                     }
                 } catch (err) {
-                    console.error(`❌ Ошибка загрузки фото для ${emp.name}:`, err);
-                    photoErrors++;
+                    console.error(`❌ Ошибка загрузки фото ${emp.name}:`, err);
                     empCopy.photo = null;
                 }
-            } else if (emp.photo && emp.photo.startsWith('data:image')) {
-                // Фото уже в base64
-                empCopy.photo = emp.photo;
-                photoCount++;
-                console.log(`📸 Фото для ${emp.name} уже в base64 (${Math.round(emp.photo.length / 1024)} KB)`);
             }
+            // Если фото уже в base64, оставляем как есть
+            // else if (emp.photo && emp.photo.startsWith('data:image')) - это уже base64
             
             employeesWithPhotos.push(empCopy);
         }
         
-        console.log(`📸 Итог: загружено ${photoCount} фото, ошибок: ${photoErrors}`);
+        console.log(`📸 Итог: встроено ${photoCount} фото`);
         
         orgData = {
             departments: snapshot.departments,
-            employees: employeesWithPhotos, // С ВСТРОЕННЫМИ фото
+            employees: employeesWithPhotos,
             positions: snapshot.positions,
             version: "3.0"
         };
@@ -2793,14 +2768,7 @@ async function saveToGitHub() {
             };
         }
     } else {
-        console.warn('⚠️ OrgDataManager не найден, используем старые данные');
-        if (window.treeApp && window.treeApp.treeData) {
-            orgStructure = {
-                tree: window.treeApp.serializeTree(window.treeApp.treeData),
-                images: window.treeApp.imagesData || {},
-                filesData: window.treeApp.filesData || {}
-            };
-        }
+        console.warn('⚠️ OrgDataManager не найден');
     }
     
     // Получаем данные калькулятора
@@ -2810,42 +2778,33 @@ async function saveToGitHub() {
     const allData = {
         version: "3.0",
         exportDate: new Date().toISOString(),
-        
         npas: appData,
         dashboards: dashboardsData,
         orgStructure: orgData,
-        
-        // Для обратной совместимости со старым деревом
         tree: orgStructure?.tree || null,
         images: orgStructure?.images || {},
         filesData: orgStructure?.filesData || {},
-        
         calculator: calculatorData,
-        
         metadata: {
             npaCount: appData.length,
             dashboardsCount: dashboardsData.length,
             orgStructureVersion: "3.0",
             departmentsCount: orgData?.departments?.length || 0,
             employeesCount: orgData?.employees?.length || 0,
-            photosEmbedded: orgData?.employees?.filter(e => e.photo && e.photo.startsWith('data:image')).length || 0,
+            photosEmbedded: photoCount,
             exportFormat: "combined_v3_with_photos",
             exportTimestamp: Date.now()
         }
     };
     
-    console.log('📊 Итоговые метаданные:', allData.metadata);
-    console.log('📦 Отделов для сохранения:', allData.orgStructure?.departments?.length || 0);
-    console.log('👥 Сотрудников для сохранения:', allData.orgStructure?.employees?.length || 0);
-    console.log('📸 Фото встроено в JSON:', allData.metadata.photosEmbedded);
+    console.log('📊 Метаданные:', allData.metadata);
     
     const content = JSON.stringify(allData, null, 2);
     const contentSize = Math.round(content.length / 1024);
     console.log(`📤 Размер JSON: ${contentSize} KB`);
     
-    if (contentSize > 100 * 1024) { // 100MB лимит GitHub
-        console.warn(`⚠️ Внимание: файл очень большой (${contentSize} KB). Может превысить лимиты GitHub.`);
-        if (!confirm(`Файл очень большой (${contentSize} KB). Продолжить сохранение?`)) {
+    if (contentSize > 100 * 1024) {
+        if (!confirm(`Файл большой (${contentSize} KB). Продолжить?`)) {
             return;
         }
     }
@@ -2860,72 +2819,41 @@ async function saveToGitHub() {
         let sha = null;
         try {
             const res = await fetch(apiUrl, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
+                headers: { 'Authorization': `token ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
                 sha = data.sha;
-                console.log('📁 Существующий файл найден, sha:', sha);
+                console.log('📁 SHA найден');
             }
         } catch (e) { 
-            console.log('📁 Файл не существует, будет создан новый');
+            console.log('📁 Новый файл');
         }
         
-        console.log('📤 Отправка данных в GitHub...');
-        
-        // Сохраняем файл в GitHub
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
                 'Authorization': `token ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.github.v3+json'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                message: `Обновление данных: ${new Date().toLocaleString('ru-RU')} (${allData.metadata.photosEmbedded} фото)`,
+                message: `Сохранение: ${photoCount} фото, ${new Date().toLocaleString('ru-RU')}`,
                 content: btoa(unescape(encodeURIComponent(content))),
                 sha: sha
             })
         });
         
         if (response.ok) {
-            console.log('✅ Данные успешно сохранены в GitHub!');
             closeGitHubModal();
-            
-            // Показываем уведомление об успехе
-            const success = document.createElement('div');
-            success.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-            success.innerHTML = `
-                ✅ Сохранено в GitHub!<br>
-                📁 Отделов: ${allData.orgStructure?.departments?.length || 0}<br>
-                👥 Сотрудников: ${allData.orgStructure?.employees?.length || 0}<br>
-                📸 Фото: ${allData.metadata.photosEmbedded}
-            `;
-            document.body.appendChild(success);
-            
-            setTimeout(() => {
-                success.remove();
-            }, 5000);
-            
+            showNotification(`✅ Сохранено: ${allData.metadata.departmentsCount} отделов, ${allData.metadata.employeesCount} сотрудников, ${photoCount} фото`, 'success');
         } else {
             const error = await response.json();
-            console.error('❌ Ошибка GitHub:', error);
-            
-            if (error.message && error.message.includes('content')) {
-                alert(`Ошибка: файл слишком большой (${contentSize} KB). Попробуйте уменьшить размер фото или экспортировать без фото.`);
-            } else {
-                alert(`Ошибка: ${error.message || 'Неизвестная ошибка'}`);
-            }
-            document.getElementById('githubTokenInput').focus();
+            alert(`Ошибка: ${error.message}`);
         }
         
     } catch (error) {
-        console.error('❌ Критическая ошибка:', error);
+        console.error('❌ Ошибка:', error);
         alert(`Ошибка: ${error.message}`);
-        document.getElementById('githubTokenInput').focus();
     }
     
     console.log('=== КОНЕЦ СОХРАНЕНИЯ ===');
