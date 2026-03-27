@@ -2422,7 +2422,6 @@ async saveToGitHubAfterChange() {
             }
         }, 3000);
     }
-}
 renderChartsInDetails() {
     const stats = this.renderStatistics();
     const detailsPanel = document.getElementById('org-details-panel');
