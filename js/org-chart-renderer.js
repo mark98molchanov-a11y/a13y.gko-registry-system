@@ -2423,7 +2423,7 @@ async saveToGitHubAfterChange() {
         }, 3000);
     }
     
-  renderChartsInDetails() {
+ renderChartsInDetails() {
     const stats = this.renderStatistics();
     const detailsPanel = document.getElementById('org-details-panel');
     if (!detailsPanel) return;
@@ -2473,7 +2473,7 @@ async saveToGitHubAfterChange() {
                         <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
                     </div>
                     <div style="position: relative; height: 120px;">
-                        <canvas id="org-departments-chart-details" style="height: 120px; width: 100%; cursor: pointer;"></canvas>
+                        <canvas id="org-departments-chart-details" style="height: 120px; width: 100%;"></canvas>
                     </div>
                     <div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
                 </div>
@@ -2482,7 +2482,7 @@ async saveToGitHubAfterChange() {
                         <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
                     </div>
                     <div style="position: relative; height: 120px;">
-                        <canvas id="org-positions-chart-details" style="height: 120px; width: 100%; cursor: pointer;"></canvas>
+                        <canvas id="org-positions-chart-details" style="height: 120px; width: 100%;"></canvas>
                     </div>
                     <div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>
                 </div>
@@ -2493,11 +2493,12 @@ async saveToGitHubAfterChange() {
         document.getElementById('filter-active-btn')?.addEventListener('click', () => this.filterByStatus('active'));
         document.getElementById('filter-fired-btn')?.addEventListener('click', () => this.filterByStatus('fired'));
         
-        // Добавляем обработчики клика на графики
+        // Добавляем обработчики клика на графики ТОЛЬКО ОДИН РАЗ при создании
         const deptsCanvas = document.getElementById('org-departments-chart-details');
         const positionsCanvas = document.getElementById('org-positions-chart-details');
         
-        if (deptsCanvas) {
+        if (deptsCanvas && !deptsCanvas.hasClickListener) {
+            deptsCanvas.style.cursor = 'pointer';
             deptsCanvas.addEventListener('click', (e) => {
                 if (this.deptsChartDetails && this.deptsChartDetails.getElementsAtEvent) {
                     const activePoints = this.deptsChartDetails.getElementsAtEvent(e);
@@ -2510,9 +2511,11 @@ async saveToGitHubAfterChange() {
                     }
                 }
             });
+            deptsCanvas.hasClickListener = true;
         }
         
-        if (positionsCanvas) {
+        if (positionsCanvas && !positionsCanvas.hasClickListener) {
+            positionsCanvas.style.cursor = 'pointer';
             positionsCanvas.addEventListener('click', (e) => {
                 if (this.positionsChartDetails && this.positionsChartDetails.getElementsAtEvent) {
                     const activePoints = this.positionsChartDetails.getElementsAtEvent(e);
@@ -2525,6 +2528,7 @@ async saveToGitHubAfterChange() {
                     }
                 }
             });
+            positionsCanvas.hasClickListener = true;
         }
         
         this.chartsInitialized = true;
