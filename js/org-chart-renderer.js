@@ -508,109 +508,6 @@ class OrgChartRenderer {
         </div>
     `;
 }
-drawDepartmentsChartMini(stats) {
-    const canvas = document.getElementById('org-departments-chart-details');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const allDepts = stats.deptStats.filter(d => d.count > 0);
-    
-    if (allDepts.length === 0) {
-        if (this.deptsChartDetails) {
-            this.deptsChartDetails.destroy();
-            this.deptsChartDetails = null;
-        }
-        return;
-    }
-    
-    const labels = allDepts.map(d => d.name);
-    const data = allDepts.map(d => d.count);
-    const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
-    
-    // Сохраняем данные для клика
-    this.deptsChartData = allDepts;
-    
-    if (this.deptsChartDetails) {
-        this.deptsChartDetails.data.datasets[0].data = data;
-        this.deptsChartDetails.data.labels = labels;
-        this.deptsChartDetails.update();
-    } else {
-        this.deptsChartDetails = new Chart(ctx, {
-            type: 'doughnut',
-            data: { 
-                labels: labels, 
-                datasets: [{ 
-                    data: data, 
-                    backgroundColor: colors.slice(0, allDepts.length), 
-                    borderWidth: 0,
-                    hoverOffset: 6
-                }] 
-            },
-            options: {
-                responsive: true, 
-                maintainAspectRatio: true, 
-                cutout: '60%',
-                animation: false,
-                plugins: { legend: { display: false } }
-                // onClick УДАЛЕН!
-            }
-        });
-    }
-}
-drawPositionsChartMini(stats) {
-    const canvas = document.getElementById('org-positions-chart-details');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const allPositions = stats.positionStats.filter(p => p.count > 0);
-    
-    if (allPositions.length === 0) {
-        if (this.positionsChartDetails) {
-            this.positionsChartDetails.destroy();
-            this.positionsChartDetails = null;
-        }
-        return;
-    }
-    
-    const labels = allPositions.map(p => p.name);
-    const data = allPositions.map(p => p.count);
-    const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
-    
-    // Сохраняем данные для клика
-    this.positionsChartData = allPositions;
-    
-    if (this.positionsChartDetails) {
-        this.positionsChartDetails.data.datasets[0].data = data;
-        this.positionsChartDetails.data.labels = labels;
-        this.positionsChartDetails.update();
-    } else {
-        this.positionsChartDetails = new Chart(ctx, {
-            type: 'doughnut',
-            data: { 
-                labels: labels, 
-                datasets: [{ 
-                    data: data, 
-                    backgroundColor: colors.slice(0, allPositions.length), 
-                    borderWidth: 0,
-                    hoverOffset: 6
-                }] 
-            },
-            options: {
-                responsive: true, 
-                maintainAspectRatio: true, 
-                cutout: '60%',
-                animation: false,
-                plugins: { legend: { display: false } }
-                // onClick УДАЛЕН!
-            }
-        });
-    }
-}
-
 async filterByDepartment(deptId, deptName) {
     // Сбрасываем другие фильтры
     this.filterDepartment = deptId.toString();
@@ -2464,13 +2361,11 @@ renderChartsInDetails() {
             '<div style="display: flex; gap: 16px; flex-wrap: wrap;">' +
             '<div style="flex: 1; min-width: 200px;">' +
             '<div style="text-align: center; margin-bottom: 8px;"><span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span></div>' +
-            '<div style="position: relative; height: 120px; max-width: 100%;"><canvas id="org-departments-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas></div>' +
-            '<div id="org-departments-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>' +
+            '<div id="org-departments-legend" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>' +
             '</div>' +
             '<div style="flex: 1; min-width: 200px;">' +
             '<div style="text-align: center; margin-bottom: 8px;"><span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span></div>' +
-            '<div style="position: relative; height: 120px; max-width: 100%;"><canvas id="org-positions-chart-details" style="height: 120px; width: 100%; max-width: 100%;"></canvas></div>' +
-            '<div id="org-positions-legend" style="margin-top: 8px; max-height: 140px; overflow-y: auto;"></div>' +
+            '<div id="org-positions-legend" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>' +
             '</div>' +
             '</div>';
         
@@ -2534,43 +2429,9 @@ renderChartsInDetails() {
         }
     }
     
-    var deptsCanvas = document.getElementById('org-departments-chart-details');
-    var positionsCanvas = document.getElementById('org-positions-chart-details');
-    
-    if (deptsCanvas) {
-        var container = deptsCanvas.parentElement;
-        if (container) {
-            var containerWidth = container.clientWidth;
-            deptsCanvas.style.width = containerWidth + 'px';
-            deptsCanvas.width = containerWidth;
-            deptsCanvas.height = 120;
-        }
-    }
-    
-    if (positionsCanvas) {
-        var container = positionsCanvas.parentElement;
-        if (container) {
-            var containerWidth = container.clientWidth;
-            positionsCanvas.style.width = containerWidth + 'px';
-            positionsCanvas.width = containerWidth;
-            positionsCanvas.height = 120;
-        }
-    }
-    
-    this.drawDepartmentsChartMini(stats);
-    this.drawPositionsChartMini(stats);
+    // Только отображаем легенды, без графиков
     this.renderLegends(stats);
-    
-    if (!this.resizeHandler) {
-        this.resizeHandler = function() {
-            setTimeout(function() {
-                var currentStats = self.renderStatistics();
-                self.drawDepartmentsChartMini(currentStats);
-                self.drawPositionsChartMini(currentStats);
-            }, 100);
-        };
-        window.addEventListener('resize', this.resizeHandler);
-    }
+}
 }
 
 } // ← ЗАКРЫВАЮЩАЯ СКОБКА КЛАССА
