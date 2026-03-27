@@ -1,22 +1,22 @@
-class OrgChartRenderer
-{
+class OrgChartRenderer {
     constructor(containerId, dataManager) {
-    this.container = document.getElementById(containerId);
-    this.dataManager = dataManager;
-    this.expandedNodes = new Set();
-    this.selectedItem = null;
-    this.selectedType = null;
-    this.searchQuery = '';
-    this.filterDepartment = '';
-    this.filterPosition = '';
-    this.filterStatus = '';
-    this.lastLegendsHash = '';
-    this.legendTimeout = null;
-    this.isRendering = false;
-    this.chartsInitialized = false; // ← НОВЫЙ ФЛАГ
+        this.container = document.getElementById(containerId);
+        this.dataManager = dataManager;
+        this.expandedNodes = new Set();
+        this.selectedItem = null;
+        this.selectedType = null;
+        this.searchQuery = '';
+        this.filterDepartment = '';
+        this.filterPosition = '';
+        this.filterStatus = '';
+        this.lastLegendsHash = '';
+        this.legendTimeout = null;
+        this.isRendering = false;
+        this.chartsInitialized = false;
+        
+        this.init();
+    }
     
-    this.init();
-}
     async init() {
         this.setupEventListeners();
         
