@@ -625,7 +625,7 @@ drawPositionsChartMini(stats) {
         }
     });
 }
-filterByDepartment(deptId, deptName) {
+async filterByDepartment(deptId, deptName) {
     // Сбрасываем другие фильтры
     this.filterDepartment = deptId.toString();
     this.filterPosition = '';
@@ -642,10 +642,10 @@ filterByDepartment(deptId, deptName) {
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = '';
     
-    // Перерисовываем дерево
+    // Перерисовываем дерево (async)
     await this.render();
     
-    // Просто обновляем статистику и графики без полной перезагрузки
+    // Обновляем статистику и графики
     this.renderChartsInDetails();
     
     // Показываем уведомление
@@ -663,7 +663,7 @@ filterByDepartment(deptId, deptName) {
         }
     }, 100);
 }
-filterByPosition(posId, posName) {
+async filterByPosition(posId, posName) {
     // Сбрасываем другие фильтры
     this.filterPosition = posId.toString();
     this.filterDepartment = '';
@@ -680,7 +680,7 @@ filterByPosition(posId, posName) {
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = posId.toString();
     
-    // Перерисовываем дерево
+    // Перерисовываем дерево (async)
     await this.render();
     
     // Обновляем статистику и графики
@@ -689,6 +689,7 @@ filterByPosition(posId, posName) {
     // Показываем уведомление
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
+
 renderLegends(stats) {
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
@@ -754,7 +755,7 @@ renderLegends(stats) {
         `;
     }
 }
-filterByStatus(status) {
+async filterByStatus(status) {
     // Сбрасываем другие фильтры
     this.filterDepartment = '';
     this.filterPosition = '';
@@ -777,7 +778,7 @@ filterByStatus(status) {
     const filterPos = document.getElementById('org-filter-position');
     if (filterPos) filterPos.value = '';
     
-    // Перерисовываем дерево
+    // Перерисовываем дерево (async)
     await this.render();
     
     // Обновляем статистику и графики
@@ -793,7 +794,7 @@ filterByStatus(status) {
     }
 }
     
-clearFilters() {
+async clearFilters() {
     this.filterDepartment = '';
     this.filterPosition = '';
     this.searchQuery = '';
@@ -819,8 +820,10 @@ clearFilters() {
         roots.forEach(root => this.expandedNodes.add(root.id));
     }
     
-    this.render();
+    // Перерисовываем дерево (async)
+    await this.render();
     
+    // Обновляем графики
     setTimeout(() => {
         this.renderChartsInDetails();
     }, 100);
