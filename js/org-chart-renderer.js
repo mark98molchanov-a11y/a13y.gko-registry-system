@@ -508,77 +508,6 @@ this.dataManager.subscribe('renderer', async () => {
         </div>
     `;
 }
-renderChartsInDetails() {
-    const stats = this.renderStatistics();
-    const detailsPanel = document.getElementById('org-details-panel');
-    if (!detailsPanel) return;
-    
-    let chartsContainer = document.getElementById('org-charts-in-details');
-    if (!chartsContainer) {
-        chartsContainer = document.createElement('div');
-        chartsContainer.id = 'org-charts-in-details';
-        chartsContainer.style.cssText = `
-            margin-top: 8px;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        `;
-        detailsPanel.appendChild(chartsContainer);
-    }
-    
-    const total = stats.activeCount + stats.firedCount;
-    const activePercent = total > 0 ? (stats.activeCount / total) * 100 : 0;
-    
-    // HTML с двумя диаграммами
-    chartsContainer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 0.7rem; font-weight: 600; color: #1e293b;">📊 Статистика сотрудников</span>
-            <button onclick="orgApp.clearFilters()" style="font-size: 0.65rem; color: #3b82f6; background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 4px;">Сбросить фильтры</button>
-        </div>
-        
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <div style="flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                <div style="width: ${activePercent}%; height: 100%; background: #10b981;"></div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <span style="font-size: 0.65rem; color: #10b981; cursor: pointer;" onclick="orgApp.filterByStatus('active')">👥 Активных: ${stats.activeCount}</span>
-                <span style="font-size: 0.65rem; color: #ef4444; cursor: pointer;" onclick="orgApp.filterByStatus('fired')">🚪 Вакансий: ${stats.firedCount}</span>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 16px; margin-top: 8px;">
-            <!-- Диаграмма отделов -->
-            <div style="flex: 1;">
-                <div style="text-align: center; margin-bottom: 8px;">
-                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">📁 Отделы</span>
-                </div>
-                <div style="position: relative; height: 140px;">
-                    <canvas id="org-departments-chart-details" style="height: 140px; width: 100%;"></canvas>
-                </div>
-                <div id="org-departments-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
-            </div>
-            
-            <!-- Диаграмма должностей -->
-            <div style="flex: 1;">
-                <div style="text-align: center; margin-bottom: 8px;">
-                    <span style="font-size: 0.7rem; font-weight: 500; color: #475569;">💼 Должности</span>
-                </div>
-                <div style="position: relative; height: 140px;">
-                    <canvas id="org-positions-chart-details" style="height: 140px; width: 100%;"></canvas>
-                </div>
-                <div id="org-positions-legend" style="margin-top: 8px; max-height: 100px; overflow-y: auto;"></div>
-            </div>
-        </div>
-    `;
-    
-    // Рисуем оба графика
-    this.drawDepartmentsChartMini(stats);
-    this.drawPositionsChartMini(stats);
-    
-    // Заполняем легенды
-    this.renderLegends(stats);
-}
 drawDepartmentsChartMini(stats) {
     const canvas = document.getElementById('org-departments-chart-details');
     if (!canvas) return;
@@ -848,8 +777,6 @@ renderChartsInDetails() {
     // Заполняем легенды
     this.renderLegends(stats);
 }
-6. Убедитесь, что renderLegends() использует актуальные данные:
-javascript
 renderLegends(stats) {
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
