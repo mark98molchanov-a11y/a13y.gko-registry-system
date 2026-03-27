@@ -1,19 +1,21 @@
 // js/org-chart-renderer.js
 class OrgChartRenderer {
-    constructor(containerId, dataManager) {
-        this.container = document.getElementById(containerId);
-        this.dataManager = dataManager;
-        this.expandedNodes = new Set();
-        this.selectedItem = null;
-        this.selectedType = null;
-        this.searchQuery = '';
-        this.filterDepartment = '';
-        this.filterPosition = '';
-        this.filterStatus = '';
-        
-        this.init();
-    }
+constructor(containerId, dataManager) {
+    this.container = document.getElementById(containerId);
+    this.dataManager = dataManager;
+    this.expandedNodes = new Set();
+    this.selectedItem = null;
+    this.selectedType = null;
+    this.searchQuery = '';
+    this.filterDepartment = '';
+    this.filterPosition = '';
+    this.filterStatus = '';
+    this.lastLegendsHash = '';
+    this.legendTimeout = null;        // ← ДОБАВИТЬ
+    this.isRendering = false;          // ← ДОБАВИТЬ - флаг защиты от повторных вызовов
     
+    this.init();
+}
     async init() {
         this.setupEventListeners();
         
@@ -506,9 +508,20 @@ class OrgChartRenderer {
     `;
 }
 renderChartsInDetails() {
+    // Защита от повторных вызовов
+    if (this.isRendering) {
+        console.log('⏳ Рендеринг уже выполняется, пропускаем');
+        return;
+    }
+    
+    this.isRendering = true;
+    
     const stats = this.renderStatistics();
     const detailsPanel = document.getElementById('org-details-panel');
-    if (!detailsPanel) return;
+    if (!detailsPanel) {
+        this.isRendering = false;
+        return;
+    }
     
     let chartsContainer = document.getElementById('org-charts-in-details');
     if (!chartsContainer) {
@@ -560,10 +573,12 @@ renderChartsInDetails() {
     this.drawDepartmentsChartMini(stats);
     this.drawPositionsChartMini(stats);
     
-    // Добавляем небольшую задержку, чтобы DOM успел обновиться
-    setTimeout(() => {
+    // Используем debounce для легенды
+    if (this.legendTimeout) clearTimeout(this.legendTimeout);
+    this.legendTimeout = setTimeout(() => {
         this.renderLegends(stats);
-    }, 10);
+        this.isRendering = false; // Снимаем блокировку после завершения
+    }, 50);
 }
 drawDepartmentsChartMini(stats) {
     const ctx = document.getElementById('org-departments-chart-details')?.getContext('2d');
@@ -744,15 +759,31 @@ filterByPosition(posId, posName) {
     this.showNotification(`🔍 Фильтр по должности: ${posName}`, 'info');
 }
 renderLegends(stats) {
-    console.log('🎨 renderLegends вызван');
+    // Создаем хэш текущих данных для сравнения
+    const currentHash = JSON.stringify({
+        deptStats: stats.deptStats.map(d => ({ id: d.id, count: d.count })),
+        positionStats: stats.positionStats.map(p => ({ id: p.id, count: p.count }))
+    });
+    
+    // Если данные не изменились, не перерисовываем
+    if (this.lastLegendsHash === currentHash) {
+        console.log('📊 Легенды не изменились, пропускаем перерисовку');
+        return;
+    }
+    this.lastLegendsHash = currentHash;
+    
+    console.log('🎨 renderLegends вызван, данные изменились');
     
     // Легенда для отделов
     const deptsLegend = document.getElementById('org-departments-legend');
-    console.log('deptsLegend найден:', !!deptsLegend);
-    
     if (deptsLegend) {
         const allDepts = stats.deptStats.filter(d => d.count > 0);
         const colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec489a', '#14b8a6'];
+        
+        if (allDepts.length === 0) {
+            deptsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
+            return;
+        }
         
         deptsLegend.innerHTML = allDepts.map((dept, index) => {
             let shortName = dept.name;
@@ -769,16 +800,18 @@ renderLegends(stats) {
                 </div>
             `;
         }).join('');
-        console.log('✅ Легенда отделов отрисована, элементов:', allDepts.length);
     }
     
     // Легенда для должностей
     const positionsLegend = document.getElementById('org-positions-legend');
-    console.log('positionsLegend найден:', !!positionsLegend);
-    
     if (positionsLegend) {
         const allPositions = stats.positionStats.filter(p => p.count > 0);
         const colors = ['#8b5cf6', '#a855f7', '#d946ef', '#ec489a', '#f43f5e', '#fb7185', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
+        
+        if (allPositions.length === 0) {
+            positionsLegend.innerHTML = '<span style="font-size: 0.4rem; color: #94a3b8;">Нет данных</span>';
+            return;
+        }
         
         positionsLegend.innerHTML = allPositions.map((pos, index) => {
             let shortName = pos.name;
@@ -795,7 +828,6 @@ renderLegends(stats) {
                 </div>
             `;
         }).join('');
-        console.log('✅ Легенда должностей отрисована, элементов:', allPositions.length);
     }
 }
     filterByStatus(status) {
@@ -1016,29 +1048,36 @@ renderLegends(stats) {
         }
     }
     
-    closeDetails() {
-        this.selectedType = null;
-        this.selectedItem = null;
-        
-        const detailsContainer = document.getElementById('org-details-content');
-        if (detailsContainer) {
-            detailsContainer.innerHTML = `
-                <div class="org-details-empty">
-                    <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-                        <p>Выберите отдел или сотрудника</p>
-                        <p style="font-size: 0.75rem; margin-top: 8px;">Нажмите на элемент в структуре слева</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        setTimeout(() => {
-            this.renderChartsInDetails();
-        }, 50);
-        
-        this.render();
+
+closeDetails() {
+    this.selectedType = null;
+    this.selectedItem = null;
+    
+    // Очищаем таймаут легенды
+    if (this.legendTimeout) {
+        clearTimeout(this.legendTimeout);
+        this.legendTimeout = null;
     }
+    
+    const detailsContainer = document.getElementById('org-details-content');
+    if (detailsContainer) {
+        detailsContainer.innerHTML = `
+            <div class="org-details-empty">
+                <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                    <p>Выберите отдел или сотрудника</p>
+                    <p style="font-size: 0.75rem; margin-top: 8px;">Нажмите на элемент в структуре слева</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    setTimeout(() => {
+        this.renderChartsInDetails();
+    }, 50);
+    
+    this.render();
+}
     
     shouldShowChildren(dept) {
         if (this.searchQuery) {
