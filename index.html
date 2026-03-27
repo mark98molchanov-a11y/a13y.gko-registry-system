@@ -2707,17 +2707,15 @@ async function saveToGitHub() {
     
     console.log('=== НАЧАЛО СОХРАНЕНИЯ В GITHUB ===');
     
-    // ===== ПОЛУЧАЕМ ДАННЫЕ ИЗ НОВОЙ СИСТЕМЫ С ФОТО =====
+    // ===== ПОЛУЧАЕМ ДАННЫЕ =====
     let orgData = null;
     let orgStructure = null;
-    let photoCount = 0; // ← ОБЪЯВЛЯЕМ ЗДЕСЬ, ВНЕ БЛОКА
+    let photoCount = 0;
     
-    // Получаем данные из новой организационной структуры
     if (window.orgData) {
         console.log('✅ Получаем данные из OrgDataManager');
         const snapshot = window.orgData.getSnapshot();
         
-        // ===== ВАЖНО: ЗАГРУЖАЕМ ФОТО ИЗ INDEXEDDB =====
         const employeesWithPhotos = [];
         
         console.log(`📸 Загрузка фото для ${snapshot.employees.length} сотрудников...`);
@@ -2725,29 +2723,25 @@ async function saveToGitHub() {
         for (const emp of snapshot.employees) {
             const empCopy = { ...emp };
             
-            // Загружаем фото из IndexedDB
             if (emp.photo && emp.photo.startsWith('__INDEXEDDB__')) {
                 try {
                     const photoData = await window.orgData.loadEmployeePhotoFromIndexedDB(emp.id);
                     if (photoData && photoData.startsWith('data:image')) {
                         empCopy.photo = photoData;
                         photoCount++;
-                        console.log(`📸 Фото для ${emp.name} встроено (${Math.round(photoData.length / 1024)} KB)`);
                     } else {
-                        console.warn(`⚠️ Не удалось загрузить фото для ${emp.name}`);
                         empCopy.photo = null;
                     }
                 } catch (err) {
-                    console.error(`❌ Ошибка загрузки фото для ${emp.name}:`, err);
+                    console.error(`Ошибка загрузки фото ${emp.name}:`, err);
                     empCopy.photo = null;
                 }
             }
-            // Если фото уже в base64, оставляем как есть
             
             employeesWithPhotos.push(empCopy);
         }
         
-        console.log(`📸 Итог: встроено ${photoCount} фото`);
+        console.log(`📸 Встроено ${photoCount} фото`);
         
         orgData = {
             departments: snapshot.departments,
@@ -2756,7 +2750,6 @@ async function saveToGitHub() {
             version: "3.0"
         };
         
-        // Получаем дерево для отображения (если нужно для совместимости)
         if (window.orgApp && window.orgApp.dataManager) {
             orgStructure = {
                 tree: window.orgApp.dataManager.getDepartmentTree(),
@@ -2770,10 +2763,8 @@ async function saveToGitHub() {
         console.warn('⚠️ OrgDataManager не найден');
     }
     
-    // Получаем данные калькулятора
     const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
     
-    // Формируем полные данные для сохранения
     const allData = {
         version: "3.0",
         exportDate: new Date().toISOString(),
@@ -2790,23 +2781,15 @@ async function saveToGitHub() {
             orgStructureVersion: "3.0",
             departmentsCount: orgData?.departments?.length || 0,
             employeesCount: orgData?.employees?.length || 0,
-            photosEmbedded: photoCount, // ← ТЕПЕРЬ photoCount ДОСТУПНА
+            photosEmbedded: photoCount,
             exportFormat: "combined_v3_with_photos",
             exportTimestamp: Date.now()
         }
     };
     
-    console.log('📊 Метаданные:', allData.metadata);
-    
     const content = JSON.stringify(allData, null, 2);
     const contentSize = Math.round(content.length / 1024);
     console.log(`📤 Размер JSON: ${contentSize} KB`);
-    
-    if (contentSize > 100 * 1024) {
-        if (!confirm(`Файл большой (${contentSize} KB). Продолжить?`)) {
-            return;
-        }
-    }
     
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
@@ -2814,7 +2797,7 @@ async function saveToGitHub() {
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
     
     try {
-        // Получаем sha существующего файла
+        // Пытаемся получить текущий SHA (если файл существует)
         let sha = null;
         try {
             const res = await fetch(apiUrl, {
@@ -2823,12 +2806,15 @@ async function saveToGitHub() {
             if (res.ok) {
                 const data = await res.json();
                 sha = data.sha;
-                console.log('📁 SHA найден');
+                console.log('📁 Найден существующий файл, SHA:', sha);
             }
-        } catch (e) { 
-            console.log('📁 Новый файл');
+        } catch (e) {
+            console.log('📁 Файл не существует, будет создан новый');
         }
         
+        console.log('📤 Отправка данных в GitHub...');
+        
+        // Сохраняем с SHA (если есть) или без него
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
@@ -2838,21 +2824,65 @@ async function saveToGitHub() {
             body: JSON.stringify({
                 message: `Сохранение: ${photoCount} фото, ${new Date().toLocaleString('ru-RU')}`,
                 content: btoa(unescape(encodeURIComponent(content))),
-                sha: sha
+                sha: sha || undefined  // Если sha нет, отправляем undefined
             })
         });
         
         if (response.ok) {
+            console.log('✅ Данные успешно сохранены в GitHub!');
             closeGitHubModal();
-            showNotification(`✅ Сохранено: ${allData.metadata.departmentsCount} отделов, ${allData.metadata.employeesCount} сотрудников, ${photoCount} фото`, 'success');
+            
+            // Показываем уведомление
+            const successMsg = document.createElement('div');
+            successMsg.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            successMsg.innerHTML = `
+                ✅ Сохранено в GitHub!<br>
+                📁 Отделов: ${allData.metadata.departmentsCount}<br>
+                👥 Сотрудников: ${allData.metadata.employeesCount}<br>
+                📸 Фото: ${photoCount}
+            `;
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 5000);
+            
         } else {
             const error = await response.json();
-            alert(`Ошибка: ${error.message}`);
+            console.error('❌ Ошибка GitHub:', error);
+            
+            // Если ошибка 409 (конфликт), предлагаем принудительное сохранение
+            if (response.status === 409) {
+                if (confirm('Файл был изменен. Хотите принудительно перезаписать его?')) {
+                    // Повторная попытка без SHA (принудительная перезапись)
+                    console.log('🔄 Принудительная перезапись...');
+                    const forceResponse = await fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: `Принудительное сохранение: ${photoCount} фото, ${new Date().toLocaleString('ru-RU')}`,
+                            content: btoa(unescape(encodeURIComponent(content)))
+                            // Без SHA - создаст новый коммит
+                        })
+                    });
+                    
+                    if (forceResponse.ok) {
+                        closeGitHubModal();
+                        showNotification(`✅ Принудительно сохранено: ${photoCount} фото`, 'success');
+                    } else {
+                        alert(`Ошибка принудительного сохранения: ${forceResponse.status}`);
+                    }
+                }
+            } else {
+                alert(`Ошибка: ${error.message || 'Неизвестная ошибка'}`);
+            }
+            document.getElementById('githubTokenInput').focus();
         }
         
     } catch (error) {
-        console.error('❌ Ошибка:', error);
+        console.error('❌ Критическая ошибка:', error);
         alert(`Ошибка: ${error.message}`);
+        document.getElementById('githubTokenInput').focus();
     }
     
     console.log('=== КОНЕЦ СОХРАНЕНИЯ ===');
