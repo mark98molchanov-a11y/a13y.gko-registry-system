@@ -1,4 +1,6 @@
-constructor(containerId, dataManager) {
+class OrgChartRenderer
+{
+    constructor(containerId, dataManager) {
     this.container = document.getElementById(containerId);
     this.dataManager = dataManager;
     this.expandedNodes = new Set();
