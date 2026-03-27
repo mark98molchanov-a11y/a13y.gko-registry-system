@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-03-27T13:36:26.452Z",
+  "exportDate": "2026-03-27T13:40:31.599Z",
   "npas": [
     {
       "id": 2,
@@ -1608,7 +1608,7 @@
         "fireDate": null,
         "fireReason": null,
         "createdAt": 1774438570119,
-        "updatedAt": 1774618557139
+        "updatedAt": 1774618826349
       },
       {
         "id": 257,
@@ -3123,7 +3123,7 @@
                   "fireDate": null,
                   "fireReason": null,
                   "createdAt": 1774438570119,
-                  "updatedAt": 1774618557139
+                  "updatedAt": 1774618826349
                 },
                 {
                   "id": 257,
@@ -3220,7 +3220,7 @@
                 "fireDate": null,
                 "fireReason": null,
                 "createdAt": 1774438570119,
-                "updatedAt": 1774618557139
+                "updatedAt": 1774618826349
               }
             },
             {
@@ -5205,6 +5205,6 @@
     "employeesCount": 95,
     "photosEmbedded": 91,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1774618586452
+    "exportTimestamp": 1774618831599
   }
 }
