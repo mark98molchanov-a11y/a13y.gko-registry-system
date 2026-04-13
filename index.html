@@ -1345,7 +1345,9 @@
     <button id="org-export-excel" class="btn-success" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">📊 Экспорт Excel</button>
     <button id="org-import-excel" class="btn-success" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">📊 Импорт Excel</button>
 </div>
-        
+        <button id="org-update-structure" style="background: #0284c7; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+    🔄 Обновить структуру
+</button>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Левая колонка - структура -->
             <div class="lg:col-span-2">
@@ -1757,7 +1759,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     const importExcelBtn = document.getElementById('org-import-excel');
     if (importExcelBtn) importExcelBtn.onclick = () => orgApp.importFromExcel();
-    
+    const updateStructureBtn = document.getElementById('org-update-structure');
+if (updateStructureBtn) {
+    updateStructureBtn.onclick = () => addNewEmployeesFromExcel();
+}
     // Кнопка очистки поиска
     const searchClearBtn = document.getElementById('org-search-clear');
     if (searchClearBtn) {
@@ -4986,4 +4991,138 @@ window.addEventListener('hashchange', function() {
         switchTab('dashboards');
     }
 });
+    async function addNewEmployeesFromExcel() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx, .xls';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        showNotification('🔄 Добавление новых сотрудников из Excel...', 'info');
+        
+        try {
+            const data = new Uint8Array(await file.arrayBuffer());
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            let empSheet = workbook.Sheets['Сотрудники'];
+            if (!empSheet) {
+                for (const name of workbook.SheetNames) {
+                    if (name.toLowerCase().includes('сотрудник') || 
+                        name.toLowerCase().includes('employee')) {
+                        empSheet = workbook.Sheets[name];
+                        break;
+                    }
+                }
+            }
+            
+            if (!empSheet) {
+                throw new Error('Лист "Сотрудники" не найден');
+            }
+            
+            const empData = XLSX.utils.sheet_to_json(empSheet);
+            if (!window.orgData) {
+                throw new Error('Структура не инициализирована');
+            }
+            
+            const existingNames = new Set();
+            window.orgData.employees.forEach(emp => {
+                existingNames.add(emp.name.toLowerCase().trim());
+            });
+            
+            const existingDepts = new Map();
+            window.orgData.departments.forEach(dept => {
+                existingDepts.set(dept.name.toLowerCase().trim(), dept);
+            });
+            
+            const existingPositions = new Map();
+            window.orgData.positions.forEach(pos => {
+                existingPositions.set(pos.name.toLowerCase().trim(), pos);
+            });
+            
+            let addedCount = 0;
+            const newEmployees = [];
+            
+            for (const row of empData) {
+                const name = row['ФИО'] || row['name'] || row['Name'] || row['Сотрудник'];
+                if (!name) continue;
+                
+                const nameKey = name.toLowerCase().trim();
+                
+                if (existingNames.has(nameKey)) {
+                    console.log(`⏭️ Пропущен: ${name} (уже есть)`);
+                    continue;
+                }
+                
+                let departmentId = null;
+                const deptName = row['Отдел'] || row['department'];
+                if (deptName) {
+                    const deptKey = deptName.toLowerCase().trim();
+                    if (existingDepts.has(deptKey)) {
+                        departmentId = existingDepts.get(deptKey).id;
+                    } else {
+                        const newDept = window.orgData.addDepartment(deptName);
+                        existingDepts.set(deptKey, newDept);
+                        departmentId = newDept.id;
+                    }
+                }
+                
+                let positionId = null;
+                const posName = row['Должность'] || row['position'];
+                if (posName) {
+                    const posKey = posName.toLowerCase().trim();
+                    if (existingPositions.has(posKey)) {
+                        positionId = existingPositions.get(posKey).id;
+                    } else {
+                        const newPos = window.orgData.addPosition(posName);
+                        existingPositions.set(posKey, newPos);
+                        positionId = newPos.id;
+                    }
+                }
+                
+                const isHead = row['Руководитель'] === 'Да' || row['Руководитель'] === true;
+                const isActive = row['Статус'] !== 'Уволен';
+                
+                const newEmployee = {
+                    id: Date.now() + Math.random(),
+                    name: name,
+                    departmentId: departmentId,
+                    positionId: positionId || 8,
+                    email: row['Email'] || '',
+                    phone: row['Телефон'] || '',
+                    photo: null,
+                    isHead: isHead,
+                    isActive: isActive,
+                    startDate: new Date().toISOString().split('T')[0],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                
+                newEmployees.push(newEmployee);
+                addedCount++;
+                console.log(`✅ Добавлен: ${name}`);
+            }
+            
+            if (newEmployees.length > 0) {
+                window.orgData.employees.push(...newEmployees);
+                await window.orgData.saveData();
+                
+                if (window.orgApp) {
+                    await window.orgApp.render();
+                }
+                
+                showNotification(`✅ Добавлено ${addedCount} новых сотрудников`, 'success');
+            } else {
+                showNotification(`ℹ️ Новых сотрудников не найдено`, 'info');
+            }
+            
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('❌ Ошибка: ' + error.message, 'error');
+        }
+    };
+    
+    input.click();
+}
 </script>
