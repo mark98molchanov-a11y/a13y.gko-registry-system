@@ -11,7 +11,7 @@ class OrgDataManager {
         console.log('📥 Загрузка организационной структуры из GitHub...');
         
         try {
-            const githubUrl = 'https://raw.githubusercontent.com/mark98molchanov-ally/org-structure/main/structure.json';
+            const githubUrl = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/gko_all_data.json';
             
             const response = await fetch(githubUrl);
             if (!response.ok) {
