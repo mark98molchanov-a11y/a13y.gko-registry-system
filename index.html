@@ -2527,10 +2527,27 @@ function EfficiencyCalculator() {
 function initCalculator() {
     const calculatorRoot = document.getElementById('calculatorRoot');
     if (calculatorRoot) {
-        const root = ReactDOM.createRoot(calculatorRoot);
-        root.render(<EfficiencyCalculator />);
+        // Сохраняем ссылку на корень для возможного обновления
+        if (!window.calculatorRoot) {
+            window.calculatorRoot = ReactDOM.createRoot(calculatorRoot);
+        }
+        // Используем key={Date.now()} для принудительного пересоздания
+        window.calculatorRoot.render(<EfficiencyCalculator key={Date.now()} />);
+        console.log('✅ Калькулятор инициализирован');
     }
 }
+
+// Добавляем глобальную функцию для обновления калькулятора
+window.refreshCalculator = function() {
+    console.log('🔄 Обновление калькулятора...');
+    const calculatorRoot = document.getElementById('calculatorRoot');
+    if (calculatorRoot && window.calculatorRoot) {
+        window.calculatorRoot.render(<EfficiencyCalculator key={Date.now()} />);
+    } else if (calculatorRoot) {
+        window.calculatorRoot = ReactDOM.createRoot(calculatorRoot);
+        window.calculatorRoot.render(<EfficiencyCalculator key={Date.now()} />);
+    }
+};
 </script>
 
 <script>
@@ -2696,14 +2713,29 @@ async function loadFromGitHub() {
         }
         
         // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
-        if (json.calculator) {
-            console.log('🧮 Данные калькулятора найдены в GitHub');
-            try {
-                localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
-            } catch(e) {
-                console.warn('⚠️ Калькулятор не сохранен в localStorage');
-            }
+if (json.calculator) {
+    console.log('🧮 Данные калькулятора найдены в GitHub');
+    try {
+        localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+        console.log('✅ Данные калькулятора сохранены в localStorage');
+        
+        // ⭐⭐⭐ ВАЖНО: Обновляем калькулятор, если он открыт ⭐⭐⭐
+        if (currentTab === 'calculator') {
+            console.log('🔄 Калькулятор активен, обновляем UI...');
+            setTimeout(() => {
+                // Принудительно пересоздаем React компонент
+                const calculatorRoot = document.getElementById('calculatorRoot');
+                if (calculatorRoot && typeof ReactDOM !== 'undefined') {
+                    const root = ReactDOM.createRoot(calculatorRoot);
+                    root.render(<EfficiencyCalculator key={Date.now()} />);
+                    console.log('✅ Калькулятор обновлен после загрузки из GitHub');
+                }
+            }, 100);
         }
+    } catch(e) {
+        console.warn('⚠️ Калькулятор не сохранен в localStorage');
+    }
+}
         
         console.log('=== ЗАГРУЗКА ЗАВЕРШЕНА УСПЕШНО ===');
         
@@ -3321,6 +3353,10 @@ function switchTab(tabName) {
         document.getElementById('bulkToolbar').classList.add('hidden');
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
+            // Используем refreshCalculator вместо initCalculator для обновления
+    if (typeof window.refreshCalculator === 'function') {
+        window.refreshCalculator();
+    } else {
         initCalculator();
     } else if (tabName === 'parser') {
         document.getElementById('npaImportButtons').classList.add('hidden');
