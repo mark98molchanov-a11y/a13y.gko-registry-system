@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-04-22T07:39:43.325Z",
+  "exportDate": "2026-04-22T08:03:31.675Z",
   "npas": [
     {
       "id": 2,
@@ -5078,7 +5078,7 @@
       "ks_otch": 9.4,
       "ks_cel": 10.9,
       "k_on_obsh": 621698,
-      "k_21": 24,
+      "k_21": 23,
       "k_22": 0,
       "k_22_1": 5,
       "k_sud": 0,
@@ -5108,37 +5108,37 @@
       "k_uknm_mzk": 423
     },
     "2026_1_kv": {
-      "ks_otch": 9.6,
-      "ks_cel": 10.9,
-      "k_on_obsh": 621698,
+      "ks_otch": 34,
+      "ks_cel": 0,
+      "k_on_obsh": 0,
       "k_21": 0,
       "k_22": 0,
       "k_22_1": 0,
       "k_sud": 0,
-      "ks_on_obsh": 9.6,
+      "ks_on_obsh": 0,
       "ks_21": 0,
       "ks_22": 0,
       "ks_22_1": 0,
       "ks_sud": 0,
       "k_bezrp": 0,
-      "k_mkd": 6623,
-      "k_vyyavl": 2657,
-      "k_on_obsh_reestr": 621698,
+      "k_mkd": 0,
+      "k_vyyavl": 0,
+      "k_on_obsh_reestr": 0,
       "k_nkor": 0,
       "s_vyyavl": 0,
       "s_ter": 0,
-      "s_vuf": 5604877.04,
-      "s_gosmun": 17508158.61,
+      "s_vuf": 0,
+      "s_gosmun": 0,
       "k_ps": 0,
       "k_pdpr": 0,
-      "k_reg": 3,
-      "k_obsh_reg": 3,
+      "k_reg": 0,
+      "k_obsh_reg": 0,
       "k_vknm_gzn": 0,
-      "k_vknm_mzk": 662,
+      "k_vknm_mzk": 0,
       "k_pknm_gzn": 0,
-      "k_pknm_mzk": 1042,
+      "k_pknm_mzk": 0,
       "k_uknm_gzn": 0,
-      "k_uknm_mzk": 423
+      "k_uknm_mzk": 0
     },
     "2026_2_kv": {
       "ks_otch": 0,
@@ -5248,6 +5248,6 @@
     "employeesCount": 96,
     "photosEmbedded": 92,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1776843583325
+    "exportTimestamp": 1776845011676
   }
 }
