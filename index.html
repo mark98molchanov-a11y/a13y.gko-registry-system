@@ -4776,7 +4776,8 @@ function exportToExcelDashboards() {
         alert("Импорт Excel для НПА. Реализуйте эту функцию при необходимости.");
     }
 let areSubsectionsCollapsed = false;
-
+let isCapitalizationExpanded = false;
+let isDIOCollapsed = false;
 function toggleAllSections() {
     const container = document.getElementById('subsectionsContainer');
     const icon = document.getElementById('collapseIcon');
@@ -4803,7 +4804,6 @@ function toggleAllSections() {
         areSubsectionsCollapsed = true;
     }
 }
-let isCapitalizationExpanded = false;
 
 function toggleCapitalization() {
     const container = document.getElementById('capitalizationSubsections');
@@ -4821,7 +4821,6 @@ function toggleCapitalization() {
         isCapitalizationExpanded = true;
     }
 }
-let isDIOCollapsed = false;
 function toggleDIOSections() {
     const container = document.getElementById('dioSubsectionsContainer');
     const icon = document.getElementById('dioCollapseIcon');
