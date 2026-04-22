@@ -2527,24 +2527,21 @@ function EfficiencyCalculator() {
 function initCalculator() {
     const calculatorRoot = document.getElementById('calculatorRoot');
     if (calculatorRoot) {
-        // Сохраняем ссылку на корень для возможного обновления
         if (!window.calculatorRoot) {
             window.calculatorRoot = ReactDOM.createRoot(calculatorRoot);
         }
-        // Используем key={Date.now()} для принудительного пересоздания
         window.calculatorRoot.render(<EfficiencyCalculator key={Date.now()} />);
         console.log('✅ Калькулятор инициализирован');
     }
 }
 
-// Добавляем глобальную функцию для обновления калькулятора
 window.refreshCalculator = function() {
     console.log('🔄 Обновление калькулятора...');
     const calculatorRoot = document.getElementById('calculatorRoot');
-    if (calculatorRoot && window.calculatorRoot) {
-        window.calculatorRoot.render(<EfficiencyCalculator key={Date.now()} />);
-    } else if (calculatorRoot) {
-        window.calculatorRoot = ReactDOM.createRoot(calculatorRoot);
+    if (calculatorRoot) {
+        if (!window.calculatorRoot) {
+            window.calculatorRoot = ReactDOM.createRoot(calculatorRoot);
+        }
         window.calculatorRoot.render(<EfficiencyCalculator key={Date.now()} />);
     }
 };
@@ -3353,11 +3350,12 @@ function switchTab(tabName) {
         document.getElementById('bulkToolbar').classList.add('hidden');
         document.getElementById('bulkToolbarDashboards').classList.add('hidden');
         
-            // Используем refreshCalculator вместо initCalculator для обновления
-    if (typeof window.refreshCalculator === 'function') {
-        window.refreshCalculator();
-    } else {
-        initCalculator();
+        // Используем refreshCalculator вместо initCalculator для обновления
+        if (typeof window.refreshCalculator === 'function') {
+            window.refreshCalculator();
+        } else {
+            initCalculator();
+        }
     } else if (tabName === 'parser') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
