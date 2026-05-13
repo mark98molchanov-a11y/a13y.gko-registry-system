@@ -2960,37 +2960,41 @@ function showNotification(message, type = 'info') {
 function exportJson() {
     const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
     
-    // Получаем данные дерева и изображения
-    let treeData = null;
-    let imagesData = {};
+    // Получаем данные организационной структуры
+    let orgStructure = null;
+    let photoCount = 0;
     
-    if (window.treeApp && window.treeApp.treeData) {
-        treeData = window.treeApp.serializeTree(window.treeApp.treeData);
-        imagesData = window.treeApp.imagesData || {};
-    } else {
-        try {
-            const savedTree = localStorage.getItem('treeData');
-            if (savedTree) {
-                const parsed = JSON.parse(savedTree);
-                treeData = parsed.tree || null;
-                imagesData = parsed.images || {};
-            }
-        } catch (e) {}
+    if (window.orgData) {
+        const snapshot = window.orgData.getSnapshot ? window.orgData.getSnapshot() : {
+            departments: window.orgData.departments || [],
+            employees: window.orgData.employees || [],
+            positions: window.orgData.positions || []
+        };
+        
+        orgStructure = {
+            departments: snapshot.departments,
+            employees: snapshot.employees,
+            positions: snapshot.positions,
+            version: "3.0"
+        };
+        
+        photoCount = snapshot.employees.filter(emp => emp.photo).length;
     }
     
     const allData = {
-        version: "2.0",
+        version: "3.0",
         exportDate: new Date().toISOString(),
         npas: appData,
         dashboards: dashboardsData,
-        tree: treeData,
-        images: imagesData,
+        orgStructure: orgStructure,
         calculator: calculatorData,
         metadata: {
             npaCount: appData.length,
             dashboardsCount: dashboardsData.length,
-            hasTree: !!treeData,
-            exportFormat: "combined"
+            departmentsCount: orgStructure?.departments?.length || 0,
+            employeesCount: orgStructure?.employees?.length || 0,
+            photosEmbedded: photoCount,
+            exportFormat: "combined_v3"
         }
     };
     
@@ -3005,7 +3009,8 @@ function importJson() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = function(e) {
+    
+    input.onchange = async function(e) {
         const file = e.target.files[0];
         if (!file) return;
         
@@ -3017,9 +3022,7 @@ function importJson() {
                 let confirmMessage = "Импортировать данные из файла?\n\n";
                 let hasNPA = false;
                 let hasDashboards = false;
-                let hasTree = false;
-                let hasImages = false;
-                let hasFiles = false;
+                let hasOrgStructure = false;
                 let hasCalculator = false;
                 
                 if (json.npas && Array.isArray(json.npas)) {
@@ -3032,21 +3035,11 @@ function importJson() {
                     hasDashboards = true;
                 }
                 
-                if (json.tree) {
-                    confirmMessage += `Дерево: данные присутствуют\n`;
-                    hasTree = true;
-                }
-                
-                if (json.images) {
-                    const imageCount = Object.keys(json.images).length;
-                    confirmMessage += `Изображения: ${imageCount} шт.\n`;
-                    hasImages = true;
-                }
-                
-                if (json.filesData) {
-                    const fileCount = Object.keys(json.filesData).length;
-                    confirmMessage += `Файлы: ${fileCount} шт.\n`;
-                    hasFiles = true;
+                if (json.orgStructure && json.orgStructure.departments) {
+                    const deptCount = json.orgStructure.departments.length;
+                    const empCount = json.orgStructure.employees?.length || 0;
+                    confirmMessage += `Структура ДИО: ${deptCount} отделов, ${empCount} сотрудников\n`;
+                    hasOrgStructure = true;
                 }
                 
                 if (json.calculator) {
@@ -3061,103 +3054,40 @@ function importJson() {
                 if (confirm(confirmMessage)) {
                     // Загружаем НПА
                     if (hasNPA) {
-                        const npaData = json.npas || json;
-                        appData = [...npaData];
+                        appData = [...json.npas];
                         saveData();
                     }
                     
                     // Загружаем дашборды
                     if (hasDashboards) {
-                        const dashData = json.dashboards || json;
-                        dashboardsData = [...dashData];
+                        dashboardsData = [...json.dashboards];
                         saveDashboardsData();
                     }
                     
-                    // ✅ ЗАГРУЖАЕМ ФАЙЛЫ В INDEXEDDB
-                    if (hasFiles && json.filesData) {
-                        console.log('📁 Загрузка файлов в IndexedDB...');
-                        const filesData = json.filesData;
-                        let loadedCount = 0;
+                    // Загружаем организационную структуру
+                    if (hasOrgStructure && window.orgData) {
+                        showNotification('⏳ Загрузка структуры ДИО...', 'info');
                         
-                        // Проверяем, инициализирована ли база данных
-                        if (window.treeApp && window.treeApp.db) {
-                            for (const [fileId, fileMeta] of Object.entries(filesData)) {
-                                try {
-                                    // Проверяем, есть ли уже файл
-                                    const existingFile = await window.treeApp.db.getFile(fileId);
-                                    if (!existingFile) {
-                                        // Если файла нет, сохраняем
-                                        await window.treeApp.db.saveFile(fileId, fileMeta);
-                                        loadedCount++;
-                                    }
-                                } catch (dbError) {
-                                    console.error(`❌ Ошибка загрузки файла ${fileId}:`, dbError);
-                                }
-                            }
-                            console.log(`✅ Загружено ${loadedCount} новых файлов в IndexedDB`);
-                        } else {
-                            console.log('⏳ База данных еще не инициализирована, сохраняем файлы в глобальную переменную');
-                            window.pendingTreeFiles = filesData;
-                        }
-                    }
-                    
-                    // Загружаем дерево - 🔥 ИСПРАВЛЕНО: добавляем обработку ошибок localStorage
-                    if (hasTree) {
-                        console.log('🌳 Данные дерева найдены в JSON');
+                        const departments = json.orgStructure.departments;
+                        const positions = json.orgStructure.positions || [];
+                        const employees = json.orgStructure.employees || [];
                         
-                        // ВСЕГДА сохраняем в глобальные переменные (это главное!)
-                        window.pendingTree = json.tree;
-                        window.pendingTreeImages = json.images || {};
-                        window.pendingTreeFiles = json.filesData || {};
+                        // Обновляем данные в менеджере
+                        window.orgData.departments = departments;
+                        window.orgData.employees = employees;
+                        window.orgData.positions = positions;
                         
-                        console.log('🖼️ Изображения сохранены в window.pendingTreeImages, количество:', Object.keys(window.pendingTreeImages).length);
-                        console.log('📁 Файлы сохранены в window.pendingTreeFiles, количество:', Object.keys(window.pendingTreeFiles || {}).length);
+                        await window.orgData.saveData();
                         
-                        // Пытаемся сохранить в localStorage, но не падаем при ошибке
-                        try {
-                            const treeDataToSave = { 
-                                tree: json.tree,
-                                images: json.images || {},
-                                filesData: json.filesData || {}
-                            };
-                            
-                            // Проверяем примерный размер перед сохранением
-                            const size = new Blob([JSON.stringify(treeDataToSave)]).size;
-                            console.log('📦 Размер данных дерева:', Math.round(size / 1024), 'KB');
-                            
-                            // Если размер меньше 4MB (примерный лимит localStorage), сохраняем полные данные
-                            if (size < 4 * 1024 * 1024) {
-                                localStorage.setItem('treeData', JSON.stringify(treeDataToSave));
-                                console.log('📦 Полные данные дерева сохранены в localStorage');
-                            } else {
-                                // Иначе сохраняем только структуру без изображений
-                                console.log('📦 Данные дерева слишком большие, сохраняем только структуру');
-                                localStorage.setItem('treeData', JSON.stringify({ tree: json.tree }));
-                            }
-                        } catch (e) {
-                            // Если все равно ошибка - игнорируем, данные уже в памяти
-                            console.log('⚠️ Не удалось сохранить в localStorage, но данные уже в памяти:', e.message);
-                        }
-                        
-                        // Если дерево уже инициализировано - загружаем сразу
-                        if (window.treeApp && window.treeApp.importData) {
-                            console.log('🔄 Дерево уже инициализировано, загружаем данные...');
-                            
-                            try {
-                                await window.treeApp.importData({
-                                    tree: json.tree,
-                                    images: json.images || {},
-                                    filesData: json.filesData || {}
-                                });
-                                console.log('✅ Данные загружены в дерево');
-                                
-                                if (window.treeApp.updateTree) {
-                                    window.treeApp.updateTree();
-                                }
-                            } catch (importError) {
-                                console.error('❌ Ошибка импорта в дерево:', importError);
+                        // Обновляем отображение
+                        if (window.orgApp) {
+                            await window.orgApp.render();
+                            if (window.orgApp.renderChartsInDetails) {
+                                setTimeout(() => window.orgApp.renderChartsInDetails(), 100);
                             }
                         }
+                        
+                        showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников`, 'success');
                     }
                     
                     // Загружаем калькулятор
@@ -3165,23 +3095,11 @@ function importJson() {
                         try {
                             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
                         } catch (e) {
-                            console.log('⚠️ Не удалось сохранить калькулятор в localStorage:', e.message);
+                            console.warn('Не удалось сохранить калькулятор');
                         }
                     }
                     
-                    // Сохраняем в объединенный JSON (с обработкой ошибок)
-                    try {
-                        localStorage.setItem('gko_all_data', JSON.stringify(json));
-                        console.log('📦 Объединенный JSON сохранен в localStorage');
-                    } catch (e) {
-                        console.log('⚠️ Не удалось сохранить объединенный JSON:', e.message);
-                    }
-                    
                     alert("✅ Данные успешно импортированы!");
-                    
-                    if (hasTree && window.treeApp) {
-                        window.treeApp.updateTree();
-                    }
                 }
             } catch(e) {
                 alert("Ошибка чтения JSON файла: " + e.message);
