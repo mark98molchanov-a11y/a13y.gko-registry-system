@@ -940,6 +940,20 @@
 #org-positions-legend::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+          @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    .valuation-card {
+        transition: all 0.2s ease-out;
+    }
+    .valuation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
@@ -1057,7 +1071,10 @@
         <div class="section-icon">📄🔍</div>
         <span>Парсер приказов</span>
     </div>
-    <!-- ======================= -->
+    <div class="book-subsection" onclick="switchTab('valuation')" id="navValuation">
+    <div class="section-icon">🏠📊</div>
+    <span>Рыночная оценка</span>
+</div>
 </div>
 </aside>
 
@@ -1370,6 +1387,9 @@
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="parserTabContent">
         <div id="parser-root"></div>
     </div>
+</div>
+            <div class="tab-content" id="valuationTab">
+    <div id="valuation-root"></div>
 </div>
         </main>
     </div>
@@ -1786,7 +1806,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     console.log('✅ Организационная структура инициализирована');
 });
 </script>
-<!-- Модальное окно -->
+<script src="js/market-valuation.js"></script>
 <div id="org-modal" class="org-modal" style="display: none;">
     <div class="org-modal-content">
         <div class="org-modal-header">
