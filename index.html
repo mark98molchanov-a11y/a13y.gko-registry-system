@@ -3140,7 +3140,8 @@ function switchTab(tabName) {
         'dashboards': 'navDashboards', 
         'calculator': 'navCalculator',
         'dio': 'navDIO',
-        'parser': 'navParser'
+        'parser': 'navParser',
+        'valuation': 'navValuation'
     };
     
     const navId = navIdMap[tabName];
@@ -3265,6 +3266,22 @@ function switchTab(tabName) {
         if (typeof window.initParserTab === 'function') {
             setTimeout(() => {
                 window.initParserTab('parser-root');
+            }, 100);
+        }
+    } else if (tabName === 'valuation') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = 'Сброс оценок';
+        
+        currentTab = 'valuation';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        if (typeof window.initMarketValuation === 'function') {
+            setTimeout(() => {
+                window.initMarketValuation('valuation-root');
             }, 100);
         }
     }
