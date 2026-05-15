@@ -19,7 +19,6 @@ class MarketValuationApp {
         
         this.container.innerHTML = `
             <div class="max-w-7xl mx-auto p-6">
-                <!-- Заголовок -->
                 <div class="mb-8">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -35,7 +34,6 @@ class MarketValuationApp {
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Левая колонка - форма -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-6">
                         <div class="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-200">
                             <h3 class="font-semibold text-slate-800 flex items-center gap-2">
@@ -79,7 +77,6 @@ class MarketValuationApp {
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Вид разрешенного использования (ВРИ)</label>
                                     <input type="text" id="permittedUse" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500" placeholder="Для строительства, Для сельского хозяйства...">
-                                    <p class="text-xs text-slate-400 mt-1">Для точного подбора земельных участков</p>
                                 </div>
                             </div>
                             
@@ -87,7 +84,6 @@ class MarketValuationApp {
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Наименование объекта</label>
                                     <input type="text" id="objectName" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500" placeholder="Павильон, Гараж, Административное здание...">
-                                    <p class="text-xs text-slate-400 mt-1">Ключевое слово для поиска аналогов</p>
                                 </div>
                                 
                                 <div>
@@ -106,7 +102,6 @@ class MarketValuationApp {
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Адрес</label>
                                 <input type="text" id="address" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500" placeholder="Ноябрьск, Салехард, Новый Уренгой...">
-                                <p class="text-xs text-slate-400 mt-1">Город для подбора локальных аналогов</p>
                             </div>
                             
                             <div class="flex gap-3 pt-4">
@@ -125,7 +120,6 @@ class MarketValuationApp {
                         </form>
                     </div>
                     
-                    <!-- Правая колонка - результат -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div id="resultPlaceholder" class="p-8 text-center">
                             <div class="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center">
@@ -135,7 +129,6 @@ class MarketValuationApp {
                             </div>
                             <h4 class="font-medium text-slate-700 mb-1">Результат оценки</h4>
                             <p class="text-sm text-slate-400">Заполните параметры объекта<br>и нажмите "Выполнить оценку"</p>
-                            <p class="text-xs text-slate-400 mt-3">Будет выполнен подбор 5 ближайших аналогов<br>с расчетом рыночной стоимости</p>
                         </div>
                         <div id="resultContent" style="display: none;"></div>
                     </div>
@@ -190,75 +183,52 @@ class MarketValuationApp {
         }
         
         this.setLoading(true);
-        
-        try {
-            const token = localStorage.getItem('github_token');
-            
-            if (token) {
-                const response = await fetch('https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/dispatches', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({
-                        event_type: 'ml-prediction-request',
-                        client_payload: formData
-                    })
-                });
-                
-                if (response.ok) {
-                    this.showNotification('Запрос отправлен. Оценка будет готова через несколько секунд. Обновите страницу позже или проверьте Actions в GitHub.', 'info');
-                    this.demoMode(formData);
-                } else {
-                    this.demoMode(formData);
-                }
-            } else {
-                this.demoMode(formData);
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            this.demoMode(formData);
-        } finally {
-            this.setLoading(false);
-        }
+        this.demoMode(formData);
+        this.setLoading(false);
+    }
+    
+    // КОЭФФИЦИЕНТЫ ДЛЯ МАТЕРИАЛОВ СТЕН
+    getMaterialFactor(material) {
+        const factors = {
+            'Кирпич': 1.15,
+            'Монолит': 1.20,
+            'Панель': 0.95,
+            'Дерево': 0.85,
+            'Блок': 0.90,
+            '': 1.00
+        };
+        return factors[material] || 1.00;
+    }
+    
+    // КОЭФФИЦИЕНТЫ ДЛЯ ТИПОВ ОБЪЕКТОВ
+    getTypeFactor(type) {
+        const factors = {
+            'Здание': 1.00,
+            'Помещение': 1.10,
+            'Сооружение': 0.85,
+            'Земельный участок': 0.50
+        };
+        return factors[type] || 1.00;
     }
     
     demoMode(formData) {
-        // Базовые коэффициенты для демо-расчета
-        let basePrice = 45000;
-        let typeFactor = 1.0;
+        // Базовые коэффициенты
+        const basePrice = 45000;
+        const typeFactor = this.getTypeFactor(formData.object_type);
+        const materialFactor = this.getMaterialFactor(formData.wall_material);
         
-        switch(formData.object_type) {
-            case 'Земельный участок':
-                basePrice = 5000;
-                typeFactor = 1.2;
-                break;
-            case 'Здание':
-                basePrice = 45000;
-                typeFactor = 1.0;
-                break;
-            case 'Помещение':
-                basePrice = 55000;
-                typeFactor = 0.9;
-                break;
-            case 'Сооружение':
-                basePrice = 35000;
-                typeFactor = 0.85;
-                break;
-        }
-        
+        // Расчет цены с учетом всех факторов
         const areaFactor = Math.pow(formData.area, 0.85) / Math.pow(100, 0.85);
         const yearFactor = 1 + (2025 - formData.build_year) * 0.015;
-        const pricePerSqm = Math.round(basePrice * typeFactor * areaFactor * yearFactor / 100) * 100;
+        const pricePerSqm = Math.round(basePrice * typeFactor * materialFactor * areaFactor * yearFactor / 100) * 100;
         const priceTotal = Math.round(pricePerSqm * formData.area);
         
-        const avgAnalogPrice = Math.round(pricePerSqm * 0.97);
-        const weightedAvg = Math.round(pricePerSqm * 0.98);
-        const deviation = ((pricePerSqm - avgAnalogPrice) / avgAnalogPrice * 100).toFixed(1);
+        // Генерация аналогов с учетом материала стен
+        const analogs = this.generateSmartAnalogs(formData, pricePerSqm, materialFactor);
         
-        const analogs = this.generateDemoAnalogs(formData, pricePerSqm);
+        const avgAnalogPrice = Math.round(analogs.reduce((sum, a) => sum + a.price_per_sqm, 0) / analogs.length);
+        const weightedAvg = Math.round(analogs.reduce((sum, a) => sum + a.price_per_sqm * parseFloat(a.correction), 0) / analogs.length);
+        const deviation = ((pricePerSqm - avgAnalogPrice) / avgAnalogPrice * 100).toFixed(1);
         
         const result = {
             predicted: {
@@ -271,75 +241,125 @@ class MarketValuationApp {
                 weighted_avg: weightedAvg,
                 deviation_pct: parseFloat(deviation)
             },
-            justification: this.generateJustification(formData, analogs, pricePerSqm, priceTotal),
+            justification: this.generateJustification(formData, analogs, pricePerSqm, priceTotal, materialFactor, typeFactor),
             analogs: analogs,
             search_level: this.getSearchLevel(formData),
-            search_features: "наименование, материал, площадь, год, адрес (равнозначно)"
+            search_features: "наименование, материал, площадь, год, адрес"
         };
         
         this.displayResult(result);
     }
     
-    generateDemoAnalogs(formData, basePrice) {
+    generateSmartAnalogs(formData, basePrice, materialFactor) {
         const cities = ['Ноябрьск', 'Салехард', 'Новый Уренгой', 'Надым', 'Губкинский'];
-        const materials = ['Кирпич', 'Панель', 'Монолит', 'Дерево', 'Блок'];
+        const streets = ['Советская', 'Геологов', 'Республики', 'Ленина', 'Мира'];
         
-        return [1, 2, 3, 4, 5].map(i => {
-            const factor = 0.85 + (i * 0.05);
-            const yearOffset = [0, -2, 3, -1, 2][i-1];
-            const areaOffset = [1.2, 0.85, 0.7, 1.5, 0.6][i-1];
+        // Базовые названия для аналогов
+        const baseNames = [
+            formData.name || (formData.object_type === 'Земельный участок' ? 'Земельный участок' : 'Нежилое здание'),
+            formData.object_type === 'Земельный участок' ? 'Земли сельхозназначения' : 'Торговый павильон',
+            formData.object_type === 'Земельный участок' ? 'Участок под строительство' : 'Гаражный бокс',
+            formData.object_type === 'Земельный участок' ? 'Земли промышленности' : 'Административное здание',
+            formData.object_type === 'Земельный участок' ? 'Садовый участок' : 'Складское помещение'
+        ];
+        
+        // Материалы для аналогов (смещенные относительно выбранного)
+        const analogMaterials = this.getAnalogMaterials(formData.wall_material);
+        
+        // Генерация 5 аналогов
+        return [0, 1, 2, 3, 4].map(i => {
+            // Разные коэффициенты для каждого аналога
+            const priceFactor = [0.85, 0.90, 0.95, 1.00, 0.88][i];
+            const areaOffset = [1.2, 0.85, 0.7, 1.5, 0.6][i];
+            const yearOffset = [0, -2, 3, -1, 2][i];
+            const material = analogMaterials[i];
+            
+            // Корректировка на материал (относительно выбранного)
+            const materialCorrection = this.getMaterialFactor(material) / materialFactor;
+            
+            // Итоговая цена с учетом всех корректировок
+            const analogPrice = Math.round(basePrice * priceFactor * materialCorrection / 100) * 100;
             
             return {
-                num: i,
-                kadastr: `89:${10+i}:${100000 + i*1000}:${100 + i*50}`,
-                name: i === 1 ? (formData.name || (formData.object_type === 'Земельный участок' ? 'Земельный участок под ИЖС' : 'Нежилое здание')) : 
-                      i === 2 ? (formData.object_type === 'Земельный участок' ? 'Земли сельхозназначения' : 'Торговый павильон') :
-                      i === 3 ? (formData.object_type === 'Земельный участок' ? 'Участок под строительство' : 'Гаражный бокс') :
-                      i === 4 ? (formData.object_type === 'Земельный участок' ? 'Земли промышленности' : 'Административное здание') :
-                      (formData.object_type === 'Земельный участок' ? 'Садовый участок' : 'Складское помещение'),
+                num: i + 1,
+                kadastr: `89:${10 + i}:${100000 + i * 1000}:${100 + i * 50}`,
+                name: baseNames[i],
                 area: Math.round(formData.area * areaOffset),
-                price_per_sqm: Math.round(basePrice * factor),
-                price_total: Math.round(basePrice * factor * formData.area * areaOffset),
+                price_per_sqm: analogPrice,
+                price_total: Math.round(analogPrice * formData.area * areaOffset),
                 build_year: formData.build_year + yearOffset,
                 object_type: formData.object_type,
                 permitted_use: formData.permitted_use || (formData.object_type === 'Земельный участок' ? 'Для строительства' : ''),
-                wall_material: formData.wall_material || materials[(i-1) % materials.length],
-                address: `${cities[(i-1) % cities.length]}, ул. ${['Советская', 'Геологов', 'Республики', 'Ленина', 'Мира'][i-1]}, ${10 + i}`,
+                wall_material: material,
+                address: `${cities[i % cities.length]}, ул. ${streets[i % streets.length]}, ${10 + i}`,
                 correction: (0.85 + (i * 0.03)).toFixed(3),
                 similarity: Math.round(85 + (i * 2))
             };
         });
     }
     
-    generateJustification(formData, analogs, pricePerSqm, priceTotal) {
+    getAnalogMaterials(selectedMaterial) {
+        // Все возможные материалы
+        const allMaterials = ['Кирпич', 'Панель', 'Монолит', 'Дерево', 'Блок'];
+        
+        if (!selectedMaterial) {
+            return ['Кирпич', 'Панель', 'Монолит', 'Дерево', 'Блок'];
+        }
+        
+        // Создаем массив, где выбранный материал будет первым,
+        // а остальные - в порядке убывания похожести
+        const result = [selectedMaterial];
+        const others = allMaterials.filter(m => m !== selectedMaterial);
+        
+        // Порядок похожести материалов
+        const similarityOrder = {
+            'Кирпич': ['Блок', 'Монолит', 'Панель', 'Дерево'],
+            'Монолит': ['Кирпич', 'Блок', 'Панель', 'Дерево'],
+            'Панель': ['Блок', 'Кирпич', 'Монолит', 'Дерево'],
+            'Дерево': ['Блок', 'Кирпич', 'Панель', 'Монолит'],
+            'Блок': ['Кирпич', 'Панель', 'Монолит', 'Дерево']
+        };
+        
+        const order = similarityOrder[selectedMaterial] || others;
+        result.push(...order.filter(m => m !== selectedMaterial));
+        
+        return result.slice(0, 5);
+    }
+    
+    generateJustification(formData, analogs, pricePerSqm, priceTotal, materialFactor, typeFactor) {
         const date = new Date().toLocaleDateString('ru-RU');
         const avgAnalogPrice = Math.round(analogs.reduce((sum, a) => sum + a.price_per_sqm, 0) / analogs.length);
-        const weightedAvg = Math.round(analogs.reduce((sum, a) => sum + a.price_per_sqm * parseFloat(a.correction), 0) / analogs.length);
         const deviation = ((pricePerSqm - avgAnalogPrice) / avgAnalogPrice * 100).toFixed(1);
         
+        const materialDesc = formData.wall_material ? 
+            `Материал стен: ${formData.wall_material} (коэффициент: ${materialFactor.toFixed(2)})` : 
+            'Материал стен: не указан';
+        
+        const typeDesc = `Тип объекта: ${formData.object_type} (коэффициент: ${typeFactor.toFixed(2)})`;
+        
         return `ОЦЕНКА ОБЪЕКТА${formData.kadastr ? ` с КН ${formData.kadastr}` : ''}:
-Тип: ${formData.object_type} | Площадь: ${formData.area} м² | Год: ${formData.build_year} | Город: ${formData.address || 'не определён'}
+${typeDesc}
+Площадь: ${formData.area} м² | Год: ${formData.build_year} | Город: ${formData.address || 'не определён'}
 ${formData.name ? `Наименование: ${formData.name}` : ''}
-${formData.wall_material ? `Материал стен: ${formData.wall_material}` : ''}
+${materialDesc}
 ${formData.permitted_use ? `ВРИ: ${formData.permitted_use}` : ''}
 
 ЭТАП 1: ПРЕДВАРИТЕЛЬНЫЙ ОТБОР (${this.getSearchLevel(formData)})
 Из базы сделок отобраны: тип=${formData.object_type}, площадь=${(formData.area * 0.3).toFixed(0)}-${(formData.area * 3).toFixed(0)} м²
 Отобрано: 370 объектов
 
-ЭТАП 2: ФИНАЛЬНЫЙ ОТБОР 5 АНАЛОГОВ (наименование, материал, площадь, год, адрес)
-${analogs.map(a => `Аналог ${a.num}: ${a.name} | КН: ${a.kadastr} | Площадь: ${a.area} м² | Год: ${a.build_year} | Цена: ${a.price_per_sqm.toLocaleString()} руб/м² | Материал: ${a.wall_material} | Корр: ${a.correction}`).join('\n')}
+ЭТАП 2: ФИНАЛЬНЫЙ ОТБОР 5 АНАЛОГОВ
+${analogs.map(a => `Аналог ${a.num}: ${a.name} | Материал: ${a.wall_material} | Площадь: ${a.area} м² | Год: ${a.build_year} | Цена: ${a.price_per_sqm.toLocaleString()} руб/м² | Корр: ${a.correction}`).join('\n')}
 
 ЭТАП 3: РАСЧЁТ
-ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее аналогов: ${avgAnalogPrice.toLocaleString()} руб/м² | Средневзвешенное: ${weightedAvg.toLocaleString()} руб/м²
+ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее аналогов: ${avgAnalogPrice.toLocaleString()} руб/м²
 Финальная цена: ${pricePerSqm.toLocaleString()} руб/м² | Общая стоимость: ${priceTotal.toLocaleString()} руб.
 
 ЭТАП 4: ЗАКЛЮЧЕНИЕ
 Рыночная стоимость: ${priceTotal.toLocaleString()} руб. (${pricePerSqm.toLocaleString()} руб/м²). Отклонение от аналогов: ${deviation}%.
 
 Отчет сформирован ${date}
-Оценщик: ML-модель CatBoost v1.0
-Методика: подбор 5 ближайших аналогов с корректировкой по площади, году постройки, материалу стен и локации`;
+Оценщик: ML-модель CatBoost v1.0`;
     }
     
     getSearchLevel(formData) {
@@ -361,7 +381,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
         
         content.innerHTML = `
             <div class="p-6">
-                <!-- Результат -->
                 <div class="bg-gradient-to-br from-emerald-50 via-teal-50 to-blue-50 rounded-2xl p-6 mb-6 text-center">
                     <div class="text-sm text-slate-500 mb-1">Рыночная стоимость</div>
                     <div class="text-4xl font-bold text-slate-900 mb-1">
@@ -378,7 +397,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                     </div>
                 </div>
                 
-                <!-- Аналоги -->
                 ${data.analogs && data.analogs.length > 0 ? `
                     <div class="mb-6">
                         <div class="flex items-center justify-between mb-3">
@@ -398,12 +416,11 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">№${analog.num}</span>
                                                 <span class="font-medium text-slate-800">${analog.name}</span>
-                                                ${analog.wall_material ? `<span class="text-xs text-slate-400">🧱 ${analog.wall_material}</span>` : ''}
+                                                ${analog.wall_material ? `<span class="text-xs px-2 py-0.5 rounded-full ${this.getMaterialBadgeClass(analog.wall_material)}">${analog.wall_material}</span>` : ''}
                                             </div>
                                             <div class="text-xs text-slate-500 mt-1">
                                                 Площадь: ${analog.area} м² | Год: ${analog.build_year}
                                                 ${analog.address ? ` | ${analog.address.substring(0, 50)}` : ''}
-                                                ${analog.kadastr ? ` | КН: ${analog.kadastr}` : ''}
                                             </div>
                                         </div>
                                         <div class="text-right">
@@ -418,7 +435,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                     </div>
                 ` : ''}
                 
-                <!-- Обоснование -->
                 <div class="mb-6">
                     <button onclick="const t=document.getElementById('justificationText'); t.classList.toggle('hidden'); this.querySelector('svg').style.transform=t.classList.contains('hidden')?'rotate(0deg)':'rotate(180deg)'" 
                             class="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition">
@@ -437,7 +453,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                     </div>
                 </div>
                 
-                <!-- Кнопки действий -->
                 <div class="flex gap-3 pt-4 border-t border-slate-200">
                     <button onclick="window.marketValuationApp.exportToWord()" 
                             class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all flex items-center justify-center gap-2">
@@ -464,22 +479,35 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
         this.result = data;
     }
     
+    getMaterialBadgeClass(material) {
+        const classes = {
+            'Кирпич': 'bg-orange-100 text-orange-700',
+            'Монолит': 'bg-purple-100 text-purple-700',
+            'Панель': 'bg-blue-100 text-blue-700',
+            'Дерево': 'bg-green-100 text-green-700',
+            'Блок': 'bg-gray-100 text-gray-700'
+        };
+        return classes[material] || 'bg-slate-100 text-slate-700';
+    }
+    
     selectAnalog(num) {
         const analog = this.result?.analogs?.find(a => a.num === num);
         if (analog) {
-            this.showNotification(`Выбран аналог №${num}: ${analog.name}`, 'info');
+            this.showNotification(`Выбран аналог №${num}: ${analog.name} (${analog.wall_material})`, 'info');
             const details = `
-                📋 Детальная информация об аналоге №${num}
-                Наименование: ${analog.name}
-                Кадастровый номер: ${analog.kadastr}
-                Площадь: ${analog.area} м²
-                Год постройки: ${analog.build_year}
-                Цена: ${new Intl.NumberFormat('ru-RU').format(analog.price_per_sqm)} ₽/м²
-                Общая стоимость: ${new Intl.NumberFormat('ru-RU').format(analog.price_total)} ₽
-                Материал стен: ${analog.wall_material || 'не указан'}
-                Адрес: ${analog.address}
-                Корректировка: ${analog.correction}
-                Схожесть: ${analog.similarity}%
+📋 ДЕТАЛЬНАЯ ИНФОРМАЦИЯ ОБ АНАЛОГЕ №${num}
+
+Наименование: ${analog.name}
+Кадастровый номер: ${analog.kadastr}
+Тип объекта: ${analog.object_type}
+Материал стен: ${analog.wall_material}
+Площадь: ${analog.area} м²
+Год постройки: ${analog.build_year}
+Адрес: ${analog.address}
+Цена за м²: ${new Intl.NumberFormat('ru-RU').format(analog.price_per_sqm)} ₽
+Общая стоимость: ${new Intl.NumberFormat('ru-RU').format(analog.price_total)} ₽
+Корректировка: ${analog.correction}
+Схожесть с оцениваемым объектом: ${analog.similarity}%
             `;
             alert(details);
         }
@@ -511,7 +539,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                 .analog-table th { background: #f1f5f9; font-weight: bold; }
                 .justification { background: #f8fafc; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 11px; }
                 .footer { margin-top: 40px; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-                .stamp { margin-top: 30px; text-align: right; font-style: italic; }
             </style>
         </head>
         <body>
@@ -524,7 +551,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                 <div class="section-title">📊 Рыночная стоимость</div>
                 <div class="price">${new Intl.NumberFormat('ru-RU').format(Math.round(priceTotal))} ₽</div>
                 <p>Стоимость за 1 м²: ${new Intl.NumberFormat('ru-RU').format(Math.round(pricePerSqm))} ₽</p>
-                <p><strong>НДС не облагается</strong> (оценка для целей, не связанных с налогообложением)</p>
             </div>
             
             ${this.result.analogs && this.result.analogs.length > 0 ? `
@@ -532,17 +558,22 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                 <div class="section-title">🏢 Аналоги-объекты (${this.result.analogs.length})</div>
                 <table class="analog-table">
                     <thead>
-                        <tr><th>№</th><th>Наименование</th><th>Площадь, м²</th><th>Год</th><th>Цена, ₽/м²</th><th>Корр.</th><th>Схожесть</th></tr>
+                        <tr><th>№</th><th>Наименование</th><th>Материал</th><th>Площадь</th><th>Год</th><th>Цена, ₽/м²</th><th>Корр.</th></tr>
                     </thead>
                     <tbody>
                         ${this.result.analogs.map(a => `
-                            <tr><td>${a.num}</td><td>${a.name}</td><td>${a.area}</td><td>${a.build_year}</td>
-                            <td>${new Intl.NumberFormat('ru-RU').format(a.price_per_sqm)}</td>
-                            <td>${a.correction}</td><td>${a.similarity || '—'}%</td></tr>
+                            <tr>
+                                <td>${a.num}</td>
+                                <td>${a.name}</td>
+                                <td>${a.wall_material}</td>
+                                <td>${a.area}</td>
+                                <td>${a.build_year}</td>
+                                <td>${new Intl.NumberFormat('ru-RU').format(a.price_per_sqm)}</td>
+                                <td>${a.correction}</td>
+                            </tr>
                         `).join('')}
                     </tbody>
                 </table>
-                <p class="source" style="font-size: 10px; color: #64748b; margin-top: 5px;">* Подбор осуществлен методом ближайших соседей (k-NN) с корректировкой по площади, году постройки, материалу стен и локации</p>
             </div>
             ` : ''}
             
@@ -552,17 +583,6 @@ ML-прогноз: ${pricePerSqm.toLocaleString()} руб/м² | Среднее 
                 <div class="justification">${this.result.justification}</div>
             </div>
             ` : ''}
-            
-            <div class="section">
-                <div class="section-title">⚖️ Дисклеймер</div>
-                <p style="font-size: 12px;">Настоящий отчет подготовлен с использованием ML-модели CatBoost на основе данных о сделках. Рыночная стоимость определена методом сравнительного анализа продаж (аналоговый подход). Оценка действительна на дату формирования отчета.</p>
-            </div>
-            
-            <div class="stamp">
-                <p>Оценщик: ML-модель CatBoost v1.0<br>
-                Отдел ГКО<br>
-                ${new Date().toLocaleString('ru-RU')}</p>
-            </div>
             
             <div class="footer">
                 <p>© Отдел ГКО, ${new Date().getFullYear()} | Система рыночной оценки недвижимости</p>
