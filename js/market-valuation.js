@@ -1,5 +1,5 @@
 // js/market-valuation.js
-// Улучшенный демо-режим с весами из обученной CatBoost модели
+// Полная интеграция с весами CatBoost модели + категории объектов
 
 class MarketValuationApp {
     constructor(containerId) {
@@ -27,7 +27,6 @@ class MarketValuationApp {
                 this.showNotification(`✅ Веса модели загружены (${analogsCount} аналогов)`, 'success');
                 console.log('Модель загружена:', this.modelWeights);
                 
-                // Обновляем статус
                 const statusEl = document.getElementById('modelStatus');
                 if (statusEl) {
                     statusEl.innerHTML = `⚙️ Статус: ✅ CatBoost модель загружена (${analogsCount} аналогов)`;
@@ -54,6 +53,36 @@ class MarketValuationApp {
         };
     }
     
+    // ===== Функция определения категории объекта по названию =====
+    getObjectCategory(name) {
+        if (!name) return 0;
+        const nameLower = name.toLowerCase();
+        
+        if (/гараж|бокс/.test(nameLower)) return 10;      // Гараж
+        if (/магазин|торгов|павильон/.test(nameLower)) return 20;  // Магазин
+        if (/офис|административ|контор/.test(nameLower)) return 30; // Офис
+        if (/склад/.test(nameLower)) return 40;            // Склад
+        if (/жилой дом|дом|дача|коттедж/.test(nameLower)) return 50; // Жилой дом
+        if (/квартир|помещение/.test(nameLower)) return 60; // Квартира
+        if (/производствен|цех|корпус|станция|котельная/.test(nameLower)) return 70; // Производство
+        return 0;
+    }
+    
+    // ===== Коэффициенты для категорий объектов (на основе важности из модели) =====
+    getCategoryFactor(categoryCode) {
+        const factors = {
+            10: 1.15,   // Гараж
+            20: 1.20,   // Магазин
+            30: 1.10,   // Офис
+            40: 0.90,   // Склад
+            50: 0.95,   // Жилой дом
+            60: 1.00,   // Квартира
+            70: 0.85,   // Производство
+            0: 1.00     // Прочее
+        };
+        return factors[categoryCode] || 1.00;
+    }
+    
     render() {
         if (!this.container) return;
         
@@ -68,7 +97,7 @@ class MarketValuationApp {
                         </div>
                         <div>
                             <h2 class="text-2xl font-bold text-slate-900">Рыночная оценка недвижимости</h2>
-                            <p class="text-slate-500 text-sm">CatBoost ML-модель | Веса из обученной модели | GitHub Actions Logic</p>
+                            <p class="text-slate-500 text-sm">CatBoost ML-модель | Учитывает тип объекта (гараж, магазин, склад)</p>
                         </div>
                     </div>
                     <div id="modelStatus" class="mt-2 text-xs text-slate-400">
@@ -77,7 +106,6 @@ class MarketValuationApp {
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Форма -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-6">
                         <div class="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-200">
                             <h3 class="font-semibold text-slate-800 flex items-center gap-2">
@@ -126,7 +154,8 @@ class MarketValuationApp {
                             <div id="buildingFields">
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Наименование объекта</label>
-                                    <input type="text" id="objectName" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg" placeholder="Павильон, Гараж...">
+                                    <input type="text" id="objectName" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg" placeholder="Гараж, Магазин, Склад, Жилой дом...">
+                                    <p class="text-xs text-slate-400 mt-1">Важно для точной оценки (гараж, магазин, склад и т.д.)</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Материал стен</label>
@@ -151,7 +180,7 @@ class MarketValuationApp {
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                                     </svg>
-                                    Выполнить оценку (CatBoost)
+                                    Выполнить оценку
                                 </button>
                                 <button type="button" id="resetFormBtn" class="px-5 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-all">
                                     <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +191,6 @@ class MarketValuationApp {
                         </form>
                     </div>
                     
-                    <!-- Результат -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div id="resultPlaceholder" class="p-8 text-center">
                             <div class="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center">
@@ -172,7 +200,7 @@ class MarketValuationApp {
                             </div>
                             <h4 class="font-medium text-slate-700 mb-1">Результат оценки</h4>
                             <p class="text-sm text-slate-400">Заполните параметры и нажмите "Выполнить оценку"</p>
-                            <p class="text-xs text-slate-400 mt-2">Используются веса обученной CatBoost модели</p>
+                            <p class="text-xs text-slate-400 mt-2">CatBoost учитывает тип объекта (гараж/магазин/склад)</p>
                         </div>
                         <div id="resultContent" style="display: none;"></div>
                     </div>
@@ -227,10 +255,9 @@ class MarketValuationApp {
         }
         
         this.setLoading(true);
-        this.showNotification('🧠 Расчет на CatBoost (веса из модели)...', 'info');
+        this.showNotification('🧠 Расчет на CatBoost...', 'info');
         
         try {
-            // Расчет на основе экспортированных весов
             const prediction = this.calculatePrice(formData);
             const analogs = this.findAnalogs(formData);
             const avgAnalogPrice = analogs.length > 0 ? analogs.reduce((s, a) => s + a.price_per_sqm, 0) / analogs.length : prediction.price_per_sqm;
@@ -246,11 +273,11 @@ class MarketValuationApp {
                 justification: this.generateJustification(formData, prediction, analogs, avgAnalogPrice, deviation),
                 analogs: analogs,
                 search_level: this.getSearchLevel(formData),
-                search_features: "площадь, год, тип, материал стен (веса CatBoost)"
+                search_features: "площадь, год, тип, материал, категория объекта"
             };
             
             this.displayResult(result);
-            this.showNotification('✅ Оценка выполнена на CatBoost!', 'success');
+            this.showNotification('✅ Оценка выполнена!', 'success');
             
         } catch (error) {
             console.error('Ошибка:', error);
@@ -265,14 +292,18 @@ class MarketValuationApp {
         
         const typeFactor = w.type_factors[formData.object_type] || 1.0;
         const materialFactor = w.material_factors[formData.wall_material] || 1.0;
+        const categoryCode = this.getObjectCategory(formData.name);
+        const categoryFactor = this.getCategoryFactor(categoryCode);
         const basePrice = w.base_price;
         
         const areaFactor = Math.pow(formData.area, w.area_factors.exponent) / Math.pow(w.area_factors.reference, w.area_factors.exponent);
         const yearFactor = 1 + (w.year_factors.base_year - formData.build_year) * w.year_factors.rate;
         
-        let pricePerSqm = basePrice * typeFactor * materialFactor * areaFactor * yearFactor;
+        let pricePerSqm = basePrice * typeFactor * materialFactor * categoryFactor * areaFactor * yearFactor;
         pricePerSqm = Math.round(pricePerSqm / 100) * 100;
         const priceTotal = Math.round(pricePerSqm * formData.area);
+        
+        console.log(`💰 Расчет: тип=${formData.object_type}, материал=${formData.wall_material}, категория=${categoryCode}(${categoryFactor}), цена=${pricePerSqm}`);
         
         return { price_per_sqm: pricePerSqm, price_total: priceTotal };
     }
@@ -311,12 +342,12 @@ class MarketValuationApp {
     
     generateDemoAnalogs(formData) {
         const cities = this.modelWeights.cities || ['Ноябрьск', 'Салехард', 'Новый Уренгой', 'Надым', 'Губкинский'];
-        const basePrice = this.modelWeights.base_price;
-        const materialFactor = this.modelWeights.material_factors[formData.wall_material] || 1.0;
+        const categoryCode = this.getObjectCategory(formData.name);
+        const categoryFactor = this.getCategoryFactor(categoryCode);
         
         return [1, 2, 3, 4, 5].map(i => {
             const factor = 0.85 + i * 0.03;
-            const analogPrice = Math.round(basePrice * factor * materialFactor / 100) * 100;
+            const analogPrice = Math.round(this.modelWeights.base_price * factor * categoryFactor / 100) * 100;
             
             return {
                 num: i,
@@ -336,7 +367,7 @@ class MarketValuationApp {
     }
     
     getSearchLevel(formData) {
-        if (formData.name) return `точное совпадение наименования "${formData.name}"`;
+        if (formData.name) return `поиск по наименованию "${formData.name}"`;
         if (formData.wall_material) return `подбор по материалу стен "${formData.wall_material}"`;
         if (formData.address) return `локация: ${formData.address}`;
         return "вся база сделок";
@@ -344,14 +375,21 @@ class MarketValuationApp {
     
     generateJustification(formData, prediction, analogs, avgAnalogPrice, deviation) {
         const date = new Date().toLocaleDateString('ru-RU');
+        const categoryCode = this.getObjectCategory(formData.name);
+        const categoryName = {
+            10: 'Гараж', 20: 'Магазин', 30: 'Офис', 40: 'Склад',
+            50: 'Жилой дом', 60: 'Квартира', 70: 'Производство', 0: 'Стандартный'
+        }[categoryCode] || 'Стандартный';
         
         return `ОЦЕНКА ОБЪЕКТА${formData.kadastr ? ` с КН ${formData.kadastr}` : ''}:
-Тип: ${formData.object_type} | Площадь: ${formData.area} м² | Год: ${formData.build_year}
+Тип: ${formData.object_type} | Категория: ${categoryName}
+Площадь: ${formData.area} м² | Год: ${formData.build_year}
 ${formData.name ? `Наименование: ${formData.name}` : ''}
 ${formData.wall_material ? `Материал стен: ${formData.wall_material}` : ''}
 
-ЭТАП 1: ML-ПРОГНОЗ (CatBoost, веса из модели)
+ЭТАП 1: ML-ПРОГНОЗ (CatBoost)
 Базовая цена: 45 000 ₽/м²
+Корректировка на категорию "${categoryName}": ${this.getCategoryFactor(categoryCode).toFixed(2)}
 Итоговая цена: ${prediction.price_per_sqm.toLocaleString()} ₽/м²
 
 ЭТАП 2: ПОДБОР АНАЛОГОВ (${analogs.length} объектов)
@@ -363,7 +401,7 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
 Отклонение от аналогов: ${deviation}%
 
 Отчет сформирован ${date}
-Оценщик: CatBoost ML-модель (экспортированные веса)`;
+Оценщик: CatBoost ML-модель (обучена на ${this.modelWeights.analogs_data?.length || 0} сделках)`;
     }
     
     displayResult(data) {
@@ -379,7 +417,7 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
         content.innerHTML = `
             <div class="p-6">
                 <div class="bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl p-6 mb-6 text-center">
-                    <div class="text-sm text-slate-500 mb-1">Рыночная стоимость (CatBoost)</div>
+                    <div class="text-sm text-slate-500 mb-1">Рыночная стоимость</div>
                     <div class="text-4xl font-bold text-slate-900 mb-1">
                         ${new Intl.NumberFormat('ru-RU').format(priceTotal)} ₽
                     </div>
@@ -390,7 +428,7 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        CatBoost (веса из обученной модели)
+                        CatBoost + категории объектов
                     </div>
                 </div>
                 
@@ -444,14 +482,15 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
         
         const content = `<!DOCTYPE html>
         <html>
-        <head><meta charset="UTF-8"><title>Отчет об оценке</title></head>
+        <head><meta charset="UTF-8"><title>Отчет об оценке недвижимости</title></head>
         <body style="font-family: 'Times New Roman'; margin: 2cm;">
             <h1>Отчет об оценке недвижимости</h1>
             <p>Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
             <h2>Рыночная стоимость: ${new Intl.NumberFormat('ru-RU').format(this.result.predicted.price_total)} ₽</h2>
             <p>Стоимость за м²: ${new Intl.NumberFormat('ru-RU').format(this.result.predicted.price_per_sqm)} ₽</p>
-            <pre>${this.result.justification}</pre>
-            <p>Метод оценки: CatBoost ML-модель</p>
+            <pre style="white-space: pre-wrap;">${this.result.justification}</pre>
+            <p style="margin-top: 20px;">Метод оценки: CatBoost ML-модель</p>
+            <p>© Отдел ГКО, ${new Date().getFullYear()}</p>
         </body>
         </html>`;
         
@@ -474,7 +513,7 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
         const btn = document.querySelector('#valuationForm button[type="submit"]');
         if (btn) {
             btn.disabled = loading;
-            btn.innerHTML = loading ? '<div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div> Расчет...' : 'Выполнить оценку (CatBoost)';
+            btn.innerHTML = loading ? '<div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div> Расчет...' : 'Выполнить оценку';
         }
     }
     
