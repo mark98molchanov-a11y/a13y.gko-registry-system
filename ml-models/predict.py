@@ -17,7 +17,6 @@ def clean_val(val, max_len=80):
     if pd.isna(val) or str(val).strip().lower() in ['nan', 'none', '']: return ''
     return str(val).strip()[:max_len]
 
-# ===== НОВАЯ ФУНКЦИЯ: категория по названию (как в train_model.py) =====
 def get_object_category(name):
     if pd.isna(name) or not name:
         return 0
@@ -39,7 +38,6 @@ def get_object_category(name):
         return 70
     return 0
 
-# ===== НОВАЯ ФУНКЦИЯ: категория ВРИ для земли =====
 def get_land_use_category(permitted_use):
     if pd.isna(permitted_use):
         return 0
@@ -61,7 +59,6 @@ def get_land_use_category(permitted_use):
         return 7
     return 0
 
-# ===== НОВАЯ ФУНКЦИЯ: категория земель =====
 def get_land_category(category):
     if pd.isna(category):
         return 0
@@ -113,13 +110,11 @@ is_land = (type_code == 1)
 material_map = {'Кирпич': 1, 'Панель': 2, 'Монолит': 3, 'Дерево': 4, 'Блок': 5}
 wall_code = material_map.get(wall_material, 0)
 
-# ===== НОВОЕ: вычисляем категорию по названию =====
 name_category = get_object_category(object_name)
 print(f"📊 name_category: {name_category} для '{object_name}'", file=sys.stderr)
 
-# ===== НОВОЕ: для земли вычисляем коды ВРИ и категории =====
 land_use_code = get_land_use_category(permitted_use)
-land_category_code = 0  # будет заполнено из df если есть
+land_category_code = 0
 
 # Город
 city = ''
@@ -140,14 +135,12 @@ if address:
                 break
 
 # ============================================================
-# ML-прогноз (ОБНОВЛЕННЫЙ с name_category)
+# ML-прогноз
 # ============================================================
 if is_land and model_land:
-    # Для земли используем land_use_code
     price_sqm = model_land.predict([[area, build_year, land_use_code, land_category_code]])[0]
     print(f"🌾 Прогноз для земли: {price_sqm:.0f} руб/м²", file=sys.stderr)
 elif not is_land and model_buildings:
-    # Для зданий используем 5 признаков: area, build_year, type_code, wall_code, name_category
     price_sqm = model_buildings.predict([[area, build_year, type_code, wall_code, name_category]])[0]
     print(f"🏢 Прогноз для зданий: {price_sqm:.0f} руб/м²", file=sys.stderr)
 else:
@@ -157,62 +150,47 @@ else:
 price_total = price_sqm * area
 
 # ============================================================
-# Подбор аналогов с умным поиском
+# Подбор аналогов - СНАЧАЛА ПО НАЗВАНИЮ, ПОТОМ ПО ТИПУ
 # ============================================================
-similar = df[df['object_type_code'] == type_code].copy()
-similar = similar[similar['area'].between(area * 0.3, area * 3.0)]
+
+similar = pd.DataFrame()
 search_level = "вся база"
 
-# --- Земля: умный поиск ВРИ ---
-if is_land and permitted_use:
-    similar = similar[~similar['permitted_use'].apply(is_empty)].copy()
-    kw = permitted_use.lower().split()
-    exact = similar[similar['permitted_use'].apply(lambda x: all(k in str(x).lower() for k in kw) if pd.notna(x) else False)]
-    if len(exact) >= 3:
-        similar = exact
-        search_level = "точное совпадение ВРИ"
-    else:
-        soft = similar[similar['permitted_use'].str.lower().apply(lambda x: any(k in x for k in kw) if pd.notna(x) else False)]
-        if len(soft) >= 3:
-            similar = soft
-            search_level = "похожие ВРИ"
-
-# --- Здания: умный поиск по наименованию и материалу ---
-if not is_land:
-    if object_name:
-        kw = object_name.lower().split()
-        exact = similar[similar['name'].apply(lambda x: all(k in str(x).lower() for k in kw) if pd.notna(x) else False)]
-        if len(exact) >= 3:
-            similar = exact
-            search_level = "точное совпадение наименования"
-        else:
-            mid = similar[similar['name'].apply(lambda x: sum(1 for k in kw if k in str(x).lower()) >= 2 if pd.notna(x) else False)]
-            if len(mid) >= 3:
-                similar = mid
-                search_level = "похожее наименование (≥2 слов)"
-            else:
-                soft = similar[similar['name'].astype(str).str.lower().str.contains(kw[0], na=False)] if kw else similar
-                if len(soft) >= 3 and kw:
-                    similar = soft
-                    search_level = f"ключевое слово «{kw[0]}»"
+# 1. Поиск по наименованию (ключевые слова)
+if object_name:
+    keywords = object_name.lower().split()
+    for kw in keywords:
+        kw_matches = df[df['name'].str.contains(kw, na=False, case=False)]
+        similar = pd.concat([similar, kw_matches])
     
-    if wall_material and len(similar) >= 5:
-        kw = wall_material.lower().split()
-        mf = similar[similar['wall_material'].astype(str).str.lower().apply(lambda x: any(k in x for k in kw) if pd.notna(x) else False)]
-        if len(mf) >= 3:
-            similar = mf
+    if not similar.empty:
+        similar = similar.drop_duplicates(subset=['kadastr'])
+        search_level = f"поиск по ключевому слову «{object_name}»"
+        print(f"🔍 Поиск по названию: найдено {len(similar)} объектов", file=sys.stderr)
 
-# Город
-if city and len(similar) >= 5:
-    cf = similar[similar['address'].str.contains(city, na=False)]
-    if len(cf) >= 3:
-        similar = cf
+# 2. Если мало результатов - добавляем фильтрацию по типу
+if len(similar) < 3:
+    type_similar = df[df['object_type_code'] == type_code].copy()
+    similar = pd.concat([similar, type_similar]).drop_duplicates(subset=['kadastr'])
+    search_level = f"поиск по типу + названию"
+    print(f"🔍 Добавлено по типу: теперь {len(similar)} объектов", file=sys.stderr)
 
-# Расширяем если пусто
-if len(similar) < 5:
+# 3. Фильтрация по площади
+if not similar.empty:
+    similar = similar[similar['area'].between(area * 0.3, area * 3.0)]
+    print(f"🔍 После фильтрации по площади: {len(similar)} объектов", file=sys.stderr)
+else:
     similar = df[df['object_type_code'] == type_code].copy()
+    similar = similar[similar['area'].between(area * 0.3, area * 3.0)]
+    search_level = "тип объекта + площадь"
+
+# 4. Если всё ещё пусто - расширяем
 if len(similar) < 3:
     similar = df.copy()
+    search_level = "вся база (расширенный поиск)"
+    print(f"🔍 Расширенный поиск: {len(similar)} объектов", file=sys.stderr)
+
+print(f"📊 Итоговое количество аналогов: {len(similar)}", file=sys.stderr)
 
 # ============================================================
 # Поиск 5 ближайших — РАВНОЗНАЧНЫЕ ФАКТОРЫ
@@ -222,7 +200,6 @@ nn = NearestNeighbors(n_neighbors=n_neighbors)
 scaler = StandardScaler()
 
 if is_land:
-    # Земля: ВРИ, площадь, год, адрес (город)
     similar['use_code'] = pd.factorize(similar['permitted_use'])[0]
     similar['city_code'] = pd.factorize(similar['address'].fillna(''))[0]
     feats = ['area', 'build_year', 'use_code', 'city_code']
@@ -237,7 +214,6 @@ if is_land:
     distances, indices = nn.kneighbors(os_)
     search_desc = "ВРИ, площадь, год, адрес (равнозначно)"
 else:
-    # Здания: наименование, материал, площадь, год, адрес (город)
     similar['name_code'] = pd.factorize(similar['name'])[0]
     similar['material_code'] = pd.factorize(similar['wall_material'])[0]
     similar['city_code'] = pd.factorize(similar['address'].fillna(''))[0]
