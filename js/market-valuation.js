@@ -1,5 +1,6 @@
 // js/market-valuation.js
 // Полная интеграция с весами CatBoost модели + категории объектов
+// Поиск аналогов: сначала по названию, потом по типу объекта
 
 class MarketValuationApp {
     constructor(containerId) {
@@ -53,32 +54,24 @@ class MarketValuationApp {
         };
     }
     
-    // ===== Функция определения категории объекта по названию =====
     getObjectCategory(name) {
         if (!name) return 0;
         const nameLower = name.toLowerCase();
         
-        if (/гараж|бокс/.test(nameLower)) return 10;      // Гараж
-        if (/магазин|торгов|павильон/.test(nameLower)) return 20;  // Магазин
-        if (/офис|административ|контор/.test(nameLower)) return 30; // Офис
-        if (/склад/.test(nameLower)) return 40;            // Склад
-        if (/жилой дом|дом|дача|коттедж/.test(nameLower)) return 50; // Жилой дом
-        if (/квартир|помещение/.test(nameLower)) return 60; // Квартира
-        if (/производствен|цех|корпус|станция|котельная/.test(nameLower)) return 70; // Производство
+        if (/гараж|бокс/.test(nameLower)) return 10;
+        if (/магазин|торгов|павильон/.test(nameLower)) return 20;
+        if (/офис|административ|контор/.test(nameLower)) return 30;
+        if (/склад/.test(nameLower)) return 40;
+        if (/жилой дом|дом|дача|коттедж/.test(nameLower)) return 50;
+        if (/квартир|помещение/.test(nameLower)) return 60;
+        if (/производствен|цех|корпус|станция|котельная/.test(nameLower)) return 70;
         return 0;
     }
     
-    // ===== Коэффициенты для категорий объектов (на основе важности из модели) =====
     getCategoryFactor(categoryCode) {
         const factors = {
-            10: 1.15,   // Гараж
-            20: 1.20,   // Магазин
-            30: 1.10,   // Офис
-            40: 0.90,   // Склад
-            50: 0.95,   // Жилой дом
-            60: 1.00,   // Квартира
-            70: 0.85,   // Производство
-            0: 1.00     // Прочее
+            10: 1.15, 20: 1.20, 30: 1.10, 40: 0.90,
+            50: 0.95, 60: 1.00, 70: 0.85, 0: 1.00
         };
         return factors[categoryCode] || 1.00;
     }
@@ -97,7 +90,7 @@ class MarketValuationApp {
                         </div>
                         <div>
                             <h2 class="text-2xl font-bold text-slate-900">Рыночная оценка недвижимости</h2>
-                            <p class="text-slate-500 text-sm">CatBoost ML-модель | Учитывает тип объекта (гараж, магазин, склад)</p>
+                            <p class="text-slate-500 text-sm">CatBoost ML-модель | Поиск аналогов по наименованию</p>
                         </div>
                     </div>
                     <div id="modelStatus" class="mt-2 text-xs text-slate-400">
@@ -200,7 +193,7 @@ class MarketValuationApp {
                             </div>
                             <h4 class="font-medium text-slate-700 mb-1">Результат оценки</h4>
                             <p class="text-sm text-slate-400">Заполните параметры и нажмите "Выполнить оценку"</p>
-                            <p class="text-xs text-slate-400 mt-2">CatBoost учитывает тип объекта (гараж/магазин/склад)</p>
+                            <p class="text-xs text-slate-400 mt-2">Поиск аналогов сначала по наименованию, затем по типу</p>
                         </div>
                         <div id="resultContent" style="display: none;"></div>
                     </div>
@@ -273,7 +266,7 @@ class MarketValuationApp {
                 justification: this.generateJustification(formData, prediction, analogs, avgAnalogPrice, deviation),
                 analogs: analogs,
                 search_level: this.getSearchLevel(formData),
-                search_features: "площадь, год, тип, материал, категория объекта"
+                search_features: "сначала по названию, потом по типу, площади"
             };
             
             this.displayResult(result);
@@ -303,7 +296,7 @@ class MarketValuationApp {
         pricePerSqm = Math.round(pricePerSqm / 100) * 100;
         const priceTotal = Math.round(pricePerSqm * formData.area);
         
-        console.log(`💰 Расчет: тип=${formData.object_type}, материал=${formData.wall_material}, категория=${categoryCode}(${categoryFactor}), цена=${pricePerSqm}`);
+        console.log(`💰 Расчет: тип=${formData.object_type}, категория=${categoryCode}, цена=${pricePerSqm}`);
         
         return { price_per_sqm: pricePerSqm, price_total: priceTotal };
     }
@@ -313,20 +306,64 @@ class MarketValuationApp {
             return this.generateDemoAnalogs(formData);
         }
         
-        const typeCodes = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 };
-        const targetTypeCode = typeCodes[formData.object_type] || 0;
+        // ===== 1. СНАЧАЛА ИЩЕМ ПО НАЗВАНИЮ (ключевые слова) =====
+        let filtered = [];
+        const searchName = (formData.name || '').toLowerCase();
         
-        let filtered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
-        
-        if (filtered.length < 3) {
-            filtered = this.modelWeights.analogs_data;
+        if (searchName) {
+            const keywords = searchName.split(/\s+/);
+            
+            filtered = this.modelWeights.analogs_data.filter(a => {
+                const analogName = (a.name || '').toLowerCase();
+                return keywords.some(kw => analogName.includes(kw));
+            });
+            
+            console.log(`🔍 Поиск по названию "${searchName}": найдено ${filtered.length} аналогов`);
         }
         
-        filtered = filtered.filter(a => a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0);
+        // ===== 2. ЕСЛИ МАЛО РЕЗУЛЬТАТОВ - ДОБАВЛЯЕМ ПО ТИПУ ОБЪЕКТА =====
+        if (filtered.length < 3) {
+            const typeCodes = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 };
+            const targetTypeCode = typeCodes[formData.object_type] || 0;
+            
+            let typeFiltered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
+            
+            const existingIds = new Set(filtered.map(a => a.kadastr));
+            typeFiltered = typeFiltered.filter(a => !existingIds.has(a.kadastr));
+            
+            filtered = [...filtered, ...typeFiltered];
+            console.log(`🔍 Добавлено по типу объекта: +${typeFiltered.length} аналогов`);
+        }
         
+        // ===== 3. ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ ОБЪЕКТЫ =====
+        if (filtered.length < 3) {
+            filtered = this.modelWeights.analogs_data;
+            console.log(`🔍 Расширенный поиск: все ${filtered.length} объектов`);
+        }
+        
+        // ===== 4. ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ =====
+        filtered = filtered.filter(a => a.area >= formData.area * 0.5 && a.area <= formData.area * 1.5);
+        
+        if (filtered.length < 3) {
+            filtered = filtered.concat(this.modelWeights.analogs_data.filter(a => 
+                a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0
+            ));
+            filtered = filtered.filter((a, index, self) => 
+                index === self.findIndex(b => b.kadastr === a.kadastr)
+            );
+        }
+        
+        // ===== 5. СОРТИРОВКА ПО БЛИЗОСТИ ПЛОЩАДИ =====
         filtered.sort((a, b) => Math.abs(a.area - formData.area) - Math.abs(b.area - formData.area));
         
-        return filtered.slice(0, 5).map((a, i) => ({
+        // ===== 6. БЕРЕМ ТОП-5 =====
+        const topAnalogs = filtered.slice(0, 5);
+        
+        if (topAnalogs.length === 0) {
+            return this.generateDemoAnalogs(formData);
+        }
+        
+        return topAnalogs.map((a, i) => ({
             num: i + 1,
             name: a.name || 'Объект',
             area: a.area,
@@ -335,8 +372,8 @@ class MarketValuationApp {
             address: a.address || '',
             wall_material: a.wall_material || '',
             kadastr: a.kadastr || '',
-            correction: (0.85 + i * 0.03).toFixed(3),
-            similarity: Math.round(85 + i * 2)
+            correction: (1 - (Math.abs(a.area - formData.area) / formData.area) * 0.1).toFixed(3),
+            similarity: Math.max(50, Math.round(100 - Math.abs(a.area - formData.area) / formData.area * 30))
         }));
     }
     
@@ -392,7 +429,7 @@ ${formData.wall_material ? `Материал стен: ${formData.wall_material}
 Корректировка на категорию "${categoryName}": ${this.getCategoryFactor(categoryCode).toFixed(2)}
 Итоговая цена: ${prediction.price_per_sqm.toLocaleString()} ₽/м²
 
-ЭТАП 2: ПОДБОР АНАЛОГОВ (${analogs.length} объектов)
+ЭТАП 2: ПОДБОР АНАЛОГОВ (${analogs.length} объектов) - поиск по наименованию
 ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.build_year} | ${a.price_per_sqm.toLocaleString()} ₽/м²`).join('\n')}
 
 ЭТАП 3: ИТОГОВАЯ СТОИМОСТЬ
@@ -428,7 +465,7 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        CatBoost + категории объектов
+                        CatBoost + поиск по названию
                     </div>
                 </div>
                 
@@ -441,7 +478,7 @@ ${analogs.map(a => `Аналог ${a.num}: ${a.name} | ${a.area} м² | ${a.buil
                                     <div class="flex justify-between items-start">
                                         <div>
                                             <div class="font-medium">${analog.name}</div>
-                                            <div class="text-xs text-slate-500">${analog.area} м² | ${analog.build_year} | ${analog.wall_material || '—'}</div>
+                                            <div class="text-xs text-slate-500">${analog.area} м² | ${analog.build_year}</div>
                                         </div>
                                         <div class="text-right">
                                             <div class="font-bold text-emerald-600">${new Intl.NumberFormat('ru-RU').format(analog.price_per_sqm)} ₽/м²</div>
