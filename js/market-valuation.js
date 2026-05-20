@@ -322,7 +322,7 @@ class MarketValuationApp {
         return { price_per_sqm: pricePerSqm, price_total: priceTotal };
     }
     
-  findAnalogs(formData) {
+ findAnalogs(formData) {
     if (!this.modelWeights.analogs_data || this.modelWeights.analogs_data.length === 0) {
         console.warn("⚠️ Нет данных аналогов, используем демо-режим");
         return this.generateDemoAnalogs(formData);
@@ -334,81 +334,113 @@ class MarketValuationApp {
     console.log(`📝 Оцениваемый объект: "${formData.name}" (тип: ${formData.object_type})`);
     console.log(`📊 Всего объектов в базе: ${this.modelWeights.analogs_data.length}`);
     
-    // ===== 1. СНАЧАЛА ИЩЕМ ПО НАЗВАНИЮ (ключевые слова) =====
-    let filtered = [];
+    // ===== 1. ГЛАВНЫЙ ПРИОРИТЕТ: ПОИСК ПО НАЗВАНИЮ =====
+    let nameMatches = [];
     const searchName = (formData.name || '').toLowerCase();
     
     if (searchName) {
         const keywords = searchName.split(/\s+/);
         console.log(`🔑 Ключевые слова: [${keywords.join(", ")}]`);
         
-        filtered = this.modelWeights.analogs_data.filter(a => {
+        nameMatches = this.modelWeights.analogs_data.filter(a => {
             const analogName = (a.name || '').toLowerCase();
             const match = keywords.some(kw => analogName.includes(kw));
             if (match) {
-                console.log(`  ✅ НАЙДЕН: "${a.name}" (тип: ${a.object_type}, площадь: ${a.area} м², цена: ${a.price_per_sqm.toLocaleString()} ₽/м²)`);
+                console.log(`  ✅ НАЙДЕН ПО НАЗВАНИЮ: "${a.name}" (площадь: ${a.area} м², цена: ${a.price_per_sqm.toLocaleString()} ₽/м², тип: ${a.object_type})`);
             }
             return match;
         });
         
-        console.log(`📊 Поиск по названию: найдено ${filtered.length} аналогов`);
-    } else {
-        console.log(`⚠️ Название объекта не указано, пропускаем поиск по названию`);
+        console.log(`📊 Поиск по названию: найдено ${nameMatches.length} аналогов`);
     }
     
-    // ===== 2. РАСШИРЕННАЯ ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ =====
-    // Для объектов, найденных по названию, используем широкий диапазон
-    let areaFiltered = filtered;
+    let filtered = [];
     
-    if (filtered.length > 0) {
-        // Широкий диапазон для сохранения найденных аналогов
-        const wideMin = formData.area * 0.2;
-        const wideMax = formData.area * 5.0;
-        areaFiltered = filtered.filter(a => a.area >= wideMin && a.area <= wideMax);
-        console.log(`📐 Широкая фильтрация по площади (20%-500%): ${filtered.length} → ${areaFiltered.length} объектов`);
+    // ===== 2. ЕСЛИ ЕСТЬ АНАЛОГИ ПО НАЗВАНИЮ =====
+    if (nameMatches.length > 0) {
+        // Берем аналоги по названию
+        filtered = [...nameMatches];
+        console.log(`✅ Используем ${filtered.length} аналогов, найденных по названию`);
+        
+        // ===== ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ (МЯГКАЯ, ЧТОБЫ НЕ ПОТЕРЯТЬ) =====
+        const beforeFilter = filtered.length;
+        filtered = filtered.filter(a => a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0);
+        console.log(`📐 Фильтрация по площади (30%-300%): ${beforeFilter} → ${filtered.length} объектов`);
+        
+        // ===== ЕСЛИ МАЛО ПОСЛЕ ФИЛЬТРАЦИИ - РАСШИРЯЕМ ДИАПАЗОН =====
+        if (filtered.length < 3) {
+            filtered = nameMatches.filter(a => a.area >= formData.area * 0.2 && a.area <= formData.area * 5.0);
+            console.log(`📐 Расширенная фильтрация по площади (20%-500%): ${filtered.length} объектов`);
+        }
+        
+        // ===== ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ НАЙДЕННЫЕ ПО НАЗВАНИЮ =====
+        if (filtered.length < 3) {
+            filtered = nameMatches;
+            console.log(`⚠️ Оставляем все ${filtered.length} объектов без фильтрации по площади`);
+        }
     }
     
-    // ===== 3. ЕСЛИ МАЛО РЕЗУЛЬТАТОВ - ДОБАВЛЯЕМ ПО ТИПУ ОБЪЕКТА =====
-    if (areaFiltered.length < 3) {
+    // ===== 3. ЕСЛИ НЕТ АНАЛОГОВ ПО НАЗВАНИЮ - ИЩЕМ ПО ТИПУ =====
+    if (filtered.length === 0) {
         const typeCodes = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 };
         const targetTypeCode = typeCodes[formData.object_type] || 0;
         
-        console.log(`🔍 Поиск по типу объекта: ${formData.object_type} (код ${targetTypeCode})`);
+        console.log(`⚠️ Нет аналогов по названию, ищем по типу: ${formData.object_type} (код ${targetTypeCode})`);
         
-        let typeFiltered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
-        console.log(`   Найдено по типу: ${typeFiltered.length} объектов`);
+        filtered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
+        console.log(`📊 Найдено по типу: ${filtered.length} объектов`);
         
-        // Фильтруем по площади для типовых аналогов
-        typeFiltered = typeFiltered.filter(a => a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0);
-        console.log(`   После фильтрации по площади (30%-300%): ${typeFiltered.length} объектов`);
+        // Фильтрация по площади для типовых аналогов
+        filtered = filtered.filter(a => a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0);
+        console.log(`📐 Фильтрация по площади (30%-300%): ${filtered.length} объектов`);
         
-        const existingIds = new Set(areaFiltered.map(a => a.kadastr));
-        typeFiltered = typeFiltered.filter(a => !existingIds.has(a.kadastr));
-        
-        areaFiltered = [...areaFiltered, ...typeFiltered];
-        console.log(`📊 Добавлено по типу: +${typeFiltered.length} аналогов (всего: ${areaFiltered.length})`);
+        // Если всё равно мало - расширяем
+        if (filtered.length < 3) {
+            filtered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
+            console.log(`⚠️ Расширенный поиск по типу: ${filtered.length} объектов`);
+        }
     }
     
-    // ===== 4. ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ ОБЪЕКТЫ =====
-    if (areaFiltered.length < 3) {
-        areaFiltered = this.modelWeights.analogs_data;
-        console.log(`⚠️ Мало результатов, расширенный поиск: все ${areaFiltered.length} объектов`);
-    }
+    // ===== 4. КОМБИНИРОВАННАЯ СОРТИРОВКА =====
+    // Сортируем по нескольким критериям:
+    // 1. Совпадение по названию (вес 0.5)
+    // 2. Близость площади (вес 0.3)
+    // 3. Совпадение типа (вес 0.2)
+    filtered = filtered.map(a => {
+        let score = 0;
+        
+        // Близость названия (0-50 баллов)
+        const analogName = (a.name || '').toLowerCase();
+        const searchNameLower = searchName;
+        if (searchNameLower && analogName.includes(searchNameLower)) {
+            score += 50;
+        } else if (searchNameLower) {
+            const nameMatch = analogName.split(/\s+/).some(word => 
+                searchNameLower.split(/\s+/).some(kw => word.includes(kw))
+            );
+            if (nameMatch) score += 30;
+        }
+        
+        // Близость площади (0-30 баллов)
+        const areaDiff = Math.abs(a.area - formData.area) / Math.max(formData.area, a.area);
+        score += Math.max(0, 30 - areaDiff * 30);
+        
+        // Совпадение типа объекта (0-20 баллов)
+        const targetTypeCode = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 }[formData.object_type] || 0;
+        if (a.object_type_code === targetTypeCode) score += 20;
+        
+        return { ...a, _score: score };
+    });
     
-    // ===== 5. ДОПОЛНИТЕЛЬНАЯ ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ ДЛЯ ОЧЕВИДНЫХ ВЫБРОСОВ =====
-    // Убираем совсем не подходящие по площади (более 10x)
-    const finalFiltered = areaFiltered.filter(a => a.area <= formData.area * 10);
-    console.log(`📐 Финальная фильтрация (удаление выбросов >1000%): ${areaFiltered.length} → ${finalFiltered.length} объектов`);
+    // Сортируем по убыванию баллов
+    filtered.sort((a, b) => b._score - a._score);
     
-    // ===== 6. СОРТИРОВКА ПО БЛИЗОСТИ ПЛОЩАДИ =====
-    finalFiltered.sort((a, b) => Math.abs(a.area - formData.area) - Math.abs(b.area - formData.area));
+    // ===== 5. БЕРЕМ ТОП-5 =====
+    const topAnalogs = filtered.slice(0, 5);
     
-    // ===== 7. БЕРЕМ ТОП-5 =====
-    const topAnalogs = finalFiltered.slice(0, 5);
-    
-    console.log(`🎯 ТОП-5 аналогов:`);
+    console.log(`🎯 ТОП-5 аналогов (отсортированы по релевантности):`);
     topAnalogs.forEach((a, i) => {
-        console.log(`   ${i+1}. "${a.name || 'Без названия'}" | ${a.area} м² | ${a.price_per_sqm.toLocaleString()} ₽/м² | тип: ${a.object_type}`);
+        console.log(`   ${i+1}. "${a.name}" | ${a.area} м² | ${a.price_per_sqm.toLocaleString()} ₽/м² | тип: ${a.object_type} | рейтинг: ${a._score.toFixed(0)}`);
     });
     console.log("=".repeat(60));
     
@@ -426,11 +458,10 @@ class MarketValuationApp {
         address: a.address || '',
         wall_material: a.wall_material || '',
         kadastr: a.kadastr || '',
-        correction: (1 - (Math.abs(a.area - formData.area) / formData.area) * 0.1).toFixed(3),
-        similarity: Math.max(50, Math.round(100 - Math.abs(a.area - formData.area) / formData.area * 30))
+        correction: (1 - (Math.abs(a.area - formData.area) / Math.max(formData.area, a.area)) * 0.15).toFixed(3),
+        similarity: a._score || Math.max(50, Math.round(100 - Math.abs(a.area - formData.area) / Math.max(formData.area, a.area) * 50))
     }));
-}
-    
+}   
     generateDemoAnalogs(formData) {
         const cities = this.modelWeights.cities || ['Ноябрьск', 'Салехард', 'Новый Уренгой', 'Надым', 'Губкинский'];
         const categoryCode = this.getObjectCategory(formData.name);
