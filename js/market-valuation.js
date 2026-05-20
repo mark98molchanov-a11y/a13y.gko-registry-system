@@ -322,15 +322,15 @@ class MarketValuationApp {
         return { price_per_sqm: pricePerSqm, price_total: priceTotal };
     }
     
-    findAnalogs(formData) {
+  findAnalogs(formData) {
     if (!this.modelWeights.analogs_data || this.modelWeights.analogs_data.length === 0) {
         console.warn("⚠️ Нет данных аналогов, используем демо-режим");
         return this.generateDemoAnalogs(formData);
     }
     
-    console.log("=" * 60);
+    console.log("=".repeat(60));
     console.log("🔍 НАЧАЛО ПОИСКА АНАЛОГОВ");
-    console.log("=" * 60);
+    console.log("=".repeat(60));
     console.log(`📝 Оцениваемый объект: "${formData.name}" (тип: ${formData.object_type})`);
     console.log(`📊 Всего объектов в базе: ${this.modelWeights.analogs_data.length}`);
     
@@ -346,7 +346,7 @@ class MarketValuationApp {
             const analogName = (a.name || '').toLowerCase();
             const match = keywords.some(kw => analogName.includes(kw));
             if (match) {
-                console.log(`  ✅ НАЙДЕН: "${a.name}" (тип: ${a.object_type}, цена: ${a.price_per_sqm} ₽/м²)`);
+                console.log(`  ✅ НАЙДЕН: "${a.name}" (тип: ${a.object_type}, площадь: ${a.area} м², цена: ${a.price_per_sqm.toLocaleString()} ₽/м²)`);
             }
             return match;
         });
@@ -356,8 +356,20 @@ class MarketValuationApp {
         console.log(`⚠️ Название объекта не указано, пропускаем поиск по названию`);
     }
     
-    // ===== 2. ЕСЛИ МАЛО РЕЗУЛЬТАТОВ - ДОБАВЛЯЕМ ПО ТИПУ ОБЪЕКТА =====
-    if (filtered.length < 3) {
+    // ===== 2. РАСШИРЕННАЯ ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ =====
+    // Для объектов, найденных по названию, используем широкий диапазон
+    let areaFiltered = filtered;
+    
+    if (filtered.length > 0) {
+        // Широкий диапазон для сохранения найденных аналогов
+        const wideMin = formData.area * 0.2;
+        const wideMax = formData.area * 5.0;
+        areaFiltered = filtered.filter(a => a.area >= wideMin && a.area <= wideMax);
+        console.log(`📐 Широкая фильтрация по площади (20%-500%): ${filtered.length} → ${areaFiltered.length} объектов`);
+    }
+    
+    // ===== 3. ЕСЛИ МАЛО РЕЗУЛЬТАТОВ - ДОБАВЛЯЕМ ПО ТИПУ ОБЪЕКТА =====
+    if (areaFiltered.length < 3) {
         const typeCodes = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 };
         const targetTypeCode = typeCodes[formData.object_type] || 0;
         
@@ -366,45 +378,39 @@ class MarketValuationApp {
         let typeFiltered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
         console.log(`   Найдено по типу: ${typeFiltered.length} объектов`);
         
-        const existingIds = new Set(filtered.map(a => a.kadastr));
+        // Фильтруем по площади для типовых аналогов
+        typeFiltered = typeFiltered.filter(a => a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0);
+        console.log(`   После фильтрации по площади (30%-300%): ${typeFiltered.length} объектов`);
+        
+        const existingIds = new Set(areaFiltered.map(a => a.kadastr));
         typeFiltered = typeFiltered.filter(a => !existingIds.has(a.kadastr));
         
-        filtered = [...filtered, ...typeFiltered];
-        console.log(`📊 Добавлено по типу: +${typeFiltered.length} аналогов (всего: ${filtered.length})`);
+        areaFiltered = [...areaFiltered, ...typeFiltered];
+        console.log(`📊 Добавлено по типу: +${typeFiltered.length} аналогов (всего: ${areaFiltered.length})`);
     }
     
-    // ===== 3. ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ ОБЪЕКТЫ =====
-    if (filtered.length < 3) {
-        filtered = this.modelWeights.analogs_data;
-        console.log(`⚠️ Мало результатов, расширенный поиск: все ${filtered.length} объектов`);
+    // ===== 4. ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ ОБЪЕКТЫ =====
+    if (areaFiltered.length < 3) {
+        areaFiltered = this.modelWeights.analogs_data;
+        console.log(`⚠️ Мало результатов, расширенный поиск: все ${areaFiltered.length} объектов`);
     }
     
-    // ===== 4. ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ =====
-    const beforeAreaFilter = filtered.length;
-    filtered = filtered.filter(a => a.area >= formData.area * 0.5 && a.area <= formData.area * 1.5);
-    console.log(`📐 Фильтрация по площади ±50%: ${beforeAreaFilter} → ${filtered.length} объектов`);
+    // ===== 5. ДОПОЛНИТЕЛЬНАЯ ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ ДЛЯ ОЧЕВИДНЫХ ВЫБРОСОВ =====
+    // Убираем совсем не подходящие по площади (более 10x)
+    const finalFiltered = areaFiltered.filter(a => a.area <= formData.area * 10);
+    console.log(`📐 Финальная фильтрация (удаление выбросов >1000%): ${areaFiltered.length} → ${finalFiltered.length} объектов`);
     
-    if (filtered.length < 3) {
-        const beforeExpand = filtered.length;
-        filtered = filtered.concat(this.modelWeights.analogs_data.filter(a => 
-            a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0
-        ));
-        filtered = filtered.filter((a, index, self) => 
-            index === self.findIndex(b => b.kadastr === a.kadastr)
-        );
-        console.log(`📐 Расширение фильтрации ±30-300%: ${beforeExpand} → ${filtered.length} объектов`);
-    }
+    // ===== 6. СОРТИРОВКА ПО БЛИЗОСТИ ПЛОЩАДИ =====
+    finalFiltered.sort((a, b) => Math.abs(a.area - formData.area) - Math.abs(b.area - formData.area));
     
-    // ===== 5. СОРТИРОВКА ПО БЛИЗОСТИ ПЛОЩАДИ =====
-    filtered.sort((a, b) => Math.abs(a.area - formData.area) - Math.abs(b.area - formData.area));
+    // ===== 7. БЕРЕМ ТОП-5 =====
+    const topAnalogs = finalFiltered.slice(0, 5);
     
-    // ===== 6. БЕРЕМ ТОП-5 =====
-    const topAnalogs = filtered.slice(0, 5);
     console.log(`🎯 ТОП-5 аналогов:`);
     topAnalogs.forEach((a, i) => {
-        console.log(`   ${i+1}. "${a.name}" | ${a.area} м² | ${a.price_per_sqm.toLocaleString()} ₽/м² | тип: ${a.object_type}`);
+        console.log(`   ${i+1}. "${a.name || 'Без названия'}" | ${a.area} м² | ${a.price_per_sqm.toLocaleString()} ₽/м² | тип: ${a.object_type}`);
     });
-    console.log("=" * 60);
+    console.log("=".repeat(60));
     
     if (topAnalogs.length === 0) {
         console.warn("⚠️ Не найдено аналогов, используем демо-режим");
