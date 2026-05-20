@@ -228,57 +228,78 @@ class MarketValuationApp {
         objectType.dispatchEvent(new Event('change'));
     }
     
-    async submitForm() {
-        if (this.isLoading) return;
+  async submitForm() {
+    if (this.isLoading) return;
+    
+    const formData = {
+        area: parseFloat(document.getElementById('area').value),
+        build_year: parseInt(document.getElementById('buildYear').value) || 2015,
+        object_type: document.getElementById('objectType').value,
+        permitted_use: document.getElementById('permittedUse')?.value || '',
+        address: document.getElementById('address').value,
+        kadastr: document.getElementById('kadastr').value,
+        wall_material: document.getElementById('wallMaterial')?.value || '',
+        name: document.getElementById('objectName')?.value || ''
+    };
+    
+    // ===== ЛОГИРОВАНИЕ ФОРМЫ =====
+    console.log("=".repeat(60));
+    console.log("📝 ФОРМА ОТПРАВЛЕНА:");
+    console.log(`   Наименование: "${formData.name || '(не указано)'}"`);
+    console.log(`   Тип объекта: ${formData.object_type}`);
+    console.log(`   Площадь: ${formData.area} м²`);
+    console.log(`   Год постройки: ${formData.build_year}`);
+    console.log(`   Материал стен: ${formData.wall_material || "не указан"}`);
+    console.log(`   Адрес: ${formData.address || "не указан"}`);
+    console.log(`   Кадастровый номер: ${formData.kadastr || "не указан"}`);
+    if (formData.object_type === 'Земельный участок') {
+        console.log(`   ВРИ: ${formData.permitted_use || "не указано"}`);
+    }
+    console.log("=".repeat(60));
+    
+    if (!formData.area || formData.area <= 0) {
+        this.showNotification('Введите корректную площадь', 'error');
+        return;
+    }
+    
+    this.setLoading(true);
+    this.showNotification('🧠 Расчет на CatBoost...', 'info');
+    
+    try {
+        const prediction = this.calculatePrice(formData);
+        const analogs = this.findAnalogs(formData);
+        const avgAnalogPrice = analogs.length > 0 ? analogs.reduce((s, a) => s + a.price_per_sqm, 0) / analogs.length : prediction.price_per_sqm;
+        const deviation = ((prediction.price_per_sqm - avgAnalogPrice) / avgAnalogPrice * 100).toFixed(1);
         
-        const formData = {
-            area: parseFloat(document.getElementById('area').value),
-            build_year: parseInt(document.getElementById('buildYear').value) || 2015,
-            object_type: document.getElementById('objectType').value,
-            permitted_use: document.getElementById('permittedUse')?.value || '',
-            address: document.getElementById('address').value,
-            kadastr: document.getElementById('kadastr').value,
-            wall_material: document.getElementById('wallMaterial')?.value || '',
-            name: document.getElementById('objectName')?.value || ''
+        console.log(`📊 РЕЗУЛЬТАТ:`);
+        console.log(`   Цена модели: ${prediction.price_per_sqm.toLocaleString()} ₽/м²`);
+        console.log(`   Средняя цена аналогов: ${avgAnalogPrice.toLocaleString()} ₽/м²`);
+        console.log(`   Отклонение: ${deviation}%`);
+        console.log("=".repeat(60));
+        
+        const result = {
+            predicted: prediction,
+            calculation: {
+                ml_prediction: prediction.price_per_sqm,
+                avg_analogs: Math.round(avgAnalogPrice),
+                deviation_pct: parseFloat(deviation)
+            },
+            justification: this.generateJustification(formData, prediction, analogs, avgAnalogPrice, deviation),
+            analogs: analogs,
+            search_level: this.getSearchLevel(formData),
+            search_features: "сначала по названию, потом по типу, площади"
         };
         
-        if (!formData.area || formData.area <= 0) {
-            this.showNotification('Введите корректную площадь', 'error');
-            return;
-        }
+        this.displayResult(result);
+        this.showNotification('✅ Оценка выполнена!', 'success');
         
-        this.setLoading(true);
-        this.showNotification('🧠 Расчет на CatBoost...', 'info');
-        
-        try {
-            const prediction = this.calculatePrice(formData);
-            const analogs = this.findAnalogs(formData);
-            const avgAnalogPrice = analogs.length > 0 ? analogs.reduce((s, a) => s + a.price_per_sqm, 0) / analogs.length : prediction.price_per_sqm;
-            const deviation = ((prediction.price_per_sqm - avgAnalogPrice) / avgAnalogPrice * 100).toFixed(1);
-            
-            const result = {
-                predicted: prediction,
-                calculation: {
-                    ml_prediction: prediction.price_per_sqm,
-                    avg_analogs: Math.round(avgAnalogPrice),
-                    deviation_pct: parseFloat(deviation)
-                },
-                justification: this.generateJustification(formData, prediction, analogs, avgAnalogPrice, deviation),
-                analogs: analogs,
-                search_level: this.getSearchLevel(formData),
-                search_features: "сначала по названию, потом по типу, площади"
-            };
-            
-            this.displayResult(result);
-            this.showNotification('✅ Оценка выполнена!', 'success');
-            
-        } catch (error) {
-            console.error('Ошибка:', error);
-            this.showNotification('❌ Ошибка расчета', 'error');
-        } finally {
-            this.setLoading(false);
-        }
+    } catch (error) {
+        console.error('❌ Ошибка:', error);
+        this.showNotification('❌ Ошибка расчета', 'error');
+    } finally {
+        this.setLoading(false);
     }
+}
     
     calculatePrice(formData) {
         const w = this.modelWeights;
@@ -302,80 +323,107 @@ class MarketValuationApp {
     }
     
     findAnalogs(formData) {
-        if (!this.modelWeights.analogs_data || this.modelWeights.analogs_data.length === 0) {
-            return this.generateDemoAnalogs(formData);
-        }
-        
-        // ===== 1. СНАЧАЛА ИЩЕМ ПО НАЗВАНИЮ (ключевые слова) =====
-        let filtered = [];
-        const searchName = (formData.name || '').toLowerCase();
-        
-        if (searchName) {
-            const keywords = searchName.split(/\s+/);
-            
-            filtered = this.modelWeights.analogs_data.filter(a => {
-                const analogName = (a.name || '').toLowerCase();
-                return keywords.some(kw => analogName.includes(kw));
-            });
-            
-            console.log(`🔍 Поиск по названию "${searchName}": найдено ${filtered.length} аналогов`);
-        }
-        
-        // ===== 2. ЕСЛИ МАЛО РЕЗУЛЬТАТОВ - ДОБАВЛЯЕМ ПО ТИПУ ОБЪЕКТА =====
-        if (filtered.length < 3) {
-            const typeCodes = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 };
-            const targetTypeCode = typeCodes[formData.object_type] || 0;
-            
-            let typeFiltered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
-            
-            const existingIds = new Set(filtered.map(a => a.kadastr));
-            typeFiltered = typeFiltered.filter(a => !existingIds.has(a.kadastr));
-            
-            filtered = [...filtered, ...typeFiltered];
-            console.log(`🔍 Добавлено по типу объекта: +${typeFiltered.length} аналогов`);
-        }
-        
-        // ===== 3. ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ ОБЪЕКТЫ =====
-        if (filtered.length < 3) {
-            filtered = this.modelWeights.analogs_data;
-            console.log(`🔍 Расширенный поиск: все ${filtered.length} объектов`);
-        }
-        
-        // ===== 4. ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ =====
-        filtered = filtered.filter(a => a.area >= formData.area * 0.5 && a.area <= formData.area * 1.5);
-        
-        if (filtered.length < 3) {
-            filtered = filtered.concat(this.modelWeights.analogs_data.filter(a => 
-                a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0
-            ));
-            filtered = filtered.filter((a, index, self) => 
-                index === self.findIndex(b => b.kadastr === a.kadastr)
-            );
-        }
-        
-        // ===== 5. СОРТИРОВКА ПО БЛИЗОСТИ ПЛОЩАДИ =====
-        filtered.sort((a, b) => Math.abs(a.area - formData.area) - Math.abs(b.area - formData.area));
-        
-        // ===== 6. БЕРЕМ ТОП-5 =====
-        const topAnalogs = filtered.slice(0, 5);
-        
-        if (topAnalogs.length === 0) {
-            return this.generateDemoAnalogs(formData);
-        }
-        
-        return topAnalogs.map((a, i) => ({
-            num: i + 1,
-            name: a.name || 'Объект',
-            area: a.area,
-            price_per_sqm: a.price_per_sqm,
-            build_year: a.build_year,
-            address: a.address || '',
-            wall_material: a.wall_material || '',
-            kadastr: a.kadastr || '',
-            correction: (1 - (Math.abs(a.area - formData.area) / formData.area) * 0.1).toFixed(3),
-            similarity: Math.max(50, Math.round(100 - Math.abs(a.area - formData.area) / formData.area * 30))
-        }));
+    if (!this.modelWeights.analogs_data || this.modelWeights.analogs_data.length === 0) {
+        console.warn("⚠️ Нет данных аналогов, используем демо-режим");
+        return this.generateDemoAnalogs(formData);
     }
+    
+    console.log("=" * 60);
+    console.log("🔍 НАЧАЛО ПОИСКА АНАЛОГОВ");
+    console.log("=" * 60);
+    console.log(`📝 Оцениваемый объект: "${formData.name}" (тип: ${formData.object_type})`);
+    console.log(`📊 Всего объектов в базе: ${this.modelWeights.analogs_data.length}`);
+    
+    // ===== 1. СНАЧАЛА ИЩЕМ ПО НАЗВАНИЮ (ключевые слова) =====
+    let filtered = [];
+    const searchName = (formData.name || '').toLowerCase();
+    
+    if (searchName) {
+        const keywords = searchName.split(/\s+/);
+        console.log(`🔑 Ключевые слова: [${keywords.join(", ")}]`);
+        
+        filtered = this.modelWeights.analogs_data.filter(a => {
+            const analogName = (a.name || '').toLowerCase();
+            const match = keywords.some(kw => analogName.includes(kw));
+            if (match) {
+                console.log(`  ✅ НАЙДЕН: "${a.name}" (тип: ${a.object_type}, цена: ${a.price_per_sqm} ₽/м²)`);
+            }
+            return match;
+        });
+        
+        console.log(`📊 Поиск по названию: найдено ${filtered.length} аналогов`);
+    } else {
+        console.log(`⚠️ Название объекта не указано, пропускаем поиск по названию`);
+    }
+    
+    // ===== 2. ЕСЛИ МАЛО РЕЗУЛЬТАТОВ - ДОБАВЛЯЕМ ПО ТИПУ ОБЪЕКТА =====
+    if (filtered.length < 3) {
+        const typeCodes = { 'Здание': 2, 'Помещение': 3, 'Сооружение': 4, 'Земельный участок': 1 };
+        const targetTypeCode = typeCodes[formData.object_type] || 0;
+        
+        console.log(`🔍 Поиск по типу объекта: ${formData.object_type} (код ${targetTypeCode})`);
+        
+        let typeFiltered = this.modelWeights.analogs_data.filter(a => a.object_type_code === targetTypeCode);
+        console.log(`   Найдено по типу: ${typeFiltered.length} объектов`);
+        
+        const existingIds = new Set(filtered.map(a => a.kadastr));
+        typeFiltered = typeFiltered.filter(a => !existingIds.has(a.kadastr));
+        
+        filtered = [...filtered, ...typeFiltered];
+        console.log(`📊 Добавлено по типу: +${typeFiltered.length} аналогов (всего: ${filtered.length})`);
+    }
+    
+    // ===== 3. ЕСЛИ ВСЁ ЕЩЁ МАЛО - БЕРЕМ ВСЕ ОБЪЕКТЫ =====
+    if (filtered.length < 3) {
+        filtered = this.modelWeights.analogs_data;
+        console.log(`⚠️ Мало результатов, расширенный поиск: все ${filtered.length} объектов`);
+    }
+    
+    // ===== 4. ФИЛЬТРАЦИЯ ПО ПЛОЩАДИ =====
+    const beforeAreaFilter = filtered.length;
+    filtered = filtered.filter(a => a.area >= formData.area * 0.5 && a.area <= formData.area * 1.5);
+    console.log(`📐 Фильтрация по площади ±50%: ${beforeAreaFilter} → ${filtered.length} объектов`);
+    
+    if (filtered.length < 3) {
+        const beforeExpand = filtered.length;
+        filtered = filtered.concat(this.modelWeights.analogs_data.filter(a => 
+            a.area >= formData.area * 0.3 && a.area <= formData.area * 3.0
+        ));
+        filtered = filtered.filter((a, index, self) => 
+            index === self.findIndex(b => b.kadastr === a.kadastr)
+        );
+        console.log(`📐 Расширение фильтрации ±30-300%: ${beforeExpand} → ${filtered.length} объектов`);
+    }
+    
+    // ===== 5. СОРТИРОВКА ПО БЛИЗОСТИ ПЛОЩАДИ =====
+    filtered.sort((a, b) => Math.abs(a.area - formData.area) - Math.abs(b.area - formData.area));
+    
+    // ===== 6. БЕРЕМ ТОП-5 =====
+    const topAnalogs = filtered.slice(0, 5);
+    console.log(`🎯 ТОП-5 аналогов:`);
+    topAnalogs.forEach((a, i) => {
+        console.log(`   ${i+1}. "${a.name}" | ${a.area} м² | ${a.price_per_sqm.toLocaleString()} ₽/м² | тип: ${a.object_type}`);
+    });
+    console.log("=" * 60);
+    
+    if (topAnalogs.length === 0) {
+        console.warn("⚠️ Не найдено аналогов, используем демо-режим");
+        return this.generateDemoAnalogs(formData);
+    }
+    
+    return topAnalogs.map((a, i) => ({
+        num: i + 1,
+        name: a.name || 'Объект',
+        area: a.area,
+        price_per_sqm: a.price_per_sqm,
+        build_year: a.build_year,
+        address: a.address || '',
+        wall_material: a.wall_material || '',
+        kadastr: a.kadastr || '',
+        correction: (1 - (Math.abs(a.area - formData.area) / formData.area) * 0.1).toFixed(3),
+        similarity: Math.max(50, Math.round(100 - Math.abs(a.area - formData.area) / formData.area * 30))
+    }));
+}
     
     generateDemoAnalogs(formData) {
         const cities = this.modelWeights.cities || ['Ноябрьск', 'Салехард', 'Новый Уренгой', 'Надым', 'Губкинский'];
