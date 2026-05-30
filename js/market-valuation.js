@@ -197,7 +197,7 @@ class MarketValuationApp {
         this.showNotification('🧠 Выполняется оценка на CatBoost...', 'info');
         
         try {
-            const response = await fetch('/api/predict', {
+            const response = await fetch('/api/index', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
