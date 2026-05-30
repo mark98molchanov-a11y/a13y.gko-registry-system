@@ -235,7 +235,7 @@ class MarketValuationApp {
 } finally {
     this.setLoading(false);
 }
-    
+ }   
     useFallbackCalculation(formData) {
         const basePrice = 45000;
         const typeFactors = { "Здание": 1.0, "Помещение": 1.1, "Сооружение": 0.85, "Земельный участок": 0.5 };
