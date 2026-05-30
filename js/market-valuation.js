@@ -196,40 +196,45 @@ class MarketValuationApp {
         this.setLoading(true);
         this.showNotification('🧠 Выполняется оценка на CatBoost...', 'info');
         
-        try {
-            const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    args: [
-                        formData.area,
-                        formData.build_year,
-                        formData.object_type,
-                        formData.permitted_use,
-                        formData.address,
-                        formData.kadastr,
-                        formData.wall_material,
-                        formData.name
-                    ]
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Ошибка ${response.status}`);
-            }
-            
-            const result = await response.json();
-            this.displayResult(result);
-            this.showNotification('✅ Оценка выполнена!', 'success');
-            
-        } catch (error) {
-            console.error('Ошибка:', error);
-            this.showNotification('Ошибка соединения с сервером', 'error');
-            this.useFallbackCalculation(formData);
-        } finally {
-            this.setLoading(false);
-        }
+      try {
+    const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            args: [
+                formData.area,
+                formData.build_year,
+                formData.object_type,
+                formData.permitted_use,
+                formData.address,
+                formData.kadastr,
+                formData.wall_material,
+                formData.name
+            ]
+        })
+    });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ошибка ${response.status}: ${errorText}`);
     }
+    
+    const result = await response.json();
+    console.log('API ответ:', result);
+    this.displayResult(result);
+    this.showNotification('✅ Оценка выполнена!', 'success');
+    
+} catch (error) {
+    console.error('Ошибка:', error);
+    this.showNotification(`Ошибка: ${error.message}`, 'error');
+    this.useFallbackCalculation(formData);
+} finally {
+    this.setLoading(false);
+}
     
     useFallbackCalculation(formData) {
         const basePrice = 45000;
