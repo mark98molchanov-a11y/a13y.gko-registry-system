@@ -197,7 +197,7 @@ class MarketValuationApp {
         this.showNotification('🧠 Выполняется оценка на CatBoost...', 'info');
         
         try {
-            const response = await fetch('/api/index', {
+            const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
