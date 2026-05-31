@@ -1,4 +1,4 @@
-// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ
+// js/market-valuation.js - МИНИМАЛИСТИЧНАЯ ВЕРСИЯ
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -15,21 +15,19 @@ class MarketValuationApp {
     render() {
         if (!this.container) return;
         this.container.innerHTML = `
-            <div class="max-w-5xl mx-auto p-5">
+            <div class="max-w-4xl mx-auto p-5">
                 <div class="mb-5">
                     <h2 class="text-xl font-bold text-slate-900">Рыночная оценка недвижимости</h2>
-                    <p class="text-slate-500 text-sm">CatBoost ML | 2500+ сделок в базе</p>
+                    <p class="text-slate-500 text-sm">CatBoost ML | 2500+ сделок</p>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Форма -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
                         <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
                             <h3 class="font-semibold text-slate-800">Параметры объекта</h3>
                         </div>
                         
                         <form id="valuationForm" class="p-5 space-y-4">
-                            <!-- 1. ТИП ОБЪЕКТА -->
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Тип объекта *</label>
                                 <select id="objectType" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
@@ -42,91 +40,67 @@ class MarketValuationApp {
                                 </select>
                             </div>
                             
-                            <!-- 2. ПЛОЩАДЬ -->
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Площадь, м² *</label>
-                                <input type="number" id="area" step="1" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="например: 45">
+                                <input type="number" id="area" step="1" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="100">
                             </div>
                             
-                            <!-- 3. БЛОК ДЛЯ ЗДАНИЙ/ПОМЕЩЕНИЙ -->
                             <div id="oksFields">
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1">Год постройки</label>
-                                    <input type="number" id="buildYear" class="w-full px-3 py-2 border border-slate-300 rounded-lg" value="2015" placeholder="2024">
+                                    <input type="number" id="buildYear" class="w-full px-3 py-2 border border-slate-300 rounded-lg" value="2015">
                                 </div>
-                                
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Наименование объекта</label>
-                                    <input type="text" id="objectName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" 
-                                           placeholder="Квартира, Гараж, Магазин, Склад, Офис, Жилой дом...">
-                                    <p class="text-xs text-slate-400 mt-1">Важно для точности оценки</p>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Наименование</label>
+                                    <input type="text" id="objectName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Квартира, Гараж, Магазин...">
                                 </div>
-                                
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1">Материал стен</label>
                                     <select id="wallMaterial" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
                                         <option value="">Не указан</option>
-                                        <option value="Кирпич">🧱 Кирпич</option>
-                                        <option value="Панель">📐 Панель</option>
-                                        <option value="Монолит">🏗️ Монолит</option>
-                                        <option value="Блок">🧩 Блок</option>
-                                        <option value="Дерево">🌲 Дерево</option>
-                                        <option value="Смешанный">🔀 Смешанный</option>
+                                        <option value="Кирпич">Кирпич</option>
+                                        <option value="Панель">Панель</option>
+                                        <option value="Монолит">Монолит</option>
+                                        <option value="Блок">Блок</option>
+                                        <option value="Дерево">Дерево</option>
+                                        <option value="Смешанный">Смешанный</option>
                                     </select>
                                 </div>
                             </div>
                             
-                            <!-- 4. БЛОК ДЛЯ ЗЕМЛИ -->
                             <div id="landFields" style="display: none;">
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1">Вид разрешенного использования (ВРИ)</label>
-                                    <input type="text" id="permittedUse" class="w-full px-3 py-2 border border-slate-300 rounded-lg" 
-                                           placeholder="ИЖС, гараж, садоводство, магазины...">
-                                    <p class="text-xs text-slate-400 mt-1">Для земельных участков</p>
+                                    <input type="text" id="permittedUse" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="ИЖС, гараж, садоводство...">
                                 </div>
                             </div>
                             
-                            <!-- 5. БЛОК ДЛЯ МАШИНО-МЕСТ -->
-                            <div id="machineFields" style="display: none;">
-                                <p class="text-xs text-slate-400">Для машино-мест достаточно площади и города</p>
-                            </div>
-                            
-                            <!-- 6. БЛОК ДЛЯ ОНС -->
-                            <div id="onsFields" style="display: none;">
-                                <p class="text-xs text-slate-400">Для объектов незавершённого строительства достаточно площади и города</p>
-                            </div>
-                            
-                            <!-- 7. ГОРОД / МУНИЦИПАЛЬНОЕ ОБРАЗОВАНИЕ -->
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Муниципальное образование *</label>
                                 <select id="city" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
                                     <option value="">Выберите...</option>
-                                    <!-- Городские округа -->
-                                    <option value="Салехард">🏛️ Салехард</option>
-                                    <option value="Губкинский">🏛️ Губкинский</option>
-                                    <option value="Муравленко">🏛️ Муравленко</option>
-                                    <option value="Новый Уренгой">🏛️ Новый Уренгой</option>
-                                    <option value="Ноябрьск">🏛️ Ноябрьск</option>
-                                    <option value="Лабытнанги">🏛️ Лабытнанги</option>
-                                    <!-- Муниципальные районы -->
-                                    <option value="Красноселькупский район">📌 Красноселькупский район</option>
-                                    <option value="Надымский район">📌 Надымский район</option>
-                                    <option value="Приуральский район">📌 Приуральский район</option>
-                                    <option value="Пуровский район">📌 Пуровский район</option>
-                                    <option value="Тазовский район">📌 Тазовский район</option>
-                                    <option value="Шурышкарский район">📌 Шурышкарский район</option>
-                                    <option value="Ямальский район">📌 Ямальский район</option>
+                                    <option value="Салехард">Салехард</option>
+                                    <option value="Губкинский">Губкинский</option>
+                                    <option value="Муравленко">Муравленко</option>
+                                    <option value="Новый Уренгой">Новый Уренгой</option>
+                                    <option value="Ноябрьск">Ноябрьск</option>
+                                    <option value="Лабытнанги">Лабытнанги</option>
+                                    <option value="Красноселькупский район">Красноселькупский район</option>
+                                    <option value="Надымский район">Надымский район</option>
+                                    <option value="Приуральский район">Приуральский район</option>
+                                    <option value="Пуровский район">Пуровский район</option>
+                                    <option value="Тазовский район">Тазовский район</option>
+                                    <option value="Шурышкарский район">Шурышкарский район</option>
+                                    <option value="Ямальский район">Ямальский район</option>
                                 </select>
-                                <p class="text-xs text-slate-400 mt-1">Если вашего города нет в списке, выберите ближайший район</p>
                             </div>
                             
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition">
-                                Рассчитать стоимость
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg">
+                                Рассчитать
                             </button>
                         </form>
                     </div>
                     
-                    <!-- Результат -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
                         <div id="resultPlaceholder" class="p-8 text-center">
                             <div class="text-5xl mb-3">🏠</div>
@@ -145,21 +119,9 @@ class MarketValuationApp {
         
         if (objectType) {
             objectType.addEventListener('change', () => {
-                const type = objectType.value;
-                const isLand = type === 'Земельный участок';
-                const isMachine = type === 'Машино-место';
-                const isOns = type === 'Объект незавершённого строительства';
-                const isOks = !isLand && !isMachine && !isOns;
-                
-                const oksFields = document.getElementById('oksFields');
-                const landFields = document.getElementById('landFields');
-                const machineFields = document.getElementById('machineFields');
-                const onsFields = document.getElementById('onsFields');
-                
-                if (oksFields) oksFields.style.display = isOks ? 'block' : 'none';
-                if (landFields) landFields.style.display = isLand ? 'block' : 'none';
-                if (machineFields) machineFields.style.display = isMachine ? 'block' : 'none';
-                if (onsFields) onsFields.style.display = isOns ? 'block' : 'none';
+                const isLand = objectType.value === 'Земельный участок';
+                document.getElementById('oksFields').style.display = isLand ? 'none' : 'block';
+                document.getElementById('landFields').style.display = isLand ? 'block' : 'none';
             });
             objectType.dispatchEvent(new Event('change'));
         }
@@ -177,14 +139,9 @@ class MarketValuationApp {
         
         const objectType = document.getElementById('objectType')?.value || 'Помещение';
         const isLand = objectType === 'Земельный участок';
-        const isMachine = objectType === 'Машино-место';
-        const isOns = objectType === 'Объект незавершённого строительства';
-        const isStructure = objectType === 'Сооружение';
-        
         const area = parseFloat(document.getElementById('area')?.value || 0);
         const city = document.getElementById('city')?.value || '';
         
-        // Валидация
         if (!area || area <= 0) {
             this.showNotification('Введите площадь', 'error');
             return;
@@ -206,26 +163,13 @@ class MarketValuationApp {
             name: document.getElementById('objectName')?.value || ''
         };
         
-        // Для разных типов — разные настройки
         if (isLand) {
             formData.build_year = 2020;
             formData.wall_material = '';
             if (!formData.name) formData.name = 'Земельный участок';
-        } else if (isMachine) {
-            formData.build_year = 2020;
-            formData.wall_material = '';
-            formData.name = 'Машино-место';
-            formData.permitted_use = '';
-        } else if (isOns) {
-            formData.wall_material = '';
-            if (!formData.name) formData.name = 'Объект незавершённого строительства';
-        } else if (isStructure) {
-            if (!formData.name) formData.name = 'Сооружение';
-        } else {
-            if (!formData.name) formData.name = formData.object_type;
+        } else if (!formData.name) {
+            formData.name = formData.object_type;
         }
-        
-        console.log('📤 Отправка:', formData);
         
         this.setLoading(true);
         
@@ -251,9 +195,8 @@ class MarketValuationApp {
             if (!response.ok) throw new Error(`Ошибка ${response.status}`);
             
             const result = await response.json();
-            console.log('📥 Результат:', result);
             this.displayResult(result);
-            this.showNotification('Оценка выполнена!', 'success');
+            this.showNotification('Оценка выполнена', 'success');
             
         } catch (error) {
             console.error('Ошибка:', error);
@@ -266,17 +209,8 @@ class MarketValuationApp {
     
     useFallbackCalculation(formData) {
         const basePrice = 45000;
-        const typeFactors = { 
-            "Помещение": 1.1, 
-            "Здание": 1.0, 
-            "Земельный участок": 0.5, 
-            "Сооружение": 0.85,
-            "Машино-место": 0.7,
-            "Объект незавершённого строительства": 0.6
-        };
-        const typeFactor = typeFactors[formData.object_type] || 1.0;
-        const pricePerSqm = Math.round(basePrice * typeFactor / 100) * 100;
-        
+        const typeFactors = { "Помещение": 1.1, "Здание": 1.0, "Земельный участок": 0.5, "Сооружение": 0.85, "Машино-место": 0.7, "Объект незавершённого строительства": 0.6 };
+        const pricePerSqm = Math.round(basePrice * (typeFactors[formData.object_type] || 1.0) / 100) * 100;
         this.displayResult({
             predicted: { price_per_sqm: pricePerSqm, price_total: pricePerSqm * formData.area },
             calculation: { analogs_count: 0 }
@@ -287,8 +221,8 @@ class MarketValuationApp {
         const placeholder = document.getElementById('resultPlaceholder');
         const content = document.getElementById('resultContent');
         
-        if (placeholder) placeholder.style.display = 'none';
-        if (content) content.style.display = 'block';
+        placeholder.style.display = 'none';
+        content.style.display = 'block';
         
         const formatPrice = (price) => {
             if (price >= 1000000) return `${(price / 1000000).toFixed(2)} млн ₽`;
@@ -302,9 +236,8 @@ class MarketValuationApp {
                     <div class="text-sm text-slate-500">Рыночная стоимость</div>
                     <div class="text-3xl font-bold text-slate-900">${formatPrice(data.predicted.price_total)}</div>
                     <div class="text-sm text-slate-500 mt-1">${new Intl.NumberFormat('ru-RU').format(data.predicted.price_per_sqm)} ₽/м²</div>
-                    <div class="text-xs text-slate-400 mt-2">ML-модель CatBoost | ${data.calculation.analogs_count || 0} аналогов</div>
+                    <div class="text-xs text-slate-400 mt-2">${data.calculation.analogs_count || 0} аналогов</div>
                 </div>
-                
                 <div class="border-t pt-4">
                     <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
                         Новая оценка
@@ -312,15 +245,12 @@ class MarketValuationApp {
                 </div>
             </div>
         `;
-        
         this.result = data;
     }
     
     resetResult() {
-        const placeholder = document.getElementById('resultPlaceholder');
-        const content = document.getElementById('resultContent');
-        if (placeholder) placeholder.style.display = 'flex';
-        if (content) content.style.display = 'none';
+        document.getElementById('resultPlaceholder').style.display = 'flex';
+        document.getElementById('resultContent').style.display = 'none';
         this.result = null;
     }
     
@@ -329,7 +259,7 @@ class MarketValuationApp {
         const btn = document.querySelector('#valuationForm button[type="submit"]');
         if (btn) {
             btn.disabled = loading;
-            btn.innerHTML = loading ? '⏳ Расчет...' : 'Рассчитать стоимость';
+            btn.innerHTML = loading ? 'Расчет...' : 'Рассчитать';
         }
     }
     
