@@ -1066,11 +1066,6 @@
         <div class="section-icon">🌳</div>
         <span>Структура ДИО</span>
     </div>
-    <!-- ===== НОВЫЙ ПУНКТ ===== -->
-    <div class="book-subsection" onclick="switchTab('parser')" id="navParser">
-        <div class="section-icon">📄🔍</div>
-        <span>Парсер приказов</span>
-    </div>
     <div class="book-subsection" onclick="switchTab('valuation')" id="navValuation">
     <div class="section-icon">🏠📊</div>
     <span>Рыночная оценка</span>
@@ -1382,13 +1377,7 @@
         </div>
     </div>
 </div>
-
-<div class="tab-content" id="parserTab">
-    <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="parserTabContent">
-        <div id="parser-root"></div>
-    </div>
-</div>
-            <div class="tab-content" id="valuationTab">
+          <div class="tab-content" id="valuationTab">
     <div id="valuation-root"></div>
 </div>
         </main>
@@ -1642,10 +1631,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <script src="js/indexeddb-manager.js"></script>
-<script src="js/document-parser-core.js"></script>
 <script src="js/data-manager.js"></script>
 <script src="js/org-chart-renderer.js"></script>
-<script type="text/babel" src="js/parser-ui.jsx"></script>
 
 <script>
     let orgApp = null;
