@@ -19,7 +19,7 @@ class MarketValuationApp {
             <div class="max-w-4xl mx-auto p-5">
                 <div class="mb-5">
                     <h2 class="text-xl font-bold text-slate-900">Рыночная оценка недвижимости ЯНАО</h2>
-                    <p class="text-slate-500 text-sm">CatBoost ML | 2500+ сделок | 6 моделей | 22 города</p>
+                    <p class="text-slate-500 text-sm">CatBoost ML</p>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
