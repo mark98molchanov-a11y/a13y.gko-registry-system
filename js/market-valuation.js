@@ -1,4 +1,4 @@
-// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ
+// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (ВРИ ввод + выбор)
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -80,19 +80,56 @@ class MarketValuationApp {
                             <!-- БЛОК ДЛЯ ЗЕМЛИ -->
                             <div id="landFields" style="display: none;">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Вид разрешенного использования (ВРИ)</label>
-                                    <select id="permittedUse" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
-                                        <option value="">Выберите...</option>
-                                        <option value="для индивидуального жилищного строительства">ИЖС</option>
-                                        <option value="для садоводства">Садоводство</option>
-                                        <option value="для огородничества">Огородничество</option>
-                                        <option value="для дачного строительства">Дачное строительство</option>
-                                        <option value="для строительства магазина">Магазин</option>
-                                        <option value="для размещения офиса">Офис</option>
-                                        <option value="для размещения склада">Склад</option>
-                                        <option value="для размещения гаража">Гараж</option>
-                                        <option value="для производственной деятельности">Производство</option>
-                                        <option value="для сельскохозяйственного производства">Сельское хозяйство</option>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                                        Вид разрешенного использования (ВРИ)
+                                    </label>
+                                    <!-- 🔥 ВВОД ВРУЧНУЮ -->
+                                    <input type="text" id="permittedUseInput" 
+                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                           placeholder="Например: для индивидуального жилищного строительства">
+                                    <p class="text-xs text-slate-400 mt-1">Введите ВРИ или выберите из списка ниже</p>
+                                    
+                                    <!-- 🔥 ИЛИ ВЫБОР ИЗ СПИСКА -->
+                                    <select id="permittedUseSelect" 
+                                            class="w-full px-3 py-2 border border-slate-300 rounded-lg mt-2"
+                                            onchange="document.getElementById('permittedUseInput').value = this.value">
+                                        <option value="">— Выбрать из списка —</option>
+                                        <optgroup label="🏠 Жильё">
+                                            <option value="для индивидуального жилищного строительства">ИЖС</option>
+                                            <option value="для ведения личного подсобного хозяйства">ЛПХ</option>
+                                            <option value="блокированная жилая застройка">Блокированная жилая застройка</option>
+                                            <option value="малоэтажная жилая застройка">Малоэтажная жилая застройка</option>
+                                        </optgroup>
+                                        <optgroup label="🌿 Сад / Огород / Дача">
+                                            <option value="для садоводства">Садоводство</option>
+                                            <option value="для огородничества">Огородничество</option>
+                                            <option value="для дачного строительства">Дачное строительство</option>
+                                            <option value="ведение садоводства">Ведение садоводства</option>
+                                        </optgroup>
+                                        <optgroup label="🏪 Коммерция">
+                                            <option value="для строительства магазина">Магазин</option>
+                                            <option value="для размещения офиса">Офис</option>
+                                            <option value="для размещения торгового центра">Торговый центр</option>
+                                            <option value="для размещения кафе">Кафе</option>
+                                            <option value="для размещения гостиницы">Гостиница</option>
+                                        </optgroup>
+                                        <optgroup label="📦 Склад">
+                                            <option value="для размещения склада">Склад</option>
+                                            <option value="склады">Склады</option>
+                                        </optgroup>
+                                        <optgroup label="🚗 Гараж / Автостоянка">
+                                            <option value="для размещения гаража">Гараж</option>
+                                            <option value="для размещения автостоянки">Автостоянка</option>
+                                            <option value="хранение автотранспорта">Хранение автотранспорта</option>
+                                        </optgroup>
+                                        <optgroup label="🏭 Производство">
+                                            <option value="для производственной деятельности">Производство</option>
+                                            <option value="для сельскохозяйственного производства">Сельхозпроизводство</option>
+                                        </optgroup>
+                                        <optgroup label="🏢 Административное">
+                                            <option value="для размещения административного здания">Административное</option>
+                                            <option value="деловое управление">Деловое управление</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                             </div>
@@ -193,12 +230,10 @@ class MarketValuationApp {
                 const isBuilding = type === 'Здание' || type === 'Помещение';
                 const isStructure = type === 'Сооружение';
                 
-                // Скрываем все блоки
                 document.getElementById('oksFields').style.display = 'none';
                 document.getElementById('landFields').style.display = 'none';
                 document.getElementById('structureFields').style.display = 'none';
                 
-                // Показываем нужный блок
                 if (isBuilding) {
                     document.getElementById('oksFields').style.display = 'block';
                 } else if (isLand) {
@@ -230,7 +265,6 @@ class MarketValuationApp {
         const area = parseFloat(document.getElementById('area')?.value || 0);
         const city = document.getElementById('city')?.value || '';
         
-        // Валидация
         if (!area || area <= 0) {
             this.showNotification('Введите площадь объекта', 'error');
             return;
@@ -250,7 +284,9 @@ class MarketValuationApp {
         let permitted_use = '';
         
         if (isLand) {
-            permitted_use = document.getElementById('permittedUse')?.value || '';
+            // 🔥 ВРИ: сначала из поля ввода, если пусто — из select
+            permitted_use = document.getElementById('permittedUseInput')?.value || 
+                           document.getElementById('permittedUseSelect')?.value || '';
             build_year = 2024;
         } else if (isMachine || isOns) {
             build_year = 2024;
@@ -265,7 +301,6 @@ class MarketValuationApp {
             wall_material = document.getElementById('wallMaterial')?.value || '';
         }
         
-        // Валидация года
         if (build_year < 1900 || build_year > 2025) {
             this.showNotification('Год постройки должен быть 1900-2025', 'error');
             return;
@@ -286,7 +321,7 @@ class MarketValuationApp {
         
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 сек таймаут
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
             
             const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
                 method: 'POST',
@@ -325,12 +360,8 @@ class MarketValuationApp {
     useFallbackCalculation(formData) {
         const basePrice = 45000;
         const typeFactors = { 
-            "Помещение": 1.1, 
-            "Здание": 1.0, 
-            "Земельный участок": 0.5, 
-            "Сооружение": 0.85, 
-            "Машино-место": 0.7, 
-            "Объект незавершённого строительства": 0.6 
+            "Помещение": 1.1, "Здание": 1.0, "Земельный участок": 0.5, 
+            "Сооружение": 0.85, "Машино-место": 0.7, "Объект незавершённого строительства": 0.6 
         };
         const materialFactors = {
             "Кирпич": 1.0, "Монолит": 1.09, "Панель": 1.07,
@@ -342,15 +373,8 @@ class MarketValuationApp {
         const pricePerSqm = Math.round(basePrice * typeFactor * materialFactor / 100) * 100;
         
         this.displayResult({
-            predicted: { 
-                price_per_sqm: pricePerSqm, 
-                price_total: pricePerSqm * formData.area 
-            },
-            calculation: { 
-                ml_prediction: pricePerSqm,
-                corrected_ml: pricePerSqm,
-                analogs_count: 0 
-            }
+            predicted: { price_per_sqm: pricePerSqm, price_total: pricePerSqm * formData.area },
+            calculation: { ml_prediction: pricePerSqm, corrected_ml: pricePerSqm, analogs_count: 0 }
         }, formData);
     }
     
@@ -373,8 +397,6 @@ class MarketValuationApp {
         const priceSqm = data.predicted.price_per_sqm;
         const priceTotal = data.predicted.price_total;
         const analogsCount = data.calculation?.analogs_count || 0;
-        const mlPrediction = data.calculation?.ml_prediction || priceSqm;
-        const correctedMl = data.calculation?.corrected_ml || priceSqm;
         
         content.innerHTML = `
             <div class="p-5">
@@ -385,12 +407,9 @@ class MarketValuationApp {
                         ${new Intl.NumberFormat('ru-RU').format(priceSqm)} ₽/м²
                     </div>
                     ${analogsCount > 0 ? `
-                        <div class="text-xs text-slate-400 mt-2">
-                            На основе ${analogsCount} аналогов
-                        </div>
+                        <div class="text-xs text-slate-400 mt-2">На основе ${analogsCount} аналогов</div>
                     ` : ''}
                 </div>
-                
                 ${formData ? `
                 <div class="bg-slate-50 rounded-lg p-3 mb-4 text-xs text-slate-500">
                     <div class="grid grid-cols-2 gap-2">
@@ -398,11 +417,11 @@ class MarketValuationApp {
                         <div>Площадь: <span class="text-slate-700">${formData.area} м²</span></div>
                         ${formData.wall_material ? `<div>Материал: <span class="text-slate-700">${formData.wall_material}</span></div>` : ''}
                         ${formData.build_year ? `<div>Год: <span class="text-slate-700">${formData.build_year}</span></div>` : ''}
+                        ${formData.permitted_use ? `<div class="col-span-2">ВРИ: <span class="text-slate-700">${formData.permitted_use}</span></div>` : ''}
                         <div>Город: <span class="text-slate-700">${formData.address}</span></div>
                     </div>
                 </div>
                 ` : ''}
-                
                 <div class="border-t pt-4 space-y-2">
                     <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                         🔄 Новая оценка
