@@ -1,4 +1,4 @@
-// js/market-valuation.js - МИНИМАЛИСТИЧНАЯ ВЕРСИЯ (Импорт/Экспорт Excel + Шаблон)
+// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (НАЗНАЧЕНИЕ — ВВОД ВРУЧНУЮ)
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -28,11 +28,9 @@ class MarketValuationApp {
                         <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl flex justify-between items-center">
                             <h3 class="font-semibold text-slate-800">📋 Параметры объекта</h3>
                             <div class="flex gap-2">
-                                <!-- 🔥 КНОПКА ШАБЛОНА -->
-                                <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors" title="Скачать шаблон Excel">
+                                <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors">
                                     📥 Шаблон
                                 </button>
-                                <!-- 🔥 КНОПКА ИМПОРТА EXCEL -->
                                 <label class="cursor-pointer bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
                                     📤 Импорт Excel
                                     <input type="file" id="massFileInput" accept=".xlsx,.csv" class="hidden" onchange="window.marketValuationApp.handleFileImport(event)">
@@ -59,10 +57,16 @@ class MarketValuationApp {
                             </div>
                             
                             <div id="oksFields">
-                                <div class="space-y-4">
+                                <div class="space-y-3">
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-1">Наименование</label>
                                         <input type="text" id="objectName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Квартира, Магазин, Офис...">
+                                    </div>
+                                    <!-- 🔥 НАЗНАЧЕНИЕ — ВВОД ВРУЧНУЮ -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Назначение</label>
+                                        <input type="text" id="purposeInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Жилое, Нежилое, Гараж, Склад, Торговое...">
+                                        <p class="text-xs text-slate-400 mt-1">Оставьте пустым — определится автоматически из названия</p>
                                     </div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div><label class="block text-sm font-medium text-slate-700 mb-1">Год</label><input type="number" id="buildYear" class="w-full px-3 py-2 border border-slate-300 rounded-lg" value="2015"></div>
@@ -135,11 +139,8 @@ class MarketValuationApp {
         `;
     }
     
-    // 🔥 СКАЧАТЬ ШАБЛОН EXCEL
     downloadTemplate() {
         const XLSX = window.XLSX;
-        
-        // Заголовки на русском
         const template = [
             {
                 'Тип объекта': 'Помещение',
@@ -147,6 +148,7 @@ class MarketValuationApp {
                 'Город (МО)': 'Ноябрьск',
                 'Материал стен': 'Кирпич',
                 'Наименование': 'Квартира',
+                'Назначение': 'Жилое',
                 'Год постройки': 2015,
                 'ВРИ (для земли)': '',
                 'Кадастровый номер': ''
@@ -157,6 +159,7 @@ class MarketValuationApp {
                 'Город (МО)': 'г. Салехард',
                 'Материал стен': 'Монолит',
                 'Наименование': 'Магазин',
+                'Назначение': 'Торговое',
                 'Год постройки': 2020,
                 'ВРИ (для земли)': '',
                 'Кадастровый номер': ''
@@ -167,6 +170,7 @@ class MarketValuationApp {
                 'Город (МО)': 'Ноябрьск',
                 'Материал стен': '',
                 'Наименование': '',
+                'Назначение': '',
                 'Год постройки': 2024,
                 'ВРИ (для земли)': 'для индивидуального жилищного строительства',
                 'Кадастровый номер': ''
@@ -175,23 +179,18 @@ class MarketValuationApp {
         
         if (XLSX) {
             const ws = XLSX.utils.json_to_sheet(template);
-            // Настраиваем ширину столбцов
-            ws['!cols'] = [
-                {wch: 20}, {wch: 15}, {wch: 20}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 40}, {wch: 25}
-            ];
+            ws['!cols'] = [{wch:20},{wch:15},{wch:20},{wch:15},{wch:25},{wch:15},{wch:15},{wch:40},{wch:25}];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
             XLSX.writeFile(wb, 'шаблон_массовой_оценки.xlsx');
         } else {
-            // CSV fallback
-            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Год постройки;ВРИ (для земли);Кадастровый номер\n' +
-                       'Помещение;60;Ноябрьск;Кирпич;Квартира;2015;;\n' +
-                       'Здание;100;г. Салехард;Монолит;Магазин;2020;;\n' +
-                       'Земельный участок;600;Ноябрьск;;;2024;для ИЖС;\n';
+            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ (для земли);Кадастровый номер\n' +
+                       'Помещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;\n' +
+                       'Здание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;\n' +
+                       'Земельный участок;600;Ноябрьск;;;;2024;для ИЖС;\n';
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'шаблон_массовой_оценки.csv'; a.click();
         }
-        
         this.showNotification('📥 Шаблон скачан!', 'success');
     }
     
@@ -220,7 +219,6 @@ class MarketValuationApp {
         }
     }
     
-    // 🔥 МАППИНГ РУССКИХ СТОЛБЦОВ В АНГЛИЙСКИЕ
     mapColumns(row) {
         return {
             area: parseFloat(row['Площадь (м²)'] || row['area']) || 0,
@@ -230,7 +228,8 @@ class MarketValuationApp {
             address: row['Город (МО)'] || row['address'] || '',
             kadastr: row['Кадастровый номер'] || row['kadastr'] || '',
             wall_material: row['Материал стен'] || row['wall_material'] || '',
-            object_name: row['Наименование'] || row['object_name'] || ''
+            object_name: row['Наименование'] || row['object_name'] || '',
+            purpose: row['Назначение'] || row['purpose'] || ''
         };
     }
     
@@ -260,50 +259,34 @@ class MarketValuationApp {
                 
                 for (let i = 0; i < data.length; i++) {
                     const row = this.mapColumns(data[i]);
-                    const formData = {
-                        area: row.area,
-                        build_year: row.build_year,
-                        object_type: row.object_type,
-                        permitted_use: row.permitted_use,
-                        address: row.address,
-                        kadastr: row.kadastr,
-                        wall_material: row.wall_material,
-                        name: row.object_name
-                    };
+                    const args = [row.area, row.build_year, row.object_type, row.permitted_use, row.address, row.kadastr, row.wall_material, row.object_name, row.purpose];
                     
                     try {
                         const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ args: Object.values(formData) })
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ args: args })
                         });
                         if (response.ok) {
                             const result = await response.json();
-                            // 🔥 Русские названия в результате
                             results.push({
                                 '№': i + 1,
-                                'Тип объекта': formData.object_type,
-                                'Площадь (м²)': formData.area,
-                                'Город (МО)': formData.address,
-                                'Материал стен': formData.wall_material,
-                                'Наименование': formData.name,
-                                'Год постройки': formData.build_year,
-                                'ВРИ': formData.permitted_use,
-                                'Кадастровый номер': formData.kadastr,
+                                'Тип объекта': row.object_type,
+                                'Площадь (м²)': row.area,
+                                'Город (МО)': row.address,
+                                'Материал стен': row.wall_material,
+                                'Наименование': row.object_name,
+                                'Назначение': row.purpose,
+                                'Год постройки': row.build_year,
+                                'ВРИ': row.permitted_use,
+                                'Кадастровый номер': row.kadastr,
                                 'Цена за м² (₽)': result.predicted.price_per_sqm,
                                 'Стоимость всего (₽)': result.predicted.price_total,
-                                'ML-прогноз': result.calculation.ml_prediction,
-                                'После коррекции': result.calculation.corrected_ml,
                                 'Аналогов': result.calculation.analogs_count,
                                 'Статус': '✅ Успешно'
                             });
                             success++;
-                        } else {
-                            results.push({ ...data[i], 'Статус': '❌ Ошибка' }); errors++;
-                        }
-                    } catch (err) {
-                        results.push({ ...data[i], 'Статус': '❌ Ошибка' }); errors++;
-                    }
+                        } else { results.push({ ...data[i], 'Статус': '❌ Ошибка' }); errors++; }
+                    } catch (err) { results.push({ ...data[i], 'Статус': '❌ Ошибка' }); errors++; }
                     
                     document.getElementById('loadingText').textContent = `Оценка ${i + 1}/${data.length} (✅${success} ❌${errors})`;
                 }
@@ -315,18 +298,11 @@ class MarketValuationApp {
                     <div class="p-5 text-center">
                         <div class="text-2xl font-bold text-green-600 mb-2">✅ Оценка завершена!</div>
                         <p class="text-slate-600">✅ ${success} успешно | ❌ ${errors} с ошибками | Всего: ${data.length}</p>
-                        <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-                            📥 Скачать результат Excel
-                        </button>
-                        <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">
-                            🔄 Новая оценка
-                        </button>
+                        <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">📥 Скачать результат Excel</button>
+                        <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
                     </div>
                 `;
-                
-            } catch (err) {
-                this.showNotification('Ошибка чтения файла', 'error');
-            }
+            } catch (err) { this.showNotification('Ошибка чтения файла', 'error'); }
         };
         reader.readAsArrayBuffer(file);
     }
@@ -346,7 +322,7 @@ class MarketValuationApp {
         if (!area || area <= 0) { this.showNotification('Введите площадь', 'error'); return; }
         if (!city) { this.showNotification('Выберите город', 'error'); return; }
         
-        let build_year = 2015, name = '', wall_material = '', permitted_use = '';
+        let build_year = 2015, name = '', wall_material = '', permitted_use = '', purpose = '';
         
         if (isLand) {
             permitted_use = document.getElementById('permittedUseInput')?.value || '';
@@ -362,47 +338,38 @@ class MarketValuationApp {
             build_year = parseInt(document.getElementById('buildYear')?.value || 2015);
             name = document.getElementById('objectName')?.value || objectType;
             wall_material = document.getElementById('wallMaterial')?.value || '';
+            purpose = document.getElementById('purposeInput')?.value || '';  // 🔥 ВВОД ВРУЧНУЮ
         }
         
-        const formData = { area, build_year, object_type: objectType, permitted_use, address: city, kadastr: '', wall_material, name };
+        const args = [area, build_year, objectType, permitted_use, city, '', wall_material, name, purpose];
         
         this.setLoading(true);
         
         try {
             const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ args: Object.values(formData) })
+                body: JSON.stringify({ args: args })
             });
             
             if (!response.ok) throw new Error(`Ошибка ${response.status}`);
             const result = await response.json();
             
             this.singleResult = {
-                'Тип объекта': formData.object_type,
-                'Площадь (м²)': formData.area,
-                'Город (МО)': formData.address,
-                'Материал стен': formData.wall_material,
-                'Наименование': formData.name,
-                'Год постройки': formData.build_year,
-                'ВРИ': formData.permitted_use,
-                'Цена за м² (₽)': result.predicted.price_per_sqm,
-                'Стоимость всего (₽)': result.predicted.price_total,
-                'ML-прогноз': result.calculation.ml_prediction,
-                'После коррекции': result.calculation.corrected_ml,
+                'Тип объекта': objectType, 'Площадь (м²)': area, 'Город (МО)': city,
+                'Материал стен': wall_material, 'Наименование': name,
+                'Назначение': purpose || '(авто)', 'Год постройки': build_year, 'ВРИ': permitted_use,
+                'Цена за м² (₽)': result.predicted.price_per_sqm, 'Стоимость всего (₽)': result.predicted.price_total,
                 'Аналогов': result.calculation.analogs_count
             };
             
-            this.displayResult(result, formData);
+            this.displayResult(result);
             this.showNotification('✅ Оценка выполнена', 'success');
         } catch (error) {
             this.showNotification('Ошибка сервера', 'error');
-            this.useFallbackCalculation(formData);
-        } finally {
-            this.setLoading(false);
-        }
+        } finally { this.setLoading(false); }
     }
     
-    displayResult(data, formData = null) {
+    displayResult(data) {
         document.getElementById('resultPlaceholder').style.display = 'none';
         document.getElementById('resultLoading').style.display = 'none';
         document.getElementById('resultContent').style.display = 'block';
@@ -419,12 +386,8 @@ class MarketValuationApp {
                 <div class="text-3xl font-bold text-slate-900">${formatPrice(data.predicted.price_total)}</div>
                 <div class="text-sm text-slate-500 mt-1">${new Intl.NumberFormat('ru-RU').format(data.predicted.price_per_sqm)} ₽/м²</div>
                 <div class="border-t pt-4 mt-4 space-y-2">
-                    <button onclick="window.marketValuationApp.downloadSingleExcel()" class="w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-                        📥 Скачать Excel
-                    </button>
-                    <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2 border border-slate-300 rounded-lg text-sm">
-                        🔄 Новая оценка
-                    </button>
+                    <button onclick="window.marketValuationApp.downloadSingleExcel()" class="w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">📥 Скачать Excel</button>
+                    <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
                 </div>
             </div>
         `;
@@ -435,10 +398,8 @@ class MarketValuationApp {
         if (!this.singleResult) return;
         const XLSX = window.XLSX;
         const data = [this.singleResult];
-        
         if (XLSX) {
             const ws = XLSX.utils.json_to_sheet(data);
-            ws['!cols'] = [{wch:20},{wch:15},{wch:20},{wch:15},{wch:25},{wch:15},{wch:40},{wch:18},{wch:22},{wch:15},{wch:15},{wch:12}];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Результат');
             XLSX.writeFile(wb, 'результат_оценки.xlsx');
@@ -454,7 +415,6 @@ class MarketValuationApp {
         const XLSX = window.XLSX;
         if (XLSX) {
             const ws = XLSX.utils.json_to_sheet(this.massResults);
-            ws['!cols'] = [{wch:8},{wch:20},{wch:15},{wch:20},{wch:15},{wch:25},{wch:15},{wch:40},{wch:25},{wch:18},{wch:22},{wch:15},{wch:15},{wch:12},{wch:15}];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Результаты');
             XLSX.writeFile(wb, 'результаты_массовой_оценки.xlsx');
@@ -490,15 +450,6 @@ class MarketValuationApp {
             document.getElementById('resultPlaceholder').style.display = 'none';
             document.getElementById('resultContent').style.display = 'none';
         }
-    }
-    
-    useFallbackCalculation(formData) {
-        const basePrice = 45000;
-        const typeFactors = { "Помещение": 1.1, "Здание": 1.0, "Земельный участок": 0.5, "Сооружение": 0.85, "Машино-место": 0.7, "Объект незавершённого строительства": 0.6 };
-        const materialFactors = { "Кирпич": 1.0, "Монолит": 1.09, "Панель": 1.07, "Смешанный": 1.04, "Блок": 1.32, "Дерево": 0.86, "": 1.0 };
-        const pricePerSqm = Math.round(basePrice * (typeFactors[formData.object_type]||1) * (materialFactors[formData.wall_material]||1) / 100) * 100;
-        this.singleResult = { ...formData, 'Цена за м² (₽)': pricePerSqm, 'Стоимость всего (₽)': pricePerSqm * formData.area };
-        this.displayResult({ predicted: { price_per_sqm: pricePerSqm, price_total: pricePerSqm * formData.area } }, formData);
     }
     
     showNotification(message, type = 'info') {
