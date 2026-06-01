@@ -1,4 +1,4 @@
-// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (НАЗНАЧЕНИЕ — ВВОД ВРУЧНУЮ)
+// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (С КАДАСТРАМИ И СР. ЦЕНОЙ АНАЛОГОВ)
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -23,14 +23,11 @@ class MarketValuationApp {
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- ФОРМА -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
                         <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl flex justify-between items-center">
                             <h3 class="font-semibold text-slate-800">📋 Параметры объекта</h3>
                             <div class="flex gap-2">
-                                <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors">
-                                    📥 Шаблон
-                                </button>
+                                <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors">📥 Шаблон</button>
                                 <label class="cursor-pointer bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
                                     📤 Импорт Excel
                                     <input type="file" id="massFileInput" accept=".xlsx,.csv" class="hidden" onchange="window.marketValuationApp.handleFileImport(event)">
@@ -62,11 +59,10 @@ class MarketValuationApp {
                                         <label class="block text-sm font-medium text-slate-700 mb-1">Наименование</label>
                                         <input type="text" id="objectName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Квартира, Магазин, Офис...">
                                     </div>
-                                    <!-- 🔥 НАЗНАЧЕНИЕ — ВВОД ВРУЧНУЮ -->
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-1">Назначение</label>
                                         <input type="text" id="purposeInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Жилое, Нежилое, Гараж, Склад, Торговое...">
-                                        <p class="text-xs text-slate-400 mt-1">Оставьте пустым — определится автоматически из названия</p>
+                                        <p class="text-xs text-slate-400 mt-1">Оставьте пустым — определится автоматически</p>
                                     </div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div><label class="block text-sm font-medium text-slate-700 mb-1">Год</label><input type="number" id="buildYear" class="w-full px-3 py-2 border border-slate-300 rounded-lg" value="2015"></div>
@@ -122,7 +118,6 @@ class MarketValuationApp {
                         </form>
                     </div>
                     
-                    <!-- РЕЗУЛЬТАТ -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
                         <div id="resultPlaceholder" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
                             <div class="text-6xl mb-4">🏠</div>
@@ -142,324 +137,222 @@ class MarketValuationApp {
     downloadTemplate() {
         const XLSX = window.XLSX;
         const template = [
-            {
-                'Тип объекта': 'Помещение',
-                'Площадь (м²)': 60,
-                'Город (МО)': 'Ноябрьск',
-                'Материал стен': 'Кирпич',
-                'Наименование': 'Квартира',
-                'Назначение': 'Жилое',
-                'Год постройки': 2015,
-                'ВРИ (для земли)': '',
-                'Кадастровый номер': ''
-            },
-            {
-                'Тип объекта': 'Здание',
-                'Площадь (м²)': 100,
-                'Город (МО)': 'г. Салехард',
-                'Материал стен': 'Монолит',
-                'Наименование': 'Магазин',
-                'Назначение': 'Торговое',
-                'Год постройки': 2020,
-                'ВРИ (для земли)': '',
-                'Кадастровый номер': ''
-            },
-            {
-                'Тип объекта': 'Земельный участок',
-                'Площадь (м²)': 600,
-                'Город (МО)': 'Ноябрьск',
-                'Материал стен': '',
-                'Наименование': '',
-                'Назначение': '',
-                'Год постройки': 2024,
-                'ВРИ (для земли)': 'для индивидуального жилищного строительства',
-                'Кадастровый номер': ''
-            }
+            {'Тип объекта':'Помещение','Площадь (м²)':60,'Город (МО)':'Ноябрьск','Материал стен':'Кирпич','Наименование':'Квартира','Назначение':'Жилое','Год постройки':2015,'ВРИ (для земли)':'','Кадастровый номер':''},
+            {'Тип объекта':'Здание','Площадь (м²)':100,'Город (МО)':'г. Салехард','Материал стен':'Монолит','Наименование':'Магазин','Назначение':'Торговое','Год постройки':2020,'ВРИ (для земли)':'','Кадастровый номер':''},
+            {'Тип объекта':'Земельный участок','Площадь (м²)':600,'Город (МО)':'Ноябрьск','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для ИЖС','Кадастровый номер':''}
         ];
-        
         if (XLSX) {
             const ws = XLSX.utils.json_to_sheet(template);
-            ws['!cols'] = [{wch:20},{wch:15},{wch:20},{wch:15},{wch:25},{wch:15},{wch:15},{wch:40},{wch:25}];
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
-            XLSX.writeFile(wb, 'шаблон_массовой_оценки.xlsx');
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Шаблон'); XLSX.writeFile(wb, 'шаблон_массовой_оценки.xlsx');
         } else {
-            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ (для земли);Кадастровый номер\n' +
-                       'Помещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;\n' +
-                       'Здание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;\n' +
-                       'Земельный участок;600;Ноябрьск;;;;2024;для ИЖС;\n';
-            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ (для земли);Кадастровый номер\nПомещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;\nЗдание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;\nЗемельный участок;600;Ноябрьск;;;;2024;для ИЖС;\n';
+            const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'шаблон_массовой_оценки.csv'; a.click();
         }
-        this.showNotification('📥 Шаблон скачан!', 'success');
+        this.showNotification('📥 Шаблон скачан!','success');
     }
     
     attachEventListeners() {
         const form = document.getElementById('valuationForm');
         const objectType = document.getElementById('objectType');
-        
         if (objectType) {
             objectType.addEventListener('change', () => {
-                const type = objectType.value;
+                const t = objectType.value;
                 document.getElementById('oksFields').style.display = 'none';
                 document.getElementById('landFields').style.display = 'none';
                 document.getElementById('structureFields').style.display = 'none';
-                if (type === 'Здание' || type === 'Помещение') document.getElementById('oksFields').style.display = 'block';
-                else if (type === 'Земельный участок') document.getElementById('landFields').style.display = 'block';
-                else if (type === 'Сооружение') document.getElementById('structureFields').style.display = 'block';
+                if (t==='Здание'||t==='Помещение') document.getElementById('oksFields').style.display='block';
+                else if (t==='Земельный участок') document.getElementById('landFields').style.display='block';
+                else if (t==='Сооружение') document.getElementById('structureFields').style.display='block';
             });
             objectType.dispatchEvent(new Event('change'));
         }
-        
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.submitForm();
-            });
-        }
+        if (form) form.addEventListener('submit', async (e) => { e.preventDefault(); await this.submitForm(); });
     }
     
     mapColumns(row) {
         return {
-            area: parseFloat(row['Площадь (м²)'] || row['area']) || 0,
-            build_year: parseInt(row['Год постройки'] || row['build_year']) || 2024,
-            object_type: row['Тип объекта'] || row['object_type'] || 'Помещение',
-            permitted_use: row['ВРИ (для земли)'] || row['permitted_use'] || '',
-            address: row['Город (МО)'] || row['address'] || '',
-            kadastr: row['Кадастровый номер'] || row['kadastr'] || '',
-            wall_material: row['Материал стен'] || row['wall_material'] || '',
-            object_name: row['Наименование'] || row['object_name'] || '',
-            purpose: row['Назначение'] || row['purpose'] || ''
+            area: parseFloat(row['Площадь (м²)']||row['area'])||0,
+            build_year: parseInt(row['Год постройки']||row['build_year'])||2024,
+            object_type: row['Тип объекта']||row['object_type']||'Помещение',
+            permitted_use: row['ВРИ (для земли)']||row['permitted_use']||'',
+            address: row['Город (МО)']||row['address']||'',
+            kadastr: row['Кадастровый номер']||row['kadastr']||'',
+            wall_material: row['Материал стен']||row['wall_material']||'',
+            object_name: row['Наименование']||row['object_name']||'',
+            purpose: row['Назначение']||row['purpose']||''
         };
     }
     
     async handleFileImport(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        this.showNotification(`📤 Загружен: ${file.name}. Начинаем оценку...`, 'info');
-        
+        const file = event.target.files[0]; if (!file) return;
+        this.showNotification(`📤 Загружен: ${file.name}. Начинаем оценку...`,'info');
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
                 const XLSX = await this.loadSheetJS();
-                const workbook = XLSX.read(e.target.result, { type: 'array' });
+                const workbook = XLSX.read(e.target.result,{type:'array'});
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(sheet);
+                if (data.length===0){this.showNotification('Файл пуст','error');return;}
+                if (data.length>100){this.showNotification('Максимум 100 объектов','error');return;}
                 
-                if (data.length === 0) { this.showNotification('Файл пуст', 'error'); return; }
-                if (data.length > 100) { this.showNotification('Максимум 100 объектов', 'error'); return; }
+                document.getElementById('resultPlaceholder').style.display='none';
+                document.getElementById('resultLoading').style.display='flex';
+                document.getElementById('loadingText').textContent=`Оценка ${data.length} объектов...`;
                 
-                document.getElementById('resultPlaceholder').style.display = 'none';
-                document.getElementById('resultLoading').style.display = 'flex';
-                document.getElementById('loadingText').textContent = `Оценка ${data.length} объектов...`;
+                const results=[]; let success=0, errors=0;
                 
-                const results = [];
-                let success = 0, errors = 0;
-                
-                for (let i = 0; i < data.length; i++) {
-                    const row = this.mapColumns(data[i]);
-                    const args = [row.area, row.build_year, row.object_type, row.permitted_use, row.address, row.kadastr, row.wall_material, row.object_name, row.purpose];
-                    
+                for (let i=0; i<data.length; i++) {
+                    const row=this.mapColumns(data[i]);
+                    const args=[row.area, row.build_year, row.object_type, row.permitted_use, row.address, row.kadastr, row.wall_material, row.object_name, row.purpose];
                     try {
-                        const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ args: args })
-                        });
-                        if (response.ok) {
-                            const result = await response.json();
+                        const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
+                        if (resp.ok) {
+                            const result=await resp.json();
+                            // 🔥 Кадастры и средняя цена аналогов
+                            const analogsKadastrs = (result.analogs||[]).map(a=>a.kadastr).filter(k=>k).join('; ');
+                            const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
+                            const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
+                            
                             results.push({
-                                '№': i + 1,
-                                'Тип объекта': row.object_type,
-                                'Площадь (м²)': row.area,
-                                'Город (МО)': row.address,
-                                'Материал стен': row.wall_material,
-                                'Наименование': row.object_name,
-                                'Назначение': row.purpose,
-                                'Год постройки': row.build_year,
-                                'ВРИ': row.permitted_use,
-                                'Кадастровый номер': row.kadastr,
-                                'Цена за м² (₽)': result.predicted.price_per_sqm,
-                                'Стоимость всего (₽)': result.predicted.price_total,
-                                'Аналогов': result.calculation.analogs_count,
-                                'Статус': '✅ Успешно'
+                                '№':i+1,
+                                'Тип объекта':row.object_type,
+                                'Площадь (м²)':row.area,
+                                'Город (МО)':row.address,
+                                'Материал стен':row.wall_material,
+                                'Наименование':row.object_name,
+                                'Назначение':row.purpose,
+                                'Год постройки':row.build_year,
+                                'ВРИ':row.permitted_use,
+                                'Кадастровый номер':row.kadastr,
+                                'Цена за м² (₽)':result.predicted.price_per_sqm,
+                                'Стоимость всего (₽)':result.predicted.price_total,
+                                'Аналогов':result.calculation.analogs_count,
+                                'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
+                                'Кадастры аналогов':analogsKadastrs,
+                                'Статус':'✅ Успешно'
                             });
                             success++;
-                        } else { results.push({ ...data[i], 'Статус': '❌ Ошибка' }); errors++; }
-                    } catch (err) { results.push({ ...data[i], 'Статус': '❌ Ошибка' }); errors++; }
-                    
-                    document.getElementById('loadingText').textContent = `Оценка ${i + 1}/${data.length} (✅${success} ❌${errors})`;
+                        } else { results.push({...data[i],'Статус':'❌ Ошибка'}); errors++; }
+                    } catch (err) { results.push({...data[i],'Статус':'❌ Ошибка'}); errors++; }
+                    document.getElementById('loadingText').textContent=`Оценка ${i+1}/${data.length} (✅${success} ❌${errors})`;
                 }
                 
-                this.massResults = results;
-                document.getElementById('resultLoading').style.display = 'none';
-                document.getElementById('resultContent').style.display = 'block';
-                document.getElementById('resultContent').innerHTML = `
+                this.massResults=results;
+                document.getElementById('resultLoading').style.display='none';
+                document.getElementById('resultContent').style.display='block';
+                document.getElementById('resultContent').innerHTML=`
                     <div class="p-5 text-center">
                         <div class="text-2xl font-bold text-green-600 mb-2">✅ Оценка завершена!</div>
                         <p class="text-slate-600">✅ ${success} успешно | ❌ ${errors} с ошибками | Всего: ${data.length}</p>
                         <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">📥 Скачать результат Excel</button>
                         <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
-                    </div>
-                `;
-            } catch (err) { this.showNotification('Ошибка чтения файла', 'error'); }
+                    </div>`;
+            } catch (err) { this.showNotification('Ошибка чтения файла','error'); }
         };
         reader.readAsArrayBuffer(file);
     }
     
     async submitForm() {
         if (this.isLoading) return;
+        const objectType=document.getElementById('objectType')?.value||'Помещение';
+        const isLand=objectType==='Земельный участок';
+        const isStructure=objectType==='Сооружение';
+        const isMachine=objectType==='Машино-место';
+        const isOns=objectType==='Объект незавершённого строительства';
+        const area=parseFloat(document.getElementById('area')?.value||0);
+        const city=document.getElementById('city')?.value||'';
+        if (!area||area<=0){this.showNotification('Введите площадь','error');return;}
+        if (!city){this.showNotification('Выберите город','error');return;}
+        let build_year=2015, name='', wall_material='', permitted_use='', purpose='';
+        if (isLand){permitted_use=document.getElementById('permittedUseInput')?.value||'';build_year=2024;}
+        else if (isMachine||isOns){build_year=2024;name=isMachine?'Машино-место':'Объект незавершённого строительства';}
+        else if (isStructure){build_year=parseInt(document.getElementById('structureBuildYear')?.value||2015);name=document.getElementById('structureName')?.value||'Сооружение';wall_material=document.getElementById('structureMaterial')?.value||'';}
+        else {build_year=parseInt(document.getElementById('buildYear')?.value||2015);name=document.getElementById('objectName')?.value||objectType;wall_material=document.getElementById('wallMaterial')?.value||'';purpose=document.getElementById('purposeInput')?.value||'';}
         
-        const objectType = document.getElementById('objectType')?.value || 'Помещение';
-        const isLand = objectType === 'Земельный участок';
-        const isStructure = objectType === 'Сооружение';
-        const isMachine = objectType === 'Машино-место';
-        const isOns = objectType === 'Объект незавершённого строительства';
-        
-        const area = parseFloat(document.getElementById('area')?.value || 0);
-        const city = document.getElementById('city')?.value || '';
-        
-        if (!area || area <= 0) { this.showNotification('Введите площадь', 'error'); return; }
-        if (!city) { this.showNotification('Выберите город', 'error'); return; }
-        
-        let build_year = 2015, name = '', wall_material = '', permitted_use = '', purpose = '';
-        
-        if (isLand) {
-            permitted_use = document.getElementById('permittedUseInput')?.value || '';
-            build_year = 2024;
-        } else if (isMachine || isOns) {
-            build_year = 2024;
-            name = isMachine ? 'Машино-место' : 'Объект незавершённого строительства';
-        } else if (isStructure) {
-            build_year = parseInt(document.getElementById('structureBuildYear')?.value || 2015);
-            name = document.getElementById('structureName')?.value || 'Сооружение';
-            wall_material = document.getElementById('structureMaterial')?.value || '';
-        } else {
-            build_year = parseInt(document.getElementById('buildYear')?.value || 2015);
-            name = document.getElementById('objectName')?.value || objectType;
-            wall_material = document.getElementById('wallMaterial')?.value || '';
-            purpose = document.getElementById('purposeInput')?.value || '';  // 🔥 ВВОД ВРУЧНУЮ
-        }
-        
-        const args = [area, build_year, objectType, permitted_use, city, '', wall_material, name, purpose];
-        
+        const args=[area, build_year, objectType, permitted_use, city, '', wall_material, name, purpose];
         this.setLoading(true);
-        
         try {
-            const response = await fetch('https://markmolchanov98.pythonanywhere.com/api/index', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ args: args })
-            });
+            const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
+            if (!resp.ok) throw new Error(`Ошибка ${resp.status}`);
+            const result=await resp.json();
             
-            if (!response.ok) throw new Error(`Ошибка ${response.status}`);
-            const result = await response.json();
+            // 🔥 Кадастры и средняя цена аналогов
+            const analogsKadastrs = (result.analogs||[]).map(a=>a.kadastr).filter(k=>k).join('; ');
+            const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
+            const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
             
-            this.singleResult = {
-                'Тип объекта': objectType, 'Площадь (м²)': area, 'Город (МО)': city,
-                'Материал стен': wall_material, 'Наименование': name,
-                'Назначение': purpose || '(авто)', 'Год постройки': build_year, 'ВРИ': permitted_use,
-                'Цена за м² (₽)': result.predicted.price_per_sqm, 'Стоимость всего (₽)': result.predicted.price_total,
-                'Аналогов': result.calculation.analogs_count
+            this.singleResult={
+                'Тип объекта':objectType,'Площадь (м²)':area,'Город (МО)':city,
+                'Материал стен':wall_material,'Наименование':name,
+                'Назначение':purpose||'(авто)','Год постройки':build_year,'ВРИ':permitted_use,
+                'Цена за м² (₽)':result.predicted.price_per_sqm,
+                'Стоимость всего (₽)':result.predicted.price_total,
+                'Аналогов':result.calculation.analogs_count,
+                'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
+                'Кадастры аналогов':analogsKadastrs
             };
-            
             this.displayResult(result);
-            this.showNotification('✅ Оценка выполнена', 'success');
-        } catch (error) {
-            this.showNotification('Ошибка сервера', 'error');
-        } finally { this.setLoading(false); }
+            this.showNotification('✅ Оценка выполнена','success');
+        } catch (error) { this.showNotification('Ошибка сервера','error'); }
+        finally { this.setLoading(false); }
     }
     
     displayResult(data) {
-        document.getElementById('resultPlaceholder').style.display = 'none';
-        document.getElementById('resultLoading').style.display = 'none';
-        document.getElementById('resultContent').style.display = 'block';
-        
-        const formatPrice = (p) => {
-            if (p >= 1000000) return `${(p/1000000).toFixed(2)} млн ₽`;
-            if (p >= 1000) return `${(p/1000).toFixed(0)} тыс. ₽`;
-            return `${p} ₽`;
-        };
-        
-        document.getElementById('resultContent').innerHTML = `
+        document.getElementById('resultPlaceholder').style.display='none';
+        document.getElementById('resultLoading').style.display='none';
+        document.getElementById('resultContent').style.display='block';
+        const fp=(p)=>{if(p>=1000000)return `${(p/1000000).toFixed(2)} млн ₽`;if(p>=1000)return `${(p/1000).toFixed(0)} тыс. ₽`;return `${p} ₽`;};
+        document.getElementById('resultContent').innerHTML=`
             <div class="p-5 text-center">
                 <div class="text-sm text-slate-500 mb-1">Рыночная стоимость</div>
-                <div class="text-3xl font-bold text-slate-900">${formatPrice(data.predicted.price_total)}</div>
+                <div class="text-3xl font-bold text-slate-900">${fp(data.predicted.price_total)}</div>
                 <div class="text-sm text-slate-500 mt-1">${new Intl.NumberFormat('ru-RU').format(data.predicted.price_per_sqm)} ₽/м²</div>
                 <div class="border-t pt-4 mt-4 space-y-2">
                     <button onclick="window.marketValuationApp.downloadSingleExcel()" class="w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">📥 Скачать Excel</button>
                     <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
                 </div>
-            </div>
-        `;
-        this.result = data;
+            </div>`;
+        this.result=data;
     }
     
     downloadSingleExcel() {
         if (!this.singleResult) return;
-        const XLSX = window.XLSX;
-        const data = [this.singleResult];
-        if (XLSX) {
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Результат');
-            XLSX.writeFile(wb, 'результат_оценки.xlsx');
-        } else {
-            const csv = Object.keys(data[0]).join(';') + '\n' + data.map(r => Object.values(r).join(';')).join('\n');
-            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'результат_оценки.csv'; a.click();
-        }
+        const XLSX=window.XLSX;
+        if (XLSX) { const ws=XLSX.utils.json_to_sheet([this.singleResult]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Результат'); XLSX.writeFile(wb,'результат_оценки.xlsx'); }
+        else { const csv=Object.keys(this.singleResult).join(';')+'\n'+Object.values(this.singleResult).join(';'); const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='результат_оценки.csv'; a.click(); }
     }
     
     downloadExcel() {
         if (!this.massResults) return;
-        const XLSX = window.XLSX;
-        if (XLSX) {
-            const ws = XLSX.utils.json_to_sheet(this.massResults);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Результаты');
-            XLSX.writeFile(wb, 'результаты_массовой_оценки.xlsx');
-        } else {
-            const csv = Object.keys(this.massResults[0]).join(';') + '\n' + this.massResults.map(r => Object.values(r).join(';')).join('\n');
-            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'результаты_массовой_оценки.csv'; a.click();
-        }
+        const XLSX=window.XLSX;
+        if (XLSX) { const ws=XLSX.utils.json_to_sheet(this.massResults); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Результаты'); XLSX.writeFile(wb,'результаты_массовой_оценки.xlsx'); }
+        else { const csv=Object.keys(this.massResults[0]).join(';')+'\n'+this.massResults.map(r=>Object.values(r).join(';')).join('\n'); const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='результаты_массовой_оценки.csv'; a.click(); }
     }
     
     async loadSheetJS() {
         if (window.XLSX) return window.XLSX;
-        return new Promise((resolve) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
-            s.onload = () => resolve(window.XLSX);
-            document.head.appendChild(s);
-        });
+        return new Promise((resolve)=>{const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';s.onload=()=>resolve(window.XLSX);document.head.appendChild(s);});
     }
     
-    resetResult() {
-        document.getElementById('resultPlaceholder').style.display = 'flex';
-        document.getElementById('resultContent').style.display = 'none';
-        this.result = null; this.massResults = null; this.singleResult = null;
-    }
+    resetResult() { document.getElementById('resultPlaceholder').style.display='flex'; document.getElementById('resultContent').style.display='none'; this.result=null; this.massResults=null; this.singleResult=null; }
     
     setLoading(loading) {
-        this.isLoading = loading;
-        const btn = document.querySelector('#valuationForm button[type="submit"]');
-        if (btn) { btn.disabled = loading; btn.innerHTML = loading ? '⏳...' : '🔍 Рассчитать стоимость'; }
-        document.getElementById('resultLoading').style.display = loading ? 'flex' : 'none';
-        if (loading) {
-            document.getElementById('resultPlaceholder').style.display = 'none';
-            document.getElementById('resultContent').style.display = 'none';
-        }
+        this.isLoading=loading;
+        const btn=document.querySelector('#valuationForm button[type="submit"]');
+        if (btn){btn.disabled=loading;btn.innerHTML=loading?'⏳...':'🔍 Рассчитать стоимость';}
+        document.getElementById('resultLoading').style.display=loading?'flex':'none';
+        if (loading){document.getElementById('resultPlaceholder').style.display='none';document.getElementById('resultContent').style.display='none';}
     }
     
-    showNotification(message, type = 'info') {
-        const colors = { success: '#10b981', error: '#ef4444', info: '#3b82f6' };
-        const div = document.createElement('div');
-        div.className = 'fixed bottom-6 right-6 text-white px-4 py-3 rounded-lg shadow-lg z-50';
-        div.style.backgroundColor = colors[type];
-        div.innerHTML = `${message}<button onclick="this.parentElement.remove()" class="ml-3">×</button>`;
-        document.body.appendChild(div);
-        setTimeout(() => div.remove(), 4000);
+    showNotification(message,type='info') {
+        const colors={success:'#10b981',error:'#ef4444',info:'#3b82f6'};
+        const div=document.createElement('div');
+        div.className='fixed bottom-6 right-6 text-white px-4 py-3 rounded-lg shadow-lg z-50';
+        div.style.backgroundColor=colors[type];
+        div.innerHTML=`${message}<button onclick="this.parentElement.remove()" class="ml-3">×</button>`;
+        document.body.appendChild(div); setTimeout(()=>div.remove(),4000);
     }
 }
 
