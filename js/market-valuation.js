@@ -1,4 +1,4 @@
-// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (С КАДАСТРАМИ, КАТЕГОРИЕЙ ЗЕМЕЛЬ, СР. ЦЕНОЙ АНАЛОГОВ)
+// js/market-valuation.js - FINAL VERSION (ЧИСТЫЙ ИНТЕРФЕЙС + EXCEL С РАСШИФРОВКОЙ)
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -19,7 +19,7 @@ class MarketValuationApp {
             <div class="max-w-4xl mx-auto p-5">
                 <div class="mb-5">
                     <h2 class="text-xl font-bold text-slate-900">Рыночная оценка недвижимости ЯНАО</h2>
-                    <p class="text-slate-500 text-sm">CatBoost ML + многоуровневая коррекция</p>
+                    <p class="text-slate-500 text-sm">CatBoost ML + умный каскад + коррекция</p>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -55,40 +55,19 @@ class MarketValuationApp {
                             
                             <div id="oksFields">
                                 <div class="space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-1">Наименование</label>
-                                        <input type="text" id="objectName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Квартира, Магазин, Офис...">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-1">Назначение</label>
-                                        <input type="text" id="purposeInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Жилое, Нежилое, Гараж, Склад, Торговое...">
-                                        <p class="text-xs text-slate-400 mt-1">Оставьте пустым — определится автоматически</p>
-                                    </div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Наименование</label><input type="text" id="objectName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Квартира, Магазин, Офис..."></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Назначение</label><input type="text" id="purposeInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Жилое, Нежилое, Гараж, Склад, Торговое..."><p class="text-xs text-slate-400 mt-1">Оставьте пустым — определится автоматически</p></div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div><label class="block text-sm font-medium text-slate-700 mb-1">Год</label><input type="number" id="buildYear" class="w-full px-3 py-2 border border-slate-300 rounded-lg" value="2015"></div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-slate-700 mb-1">Материал</label>
-                                            <select id="wallMaterial" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
-                                                <option value="">Не указан</option>
-                                                <option value="Кирпич">Кирпич</option><option value="Панель">Панель</option>
-                                                <option value="Монолит">Монолит</option><option value="Блок">Блок</option>
-                                                <option value="Дерево">Дерево</option><option value="Смешанный">Смешанный</option>
-                                            </select>
-                                        </div>
+                                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Материал</label><select id="wallMaterial" class="w-full px-3 py-2 border border-slate-300 rounded-lg"><option value="">Не указан</option><option value="Кирпич">Кирпич</option><option value="Панель">Панель</option><option value="Монолит">Монолит</option><option value="Блок">Блок</option><option value="Дерево">Дерево</option><option value="Смешанный">Смешанный</option></select></div>
                                     </div>
                                 </div>
                             </div>
                             
                             <div id="landFields" style="display: none;">
                                 <div class="space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-1">ВРИ (Вид разрешенного использования)</label>
-                                        <input type="text" id="permittedUseInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: для индивидуального жилищного строительства">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-1">Категория земель</label>
-                                        <input type="text" id="landCategoryInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: Земли населенных пунктов">
-                                    </div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">ВРИ</label><input type="text" id="permittedUseInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: для ИЖС"></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Категория земель</label><input type="text" id="landCategoryInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: Земли населенных пунктов"></div>
                                 </div>
                             </div>
                             
@@ -97,11 +76,7 @@ class MarketValuationApp {
                                     <input type="text" id="structureName" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Трубопровод, Эстакада...">
                                     <div class="grid grid-cols-2 gap-3">
                                         <input type="number" id="structureBuildYear" class="w-full px-3 py-2 border border-slate-300 rounded-lg" value="2015" placeholder="Год">
-                                        <select id="structureMaterial" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
-                                            <option value="">Материал</option>
-                                            <option value="Кирпич">Кирпич</option><option value="Монолит">Монолит</option>
-                                            <option value="Блок">Блок</option><option value="Смешанный">Смешанный</option>
-                                        </select>
+                                        <select id="structureMaterial" class="w-full px-3 py-2 border border-slate-300 rounded-lg"><option value="">Материал</option><option value="Кирпич">Кирпич</option><option value="Монолит">Монолит</option><option value="Блок">Блок</option><option value="Смешанный">Смешанный</option></select>
                                     </div>
                                 </div>
                             </div>
@@ -110,32 +85,18 @@ class MarketValuationApp {
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Муниципальное образование *</label>
                                 <select id="city" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
                                     <option value="">Выберите...</option>
-                                    <option value="Салехард">Салехард</option><option value="Ноябрьск">Ноябрьск</option>
-                                    <option value="Новый Уренгой">Новый Уренгой</option><option value="Надым">Надым</option>
-                                    <option value="Губкинский">Губкинский</option><option value="Муравленко">Муравленко</option>
-                                    <option value="Лабытнанги">Лабытнанги</option>
-                                    <option value="Тарко-Сале">Пуровский район</option><option value="Тазовский">Тазовский район</option>
-                                    <option value="Яр-Сале">Ямальский район</option><option value="Красноселькуп">Красноселькупский район</option>
-                                    <option value="Мужи">Шурышкарский район</option><option value="Аксарка">Приуральский район</option>
+                                    <option value="Салехард">Салехард</option><option value="Ноябрьск">Ноябрьск</option><option value="Новый Уренгой">Новый Уренгой</option><option value="Надым">Надым</option><option value="Губкинский">Губкинский</option><option value="Муравленко">Муравленко</option><option value="Лабытнанги">Лабытнанги</option><option value="Тарко-Сале">Пуровский район</option><option value="Тазовский">Тазовский район</option><option value="Яр-Сале">Ямальский район</option><option value="Красноселькуп">Красноселькупский район</option><option value="Мужи">Шурышкарский район</option><option value="Аксарка">Приуральский район</option>
                                 </select>
                             </div>
                             
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50">
-                                🔍 Рассчитать стоимость
-                            </button>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50">🔍 Рассчитать стоимость</button>
                         </form>
                     </div>
                     
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
-                        <div id="resultPlaceholder" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
-                            <div class="text-6xl mb-4">🏠</div>
-                            <p class="text-slate-500">Заполните форму и нажмите «Рассчитать»</p>
-                        </div>
+                        <div id="resultPlaceholder" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]"><div class="text-6xl mb-4">🏠</div><p class="text-slate-500">Заполните форму и нажмите «Рассчитать»</p></div>
                         <div id="resultContent" style="display: none;"></div>
-                        <div id="resultLoading" style="display: none;" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
-                            <div class="animate-spin text-4xl mb-4">⏳</div>
-                            <p class="text-slate-500" id="loadingText">Рассчитываем...</p>
-                        </div>
+                        <div id="resultLoading" style="display: none;" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]"><div class="animate-spin text-4xl mb-4">⏳</div><p class="text-slate-500" id="loadingText">Рассчитываем...</p></div>
                     </div>
                 </div>
             </div>
@@ -147,16 +108,14 @@ class MarketValuationApp {
         const template = [
             {'Тип объекта':'Помещение','Площадь (м²)':60,'Город (МО)':'Ноябрьск','Материал стен':'Кирпич','Наименование':'Квартира','Назначение':'Жилое','Год постройки':2015,'ВРИ (для земли)':'','Категория земель':'','Кадастровый номер':''},
             {'Тип объекта':'Здание','Площадь (м²)':100,'Город (МО)':'г. Салехард','Материал стен':'Монолит','Наименование':'Магазин','Назначение':'Торговое','Год постройки':2020,'ВРИ (для земли)':'','Категория земель':'','Кадастровый номер':''},
-            {'Тип объекта':'Земельный участок','Площадь (м²)':600,'Город (МО)':'Ноябрьск','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для индивидуального жилищного строительства','Категория земель':'Земли населенных пунктов','Кадастровый номер':''},
-            {'Тип объекта':'Земельный участок','Площадь (м²)':1000,'Город (МО)':'Надым','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для садоводства','Категория земель':'Земли сельскохозяйственного назначения','Кадастровый номер':''}
+            {'Тип объекта':'Земельный участок','Площадь (м²)':600,'Город (МО)':'Ноябрьск','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для ИЖС','Категория земель':'Земли населенных пунктов','Кадастровый номер':''},
+            {'Тип объекта':'Земельный участок','Площадь (м²)':1000,'Город (МО)':'Надым','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для садоводства','Категория земель':'Земли сельхозназначения','Кадастровый номер':''}
         ];
         if (XLSX) {
-            const ws = XLSX.utils.json_to_sheet(template);
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Шаблон'); XLSX.writeFile(wb, 'шаблон_массовой_оценки.xlsx');
+            const ws = XLSX.utils.json_to_sheet(template); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Шаблон'); XLSX.writeFile(wb, 'шаблон_массовой_оценки.xlsx');
         } else {
-            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ (для земли);Категория земель;Кадастровый номер\nПомещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;;\nЗдание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;;\nЗемельный участок;600;Ноябрьск;;;;2024;для ИЖС;Земли населенных пунктов;\nЗемельный участок;1000;Надым;;;;2024;для садоводства;Земли сельскохозяйственного назначения;\n';
-            const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'шаблон_массовой_оценки.csv'; a.click();
+            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ;Категория земель;Кадастровый номер\nПомещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;;\nЗдание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;;\nЗемельный участок;600;Ноябрьск;;;;2024;для ИЖС;Земли населенных пунктов;\nЗемельный участок;1000;Надым;;;;2024;для садоводства;Земли сельхозназначения;\n';
+            const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'шаблон_массовой_оценки.csv'; a.click();
         }
         this.showNotification('📥 Шаблон скачан!','success');
     }
@@ -184,7 +143,7 @@ class MarketValuationApp {
             area: parseFloat(row['Площадь (м²)']||row['area'])||0,
             build_year: parseInt(row['Год постройки']||row['build_year'])||2024,
             object_type: row['Тип объекта']||row['object_type']||'Помещение',
-            permitted_use: row['ВРИ (для земли)']||row['permitted_use']||'',
+            permitted_use: row['ВРИ (для земли)']||row['ВРИ']||row['permitted_use']||'',
             land_category: row['Категория земель']||row['land_category']||'',
             address: row['Город (МО)']||row['address']||'',
             kadastr: row['Кадастровый номер']||row['kadastr']||'',
@@ -196,7 +155,7 @@ class MarketValuationApp {
     
     async handleFileImport(event) {
         const file = event.target.files[0]; if (!file) return;
-        this.showNotification(`📤 Загружен: ${file.name}. Начинаем оценку...`,'info');
+        this.showNotification(`📤 Загружен: ${file.name}`,'info');
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -224,24 +183,15 @@ class MarketValuationApp {
                             const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
                             const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
                             
+                            // 🔥 Расшифровка для Excel
+                            let calcInfo = '';
+                            if (result.calculation_details) {
+                                const d = result.calculation_details;
+                                calcInfo = `${d.method}: ${d.calculation || ''}`;
+                            }
+                            
                             results.push({
-                                '№':i+1,
-                                'Тип объекта':row.object_type,
-                                'Площадь (м²)':row.area,
-                                'Город (МО)':row.address,
-                                'Материал стен':row.wall_material,
-                                'Наименование':row.object_name,
-                                'Назначение':row.purpose,
-                                'Год постройки':row.build_year,
-                                'ВРИ':row.permitted_use,
-                                'Категория земель':row.land_category,
-                                'Кадастровый номер':row.kadastr,
-                                'Цена за м² (₽)':result.predicted.price_per_sqm,
-                                'Стоимость всего (₽)':result.predicted.price_total,
-                                'Аналогов':result.calculation.analogs_count,
-                                'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
-                                'Кадастры аналогов':analogsKadastrs,
-                                'Статус':'✅ Успешно'
+                                '№':i+1,'Тип объекта':row.object_type,'Площадь (м²)':row.area,'Город (МО)':row.address,'Материал стен':row.wall_material,'Наименование':row.object_name,'Назначение':row.purpose,'Год постройки':row.build_year,'ВРИ':row.permitted_use,'Категория земель':row.land_category,'Кадастровый номер':row.kadastr,'Цена за м² (₽)':result.predicted.price_per_sqm,'Стоимость всего (₽)':result.predicted.price_total,'Аналогов':result.calculation.analogs_count,'Ср. цена аналогов (₽/м²)':avgAnalogPrice,'Кадастры аналогов':analogsKadastrs,'Как считали':calcInfo,'Статус':'✅ Успешно'
                             });
                             success++;
                         } else { results.push({...data[i],'Статус':'❌ Ошибка'}); errors++; }
@@ -276,11 +226,7 @@ class MarketValuationApp {
         if (!area||area<=0){this.showNotification('Введите площадь','error');return;}
         if (!city){this.showNotification('Выберите город','error');return;}
         let build_year=2015, name='', wall_material='', permitted_use='', purpose='', land_category='';
-        if (isLand){
-            permitted_use=document.getElementById('permittedUseInput')?.value||'';
-            land_category=document.getElementById('landCategoryInput')?.value||'';
-            build_year=2024;
-        }
+        if (isLand){permitted_use=document.getElementById('permittedUseInput')?.value||''; land_category=document.getElementById('landCategoryInput')?.value||''; build_year=2024;}
         else if (isMachine||isOns){build_year=2024;name=isMachine?'Машино-место':'Объект незавершённого строительства';}
         else if (isStructure){build_year=parseInt(document.getElementById('structureBuildYear')?.value||2015);name=document.getElementById('structureName')?.value||'Сооружение';wall_material=document.getElementById('structureMaterial')?.value||'';}
         else {build_year=parseInt(document.getElementById('buildYear')?.value||2015);name=document.getElementById('objectName')?.value||objectType;wall_material=document.getElementById('wallMaterial')?.value||'';purpose=document.getElementById('purposeInput')?.value||'';}
@@ -296,16 +242,15 @@ class MarketValuationApp {
             const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
             const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
             
+            // 🔥 Расшифровка для Excel
+            let calcInfo = '';
+            if (result.calculation_details) {
+                const d = result.calculation_details;
+                calcInfo = `${d.method}: ${d.calculation || ''}`;
+            }
+            
             this.singleResult={
-                'Тип объекта':objectType,'Площадь (м²)':area,'Город (МО)':city,
-                'Материал стен':wall_material,'Наименование':name,
-                'Назначение':purpose||'(авто)','Год постройки':build_year,'ВРИ':permitted_use,
-                'Категория земель':land_category,
-                'Цена за м² (₽)':result.predicted.price_per_sqm,
-                'Стоимость всего (₽)':result.predicted.price_total,
-                'Аналогов':result.calculation.analogs_count,
-                'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
-                'Кадастры аналогов':analogsKadastrs
+                'Тип объекта':objectType,'Площадь (м²)':area,'Город (МО)':city,'Материал стен':wall_material,'Наименование':name,'Назначение':purpose||'(авто)','Год постройки':build_year,'ВРИ':permitted_use,'Категория земель':land_category,'Цена за м² (₽)':result.predicted.price_per_sqm,'Стоимость всего (₽)':result.predicted.price_total,'Аналогов':result.calculation.analogs_count,'Ср. цена аналогов (₽/м²)':avgAnalogPrice,'Кадастры аналогов':analogsKadastrs,'Как считали':calcInfo
             };
             this.displayResult(result);
             this.showNotification('✅ Оценка выполнена','success');
