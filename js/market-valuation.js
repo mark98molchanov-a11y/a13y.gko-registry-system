@@ -1,4 +1,4 @@
-// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (С КАДАСТРАМИ И СР. ЦЕНОЙ АНАЛОГОВ)
+// js/market-valuation.js - ФИНАЛЬНАЯ ВЕРСИЯ (С КАДАСТРАМИ, КАТЕГОРИЕЙ ЗЕМЕЛЬ, СР. ЦЕНОЙ АНАЛОГОВ)
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -19,7 +19,7 @@ class MarketValuationApp {
             <div class="max-w-4xl mx-auto p-5">
                 <div class="mb-5">
                     <h2 class="text-xl font-bold text-slate-900">Рыночная оценка недвижимости ЯНАО</h2>
-                    <p class="text-slate-500 text-sm">CatBoost ML</p>
+                    <p class="text-slate-500 text-sm">CatBoost ML + многоуровневая коррекция</p>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -80,8 +80,16 @@ class MarketValuationApp {
                             </div>
                             
                             <div id="landFields" style="display: none;">
-                                <label class="block text-sm font-medium text-slate-700 mb-1">ВРИ</label>
-                                <input type="text" id="permittedUseInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: для ИЖС">
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">ВРИ (Вид разрешенного использования)</label>
+                                        <input type="text" id="permittedUseInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: для индивидуального жилищного строительства">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Категория земель</label>
+                                        <input type="text" id="landCategoryInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: Земли населенных пунктов">
+                                    </div>
+                                </div>
                             </div>
                             
                             <div id="structureFields" style="display: none;">
@@ -137,15 +145,16 @@ class MarketValuationApp {
     downloadTemplate() {
         const XLSX = window.XLSX;
         const template = [
-            {'Тип объекта':'Помещение','Площадь (м²)':60,'Город (МО)':'Ноябрьск','Материал стен':'Кирпич','Наименование':'Квартира','Назначение':'Жилое','Год постройки':2015,'ВРИ (для земли)':'','Кадастровый номер':''},
-            {'Тип объекта':'Здание','Площадь (м²)':100,'Город (МО)':'г. Салехард','Материал стен':'Монолит','Наименование':'Магазин','Назначение':'Торговое','Год постройки':2020,'ВРИ (для земли)':'','Кадастровый номер':''},
-            {'Тип объекта':'Земельный участок','Площадь (м²)':600,'Город (МО)':'Ноябрьск','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для ИЖС','Кадастровый номер':''}
+            {'Тип объекта':'Помещение','Площадь (м²)':60,'Город (МО)':'Ноябрьск','Материал стен':'Кирпич','Наименование':'Квартира','Назначение':'Жилое','Год постройки':2015,'ВРИ (для земли)':'','Категория земель':'','Кадастровый номер':''},
+            {'Тип объекта':'Здание','Площадь (м²)':100,'Город (МО)':'г. Салехард','Материал стен':'Монолит','Наименование':'Магазин','Назначение':'Торговое','Год постройки':2020,'ВРИ (для земли)':'','Категория земель':'','Кадастровый номер':''},
+            {'Тип объекта':'Земельный участок','Площадь (м²)':600,'Город (МО)':'Ноябрьск','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для индивидуального жилищного строительства','Категория земель':'Земли населенных пунктов','Кадастровый номер':''},
+            {'Тип объекта':'Земельный участок','Площадь (м²)':1000,'Город (МО)':'Надым','Материал стен':'','Наименование':'','Назначение':'','Год постройки':2024,'ВРИ (для земли)':'для садоводства','Категория земель':'Земли сельскохозяйственного назначения','Кадастровый номер':''}
         ];
         if (XLSX) {
             const ws = XLSX.utils.json_to_sheet(template);
             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Шаблон'); XLSX.writeFile(wb, 'шаблон_массовой_оценки.xlsx');
         } else {
-            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ (для земли);Кадастровый номер\nПомещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;\nЗдание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;\nЗемельный участок;600;Ноябрьск;;;;2024;для ИЖС;\n';
+            const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ (для земли);Категория земель;Кадастровый номер\nПомещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;;\nЗдание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;;\nЗемельный участок;600;Ноябрьск;;;;2024;для ИЖС;Земли населенных пунктов;\nЗемельный участок;1000;Надым;;;;2024;для садоводства;Земли сельскохозяйственного назначения;\n';
             const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'шаблон_массовой_оценки.csv'; a.click();
         }
@@ -176,6 +185,7 @@ class MarketValuationApp {
             build_year: parseInt(row['Год постройки']||row['build_year'])||2024,
             object_type: row['Тип объекта']||row['object_type']||'Помещение',
             permitted_use: row['ВРИ (для земли)']||row['permitted_use']||'',
+            land_category: row['Категория земель']||row['land_category']||'',
             address: row['Город (МО)']||row['address']||'',
             kadastr: row['Кадастровый номер']||row['kadastr']||'',
             wall_material: row['Материал стен']||row['wall_material']||'',
@@ -210,7 +220,6 @@ class MarketValuationApp {
                         const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
                         if (resp.ok) {
                             const result=await resp.json();
-                            // 🔥 Кадастры и средняя цена аналогов
                             const analogsKadastrs = (result.analogs||[]).map(a=>a.kadastr).filter(k=>k).join('; ');
                             const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
                             const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
@@ -225,6 +234,7 @@ class MarketValuationApp {
                                 'Назначение':row.purpose,
                                 'Год постройки':row.build_year,
                                 'ВРИ':row.permitted_use,
+                                'Категория земель':row.land_category,
                                 'Кадастровый номер':row.kadastr,
                                 'Цена за м² (₽)':result.predicted.price_per_sqm,
                                 'Стоимость всего (₽)':result.predicted.price_total,
@@ -265,8 +275,12 @@ class MarketValuationApp {
         const city=document.getElementById('city')?.value||'';
         if (!area||area<=0){this.showNotification('Введите площадь','error');return;}
         if (!city){this.showNotification('Выберите город','error');return;}
-        let build_year=2015, name='', wall_material='', permitted_use='', purpose='';
-        if (isLand){permitted_use=document.getElementById('permittedUseInput')?.value||'';build_year=2024;}
+        let build_year=2015, name='', wall_material='', permitted_use='', purpose='', land_category='';
+        if (isLand){
+            permitted_use=document.getElementById('permittedUseInput')?.value||'';
+            land_category=document.getElementById('landCategoryInput')?.value||'';
+            build_year=2024;
+        }
         else if (isMachine||isOns){build_year=2024;name=isMachine?'Машино-место':'Объект незавершённого строительства';}
         else if (isStructure){build_year=parseInt(document.getElementById('structureBuildYear')?.value||2015);name=document.getElementById('structureName')?.value||'Сооружение';wall_material=document.getElementById('structureMaterial')?.value||'';}
         else {build_year=parseInt(document.getElementById('buildYear')?.value||2015);name=document.getElementById('objectName')?.value||objectType;wall_material=document.getElementById('wallMaterial')?.value||'';purpose=document.getElementById('purposeInput')?.value||'';}
@@ -278,7 +292,6 @@ class MarketValuationApp {
             if (!resp.ok) throw new Error(`Ошибка ${resp.status}`);
             const result=await resp.json();
             
-            // 🔥 Кадастры и средняя цена аналогов
             const analogsKadastrs = (result.analogs||[]).map(a=>a.kadastr).filter(k=>k).join('; ');
             const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
             const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
@@ -287,6 +300,7 @@ class MarketValuationApp {
                 'Тип объекта':objectType,'Площадь (м²)':area,'Город (МО)':city,
                 'Материал стен':wall_material,'Наименование':name,
                 'Назначение':purpose||'(авто)','Год постройки':build_year,'ВРИ':permitted_use,
+                'Категория земель':land_category,
                 'Цена за м² (₽)':result.predicted.price_per_sqm,
                 'Стоимость всего (₽)':result.predicted.price_total,
                 'Аналогов':result.calculation.analogs_count,
