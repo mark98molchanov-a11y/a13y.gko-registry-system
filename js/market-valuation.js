@@ -4,6 +4,7 @@ class MarketValuationApp {
         this.container = document.getElementById(containerId);
         this.result = null;
         this.massResults = null;
+        this.singleResult = null;
         this.isLoading = false;
         this.init();
     }
@@ -183,11 +184,10 @@ class MarketValuationApp {
                             const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
                             const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
                             
-                            // 🔥 Расшифровка для Excel
+                            // Расшифровка для Excel
                             let calcInfo = '';
-                            if (result.calculation_details) {
-                                const d = result.calculation_details;
-                                calcInfo = `${d.method}: ${d.calculation || ''}`;
+                            if (result.calculation_details && result.calculation_details.calculation) {
+                                calcInfo = result.calculation_details.calculation;
                             }
                             
                             results.push({
@@ -242,11 +242,10 @@ class MarketValuationApp {
             const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
             const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
             
-            // 🔥 Расшифровка для Excel
+            // Расшифровка для Excel
             let calcInfo = '';
-            if (result.calculation_details) {
-                const d = result.calculation_details;
-                calcInfo = `${d.method}: ${d.calculation || ''}`;
+            if (result.calculation_details && result.calculation_details.calculation) {
+                calcInfo = result.calculation_details.calculation;
             }
             
             this.singleResult={
