@@ -227,7 +227,11 @@ class MarketValuationApp {
         if (!city){this.showNotification('Выберите город','error');return;}
         let build_year=2015, name='', wall_material='', permitted_use='', purpose='', land_category='';
         if (isLand){permitted_use=document.getElementById('permittedUseInput')?.value||''; land_category=document.getElementById('landCategoryInput')?.value||''; build_year=2024;}
-        else if (isMachine||isOns){build_year=2024;name=isMachine?'Машино-место':'Объект незавершённого строительства';}
+        else if (isMachine||isOns){
+    build_year=2024;
+    name=isMachine?'Машино-место':'Объект незавершённого строительства';
+    purpose=name;  
+}
         else if (isStructure){build_year=parseInt(document.getElementById('structureBuildYear')?.value||2015);name=document.getElementById('structureName')?.value||'Сооружение';wall_material=document.getElementById('structureMaterial')?.value||'';}
         else {build_year=parseInt(document.getElementById('buildYear')?.value||2015);name=document.getElementById('objectName')?.value||objectType;wall_material=document.getElementById('wallMaterial')?.value||'';purpose=document.getElementById('purposeInput')?.value||'';}
         
