@@ -45,7 +45,7 @@ class MarketValuationApp {
                                     <option value="Земельный участок">🌾 Земельный участок</option>
                                     <option value="Сооружение">🏗️ Сооружение</option>
                                     <option value="Машино-место">🅿️ Машино-место</option>
-                                    <option value="Объект незавершённого строительства">🏚️ ОНС</option>
+                                    <option value="Объект незавершённого строительства">🏚️ Объект незавершенного строительства</option>
                                 </select>
                             </div>
                             
