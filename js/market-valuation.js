@@ -298,7 +298,28 @@ class MarketValuationApp {
         return new Promise((resolve)=>{const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';s.onload=()=>resolve(window.XLSX);document.head.appendChild(s);});
     }
     
-    resetResult() { document.getElementById('resultPlaceholder').style.display='flex'; document.getElementById('resultContent').style.display='none'; this.result=null; this.massResults=null; this.singleResult=null; }
+    resetResult() { 
+    // Скрываем результаты
+    document.getElementById('resultPlaceholder').style.display='flex'; 
+    document.getElementById('resultContent').style.display='none'; 
+    
+    // Очищаем данные
+    this.result = null; 
+    this.massResults = null; 
+    this.singleResult = null;
+    
+    // 🔥 Сбрасываем input file (чтобы можно было загрузить тот же файл)
+    const fileInput = document.getElementById('massFileInput');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    
+    // 🔥 Сбрасываем форму одиночной оценки
+    const form = document.getElementById('valuationForm');
+    if (form) {
+        form.reset();
+    }
+}
     
     setLoading(loading) {
         this.isLoading=loading;
