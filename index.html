@@ -4928,7 +4928,6 @@ window.addEventListener('DOMContentLoaded', async function() {
         }
     }
 });
-
 window.addEventListener('hashchange', function() {
     const hash = window.location.hash;
     console.log('Hash changed to:', hash);
@@ -4951,3 +4950,21 @@ window.addEventListener('hashchange', function() {
     }
 });
 </script>
+document.addEventListener('tabChanged', function(e) {
+    if (e.detail.tab === 'calculator') {
+        console.log('🔄 Переключение на калькулятор, инициализация...');
+        setTimeout(initCalculator, 100);
+    }
+});
+
+// Если в URL есть #calculator - сразу открываем
+if (window.location.hash === '#calculator') {
+    setTimeout(() => {
+        switchTab('calculator');
+    }, 300);
+}
+
+console.log('✅ Калькулятор готов к инициализации');
+</script>
+</body>
+</html>
