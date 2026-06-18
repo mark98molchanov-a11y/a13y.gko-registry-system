@@ -1630,9 +1630,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-<script type="module" src="js/indexeddb-manager.js"></script>
-<script type="module" src="js/data-manager.js"></script>
-<script type="module" src="js/org-chart-renderer.js"></script>
+<script src="js/indexeddb-manager.js"></script>
+<script src="js/data-manager.js"></script>
+<script src="js/org-chart-renderer.js"></script>
 
 <script>
     let orgApp = null;
@@ -2524,31 +2524,9 @@ function EfficiencyCalculator() {
 
 function initCalculator() {
     const calculatorRoot = document.getElementById('calculatorRoot');
-    if (!calculatorRoot) {
-        console.error('❌ calculatorRoot не найден');
-        return;
-    }
-    
-    // Убеждаемся, что React загружен
-    if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
-        console.error('❌ React не загружен, повторная попытка через 300ms');
-        setTimeout(initCalculator, 300);
-        return;
-    }
-    
-    try {
-        // Проверяем, есть ли уже root
-        let root = window.__calculatorRoot;
-        if (!root) {
-            root = ReactDOM.createRoot(calculatorRoot);
-            window.__calculatorRoot = root;
-        }
+    if (calculatorRoot) {
+        const root = ReactDOM.createRoot(calculatorRoot);
         root.render(<EfficiencyCalculator />);
-        console.log('✅ Калькулятор успешно отрендерен');
-    } catch (error) {
-        console.error('❌ Ошибка рендеринга калькулятора:', error);
-        // Попытка восстановления
-        setTimeout(initCalculator, 500);
     }
 }
 </script>
@@ -3248,23 +3226,20 @@ function switchTab(tabName) {
             renderDashboardsGrid();
             updateBulkToolbarDashboards();
         }, 50);
-} else if (tabName === 'calculator') {
-    document.getElementById('npaImportButtons').classList.add('hidden');
-    document.getElementById('dashboardsImportButtons').classList.add('hidden');
-    document.getElementById('addButton').classList.remove('hidden');
-    document.getElementById('addButtonText').textContent = 'Новый расчет';
-    if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
-    
-    currentTab = 'calculator';
-    
-    document.getElementById('bulkToolbar').classList.add('hidden');
-    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    
-    // 🔥 ДОБАВЛЯЕМ ЗАДЕРЖКУ
-    setTimeout(() => {
+    } else if (tabName === 'calculator') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.remove('hidden');
+        document.getElementById('addButtonText').textContent = 'Новый расчет';
+        if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
+        
+        currentTab = 'calculator';
+        
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
         initCalculator();
-    }, 200);
-} else if (tabName === 'parser') {
+    } else if (tabName === 'parser') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden');
@@ -4928,6 +4903,7 @@ window.addEventListener('DOMContentLoaded', async function() {
         }
     }
 });
+
 window.addEventListener('hashchange', function() {
     const hash = window.location.hash;
     console.log('Hash changed to:', hash);
@@ -4950,21 +4926,3 @@ window.addEventListener('hashchange', function() {
     }
 });
 </script>
-document.addEventListener('tabChanged', function(e) {
-    if (e.detail.tab === 'calculator') {
-        console.log('🔄 Переключение на калькулятор, инициализация...');
-        setTimeout(initCalculator, 100);
-    }
-});
-
-// Если в URL есть #calculator - сразу открываем
-if (window.location.hash === '#calculator') {
-    setTimeout(() => {
-        switchTab('calculator');
-    }, 300);
-}
-
-console.log('✅ Калькулятор готов к инициализации');
-</script>
-</body>
-</html>
