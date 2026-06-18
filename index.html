@@ -1633,180 +1633,6 @@
 <script type="module" src="js/indexeddb-manager.js"></script>
 <script type="module" src="js/data-manager.js"></script>
 <script type="module" src="js/org-chart-renderer.js"></script>
-
-<script>
-    let orgApp = null;
-    let orgData = null;
-    
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Инициализация организационной структуры...');
-    
-    const container = document.getElementById('org-chart-container');
-    if (!container) {
-        console.error('❌ Контейнер org-chart-container не найден');
-        return;
-    }
-    
-    if (typeof OrgDataManager === 'undefined') {
-        console.error('❌ OrgDataManager не загружен');
-        return;
-    }
-    
-    // ===== 1. СОЗДАЕМ МЕНЕДЖЕР =====
-    orgData = new OrgDataManager();
-    await orgData.init();
-    console.log('✅ OrgDataManager инициализирован');
-    
-    // ===== 2. ПРОВЕРЯЕМ НАЛИЧИЕ ДАННЫХ =====
-    let hasData = false;
-    
-    // Проверяем данные из GitHub (pending)
-    if (window.pendingOrgData) {
-        console.log('📦 Загружаем ожидающие данные из GitHub...');
-        orgData.departments = window.pendingOrgData.departments || [];
-        orgData.employees = window.pendingOrgData.employees || [];
-        orgData.positions = window.pendingOrgData.positions || [];
-        await orgData.saveData();
-        hasData = true;
-        delete window.pendingOrgData;
-        console.log(`✅ Загружено из GitHub: ${orgData.departments.length} отделов`);
-    }
-    
-    // Проверяем данные из localStorage
-    if (!hasData) {
-        const savedOrgData = localStorage.getItem('org_data_v3');
-        if (savedOrgData) {
-            try {
-                const parsed = JSON.parse(savedOrgData);
-                if (parsed.departments && parsed.departments.length > 0) {
-                    orgData.departments = parsed.departments;
-                    orgData.employees = parsed.employees || [];
-                    orgData.positions = parsed.positions || [];
-                    await orgData.saveData();
-                    hasData = true;
-                    console.log(`📁 Загружено из localStorage: ${orgData.departments.length} отделов`);
-                }
-            } catch(e) {
-                console.error('Ошибка парсинга org_data_v3:', e);
-            }
-        }
-    }
-    
-    // ===== 3. ЕСЛИ ДАННЫХ НЕТ - ПОКАЗЫВАЕМ СООБЩЕНИЕ =====
-    if (!hasData || orgData.departments.length === 0) {
-        console.log('⚠️ Нет данных для отображения структуры ДИО');
-        
-        // Показываем сообщение в контейнере
-        const chartContainer = document.getElementById('org-chart-container');
-        if (chartContainer) {
-            chartContainer.innerHTML = `
-                <div style="padding: 60px 20px; text-align: center;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                    <p style="color: #64748b; margin-bottom: 8px;">Нет данных для отображения</p>
-                    <p style="color: #94a3b8; font-size: 0.875rem;">Данные структуры ДИО не загружены</p>
-                    <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 12px;">Проверьте подключение к GitHub или импортируйте данные вручную</p>
-                </div>
-            `;
-        }
-        
-        // Показываем сообщение в панели деталей
-        const detailsContainer = document.getElementById('org-details-content');
-        if (detailsContainer) {
-            detailsContainer.innerHTML = `
-                <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
-                    <p>Данные не загружены</p>
-                    <p style="font-size: 0.75rem; margin-top: 8px;">Используйте кнопку "Импорт JSON" для загрузки данных</p>
-                </div>
-            `;
-        }
-        
-        // Создаем пустой рендерер (чтобы не было ошибок)
-        if (typeof OrgChartRenderer !== 'undefined') {
-            orgApp = new OrgChartRenderer('org-chart-container', orgData);
-            window.orgApp = orgApp;
-        }
-        window.orgData = orgData;
-        
-        console.log('⚠️ Инициализация завершена без данных');
-        return;
-    }
-    
-    console.log(`📊 Итоговые данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников, ${orgData.positions.length} должностей`);
-    
-    // ===== 4. СОЗДАЕМ РЕНДЕРЕР =====
-    if (typeof OrgChartRenderer === 'undefined') {
-        console.error('❌ OrgChartRenderer не загружен');
-        return;
-    }
-    
-    orgApp = new OrgChartRenderer('org-chart-container', orgData);
-    window.orgApp = orgApp;
-    window.orgData = orgData;
-    
-    // ===== 5. ОБРАБОТЧИКИ КНОПОК =====
-    const addDeptBtn = document.getElementById('org-add-department');
-    if (addDeptBtn) addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
-    
-    const addEmpBtn = document.getElementById('org-add-employee');
-    if (addEmpBtn) addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
-    
-    const expandAllBtn = document.getElementById('org-expand-all');
-    if (expandAllBtn) expandAllBtn.onclick = () => orgApp.expandAll();
-    
-    const collapseAllBtn = document.getElementById('org-collapse-all');
-    if (collapseAllBtn) collapseAllBtn.onclick = () => orgApp.collapseAll();
-    
-    const exportExcelBtn = document.getElementById('org-export-excel');
-    if (exportExcelBtn) exportExcelBtn.onclick = () => orgApp.exportToExcel();
-    
-    const importExcelBtn = document.getElementById('org-import-excel');
-    if (importExcelBtn) importExcelBtn.onclick = () => orgApp.importFromExcel();
-    // Кнопка очистки поиска
-    const searchClearBtn = document.getElementById('org-search-clear');
-    if (searchClearBtn) {
-        searchClearBtn.addEventListener('click', () => {
-            const searchInput = document.getElementById('org-search');
-            if (searchInput) {
-                searchInput.value = '';
-                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                searchInput.focus();
-            }
-        });
-    }
-    
-    // Активный класс при поиске
-    const searchInput = document.getElementById('org-search');
-    if (searchInput) {
-        const searchContainer = document.getElementById('org-search-container');
-        searchInput.addEventListener('input', (e) => {
-            if (searchContainer) {
-                if (e.target.value.trim()) {
-                    searchContainer.classList.add('active-search');
-                } else {
-                    searchContainer.classList.remove('active-search');
-                }
-            }
-        });
-    }
-    
-    console.log('✅ Организационная структура инициализирована');
-});
-</script>
-<script src="js/market-valuation.js"></script>
-<div id="org-modal" class="org-modal" style="display: none;">
-    <div class="org-modal-content">
-        <div class="org-modal-header">
-            <h3 id="org-modal-title">Заголовок</h3>
-            <button class="org-modal-close">&times;</button>
-        </div>
-        <div class="org-modal-body" id="org-modal-body"></div>
-        <div class="org-modal-footer">
-            <button id="org-modal-cancel" class="btn-secondary">Отмена</button>
-            <button id="org-modal-save" class="btn-primary">Сохранить</button>
-        </div>
-    </div>
-</div>
 </body>
 </html>
 <script type="text/babel">
@@ -2535,7 +2361,180 @@ if (document.getElementById('calculatorTab')?.classList.contains('active')) {
     window.initCalculator();
 }
 </script>
-
+<script>
+    let orgApp = null;
+    let orgData = null;
+    
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Инициализация организационной структуры...');
+    
+    const container = document.getElementById('org-chart-container');
+    if (!container) {
+        console.error('❌ Контейнер org-chart-container не найден');
+        return;
+    }
+    
+    if (typeof OrgDataManager === 'undefined') {
+        console.error('❌ OrgDataManager не загружен');
+        return;
+    }
+    
+    // ===== 1. СОЗДАЕМ МЕНЕДЖЕР =====
+    orgData = new OrgDataManager();
+    await orgData.init();
+    console.log('✅ OrgDataManager инициализирован');
+    
+    // ===== 2. ПРОВЕРЯЕМ НАЛИЧИЕ ДАННЫХ =====
+    let hasData = false;
+    
+    // Проверяем данные из GitHub (pending)
+    if (window.pendingOrgData) {
+        console.log('📦 Загружаем ожидающие данные из GitHub...');
+        orgData.departments = window.pendingOrgData.departments || [];
+        orgData.employees = window.pendingOrgData.employees || [];
+        orgData.positions = window.pendingOrgData.positions || [];
+        await orgData.saveData();
+        hasData = true;
+        delete window.pendingOrgData;
+        console.log(`✅ Загружено из GitHub: ${orgData.departments.length} отделов`);
+    }
+    
+    // Проверяем данные из localStorage
+    if (!hasData) {
+        const savedOrgData = localStorage.getItem('org_data_v3');
+        if (savedOrgData) {
+            try {
+                const parsed = JSON.parse(savedOrgData);
+                if (parsed.departments && parsed.departments.length > 0) {
+                    orgData.departments = parsed.departments;
+                    orgData.employees = parsed.employees || [];
+                    orgData.positions = parsed.positions || [];
+                    await orgData.saveData();
+                    hasData = true;
+                    console.log(`📁 Загружено из localStorage: ${orgData.departments.length} отделов`);
+                }
+            } catch(e) {
+                console.error('Ошибка парсинга org_data_v3:', e);
+            }
+        }
+    }
+    
+    // ===== 3. ЕСЛИ ДАННЫХ НЕТ - ПОКАЗЫВАЕМ СООБЩЕНИЕ =====
+    if (!hasData || orgData.departments.length === 0) {
+        console.log('⚠️ Нет данных для отображения структуры ДИО');
+        
+        // Показываем сообщение в контейнере
+        const chartContainer = document.getElementById('org-chart-container');
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div style="padding: 60px 20px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                    <p style="color: #64748b; margin-bottom: 8px;">Нет данных для отображения</p>
+                    <p style="color: #94a3b8; font-size: 0.875rem;">Данные структуры ДИО не загружены</p>
+                    <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 12px;">Проверьте подключение к GitHub или импортируйте данные вручную</p>
+                </div>
+            `;
+        }
+        
+        // Показываем сообщение в панели деталей
+        const detailsContainer = document.getElementById('org-details-content');
+        if (detailsContainer) {
+            detailsContainer.innerHTML = `
+                <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <p>Данные не загружены</p>
+                    <p style="font-size: 0.75rem; margin-top: 8px;">Используйте кнопку "Импорт JSON" для загрузки данных</p>
+                </div>
+            `;
+        }
+        
+        // Создаем пустой рендерер (чтобы не было ошибок)
+        if (typeof OrgChartRenderer !== 'undefined') {
+            orgApp = new OrgChartRenderer('org-chart-container', orgData);
+            window.orgApp = orgApp;
+        }
+        window.orgData = orgData;
+        
+        console.log('⚠️ Инициализация завершена без данных');
+        return;
+    }
+    
+    console.log(`📊 Итоговые данные: ${orgData.departments.length} отделов, ${orgData.employees.length} сотрудников, ${orgData.positions.length} должностей`);
+    
+    // ===== 4. СОЗДАЕМ РЕНДЕРЕР =====
+    if (typeof OrgChartRenderer === 'undefined') {
+        console.error('❌ OrgChartRenderer не загружен');
+        return;
+    }
+    
+    orgApp = new OrgChartRenderer('org-chart-container', orgData);
+    window.orgApp = orgApp;
+    window.orgData = orgData;
+    
+    // ===== 5. ОБРАБОТЧИКИ КНОПОК =====
+    const addDeptBtn = document.getElementById('org-add-department');
+    if (addDeptBtn) addDeptBtn.onclick = () => orgApp.showAddDepartmentModal();
+    
+    const addEmpBtn = document.getElementById('org-add-employee');
+    if (addEmpBtn) addEmpBtn.onclick = () => orgApp.showAddEmployeeModal();
+    
+    const expandAllBtn = document.getElementById('org-expand-all');
+    if (expandAllBtn) expandAllBtn.onclick = () => orgApp.expandAll();
+    
+    const collapseAllBtn = document.getElementById('org-collapse-all');
+    if (collapseAllBtn) collapseAllBtn.onclick = () => orgApp.collapseAll();
+    
+    const exportExcelBtn = document.getElementById('org-export-excel');
+    if (exportExcelBtn) exportExcelBtn.onclick = () => orgApp.exportToExcel();
+    
+    const importExcelBtn = document.getElementById('org-import-excel');
+    if (importExcelBtn) importExcelBtn.onclick = () => orgApp.importFromExcel();
+    // Кнопка очистки поиска
+    const searchClearBtn = document.getElementById('org-search-clear');
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            const searchInput = document.getElementById('org-search');
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.focus();
+            }
+        });
+    }
+    
+    // Активный класс при поиске
+    const searchInput = document.getElementById('org-search');
+    if (searchInput) {
+        const searchContainer = document.getElementById('org-search-container');
+        searchInput.addEventListener('input', (e) => {
+            if (searchContainer) {
+                if (e.target.value.trim()) {
+                    searchContainer.classList.add('active-search');
+                } else {
+                    searchContainer.classList.remove('active-search');
+                }
+            }
+        });
+    }
+    
+    console.log('✅ Организационная структура инициализирована');
+});
+</script>
+<script src="js/market-valuation.js"></script>
+<div id="org-modal" class="org-modal" style="display: none;">
+    <div class="org-modal-content">
+        <div class="org-modal-header">
+            <h3 id="org-modal-title">Заголовок</h3>
+            <button class="org-modal-close">&times;</button>
+        </div>
+        <div class="org-modal-body" id="org-modal-body"></div>
+        <div class="org-modal-footer">
+            <button id="org-modal-cancel" class="btn-secondary">Отмена</button>
+            <button id="org-modal-save" class="btn-primary">Сохранить</button>
+        </div>
+    </div>
+</div>
+    
 <script>
     window.GITHUB_RAW_URL = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/';
     
