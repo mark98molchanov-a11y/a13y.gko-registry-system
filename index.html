@@ -1630,9 +1630,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-<script src="js/indexeddb-manager.js"></script>
-<script src="js/data-manager.js"></script>
-<script src="js/org-chart-renderer.js"></script>
+<script type="module" src="js/indexeddb-manager.js"></script>
+<script type="module" src="js/data-manager.js"></script>
+<script type="module" src="js/org-chart-renderer.js"></script>
 
 <script>
     let orgApp = null;
@@ -2522,12 +2522,17 @@ function EfficiencyCalculator() {
         );
     }
 
-function initCalculator() {
+window.initCalculator = function() {
     const calculatorRoot = document.getElementById('calculatorRoot');
     if (calculatorRoot) {
         const root = ReactDOM.createRoot(calculatorRoot);
         root.render(<EfficiencyCalculator />);
     }
+};
+
+// Автоматическая инициализация, если вкладка калькулятора активна
+if (document.getElementById('calculatorTab')?.classList.contains('active')) {
+    window.initCalculator();
 }
 </script>
 
@@ -3226,20 +3231,32 @@ function switchTab(tabName) {
             renderDashboardsGrid();
             updateBulkToolbarDashboards();
         }, 50);
-    } else if (tabName === 'calculator') {
-        document.getElementById('npaImportButtons').classList.add('hidden');
-        document.getElementById('dashboardsImportButtons').classList.add('hidden');
-        document.getElementById('addButton').classList.remove('hidden');
-        document.getElementById('addButtonText').textContent = 'Новый расчет';
-        if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
-        
-        currentTab = 'calculator';
-        
-        document.getElementById('bulkToolbar').classList.add('hidden');
-        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-        
-        initCalculator();
-    } else if (tabName === 'parser') {
+} else if (tabName === 'calculator') {
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButton').classList.remove('hidden');
+    document.getElementById('addButtonText').textContent = 'Новый расчет';
+    if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
+    
+    currentTab = 'calculator';
+    
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+    
+    // Проверяем, что функция определена, и вызываем её
+    if (typeof window.initCalculator === 'function') {
+        window.initCalculator();
+    } else {
+        console.warn('initCalculator еще не загружена, повторная попытка через 500ms');
+        setTimeout(() => {
+            if (typeof window.initCalculator === 'function') {
+                window.initCalculator();
+            } else {
+                console.error('initCalculator так и не загружена');
+            }
+        }, 500);
+    }
+} else if (tabName === 'parser') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden');
@@ -4839,11 +4856,25 @@ window.addEventListener('DOMContentLoaded', async function() {
             delete window.pendingOrgData;
         }
         
+        // ===== НОВЫЙ БЛОК: ПРОВЕРКА ИНИЦИАЛИЗАЦИИ КАЛЬКУЛЯТОРА =====
         if (urlHash === '#calculator') {
             setTimeout(() => {
-                switchTab('calculator');
-            }, 100);
+                if (typeof window.initCalculator === 'function') {
+                    console.log('🔍 Инициализация калькулятора из DOMContentLoaded');
+                    window.initCalculator();
+                } else {
+                    console.warn('⚠️ initCalculator не определена при загрузке страницы, повторная попытка через 500ms');
+                    setTimeout(() => {
+                        if (typeof window.initCalculator === 'function') {
+                            window.initCalculator();
+                        } else {
+                            console.error('❌ initCalculator так и не загружена');
+                        }
+                    }, 500);
+                }
+            }, 200);
         }
+        // ===== КОНЕЦ НОВОГО БЛОКА =====
         
     } catch (error) {
         console.log('⚠️ GitHub недоступен:', error.message);
@@ -4896,14 +4927,25 @@ window.addEventListener('DOMContentLoaded', async function() {
             }
         }
         
+        // ===== НОВЫЙ БЛОК: ПРОВЕРКА ИНИЦИАЛИЗАЦИИ КАЛЬКУЛЯТОРА (ОШИБКА GITHUB) =====
         if (urlHash === '#calculator') {
             setTimeout(() => {
-                switchTab('calculator');
-            }, 100);
+                if (typeof window.initCalculator === 'function') {
+                    console.log('🔍 Инициализация калькулятора из DOMContentLoaded (после ошибки GitHub)');
+                    window.initCalculator();
+                } else {
+                    console.warn('⚠️ initCalculator не определена, попытка через 500ms');
+                    setTimeout(() => {
+                        if (typeof window.initCalculator === 'function') {
+                            window.initCalculator();
+                        }
+                    }, 500);
+                }
+            }, 200);
         }
+        // ===== КОНЕЦ НОВОГО БЛОКА =====
     }
 });
-
 window.addEventListener('hashchange', function() {
     const hash = window.location.hash;
     console.log('Hash changed to:', hash);
