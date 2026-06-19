@@ -2460,19 +2460,42 @@ function EfficiencyCalculator() {
             </div>
         );
     }
-
-window.initCalculator = function() {
-    const calculatorRoot = document.getElementById('calculatorRoot');
-    if (calculatorRoot) {
-        const root = ReactDOM.createRoot(calculatorRoot);
-        root.render(<EfficiencyCalculator />);
+window.EfficiencyCalculator = EfficiencyCalculator;
+</script>
+    <script>
+function initCalculator() {
+    const root = document.getElementById('calculatorRoot');
+    if (!root) return;
+    
+    const Component = window.EfficiencyCalculator || EfficiencyCalculator;
+    if (!Component) {
+        console.error('❌ Компонент не найден');
+        return;
     }
-};
-
-// Автоматическая инициализация, если вкладка калькулятора активна
-if (document.getElementById('calculatorTab')?.classList.contains('active')) {
-    window.initCalculator();
+    
+    try {
+        const reactRoot = ReactDOM.createRoot(root);
+        reactRoot.render(React.createElement(Component));
+        console.log('✅ Калькулятор запущен!');
+    } catch (e) {
+        console.error('❌ Ошибка:', e);
+    }
 }
+
+window.initCalculator = initCalculator;
+
+// Автозапуск, если вкладка активна
+if (document.getElementById('calculatorTab')?.classList.contains('active')) {
+    setTimeout(initCalculator, 500);
+}
+
+document.addEventListener('tabChanged', function(e) {
+    if (e.detail.tab === 'calculator') {
+        setTimeout(initCalculator, 300);
+    }
+});
+
+console.log('✅ initCalculator зарегистрирована');
 </script>
 <script>
     let orgApp = null;
