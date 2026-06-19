@@ -1760,14 +1760,14 @@
         </svg>
     );
     
-    // ===== КАРД (уже правильно, оставляем как есть) =====
+    // ===== КАРД =====
     const Card = ({ children, className = "" }) => (
         <div className={`bg-white rounded-xl border border-slate-200 shadow-sm ${className}`}>
             {children}
         </div>
     );
     
-    // ===== ОСТАЛЬНЫЕ КОМПОНЕНТЫ (без изменений) =====
+    // ===== ОСТАЛЬНЫЕ КОМПОНЕНТЫ =====
     const ResultBreakdown = ({ items, total }) => {
         const [isOpen, setIsOpen] = useState(true);
         return (
@@ -1850,48 +1850,63 @@
         );
     };
 
+    function EfficiencyCalculator() {
+        const [activeCalcTab, setActiveCalcTab] = useState(0);
+        const [moneyUnit, setMoneyUnit] = useState('rub'); 
+        const [period, setPeriod] = useState('2025_year');
+        const [calculatorData, setCalculatorData] = useState({});
+        const [isLoading, setIsLoading] = useState(true);
 
-function EfficiencyCalculator() {
-    const [activeCalcTab, setActiveCalcTab] = useState(0);
-    const [moneyUnit, setMoneyUnit] = useState('rub'); 
-    const [period, setPeriod] = useState('2025_year');
-    const [calculatorData, setCalculatorData] = useState({});
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        console.log('🔍 Компонент калькулятора монтируется...');
-        
-        try {
-            const savedDataStr = localStorage.getItem('gko_calculator_data_v1');
-            console.log('Данные из localStorage (сырые):', savedDataStr);
+        useEffect(() => {
+            console.log('🔍 Компонент калькулятора монтируется...');
             
-            if (savedDataStr) {
-                const savedData = JSON.parse(savedDataStr);
-                console.log('Данные из localStorage (парсинг):', savedData);
+            try {
+                const savedDataStr = localStorage.getItem('gko_calculator_data_v1');
+                console.log('Данные из localStorage (сырые):', savedDataStr);
+                
+                if (savedDataStr) {
+                    const savedData = JSON.parse(savedDataStr);
+                    console.log('Данные из localStorage (парсинг):', savedData);
 
-                if (savedData && typeof savedData === 'object') {
-                    const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
-                    const initialDataModel = {
-                        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-                        ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                        k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                        s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                        k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                        k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-                    };
-                    const newData = {};
-                    periodsList.forEach(p => {
-                        if (savedData[p]) {
-                            newData[p] = { ...initialDataModel, ...savedData[p] };
-                        } else {
-                            newData[p] = { ...initialDataModel };
-                        }
-                    });
-                    
-                    console.log('Преобразованные данные:', newData);
-                    setCalculatorData(newData);
+                    if (savedData && typeof savedData === 'object') {
+                        const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
+                        const initialDataModel = {
+                            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
+                            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+                            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+                            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
+                            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+                            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+                        };
+                        const newData = {};
+                        periodsList.forEach(p => {
+                            if (savedData[p]) {
+                                newData[p] = { ...initialDataModel, ...savedData[p] };
+                            } else {
+                                newData[p] = { ...initialDataModel };
+                            }
+                        });
+                        
+                        console.log('Преобразованные данные:', newData);
+                        setCalculatorData(newData);
+                    } else {
+                        console.log('Нет сохраненных данных, использую начальные');
+                        const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
+                        const initialDataModel = {
+                            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
+                            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+                            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+                            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
+                            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+                            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+                        };
+                        
+                        const initialDb = {};
+                        periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
+                        setCalculatorData(initialDb);
+                    }
                 } else {
-                    console.log('Нет сохраненных данных, использую начальные');
+                    console.log('localStorage пуст для калькулятора');
                     const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
                     const initialDataModel = {
                         ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
@@ -1906,8 +1921,8 @@ function EfficiencyCalculator() {
                     periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
                     setCalculatorData(initialDb);
                 }
-            } else {
-                console.log('localStorage пуст для калькулятора');
+            } catch (error) {
+                console.error('Ошибка загрузки данных калькулятора:', error);
                 const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
                 const initialDataModel = {
                     ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
@@ -1921,84 +1936,69 @@ function EfficiencyCalculator() {
                 const initialDb = {};
                 periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
                 setCalculatorData(initialDb);
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error('Ошибка загрузки данных калькулятора:', error);
-            const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
-            const initialDataModel = {
-                ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-                ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+        }, []);
+
+        const moneyLabels = {
+            'rub': 'руб.', 'thous': 'тыс. руб.', 'mln': 'млн руб.', 'bln': 'млрд руб.', 'trln': 'трлн руб.'
+        };
+
+        const periodsList = [
+            { id: '2025_year', label: '2025 год' },
+            { id: '2026_1_kv', label: '2026 - 1 квартал' },
+            { id: '2026_2_kv', label: '2026 - 2 квартал' },
+            { id: '2026_3_kv', label: '2026 - 3 квартал' },
+            { id: '2026_4_kv', label: '2026 - 4 квартал' },
+        ];
+
+        const initialDataModel = {
+            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
+            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
+            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+        };
+        const currentData = calculatorData[period] || { ...initialDataModel };
+        const updateCalcData = (field, value) => {
+            console.log(`Обновление данных: ${field} = ${value}`);
+            
+            const updatedData = {
+                ...calculatorData,
+                [period]: {
+                    ...(calculatorData[period] || {}),
+                    [field]: value
+                }
             };
             
-            const initialDb = {};
-            periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
-            setCalculatorData(initialDb);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+            console.log('Новые данные:', updatedData);
+            setCalculatorData(updatedData);
+            localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+            console.log('Сохранено в localStorage');
+        };
 
-    const moneyLabels = {
-        'rub': 'руб.', 'thous': 'тыс. руб.', 'mln': 'млн руб.', 'bln': 'млрд руб.', 'trln': 'трлн руб.'
-    };
-
-    const periodsList = [
-        { id: '2025_year', label: '2025 год' },
-        { id: '2026_1_kv', label: '2026 - 1 квартал' },
-        { id: '2026_2_kv', label: '2026 - 2 квартал' },
-        { id: '2026_3_kv', label: '2026 - 3 квартал' },
-        { id: '2026_4_kv', label: '2026 - 4 квартал' },
-    ];
-
-    const initialDataModel = {
-        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-        ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-        k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-        s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-        k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-        k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-    };
-    const currentData = calculatorData[period] || { ...initialDataModel };
-    const updateCalcData = (field, value) => {
-        console.log(`Обновление данных: ${field} = ${value}`);
-        
-        const updatedData = {
-            ...calculatorData,
-            [period]: {
-                ...(calculatorData[period] || {}),
-                [field]: value
+        const copyFromPreviousPeriod = () => {
+            const currentIndex = periodsList.findIndex(p => p.id === period);
+            if (currentIndex > 0) {
+                const prevPeriodId = periodsList[currentIndex - 1].id;
+                const prevData = calculatorData[prevPeriodId];
+                
+                if (confirm(`Вставить все данные из "${periodsList[currentIndex - 1].label}" в текущий период? Это перезапишет текущие значения.`)) {
+                    const updatedData = {
+                        ...calculatorData,
+                        [period]: prevData ? { ...prevData } : { ...initialDataModel }
+                    };
+                    
+                    setCalculatorData(updatedData);
+                    localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(updatedData));
+                }
+            } else {
+                alert("Это первый период, нет данных для вставки.");
             }
         };
-        
-        console.log('Новые данные:', updatedData);
-        setCalculatorData(updatedData);
-        localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
-        console.log('Сохранено в localStorage');
-    };
 
-    const copyFromPreviousPeriod = () => {
-        const currentIndex = periodsList.findIndex(p => p.id === period);
-        if (currentIndex > 0) {
-            const prevPeriodId = periodsList[currentIndex - 1].id;
-            const prevData = calculatorData[prevPeriodId];
-            
-            if (confirm(`Вставить все данные из "${periodsList[currentIndex - 1].label}" в текущий период? Это перезапишет текущие значения.`)) {
-                const updatedData = {
-                    ...calculatorData,
-                    [period]: prevData ? { ...prevData } : { ...initialDataModel }
-                };
-                
-                setCalculatorData(updatedData);
-                localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(updatedData));
-            }
-        } else {
-            alert("Это первый период, нет данных для вставки.");
-        }
-    };
         const calculateResults = (data) => {
             const calcPerc = (num, den) => {
                 if (den === 0) return 0;
@@ -2045,7 +2045,7 @@ function EfficiencyCalculator() {
 
         const results = useMemo(() => calculateResults(currentData), [currentData]);
 
- const resetCurrentCalcPeriod = () => {
+        const resetCurrentCalcPeriod = () => {
             if (!confirm(`Очистить ВСЕ данные для периода "${periodsList.find(p => p.id === period)?.label}"?`)) {
                 return;
             }
@@ -2069,6 +2069,7 @@ function EfficiencyCalculator() {
             
             showNotification(`Данные для текущего периода очищены`, 'success');
         };
+
         const sections = [
             { title: "Кадастровая оценка", short: "Кадастр", icon: IconCalculator, weight: "25%", color: "text-blue-600", bg: "bg-blue-100", numWeight: 0.25 },
             { title: "Реестр недвижимости", short: "Реестр", icon: IconDatabase, weight: "25%", color: "text-indigo-600", bg: "bg-indigo-100", numWeight: 0.25 },
@@ -2088,30 +2089,25 @@ function EfficiencyCalculator() {
 
         return (
             <div className="max-w-7xl mx-auto p-2 md:p-6">
-
                 <header className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4 no-print">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Калькулятор Эффективности</h1>
                         <p className="text-slate-500 text-sm">Нарастающим итогом (Квартал / Год)</p>
                     </div>
                     <div className="flex flex-wrap gap-2 items-center justify-center">
-                        
                         <div className="flex items-center bg-slate-50 border border-slate-300 rounded-lg p-1">
                             <div className="pl-2 pr-1 text-slate-500"><IconCalendar size={16} /></div>
                             <select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-transparent text-sm focus:outline-none p-1 cursor-pointer font-medium text-slate-700 min-w-[140px]">
                                 {periodsList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                             </select>
                         </div>
-
                         <button onClick={copyFromPreviousPeriod} className="flex items-center gap-1 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 text-xs font-medium transition-colors border border-slate-200" title="Взять данные из предыдущего периода как основу">
                             <IconCopy size={14} /> <span className="hidden sm:inline">Вставить из пред. периода</span>
                         </button>
-
                         <div className="w-px h-6 bg-slate-300 mx-2 hidden xl:block"></div>
-
-<button onClick={resetCurrentCalcPeriod} className="px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
-    <IconRotateCcw size={16} />
-</button>
+                        <button onClick={resetCurrentCalcPeriod} className="px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
+                            <IconRotateCcw size={16} />
+                        </button>
                     </div>
                 </header>
                 
@@ -2122,9 +2118,7 @@ function EfficiencyCalculator() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                    
                     <div className="xl:col-span-3 space-y-4">
-                        
                         <div className="flex overflow-x-auto gap-2 pb-1 no-scrollbar no-print">
                             {sections.map((s, idx) => (
                                 <button key={idx} onClick={() => setActiveCalcTab(idx)} className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeCalcTab === idx ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
@@ -2247,21 +2241,16 @@ function EfficiencyCalculator() {
                                     <ResultBreakdown total={results.ind5} items={[{ label: "9.1 И_вкнм", desc: "Выявляемость (к проверкам)", value: results.sub5_1 }, { label: "9.2 И_укнм", desc: "Устраняемость (к выявленным)", value: results.sub5_2 }]} />
                                 </>
                             )}
-
                             {activeCalcTab === 5 && (
                                 <div className="space-y-6 text-slate-800 methodology-text">
                                     <div className="border-b pb-4">
                                         <h2 className="text-2xl font-bold">Проект методики</h2>
                                         <p className="text-slate-500 mt-1">О порядке расчета показателя эффективности капитализации территорий</p>
                                     </div>
-
                                     <div className="space-y-4 text-sm leading-relaxed text-slate-700">
                                         <p>Настоящая методика определяет порядок расчета показателя, характеризующего эффективность мероприятий по повышению капитализации территорий (далее – показатель) за отчетный период (квартал, год) нарастающим итогом, начиная с отчетности за 2025 год.</p>
-                                        
                                         <p>Показатель отражает эффективность мероприятий по повышению капитализации территорий высших должностных лиц субъектов Российской Федерации и деятельности исполнительных органов субъектов Российской Федерации.</p>
-                                        
                                         <p>Федеральным органом исполнительной власти, ответственным за расчет показателя, является Росреестр.</p>
-                                        
                                         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 my-2">
                                             <p className="font-bold text-blue-900 mb-1">Ключевые параметры:</p>
                                             <ul className="list-disc pl-4 space-y-1">
@@ -2270,25 +2259,19 @@ function EfficiencyCalculator() {
                                                 <li><strong>Единица измерения:</strong> Процент (код ОКЕИ – 744).</li>
                                             </ul>
                                         </div>
-
                                         <h3 className="font-bold text-lg text-slate-900 mt-6">Порядок расчета</h3>
                                         <p>Расчет показателя осуществляется Росреестром в соответствии с алгоритмом расчета, приведенным в настоящей методике, и на основе значений компонентов показателя, представленных профильными исполнительными органами субъекта РФ.</p>
                                         <p className="italic text-slate-500">В случае непредставления данных используются данные прошлого периода.</p>
-
                                         <h3 className="font-bold text-lg text-slate-900 mt-6">Формула расчета (Экап)</h3>
                                         <div className="bg-white border rounded p-4 font-mono text-center">
                                             Экап = (И1 × 0.25) + (И2 × 0.25) + (И3 × 0.25) + (И4 × 0.125) + (И5 × 0.125)
                                         </div>
                                         <p className="text-xs text-slate-500 mt-1">Итоговая формула учитывает удельные веса индикаторов.</p>
-
                                         <h3 className="font-bold text-lg text-slate-900 mt-6">Перечень индикаторов и их вес</h3>
                                         <div className="overflow-hidden border rounded-lg">
                                             <table className="w-full text-left text-sm">
                                                 <thead className="bg-slate-100">
-                                                    <tr>
-                                                        <th className="p-3 font-semibold">Направление</th>
-                                                        <th className="p-3 font-semibold w-32">Удельный вес</th>
-                                                    </tr>
+                                                    <tr><th className="p-3 font-semibold">Направление</th><th className="p-3 font-semibold w-32">Удельный вес</th></tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
                                                     <tr><td className="p-3">1. Кадастровая оценка</td><td className="p-3 font-bold text-blue-700">25%</td></tr>
@@ -2299,115 +2282,43 @@ function EfficiencyCalculator() {
                                                 </tbody>
                                             </table>
                                         </div>
-
                                         <h3 className="font-bold text-lg text-slate-900 mt-6">Расчет индикатора (Иi)</h3>
                                         <p>Индикатор для каждого направления рассчитывается как среднее значение входящих в него показателей. Если сбор данных по показателю не осуществляется, его значение принимается равным нулю.</p>
-                                        
                                         <div className="mt-6 space-y-6">
                                             <div>
                                                 <h4 className="text-blue-900 font-bold mb-2">1. Кадастровая оценка</h4>
                                                 <div className="mt-2 space-y-3">
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.1. Уровень достижения суммарной кадастровой стоимости (И_сум)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(КС_отч / КС_цел) × 100%</code><br/>
-                                                            <span className="source">где: <b>КС_отч</b> – суммарная кадастровая стоимость региона на отчетный период; <b>КС_цел</b> – целевое значение суммарной кадастровой стоимости региона на 2030 год.</span><br/>
-                                                            <span className="source">Источник: Росреестр, форма КС-1.</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.2. Снижение количества объектов с изменённой КС (И_изм.к)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(1 - ((К21 + К22 + Ксуд) / К_он.общ)) × 100%</code><br/>
-                                                            <span className="source">где: <b>К21, К22, Ксуд</b> – количество объектов, стоимость которых изменена по ст. 21, 22, 22.1 ФЗ № 237 или суду; <b>К_он.общ</b> – общее кол-во объектов с КС.</span><br/>
-                                                            <span className="source">Источник: Росреестр.</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.3. Снижение суммарной КС при изменениях (И_изм.кс)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(1 - ((КС21 + КС22 + КСсуд) / КС_общ)) × 100%</code><br/>
-                                                            <span className="source">Аналогично п. 5.2, но считаются суммы стоимости.</span>
-                                                        </div>
-                                                    </div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.1. Уровень достижения суммарной кадастровой стоимости (И_сум)</div><div className="definition">Формула: <code>(КС_отч / КС_цел) × 100%</code><br/><span className="source">где: <b>КС_отч</b> – суммарная кадастровая стоимость региона на отчетный период; <b>КС_цел</b> – целевое значение суммарной кадастровой стоимости региона на 2030 год.</span><br/><span className="source">Источник: Росреестр, форма КС-1.</span></div></div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.2. Снижение количества объектов с изменённой КС (И_изм.к)</div><div className="definition">Формула: <code>(1 - ((К21 + К22 + Ксуд) / К_он.общ)) × 100%</code><br/><span className="source">где: <b>К21, К22, Ксуд</b> – количество объектов, стоимость которых изменена по ст. 21, 22, 22.1 ФЗ № 237 или суду; <b>К_он.общ</b> – общее кол-во объектов с КС.</span><br/><span className="source">Источник: Росреестр.</span></div></div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.3. Снижение суммарной КС при изменениях (И_изм.кс)</div><div className="definition">Формула: <code>(1 - ((КС21 + КС22 + КСсуд) / КС_общ)) × 100%</code><br/><span className="source">Аналогично п. 5.2, но считаются суммы стоимости.</span></div></div>
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-blue-900 font-bold mb-2">2. Реестр недвижимости</h4>
                                                 <div className="mt-2 space-y-3">
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">6.1. Доля объектов с зарегистрированными правами (И_он)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(1 − (Кбезрп − Кмкд − Квыявл) / К_он.общ) × 100%</code><br/>
-                                                            <span className="source">где: <b>Кбезрп</b> – объекты без прав; <b>Кмкд</b> – многоквартирные дома (исключаются); <b>Квыявл</b> – выявленные правообладатели (исключаются); <b>К_он.общ</b> – всего объектов.</span><br/>
-                                                            <span className="source">Источник: ЕГРН.</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">6.2. Качество характеристик (И_кач)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(1 − (К_нкор / К_общ)) × 100%</code><br/>
-                                                            <span className="source">где: <b>К_нкор</b> – объекты с отсутствующими характеристиками (площадь, категория и т.д.).</span>
-                                                        </div>
-                                                    </div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">6.1. Доля объектов с зарегистрированными правами (И_он)</div><div className="definition">Формула: <code>(1 − (Кбезрп − Кмкд − Квыявл) / К_он.общ) × 100%</code><br/><span className="source">где: <b>Кбезрп</b> – объекты без прав; <b>Кмкд</b> – многоквартирные дома (исключаются); <b>Квыявл</b> – выявленные правообладатели (исключаются); <b>К_он.общ</b> – всего объектов.</span><br/><span className="source">Источник: ЕГРН.</span></div></div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">6.2. Качество характеристик (И_кач)</div><div className="definition">Формула: <code>(1 − (К_нкор / К_общ)) × 100%</code><br/><span className="source">где: <b>К_нкор</b> – объекты с отсутствующими характеристиками (площадь, категория и т.д.).</span></div></div>
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-blue-900 font-bold mb-2">3. Вовлечение земель</h4>
                                                 <div className="mt-2 space-y-3">
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">7.1. Доля выявленной территории (И_выявл)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>S_выявл / S_тер × 100%</code><br/>
-                                                            <span className="source">где: <b>S_выявл</b> – площадь выявленных участков; <b>S_тер</b> – общая площадь территории.</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">7.2. Вовлечение в оборот (И_оборот)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>S_предоставл / S_госмун × 100%</code><br/>
-                                                            <span className="source">где: <b>S_предоставл</b> – площадь предоставленных земель по сделкам; <b>S_госмун</b> – всего гос/мун земель.</span>
-                                                        </div>
-                                                    </div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">7.1. Доля выявленной территории (И_выявл)</div><div className="definition">Формула: <code>S_выявл / S_тер × 100%</code><br/><span className="source">где: <b>S_выявл</b> – площадь выявленных участков; <b>S_тер</b> – общая площадь территории.</span></div></div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">7.2. Вовлечение в оборот (И_оборот)</div><div className="definition">Формула: <code>S_предоставл / S_госмун × 100%</code><br/><span className="source">где: <b>S_предоставл</b> – площадь предоставленных земель по сделкам; <b>S_госмун</b> – всего гос/мун земель.</span></div></div>
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-blue-900 font-bold mb-2">4. ФГИС ЕЦП НСПД</h4>
                                                 <div className="mt-2 space-y-3">
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">8.1. Передача слоев (И_пд)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>К_пс / К_пдпр × 100%</code><br/>
-                                                            <span className="source">где: <b>К_пс</b> – передано слоев; <b>К_пдпр</b> – плановое количество слоев по протоколу.</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">8.2. Использование в услугах (И_усл)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>К_рег / К_общ × 100%</code><br/>
-                                                            <span className="source">где: <b>К_рег</b> – регламенты услуг с использованием ФГИС; <b>К_общ</b> – всего регламентов по перечню (п. 75, 76, 79, 82, 120).</span>
-                                                        </div>
-                                                    </div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">8.1. Передача слоев (И_пд)</div><div className="definition">Формула: <code>К_пс / К_пдпр × 100%</code><br/><span className="source">где: <b>К_пс</b> – передано слоев; <b>К_пдпр</b> – плановое количество слоев по протоколу.</span></div></div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">8.2. Использование в услугах (И_усл)</div><div className="definition">Формула: <code>К_рег / К_общ × 100%</code><br/><span className="source">где: <b>К_рег</b> – регламенты услуг с использованием ФГИС; <b>К_общ</b> – всего регламентов по перечню (п. 75, 76, 79, 82, 120).</span></div></div>
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-blue-900 font-bold mb-2">5. Земельный контроль</h4>
                                                 <div className="mt-2 space-y-3">
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">9.1. Выявление нарушений (И_вкнм)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(КвкнмГЗН + КвкнмМЗК) / (КпкнмГЗН + КпкнмМЗК) × 100%</code><br/>
-                                                            <span className="source">Отношение выявленных нарушений к количеству проведенных проверок (ГЗН + МЗК).</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-xs uppercase tracking-wide text-slate-500">9.2. Устранение нарушений (И_укнм)</div>
-                                                        <div className="definition">
-                                                            Формула: <code>(КукнмГЗН + КукнмМЗК) / (КвкнмГЗН + КвкнмМЗК) × 100%</code><br/>
-                                                            <span className="source">Отношение устраненных нарушений к выявленным.</span><br/>
-                                                            <span className="source">*Нарушения: самовольное занятие, нецелевое использование, неиспользование.</span>
-                                                        </div>
-                                                    </div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">9.1. Выявление нарушений (И_вкнм)</div><div className="definition">Формула: <code>(КвкнмГЗН + КвкнмМЗК) / (КпкнмГЗН + КпкнмМЗК) × 100%</code><br/><span className="source">Отношение выявленных нарушений к количеству проведенных проверок (ГЗН + МЗК).</span></div></div>
+                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">9.2. Устранение нарушений (И_укнм)</div><div className="definition">Формула: <code>(КукнмГЗН + КукнмМЗК) / (КвкнмГЗН + КвкнмМЗК) × 100%</code><br/><span className="source">Отношение устраненных нарушений к выявленным.</span><br/><span className="source">*Нарушения: самовольное занятие, нецелевое использование, неиспользование.</span></div></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2423,22 +2334,15 @@ function EfficiencyCalculator() {
                             <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-6 print:border print:border-slate-300">
                                 <div className="bg-blue-600 h-full transition-all print:bg-black" style={{ width: `${Math.min(results.total, 100)}%` }}></div>
                             </div>
-                            
                             <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 border-b border-slate-200 pb-1">Итоговая таблица</div>
-                            
                             <div className="space-y-3">
                                 {finalResultsArray.map((item, idx) => (
                                     <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 print:bg-white print:border-slate-200 hover:bg-slate-100 transition-colors">
-                                        {/* Иконка */}
                                         <div className={`p-2 rounded-lg ${item.section.bg} ${item.section.color} print:bg-white`}>
                                             {React.createElement(item.section.icon, { size: 20 })}
                                         </div>
-                                        
-                                        {/* Текст */}
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-bold text-slate-700 truncate print:text-slate-600">
-                                                {item.section.title}
-                                            </div>
+                                            <div className="text-xs font-bold text-slate-700 truncate print:text-slate-600">{item.section.title}</div>
                                             <div className="flex justify-between items-center mt-1">
                                                 <span className="font-mono text-slate-400 text-[10px]">{item.val.toFixed(1)}%</span>
                                                 <div className="text-right leading-tight">
@@ -2450,7 +2354,6 @@ function EfficiencyCalculator() {
                                     </div>
                                 ))}
                             </div>
-
                             <div className="mt-6 pt-4 border-t border-slate-200 text-xs text-slate-400 print:text-black print:border-slate-300">
                                 Период: {periodsList.find(p=>p.id===period)?.label}
                             </div>
@@ -2460,7 +2363,9 @@ function EfficiencyCalculator() {
             </div>
         );
     }
-window.EfficiencyCalculator = EfficiencyCalculator;
+
+    // ===== ЭКСПОРТ КОМПОНЕНТА В ГЛОБАЛЬНУЮ ОБЛАСТЬ =====
+    window.EfficiencyCalculator = EfficiencyCalculator;
 </script>
     <script>
 function initCalculator() {
