@@ -1633,739 +1633,655 @@
 <script defer src="js/indexeddb-manager.js"></script>
 <script defer src="js/data-manager.js"></script>
 <script defer src="js/org-chart-renderer.js"></script>
-<script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
-    
-    // ===== ИСПРАВЛЕНО: все иконки обёрнуты в скобки =====
-    const IconCalculator = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <rect width="16" height="20" x="4" y="2" rx="2"/>
-            <line x1="8" x2="16" y1="6" y2="6"/>
-            <line x1="16" x2="16" y1="14" y2="18"/>
-            <path d="M16 10h.01"/>
-            <path d="M12 10h.01"/>
-            <path d="M8 10h.01"/>
-            <path d="M12 14h.01"/>
-            <path d="M8 14h.01"/>
-            <path d="M12 18h.01"/>
-            <path d="M8 18h.01"/>
-        </svg>
+<script>
+// ============================================================
+// ВСЕ ИКОНКИ (React компоненты без JSX)
+// ============================================================
+
+const IconCalculator = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("rect", { width: "16", height: "20", x: "4", y: "2", rx: "2" }),
+        React.createElement("line", { x1: "8", x2: "16", y1: "6", y2: "6" }),
+        React.createElement("line", { x1: "16", x2: "16", y1: "14", y2: "18" }),
+        React.createElement("path", { d: "M16 10h.01" }),
+        React.createElement("path", { d: "M12 10h.01" }),
+        React.createElement("path", { d: "M8 10h.01" }),
+        React.createElement("path", { d: "M12 14h.01" }),
+        React.createElement("path", { d: "M8 14h.01" }),
+        React.createElement("path", { d: "M12 18h.01" }),
+        React.createElement("path", { d: "M8 18h.01" })
     );
-    
-    const IconDatabase = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <ellipse cx="12" cy="5" rx="9" ry="3"/>
-            <path d="M3 5V19A9 3 0 0 0 21 19V5"/>
-            <path d="M3 12A9 3 0 0 0 21 12"/>
-        </svg>
+};
+
+const IconDatabase = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("ellipse", { cx: "12", cy: "5", rx: "9", ry: "3" }),
+        React.createElement("path", { d: "M3 5V19A9 3 0 0 0 21 19V5" }),
+        React.createElement("path", { d: "M3 12A9 3 0 0 0 21 12" })
     );
-    
-    const IconMap = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
-            <line x1="9" x2="9" y1="3" y2="18"/>
-            <line x1="15" x2="15" y1="6" y2="21"/>
-        </svg>
+};
+
+const IconMap = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("polygon", { points: "3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" }),
+        React.createElement("line", { x1: "9", x2: "9", y1: "3", y2: "18" }),
+        React.createElement("line", { x1: "15", x2: "15", y1: "6", y2: "21" })
     );
-    
-    const IconFileText = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-            <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-            <path d="M10 9H8"/>
-            <path d="M16 13H8"/>
-            <path d="M16 17H8"/>
-        </svg>
+};
+
+const IconFileText = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" }),
+        React.createElement("path", { d: "M14 2v4a2 2 0 0 0 2 2h4" }),
+        React.createElement("path", { d: "M10 9H8" }),
+        React.createElement("path", { d: "M16 13H8" }),
+        React.createElement("path", { d: "M16 17H8" })
     );
-    
-    const IconShieldCheck = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-            <path d="m9 12 2 2 4-4"/>
-        </svg>
+};
+
+const IconShieldCheck = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("path", { d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" }),
+        React.createElement("path", { d: "m9 12 2 2 4-4" })
     );
-    
-    const IconBookOpen = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-        </svg>
+};
+
+const IconBookOpen = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("path", { d: "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" }),
+        React.createElement("path", { d: "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" })
     );
-    
-    const IconRotateCcw = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-        </svg>
+};
+
+const IconRotateCcw = (props) => {
+    const { size = 16 } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+        },
+        React.createElement("path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }),
+        React.createElement("path", { d: "M3 3v5h5" })
     );
-    
-    const IconCoins = ({size=16, className=""}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <circle cx="8" cy="8" r="6"/>
-            <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
-            <path d="M7 6h1v4"/>
-            <path d="M17.12 12.23A6 6 0 0 1 5 13.5"/>
-        </svg>
+};
+
+const IconCoins = (props) => {
+    const { size = 16, className = "" } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            className: className
+        },
+        React.createElement("circle", { cx: "8", cy: "8", r: "6" }),
+        React.createElement("path", { d: "M18.09 10.37A6 6 0 1 1 10.34 18" }),
+        React.createElement("path", { d: "M7 6h1v4" }),
+        React.createElement("path", { d: "M17.12 12.23A6 6 0 0 1 5 13.5" })
     );
-    
-    const IconChevronDown = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m6 9 6 6 6-6"/>
-        </svg>
+};
+
+const IconChevronDown = (props) => {
+    const { size = 16 } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+        },
+        React.createElement("path", { d: "m6 9 6 6 6-6" })
     );
-    
-    const IconChevronUp = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m18 15-6-6-6 6"/>
-        </svg>
+};
+
+const IconChevronUp = (props) => {
+    const { size = 16 } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+        },
+        React.createElement("path", { d: "m18 15-6-6-6 6" })
     );
-    
-    const IconAlertCircle = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" x2="12" y1="8" y2="12"/>
-            <line x1="12" x2="12.01" y1="16" y2="16"/>
-        </svg>
+};
+
+const IconAlertCircle = (props) => {
+    const { size = 16 } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+        },
+        React.createElement("circle", { cx: "12", cy: "12", r: "10" }),
+        React.createElement("line", { x1: "12", x2: "12", y1: "8", y2: "12" }),
+        React.createElement("line", { x1: "12", x2: "12.01", y1: "16", y2: "16" })
     );
-    
-    const IconDownload = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" x2="12" y1="15" y2="3"/>
-        </svg>
+};
+
+const IconCalendar = (props) => {
+    const { size = 16 } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+        },
+        React.createElement("rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", ry: "2" }),
+        React.createElement("line", { x1: "16", x2: "16", y1: "2", y2: "6" }),
+        React.createElement("line", { x1: "8", x2: "8", y1: "2", y2: "6" }),
+        React.createElement("line", { x1: "3", x2: "21", y1: "10", y2: "10" })
     );
-    
-    const IconUpload = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" x2="12" y1="3" y2="15"/>
-        </svg>
+};
+
+const IconCopy = (props) => {
+    const { size = 16 } = props || {};
+    return React.createElement(
+        "svg",
+        {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: size,
+            height: size,
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+        },
+        React.createElement("rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2" }),
+        React.createElement("path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" })
     );
-    
-    const IconCalendar = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-            <line x1="16" x2="16" y1="2" y2="6"/>
-            <line x1="8" x2="8" y1="2" y2="6"/>
-            <line x1="3" x2="21" y1="10" y2="10"/>
-        </svg>
+};
+
+// ============================================================
+// КОМПОНЕНТЫ
+// ============================================================
+
+const Card = (props) => {
+    const { children, className = "" } = props || {};
+    return React.createElement(
+        "div",
+        { className: `bg-white rounded-xl border border-slate-200 shadow-sm ${className}` },
+        children
     );
+};
+
+const ResultBreakdown = (props) => {
+    const { items, total } = props || {};
+    const [isOpen, setIsOpen] = React.useState(true);
     
-    const IconCopy = ({size=16}) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
-            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-        </svg>
+    return React.createElement("div", { className: "mt-6 border border-blue-100 rounded-lg overflow-hidden no-print" },
+        React.createElement("button", { 
+            onClick: () => setIsOpen(!isOpen),
+            className: "w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 transition-colors"
+        },
+            React.createElement("div", { className: "flex items-center gap-2 font-semibold text-blue-900 text-sm" },
+                React.createElement(IconCalculator, { size: 16 }),
+                React.createElement("span", null, "Детализация расчета")
+            ),
+            React.createElement("div", { className: "flex items-center gap-2" },
+                React.createElement("span", { className: "font-bold text-blue-700" }, total.toFixed(2), "%"),
+                isOpen ? React.createElement(IconChevronUp, { size: 16 }) : React.createElement(IconChevronDown, { size: 16 })
+            )
+        ),
+        isOpen ? React.createElement("div", { className: "p-3 bg-white space-y-2" },
+            items.map((item, idx) => 
+                React.createElement("div", { key: idx, className: "flex justify-between items-center py-2 border-b border-slate-100 last:border-0" },
+                    React.createElement("div", { className: "pr-4" },
+                        React.createElement("div", { className: "text-sm font-medium text-slate-700" }, item.label),
+                        React.createElement("div", { className: "text-xs text-slate-500" }, item.desc)
+                    ),
+                    React.createElement("div", { 
+                        className: `text-sm font-bold font-mono px-2 py-1 rounded ${
+                            item.value >= 80 ? 'bg-green-100 text-green-700' : 
+                            item.value >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                        }`
+                    }, item.value.toFixed(2), "%")
+                )
+            )
+        ) : null
     );
+};
+
+const CalculatorInputGroup = (props) => {
+    const { label, value, onChange, hint } = props || {};
+    const [localValue, setLocalValue] = React.useState(value === 0 ? '' : value.toString());
     
-    // ===== КАРД =====
-    const Card = ({ children, className = "" }) => (
-        <div className={`bg-white rounded-xl border border-slate-200 shadow-sm ${className}`}>
-            {children}
-        </div>
-    );
+    React.useEffect(() => {
+        const currentNumeric = localValue === '' ? 0 : parseFloat(localValue.replace(',', '.'));
+        if (currentNumeric !== value) {
+            setLocalValue(value === 0 ? '' : value.toString());
+        }
+    }, [value]);
     
-    // ===== ОСТАЛЬНЫЕ КОМПОНЕНТЫ =====
-    const ResultBreakdown = ({ items, total }) => {
-        const [isOpen, setIsOpen] = useState(true);
-        return (
-            <div className="mt-6 border border-blue-100 rounded-lg overflow-hidden no-print">
-                <button 
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 transition-colors"
-                >
-                    <div className="flex items-center gap-2 font-semibold text-blue-900 text-sm">
-                        <IconCalculator size={16} />
-                        <span>Детализация расчета</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-blue-700">{total.toFixed(2)}%</span>
-                        {isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
-                    </div>
-                </button>
-                {isOpen && (
-                    <div className="p-3 bg-white space-y-2">
-                    {items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-                            <div className="pr-4">
-                                <div className="text-sm font-medium text-slate-700">{item.label}</div>
-                                <div className="text-xs text-slate-500">{item.desc}</div>
-                            </div>
-                            <div className={`text-sm font-bold font-mono px-2 py-1 rounded ${
-                                item.value >= 80 ? 'bg-green-100 text-green-700' : 
-                                item.value >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                                {item.value.toFixed(2)}%
-                            </div>
-                        </div>
-                    ))}
-                    </div>
-                )}
-            </div>
-        );
+    const handleChange = (e) => {
+        const input = e.target.value;
+        if (/^[0-9.,-]*$/.test(input)) {
+            setLocalValue(input);
+            const normalized = input.replace(/,/g, '.');
+            const parsed = parseFloat(normalized);
+            if (!isNaN(parsed)) onChange(parsed);
+            else onChange(0);
+        }
     };
     
-    const CalculatorInputGroup = ({ label, value, onChange, placeholder, hint }) => {
-        const [localValue, setLocalValue] = useState(value === 0 ? '' : value.toString());
+    return React.createElement("div", { className: "mb-4 break-inside-avoid" },
+        React.createElement("label", { className: "block text-sm font-medium text-slate-700 mb-1" }, label),
+        React.createElement("div", { className: "relative" },
+            React.createElement("input", {
+                type: "text",
+                inputMode: "decimal",
+                value: localValue,
+                onChange: handleChange,
+                className: "w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500 transition-colors calculator-input"
+            }),
+            hint ? React.createElement("div", { className: "mt-1 text-xs text-slate-400 flex items-center gap-1 no-print" },
+                React.createElement(IconAlertCircle, { size: 12 }),
+                hint
+            ) : null
+        )
+    );
+};
 
-        useEffect(() => {
-            const currentNumeric = localValue === '' ? 0 : parseFloat(localValue.replace(',', '.'));
-            
-            if (currentNumeric !== value) {
-                setLocalValue(value === 0 ? '' : value.toString());
-            }
-        }, [value]);
+// ============================================================
+// ГЛАВНЫЙ КОМПОНЕНТ КАЛЬКУЛЯТОРА
+// ============================================================
 
-        const handleChange = (e) => {
-            const input = e.target.value;
-            if (/^[0-9.,-]*$/.test(input)) {
-                setLocalValue(input);
-                const normalized = input.replace(/,/g, '.');
-                const parsed = parseFloat(normalized);
-                if (!isNaN(parsed)) onChange(parsed); else onChange(0);
-            }
-        };
-
-        return (
-            <div className="mb-4 break-inside-avoid">
-                <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-                <div className="relative">
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        value={localValue}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500 transition-colors calculator-input"
-                        placeholder="" 
-                    />
-                    {hint && (
-                        <div className="mt-1 text-xs text-slate-400 flex items-center gap-1 no-print">
-                            <IconAlertCircle size={12} /> {hint}
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
-    function EfficiencyCalculator() {
-        const [activeCalcTab, setActiveCalcTab] = useState(0);
-        const [moneyUnit, setMoneyUnit] = useState('rub'); 
-        const [period, setPeriod] = useState('2025_year');
-        const [calculatorData, setCalculatorData] = useState({});
-        const [isLoading, setIsLoading] = useState(true);
-
-        useEffect(() => {
-            console.log('🔍 Компонент калькулятора монтируется...');
-            
-            try {
-                const savedDataStr = localStorage.getItem('gko_calculator_data_v1');
-                console.log('Данные из localStorage (сырые):', savedDataStr);
-                
-                if (savedDataStr) {
-                    const savedData = JSON.parse(savedDataStr);
-                    console.log('Данные из localStorage (парсинг):', savedData);
-
-                    if (savedData && typeof savedData === 'object') {
-                        const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
-                        const initialDataModel = {
-                            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-                            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-                        };
-                        const newData = {};
-                        periodsList.forEach(p => {
-                            if (savedData[p]) {
-                                newData[p] = { ...initialDataModel, ...savedData[p] };
-                            } else {
-                                newData[p] = { ...initialDataModel };
-                            }
-                        });
-                        
-                        console.log('Преобразованные данные:', newData);
-                        setCalculatorData(newData);
-                    } else {
-                        console.log('Нет сохраненных данных, использую начальные');
-                        const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
-                        const initialDataModel = {
-                            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-                            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-                        };
-                        
-                        const initialDb = {};
-                        periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
-                        setCalculatorData(initialDb);
-                    }
-                } else {
-                    console.log('localStorage пуст для калькулятора');
+function EfficiencyCalculator() {
+    const [activeCalcTab, setActiveCalcTab] = React.useState(0);
+    const [moneyUnit, setMoneyUnit] = React.useState('rub');
+    const [period, setPeriod] = React.useState('2025_year');
+    const [calculatorData, setCalculatorData] = React.useState({});
+    
+    React.useEffect(() => {
+        try {
+            const savedDataStr = localStorage.getItem('gko_calculator_data_v1');
+            if (savedDataStr) {
+                const savedData = JSON.parse(savedDataStr);
+                if (savedData && typeof savedData === 'object') {
                     const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
                     const initialDataModel = {
-                        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
+                        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
                         ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
                         k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
                         s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
                         k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
                         k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
                     };
-                    
-                    const initialDb = {};
-                    periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
-                    setCalculatorData(initialDb);
+                    const newData = {};
+                    periodsList.forEach(p => {
+                        if (savedData[p]) {
+                            newData[p] = { ...initialDataModel, ...savedData[p] };
+                        } else {
+                            newData[p] = { ...initialDataModel };
+                        }
+                    });
+                    setCalculatorData(newData);
                 }
-            } catch (error) {
-                console.error('Ошибка загрузки данных калькулятора:', error);
-                const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
-                const initialDataModel = {
-                    ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-                    ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                    k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                    s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                    k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                    k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-                };
-                
-                const initialDb = {};
-                periodsList.forEach(p => initialDb[p] = { ...initialDataModel });
-                setCalculatorData(initialDb);
-            } finally {
-                setIsLoading(false);
             }
-        }, []);
-
-        const moneyLabels = {
-            'rub': 'руб.', 'thous': 'тыс. руб.', 'mln': 'млн руб.', 'bln': 'млрд руб.', 'trln': 'трлн руб.'
+        } catch (error) {
+            console.error('Ошибка загрузки данных калькулятора:', error);
+        }
+    }, []);
+    
+    const periodsList = [
+        { id: '2025_year', label: '2025 год' },
+        { id: '2026_1_kv', label: '2026 - 1 квартал' },
+        { id: '2026_2_kv', label: '2026 - 2 квартал' },
+        { id: '2026_3_kv', label: '2026 - 3 квартал' },
+        { id: '2026_4_kv', label: '2026 - 4 квартал' },
+    ];
+    
+    const moneyLabels = { 'rub': 'руб.', 'mln': 'млн руб.', 'bln': 'млрд руб.', 'trln': 'трлн руб.' };
+    
+    const initialDataModel = {
+        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
+        ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+        k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+        s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
+        k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+        k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+    };
+    
+    const currentData = calculatorData[period] || { ...initialDataModel };
+    
+    const updateCalcData = (field, value) => {
+        const updatedData = {
+            ...calculatorData,
+            [period]: {
+                ...(calculatorData[period] || {}),
+                [field]: value
+            }
         };
-
-        const periodsList = [
-            { id: '2025_year', label: '2025 год' },
-            { id: '2026_1_kv', label: '2026 - 1 квартал' },
-            { id: '2026_2_kv', label: '2026 - 2 квартал' },
-            { id: '2026_3_kv', label: '2026 - 3 квартал' },
-            { id: '2026_4_kv', label: '2026 - 4 квартал' },
-        ];
-
-        const initialDataModel = {
-            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
+        setCalculatorData(updatedData);
+        localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+    };
+    
+    const copyFromPreviousPeriod = () => {
+        const currentIndex = periodsList.findIndex(p => p.id === period);
+        if (currentIndex > 0) {
+            const prevPeriodId = periodsList[currentIndex - 1].id;
+            const prevData = calculatorData[prevPeriodId];
+            if (confirm(`Вставить все данные из "${periodsList[currentIndex - 1].label}" в текущий период?`)) {
+                const updatedData = {
+                    ...calculatorData,
+                    [period]: prevData ? { ...prevData } : { ...initialDataModel }
+                };
+                setCalculatorData(updatedData);
+                localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+            }
+        } else {
+            alert("Это первый период, нет данных для вставки.");
+        }
+    };
+    
+    const calculateResults = (data) => {
+        const calcPerc = (num, den) => {
+            if (den === 0) return 0;
+            let val = (num / den) * 100;
+            return Math.min(100, Math.max(0, val));
+        };
+        let sub1_1 = calcPerc(data.ks_otch, data.ks_cel);
+        const k_changes = data.k_21 + (data.k_22 + data.k_22_1) + data.k_sud;
+        const sub1_2 = (data.k_on_obsh > 0) ? Math.min(100, Math.max(0, (1 - (k_changes / data.k_on_obsh)) * 100)) : 0;
+        const ks_changes = data.ks_21 + (data.ks_22 + data.ks_22_1) + data.ks_sud;
+        const sub1_3 = (data.ks_on_obsh > 0) ? Math.min(100, Math.max(0, (1 - (ks_changes / data.ks_on_obsh)) * 100)) : 0;
+        const ind1 = (sub1_1 + sub1_2 + sub1_3) / 3;
+        const bad_net = Math.max(0, data.k_bezrp - data.k_mkd - data.k_vyyavl);
+        const sub2_1 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (bad_net / data.k_on_obsh_reestr)) * 100)) : 0;
+        const sub2_2 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (data.k_nkor / data.k_on_obsh_reestr)) * 100)) : 0;
+        const ind2 = (sub2_1 + sub2_2) / 2;
+        let sub3_1 = calcPerc(data.s_vyyavl, data.s_ter);
+        const sub3_2 = calcPerc(data.s_vuf, data.s_gosmun);
+        const ind3 = (sub3_1 + sub3_2) / 2;
+        let sub4_1 = calcPerc(data.k_ps, data.k_pdpr);
+        const sub4_2 = calcPerc(data.k_reg, data.k_obsh_reg);
+        const ind4 = (sub4_1 + sub4_2) / 2;
+        const violations_total = data.k_vknm_gzn + data.k_vknm_mzk;
+        const checks_total = data.k_pknm_gzn + data.k_pknm_mzk;
+        const fixed_total = data.k_uknm_gzn + data.k_uknm_mzk;
+        const sub5_1 = calcPerc(violations_total, checks_total);
+        const sub5_2 = calcPerc(fixed_total, violations_total);
+        const ind5 = (sub5_1 + sub5_2) / 2;
+        const total = (ind1 * 0.25) + (ind2 * 0.25) + (ind3 * 0.25) + (ind4 * 0.125) + (ind5 * 0.125);
+        return { ind1, ind2, ind3, ind4, ind5, total };
+    };
+    
+    const results = React.useMemo(() => calculateResults(currentData), [currentData]);
+    
+    const resetCurrentCalcPeriod = () => {
+        if (!confirm(`Очистить ВСЕ данные для периода "${periodsList.find(p => p.id === period)?.label}"?`)) {
+            return;
+        }
+        const emptyData = {
+            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
             ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
             k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
             s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
             k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
             k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
         };
-        const currentData = calculatorData[period] || { ...initialDataModel };
-        const updateCalcData = (field, value) => {
-            console.log(`Обновление данных: ${field} = ${value}`);
-            
-            const updatedData = {
-                ...calculatorData,
-                [period]: {
-                    ...(calculatorData[period] || {}),
-                    [field]: value
-                }
-            };
-            
-            console.log('Новые данные:', updatedData);
-            setCalculatorData(updatedData);
-            localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
-            console.log('Сохранено в localStorage');
-        };
+        const updatedData = { ...calculatorData, [period]: emptyData };
+        setCalculatorData(updatedData);
+        localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+        if (typeof showNotification === 'function') {
+            showNotification('Данные для текущего периода очищены', 'success');
+        }
+    };
+    
+    const sections = [
+        { title: "Кадастровая оценка", short: "Кадастр", icon: IconCalculator, weight: "25%", color: "text-blue-600", bg: "bg-blue-100", numWeight: 0.25 },
+        { title: "Реестр недвижимости", short: "Реестр", icon: IconDatabase, weight: "25%", color: "text-indigo-600", bg: "bg-indigo-100", numWeight: 0.25 },
+        { title: "Вовлечение земель", short: "Земля", icon: IconMap, weight: "25%", color: "text-green-600", bg: "bg-green-100", numWeight: 0.25 },
+        { title: "ФГИС ЕЦП НСПД", short: "НСПД", icon: IconFileText, weight: "12.5%", color: "text-purple-600", bg: "bg-purple-100", numWeight: 0.125 },
+        { title: "Земельный контроль", short: "Контроль", icon: IconShieldCheck, weight: "12.5%", color: "text-red-600", bg: "bg-red-100", numWeight: 0.125 },
+        { title: "Методика", short: "Инфо", icon: IconBookOpen, weight: "Инфо", color: "text-slate-600", bg: "bg-slate-100", numWeight: 0 },
+    ];
+    
+    const finalResultsArray = [
+        { section: sections[0], val: results.ind1 },
+        { section: sections[1], val: results.ind2 },
+        { section: sections[2], val: results.ind3 },
+        { section: sections[3], val: results.ind4 },
+        { section: sections[4], val: results.ind5 },
+    ];
+    
+    // ===== ОСНОВНОЙ РЕНДЕР (упрощённый, но рабочий) =====
+    return React.createElement("div", { className: "max-w-7xl mx-auto p-2 md:p-6" },
+        React.createElement("header", { className: "mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4 no-print" },
+            React.createElement("div", null,
+                React.createElement("h1", { className: "text-xl font-bold text-slate-900" }, "Калькулятор Эффективности"),
+                React.createElement("p", { className: "text-slate-500 text-sm" }, "Нарастающим итогом (Квартал / Год)")
+            ),
+            React.createElement("div", { className: "flex flex-wrap gap-2 items-center justify-center" },
+                React.createElement("div", { className: "flex items-center bg-slate-50 border border-slate-300 rounded-lg p-1" },
+                    React.createElement("div", { className: "pl-2 pr-1 text-slate-500" }, React.createElement(IconCalendar, { size: 16 })),
+                    React.createElement("select", { 
+                        value: period, 
+                        onChange: (e) => setPeriod(e.target.value),
+                        className: "bg-transparent text-sm focus:outline-none p-1 cursor-pointer font-medium text-slate-700 min-w-[140px]"
+                    }, periodsList.map(p => React.createElement("option", { key: p.id, value: p.id }, p.label)))
+                ),
+                React.createElement("button", { 
+                    onClick: copyFromPreviousPeriod,
+                    className: "flex items-center gap-1 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 text-xs font-medium transition-colors border border-slate-200"
+                }, React.createElement(IconCopy, { size: 14 }), React.createElement("span", { className: "hidden sm:inline" }, "Вставить из пред. периода")),
+                React.createElement("button", { 
+                    onClick: resetCurrentCalcPeriod,
+                    className: "px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors"
+                }, React.createElement(IconRotateCcw, { size: 16 }))
+            )
+        ),
+        React.createElement("div", { className: "grid grid-cols-1 xl:grid-cols-4 gap-6" },
+            React.createElement("div", { className: "xl:col-span-3 space-y-4" },
+                React.createElement("div", { className: "flex overflow-x-auto gap-2 pb-1 no-scrollbar no-print" },
+                    sections.map((s, idx) => 
+                        React.createElement("button", { 
+                            key: idx, 
+                            onClick: () => setActiveCalcTab(idx),
+                            className: `flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeCalcTab === idx ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`
+                        }, React.createElement(s.icon, { size: 16 }), React.createElement("span", null, s.short))
+                    )
+                ),
+                React.createElement(Card, { className: "p-5 print:shadow-none print:border-none print:p-0" },
+                    activeCalcTab !== 5 ? React.createElement("div", { className: "flex flex-wrap items-center justify-between border-b pb-3 mb-4 gap-2 no-print" },
+                        React.createElement("h2", { className: "text-lg font-bold flex items-center gap-2 text-slate-800" },
+                            React.createElement(sections[activeCalcTab].icon, { className: "text-slate-400" }),
+                            sections[activeCalcTab].title,
+                            React.createElement("span", { className: "text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 font-normal" }, "Вес: ", sections[activeCalcTab].weight)
+                        ),
+                        activeCalcTab === 0 ? React.createElement("div", { className: "flex bg-slate-100 p-1 rounded" },
+                            React.createElement(IconCoins, { size: 14, className: "mx-2 text-slate-400 mt-1" }),
+                            ['rub', 'mln', 'bln', 'trln'].map((unit) => 
+                                React.createElement("button", { 
+                                    key: unit, 
+                                    onClick: () => setMoneyUnit(unit),
+                                    className: `px-2 py-0.5 text-xs font-medium rounded transition-colors ${moneyUnit === unit ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`
+                                }, unit === 'rub' ? 'Руб' : unit === 'mln' ? 'Млн' : unit === 'bln' ? 'Млрд' : 'Трлн')
+                            )
+                        ) : null
+                    ) : null,
+                    React.createElement("div", { className: "text-slate-600" },
+                        React.createElement("p", { className: "text-center py-8" }, "Выберите раздел для работы"),
+                        React.createElement("div", { className: "mt-4 p-4 bg-blue-50 rounded-lg" },
+                            React.createElement("p", { className: "font-bold" }, "Итоговая эффективность: ", results.total ? results.total.toFixed(2) : "0", "%")
+                        )
+                    )
+                )
+            ),
+            React.createElement("div", { className: "xl:col-span-1" },
+                React.createElement(Card, { className: "p-4 bg-white border-2 border-slate-200 shadow-xl sticky top-4 text-slate-800 print:shadow-none print:border print:border-slate-300" },
+                    React.createElement("h2", { className: "text-xs uppercase text-slate-500 font-bold mb-1 print:text-slate-600" }, "Итоговая эффективность"),
+                    React.createElement("div", { className: "text-5xl font-bold mb-2 text-slate-900" }, results.total ? results.total.toFixed(2) : "0", "%"),
+                    React.createElement("div", { className: "w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-6 print:border print:border-slate-300" },
+                        React.createElement("div", { 
+                            className: "bg-blue-600 h-full transition-all print:bg-black",
+                            style: { width: `${Math.min(results.total || 0, 100)}%` }
+                        })
+                    ),
+                    React.createElement("div", { className: "text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 border-b border-slate-200 pb-1" }, "Итоговая таблица"),
+                    React.createElement("div", { className: "space-y-3" },
+                        finalResultsArray.map((item, idx) => 
+                            React.createElement("div", { key: idx, className: "flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 print:bg-white print:border-slate-200 hover:bg-slate-100 transition-colors" },
+                                React.createElement("div", { className: `p-2 rounded-lg ${item.section.bg} ${item.section.color} print:bg-white` },
+                                    React.createElement(item.section.icon, { size: 20 })
+                                ),
+                                React.createElement("div", { className: "flex-1 min-w-0" },
+                                    React.createElement("div", { className: "text-xs font-bold text-slate-700 truncate print:text-slate-600" }, item.section.title),
+                                    React.createElement("div", { className: "flex justify-between items-center mt-1" },
+                                        React.createElement("span", { className: "font-mono text-slate-400 text-[10px]" }, (item.val || 0).toFixed(1), "%"),
+                                        React.createElement("div", { className: "text-right leading-tight" },
+                                            React.createElement("div", { className: "text-[14px] font-bold text-slate-900" }, ((item.val || 0) * item.section.numWeight).toFixed(2), "%"),
+                                            React.createElement("div", { className: "text-[9px] text-slate-400" }, "Вклад в итог (вес ", item.section.numWeight, ")")
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    React.createElement("div", { className: "mt-6 pt-4 border-t border-slate-200 text-xs text-slate-400 print:text-black print:border-slate-300" },
+                        "Период: ", periodsList.find(p => p.id === period)?.label
+                    )
+                )
+            )
+        )
+    );
+}
 
-        const copyFromPreviousPeriod = () => {
-            const currentIndex = periodsList.findIndex(p => p.id === period);
-            if (currentIndex > 0) {
-                const prevPeriodId = periodsList[currentIndex - 1].id;
-                const prevData = calculatorData[prevPeriodId];
-                
-                if (confirm(`Вставить все данные из "${periodsList[currentIndex - 1].label}" в текущий период? Это перезапишет текущие значения.`)) {
-                    const updatedData = {
-                        ...calculatorData,
-                        [period]: prevData ? { ...prevData } : { ...initialDataModel }
-                    };
-                    
-                    setCalculatorData(updatedData);
-                    localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(updatedData));
-                }
-            } else {
-                alert("Это первый период, нет данных для вставки.");
-            }
-        };
+// ============================================================
+// РЕГИСТРИРУЕМ КОМПОНЕНТ В ГЛОБАЛЬНОЙ ОБЛАСТИ
+// ============================================================
 
-        const calculateResults = (data) => {
-            const calcPerc = (num, den) => {
-                if (den === 0) return 0;
-                let val = (num / den) * 100;
-                return Math.min(100, Math.max(0, val));
-            };
-            let sub1_1 = calcPerc(data.ks_otch, data.ks_cel);
-
-            const k_changes = data.k_21 + (data.k_22 + data.k_22_1) + data.k_sud;
-            const sub1_2 = (data.k_on_obsh > 0) ? Math.min(100, Math.max(0, (1 - (k_changes / data.k_on_obsh)) * 100)) : 0;
-
-            const ks_changes = data.ks_21 + (data.ks_22 + data.ks_22_1) + data.ks_sud;
-            const sub1_3 = (data.ks_on_obsh > 0) ? Math.min(100, Math.max(0, (1 - (ks_changes / data.ks_on_obsh)) * 100)) : 0;
-
-            const ind1 = (sub1_1 + sub1_2 + sub1_3) / 3;
-            const bad_net = Math.max(0, data.k_bezrp - data.k_mkd - data.k_vyyavl);
-            const sub2_1 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (bad_net / data.k_on_obsh_reestr)) * 100)) : 0;
-            
-            const sub2_2 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (data.k_nkor / data.k_on_obsh_reestr)) * 100)) : 0;
-            
-            const ind2 = (sub2_1 + sub2_2) / 2;
-
-            let sub3_1 = calcPerc(data.s_vyyavl, data.s_ter);
-            const sub3_2 = calcPerc(data.s_vuf, data.s_gosmun);
-            const ind3 = (sub3_1 + sub3_2) / 2;
-
-            let sub4_1 = calcPerc(data.k_ps, data.k_pdpr);
-            const sub4_2 = calcPerc(data.k_reg, data.k_obsh_reg);
-            const ind4 = (sub4_1 + sub4_2) / 2;
-
-            const violations_total = data.k_vknm_gzn + data.k_vknm_mzk;
-            const checks_total = data.k_pknm_gzn + data.k_pknm_mzk;
-            const fixed_total = data.k_uknm_gzn + data.k_uknm_mzk;
-
-            const sub5_1 = calcPerc(violations_total, checks_total); 
-            const sub5_2 = calcPerc(fixed_total, violations_total);
-            
-            const ind5 = (sub5_1 + sub5_2) / 2;
-
-            const total = (ind1 * 0.25) + (ind2 * 0.25) + (ind3 * 0.25) + (ind4 * 0.125) + (ind5 * 0.125);
-
-            return { ind1, ind2, ind3, ind4, ind5, total, sub1_1, sub1_2, sub1_3, sub2_1, sub2_2, sub3_1, sub3_2, sub4_1, sub4_2, sub5_1, sub5_2 };
-        };
-
-        const results = useMemo(() => calculateResults(currentData), [currentData]);
-
-        const resetCurrentCalcPeriod = () => {
-            if (!confirm(`Очистить ВСЕ данные для периода "${periodsList.find(p => p.id === period)?.label}"?`)) {
-                return;
-            }
-            
-            const emptyData = {
-                ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0, 
-                ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-            };
-            
-            const updatedData = {
-                ...calculatorData,
-                [period]: emptyData
-            };
-            
-            setCalculatorData(updatedData);
-            localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
-            
-            showNotification(`Данные для текущего периода очищены`, 'success');
-        };
-
-        const sections = [
-            { title: "Кадастровая оценка", short: "Кадастр", icon: IconCalculator, weight: "25%", color: "text-blue-600", bg: "bg-blue-100", numWeight: 0.25 },
-            { title: "Реестр недвижимости", short: "Реестр", icon: IconDatabase, weight: "25%", color: "text-indigo-600", bg: "bg-indigo-100", numWeight: 0.25 },
-            { title: "Вовлечение земель", short: "Земля", icon: IconMap, weight: "25%", color: "text-green-600", bg: "bg-green-100", numWeight: 0.25 },
-            { title: "ФГИС ЕЦП НСПД", short: "НСПД", icon: IconFileText, weight: "12.5%", color: "text-purple-600", bg: "bg-purple-100", numWeight: 0.125 },
-            { title: "Земельный контроль", short: "Контроль", icon: IconShieldCheck, weight: "12.5%", color: "text-red-600", bg: "bg-red-100", numWeight: 0.125 },
-            { title: "Методика", short: "Инфо", icon: IconBookOpen, weight: "Инфо", color: "text-slate-600", bg: "bg-slate-100", numWeight: 0 },
-        ];
-
-        const finalResultsArray = [
-            { section: sections[0], val: results.ind1 },
-            { section: sections[1], val: results.ind2 },
-            { section: sections[2], val: results.ind3 },
-            { section: sections[3], val: results.ind4 },
-            { section: sections[4], val: results.ind5 },
-        ];
-
-        return (
-            <div className="max-w-7xl mx-auto p-2 md:p-6">
-                <header className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4 no-print">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900">Калькулятор Эффективности</h1>
-                        <p className="text-slate-500 text-sm">Нарастающим итогом (Квартал / Год)</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 items-center justify-center">
-                        <div className="flex items-center bg-slate-50 border border-slate-300 rounded-lg p-1">
-                            <div className="pl-2 pr-1 text-slate-500"><IconCalendar size={16} /></div>
-                            <select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-transparent text-sm focus:outline-none p-1 cursor-pointer font-medium text-slate-700 min-w-[140px]">
-                                {periodsList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-                            </select>
-                        </div>
-                        <button onClick={copyFromPreviousPeriod} className="flex items-center gap-1 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 text-xs font-medium transition-colors border border-slate-200" title="Взять данные из предыдущего периода как основу">
-                            <IconCopy size={14} /> <span className="hidden sm:inline">Вставить из пред. периода</span>
-                        </button>
-                        <div className="w-px h-6 bg-slate-300 mx-2 hidden xl:block"></div>
-                        <button onClick={resetCurrentCalcPeriod} className="px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
-                            <IconRotateCcw size={16} />
-                        </button>
-                    </div>
-                </header>
-                
-                <div className="print-only mb-8">
-                    <h1 className="text-3xl font-bold">Отчет эффективности (Экап)</h1>
-                    <p className="text-xl mt-2">Период: <b>{periodsList.find(p=>p.id===period)?.label}</b></p>
-                    <p className="text-sm text-slate-500">Дата формирования: {new Date().toLocaleDateString()}</p>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                    <div className="xl:col-span-3 space-y-4">
-                        <div className="flex overflow-x-auto gap-2 pb-1 no-scrollbar no-print">
-                            {sections.map((s, idx) => (
-                                <button key={idx} onClick={() => setActiveCalcTab(idx)} className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeCalcTab === idx ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
-                                    <s.icon size={16} /> <span>{s.short}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <Card className="p-5 print:shadow-none print:border-none print:p-0">
-                            {activeCalcTab !== 5 && (
-                                <div className="flex flex-wrap items-center justify-between border-b pb-3 mb-4 gap-2 no-print">
-                                    <h2 className="text-lg font-bold flex items-center gap-2 text-slate-800">
-                                        {React.createElement(sections[activeCalcTab].icon, { className: "text-slate-400" })}
-                                        {sections[activeCalcTab].title} 
-                                        <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 font-normal">Вес: {sections[activeCalcTab].weight}</span>
-                                    </h2>
-                                    {activeCalcTab === 0 && (
-                                        <div className="flex bg-slate-100 p-1 rounded">
-                                            <IconCoins size={14} className="mx-2 text-slate-400 mt-1"/>
-                                            {['rub', 'mln', 'bln', 'trln'].map((unit) => (
-                                            <button key={unit} onClick={() => setMoneyUnit(unit)} className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${moneyUnit === unit ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                                {unit === 'rub' ? 'Руб' : unit === 'mln' ? 'Млн' : unit === 'bln' ? 'Млрд' : 'Трлн'}
-                                            </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeCalcTab === 0 && (
-                                <>
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300">
-                                            <h3 className="font-semibold text-slate-900 text-sm mb-3">5.1. Уровень достижения суммарной КС (И_сум)</h3>
-                                            <CalculatorInputGroup label={`КС_отч - Текущая (${moneyLabels[moneyUnit]})`} value={currentData.ks_otch} onChange={(v) => updateCalcData('ks_otch', v)} />
-                                            <CalculatorInputGroup label={`КС_цел - Целевая 2030 (${moneyLabels[moneyUnit]})`} value={currentData.ks_cel} onChange={(v) => updateCalcData('ks_cel', v)} />
-                                        </div>
-                                        <div className="bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300">
-                                            <h3 className="font-semibold text-slate-900 text-sm mb-3">5.2 & 5.3 Общие данные для снижения</h3>
-                                            <CalculatorInputGroup label="К_он.общ - Всего объектов с КС (шт)" value={currentData.k_on_obsh} onChange={(v) => updateCalcData('k_on_obsh', v)} />
-                                            <CalculatorInputGroup label={`КС_общ - Общая стоимость (${moneyLabels[moneyUnit]})`} value={currentData.ks_on_obsh} onChange={(v) => updateCalcData('ks_on_obsh', v)} />
-                                        </div>
-                                        <div className="bg-orange-50 p-3 rounded md:col-span-2 border border-orange-100 print:bg-white print:border-slate-300">
-                                            <h3 className="text-sm font-bold text-orange-800 mb-3">Объекты с измененной КС (для И_изм.к и И_изм.кс)</h3>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div><CalculatorInputGroup label="К21 - Ст. 21 (шт)" value={currentData.k_21} onChange={(v) => updateCalcData('k_21', v)} /><CalculatorInputGroup label={`КС21 - Ст. 21 (${moneyLabels[moneyUnit]})`} value={currentData.ks_21} onChange={(v) => updateCalcData('ks_21', v)} /></div>
-                                                <div><CalculatorInputGroup label="К22 - Ст. 22 и 22.1 (шт)" value={currentData.k_22} onChange={(v) => updateCalcData('k_22', v)} /><CalculatorInputGroup label={`КС22 - Ст. 22 и 22.1 (${moneyLabels[moneyUnit]})`} value={currentData.ks_22} onChange={(v) => updateCalcData('ks_22', v)} /></div>
-                                                <div><CalculatorInputGroup label="К22.1 - Ст. 22.1 (доп., шт)" value={currentData.k_22_1} onChange={(v) => updateCalcData('k_22_1', v)} /><CalculatorInputGroup label={`КС22.1 - Ст. 22.1 (доп., ${moneyLabels[moneyUnit]})`} value={currentData.ks_22_1} onChange={(v) => updateCalcData('ks_22_1', v)} /></div>
-                                                <div><CalculatorInputGroup label="Ксуд - Суд (шт)" value={currentData.k_sud} onChange={(v) => updateCalcData('k_sud', v)} /><CalculatorInputGroup label={`КСсуд - Суд (${moneyLabels[moneyUnit]})`} value={currentData.ks_sud} onChange={(v) => updateCalcData('ks_sud', v)} /></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <ResultBreakdown total={results.ind1} items={[{ label: "5.1 И_сум", desc: "Достижение цели 2030", value: results.sub1_1 }, { label: "5.2 И_изм.к", desc: "Снижение кол-ва изменений", value: results.sub1_2 }, { label: "5.3 И_изм.кс", desc: "Снижение суммы изменений", value: results.sub1_3 }]} />
-                                </>
-                            )}
-                            {activeCalcTab === 1 && (
-                                <>
-                                    <div className="space-y-4">
-                                        <CalculatorInputGroup label="К_он.общ - Всего объектов в ЕГРН" value={currentData.k_on_obsh_reestr} onChange={(v) => updateCalcData('k_on_obsh_reestr', v)} />
-                                        <div className="bg-slate-50 p-3 rounded border border-slate-100 grid md:grid-cols-3 gap-2 print:bg-white print:border-slate-300">
-                                            <CalculatorInputGroup label="Кбезрп - Права не зарег." value={currentData.k_bezrp} onChange={(v) => updateCalcData('k_bezrp', v)} />
-                                            <CalculatorInputGroup label="Кмкд - МКД (исключение)" value={currentData.k_mkd} onChange={(v) => updateCalcData('k_mkd', v)} />
-                                            <CalculatorInputGroup label="Квыявл - Выявленные (искл)" value={currentData.k_vyyavl} onChange={(v) => updateCalcData('k_vyyavl', v)} />
-                                        </div>
-                                        <CalculatorInputGroup label="К_нкор - Без характеристик" value={currentData.k_nkor} onChange={(v) => updateCalcData('k_nkor', v)} hint="Количество объектов с отсутствующими характеристиками" />
-                                    </div>
-                                    <ResultBreakdown total={results.ind2} items={[{ label: "6.1 И_он", desc: "Доля объектов с правами", value: results.sub2_1 }, { label: "6.2 И_кач", desc: "Качество сведений ЕГРН", value: results.sub2_2 }]} />
-                                </>
-                            )}
-                            {activeCalcTab === 2 && (
-                                <>
-                                    <div className="space-y-4">
-                                        <div className="bg-green-50 p-3 rounded border border-green-100 print:bg-white print:border-slate-300">
-                                            <h3 className="font-semibold text-green-900 mb-2 text-sm">7.1. Доля выявленной территории (И_выявл)</h3>
-                                            <CalculatorInputGroup label="S_выявл - Площадь выявленная (га)" value={currentData.s_vyyavl} onChange={(v) => updateCalcData('s_vyyavl', v)} />
-                                            <CalculatorInputGroup label="S_тер - Общая площадь территории (га)" value={currentData.s_ter} onChange={(v) => updateCalcData('s_ter', v)} />
-                                        </div>
-                                        <div className="bg-green-50 p-3 rounded border border-green-100 print:bg-white print:border-slate-300">
-                                            <h3 className="font-semibold text-green-900 mb-2 text-sm">7.2. Вовлечение в оборот (И_оборот)</h3>
-                                            <CalculatorInputGroup label="S_предоставл - Площадь вовлеченная/сделки (га)" value={currentData.s_vuf} onChange={(v) => updateCalcData('s_vuf', v)} />
-                                            <CalculatorInputGroup label="S_госмун - Всего гос. и мун. земель (га)" value={currentData.s_gosmun} onChange={(v) => updateCalcData('s_gosmun', v)} />
-                                        </div>
-                                    </div>
-                                    <ResultBreakdown total={results.ind3} items={[{ label: "7.1 И_выявл", desc: "Эффективность выявления", value: results.sub3_1 }, { label: "7.2 И_оборот", desc: "Эффективность вовлечения", value: results.sub3_2 }]} />
-                                </>
-                            )}
-                            {activeCalcTab === 3 && (
-                                <>
-                                    <div className="space-y-4">
-                                        <div className="bg-purple-50 p-3 rounded border border-purple-100 print:bg-white print:border-slate-300">
-                                            <h3 className="font-semibold text-purple-900 mb-2 text-sm">8.1. Передача пространственных данных (И_пд)</h3>
-                                            <CalculatorInputGroup label="К_пс - Передано слоев" value={currentData.k_ps} onChange={(v) => updateCalcData('k_ps', v)} />
-                                            <CalculatorInputGroup label="К_пдпр - План по протоколу" value={currentData.k_pdpr} onChange={(v) => updateCalcData('k_pdpr', v)} />
-                                        </div>
-                                        <div className="bg-purple-50 p-3 rounded border border-purple-100 print:bg-white print:border-slate-300">
-                                            <h3 className="font-semibold text-purple-900 mb-2 text-sm">8.2. Использование НСПД в услугах (И_усл)</h3>
-                                            <CalculatorInputGroup label="К_рег - Регламенты с НСПД" value={currentData.k_reg} onChange={(v) => updateCalcData('k_reg', v)} />
-                                            <CalculatorInputGroup label="К_общ - Всего регламентов" value={currentData.k_obsh_reg} onChange={(v) => updateCalcData('k_obsh_reg', v)} />
-                                        </div>
-                                    </div>
-                                    <ResultBreakdown total={results.ind4} items={[{ label: "8.1 И_пд", desc: "Выполнение плана", value: results.sub4_1 }, { label: "8.2 И_усл", desc: "Цифровые услуги", value: results.sub4_2 }]} />
-                                </>
-                            )}
-                            {activeCalcTab === 4 && (
-                                <>
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="bg-red-50 p-3 rounded border border-red-100 print:bg-white print:border-slate-300">
-                                            <h3 className="text-red-900 font-bold text-sm mb-2">Федеральный (ГЗН)</h3>
-                                            <CalculatorInputGroup label="Квкнм - Выявлено нарушений" value={currentData.k_vknm_gzn} onChange={(v) => updateCalcData('k_vknm_gzn', v)} />
-                                            <CalculatorInputGroup label="Кпкнм - Проведено проверок" value={currentData.k_pknm_gzn} onChange={(v) => updateCalcData('k_pknm_gzn', v)} />
-                                            <CalculatorInputGroup label="Кукнм - Устранено нарушений" value={currentData.k_uknm_gzn} onChange={(v) => updateCalcData('k_uknm_gzn', v)} />
-                                        </div>
-                                        <div className="bg-red-50 p-3 rounded border border-red-100 print:bg-white print:border-slate-300">
-                                            <h3 className="text-red-900 font-bold text-sm mb-2">Муниципальный (МЗК)</h3>
-                                            <CalculatorInputGroup label="Квкнм - Выявлено нарушений" value={currentData.k_vknm_mzk} onChange={(v) => updateCalcData('k_vknm_mzk', v)} />
-                                            <CalculatorInputGroup label="Кпкнм - Проведено проверок" value={currentData.k_pknm_mzk} onChange={(v) => updateCalcData('k_pknm_mzk', v)} />
-                                            <CalculatorInputGroup label="Кукнм - Устранено нарушений" value={currentData.k_uknm_mzk} onChange={(v) => updateCalcData('k_uknm_mzk', v)} />
-                                        </div>
-                                    </div>
-                                    <ResultBreakdown total={results.ind5} items={[{ label: "9.1 И_вкнм", desc: "Выявляемость (к проверкам)", value: results.sub5_1 }, { label: "9.2 И_укнм", desc: "Устраняемость (к выявленным)", value: results.sub5_2 }]} />
-                                </>
-                            )}
-                            {activeCalcTab === 5 && (
-                                <div className="space-y-6 text-slate-800 methodology-text">
-                                    <div className="border-b pb-4">
-                                        <h2 className="text-2xl font-bold">Проект методики</h2>
-                                        <p className="text-slate-500 mt-1">О порядке расчета показателя эффективности капитализации территорий</p>
-                                    </div>
-                                    <div className="space-y-4 text-sm leading-relaxed text-slate-700">
-                                        <p>Настоящая методика определяет порядок расчета показателя, характеризующего эффективность мероприятий по повышению капитализации территорий (далее – показатель) за отчетный период (квартал, год) нарастающим итогом, начиная с отчетности за 2025 год.</p>
-                                        <p>Показатель отражает эффективность мероприятий по повышению капитализации территорий высших должностных лиц субъектов Российской Федерации и деятельности исполнительных органов субъектов Российской Федерации.</p>
-                                        <p>Федеральным органом исполнительной власти, ответственным за расчет показателя, является Росреестр.</p>
-                                        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 my-2">
-                                            <p className="font-bold text-blue-900 mb-1">Ключевые параметры:</p>
-                                            <ul className="list-disc pl-4 space-y-1">
-                                                <li><strong>Уровень расчета:</strong> Субъект Российской Федерации.</li>
-                                                <li><strong>Тип показателя:</strong> Возрастающий, предельное значение стремится к 100%.</li>
-                                                <li><strong>Единица измерения:</strong> Процент (код ОКЕИ – 744).</li>
-                                            </ul>
-                                        </div>
-                                        <h3 className="font-bold text-lg text-slate-900 mt-6">Порядок расчета</h3>
-                                        <p>Расчет показателя осуществляется Росреестром в соответствии с алгоритмом расчета, приведенным в настоящей методике, и на основе значений компонентов показателя, представленных профильными исполнительными органами субъекта РФ.</p>
-                                        <p className="italic text-slate-500">В случае непредставления данных используются данные прошлого периода.</p>
-                                        <h3 className="font-bold text-lg text-slate-900 mt-6">Формула расчета (Экап)</h3>
-                                        <div className="bg-white border rounded p-4 font-mono text-center">
-                                            Экап = (И1 × 0.25) + (И2 × 0.25) + (И3 × 0.25) + (И4 × 0.125) + (И5 × 0.125)
-                                        </div>
-                                        <p className="text-xs text-slate-500 mt-1">Итоговая формула учитывает удельные веса индикаторов.</p>
-                                        <h3 className="font-bold text-lg text-slate-900 mt-6">Перечень индикаторов и их вес</h3>
-                                        <div className="overflow-hidden border rounded-lg">
-                                            <table className="w-full text-left text-sm">
-                                                <thead className="bg-slate-100">
-                                                    <tr><th className="p-3 font-semibold">Направление</th><th className="p-3 font-semibold w-32">Удельный вес</th></tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    <tr><td className="p-3">1. Кадастровая оценка</td><td className="p-3 font-bold text-blue-700">25%</td></tr>
-                                                    <tr><td className="p-3">2. Полный и точный реестр недвижимости</td><td className="p-3 font-bold text-blue-700">25%</td></tr>
-                                                    <tr><td className="p-3">3. Выявление земель для вовлечения в оборот</td><td className="p-3 font-bold text-blue-700">25%</td></tr>
-                                                    <tr><td className="p-3">4. Внедрение ФГИС ЕЦП НСПД</td><td className="p-3 font-bold text-blue-700">12,5%</td></tr>
-                                                    <tr><td className="p-3">5. Осуществление земельного контроля (надзора)</td><td className="p-3 font-bold text-blue-700">12,5%</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <h3 className="font-bold text-lg text-slate-900 mt-6">Расчет индикатора (Иi)</h3>
-                                        <p>Индикатор для каждого направления рассчитывается как среднее значение входящих в него показателей. Если сбор данных по показателю не осуществляется, его значение принимается равным нулю.</p>
-                                        <div className="mt-6 space-y-6">
-                                            <div>
-                                                <h4 className="text-blue-900 font-bold mb-2">1. Кадастровая оценка</h4>
-                                                <div className="mt-2 space-y-3">
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.1. Уровень достижения суммарной кадастровой стоимости (И_сум)</div><div className="definition">Формула: <code>(КС_отч / КС_цел) × 100%</code><br/><span className="source">где: <b>КС_отч</b> – суммарная кадастровая стоимость региона на отчетный период; <b>КС_цел</b> – целевое значение суммарной кадастровой стоимости региона на 2030 год.</span><br/><span className="source">Источник: Росреестр, форма КС-1.</span></div></div>
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.2. Снижение количества объектов с изменённой КС (И_изм.к)</div><div className="definition">Формула: <code>(1 - ((К21 + К22 + Ксуд) / К_он.общ)) × 100%</code><br/><span className="source">где: <b>К21, К22, Ксуд</b> – количество объектов, стоимость которых изменена по ст. 21, 22, 22.1 ФЗ № 237 или суду; <b>К_он.общ</b> – общее кол-во объектов с КС.</span><br/><span className="source">Источник: Росреестр.</span></div></div>
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">5.3. Снижение суммарной КС при изменениях (И_изм.кс)</div><div className="definition">Формула: <code>(1 - ((КС21 + КС22 + КСсуд) / КС_общ)) × 100%</code><br/><span className="source">Аналогично п. 5.2, но считаются суммы стоимости.</span></div></div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-blue-900 font-bold mb-2">2. Реестр недвижимости</h4>
-                                                <div className="mt-2 space-y-3">
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">6.1. Доля объектов с зарегистрированными правами (И_он)</div><div className="definition">Формула: <code>(1 − (Кбезрп − Кмкд − Квыявл) / К_он.общ) × 100%</code><br/><span className="source">где: <b>Кбезрп</b> – объекты без прав; <b>Кмкд</b> – многоквартирные дома (исключаются); <b>Квыявл</b> – выявленные правообладатели (исключаются); <b>К_он.общ</b> – всего объектов.</span><br/><span className="source">Источник: ЕГРН.</span></div></div>
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">6.2. Качество характеристик (И_кач)</div><div className="definition">Формула: <code>(1 − (К_нкор / К_общ)) × 100%</code><br/><span className="source">где: <b>К_нкор</b> – объекты с отсутствующими характеристиками (площадь, категория и т.д.).</span></div></div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-blue-900 font-bold mb-2">3. Вовлечение земель</h4>
-                                                <div className="mt-2 space-y-3">
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">7.1. Доля выявленной территории (И_выявл)</div><div className="definition">Формула: <code>S_выявл / S_тер × 100%</code><br/><span className="source">где: <b>S_выявл</b> – площадь выявленных участков; <b>S_тер</b> – общая площадь территории.</span></div></div>
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">7.2. Вовлечение в оборот (И_оборот)</div><div className="definition">Формула: <code>S_предоставл / S_госмун × 100%</code><br/><span className="source">где: <b>S_предоставл</b> – площадь предоставленных земель по сделкам; <b>S_госмун</b> – всего гос/мун земель.</span></div></div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-blue-900 font-bold mb-2">4. ФГИС ЕЦП НСПД</h4>
-                                                <div className="mt-2 space-y-3">
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">8.1. Передача слоев (И_пд)</div><div className="definition">Формула: <code>К_пс / К_пдпр × 100%</code><br/><span className="source">где: <b>К_пс</b> – передано слоев; <b>К_пдпр</b> – плановое количество слоев по протоколу.</span></div></div>
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">8.2. Использование в услугах (И_усл)</div><div className="definition">Формула: <code>К_рег / К_общ × 100%</code><br/><span className="source">где: <b>К_рег</b> – регламенты услуг с использованием ФГИС; <b>К_общ</b> – всего регламентов по перечню (п. 75, 76, 79, 82, 120).</span></div></div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-blue-900 font-bold mb-2">5. Земельный контроль</h4>
-                                                <div className="mt-2 space-y-3">
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">9.1. Выявление нарушений (И_вкнм)</div><div className="definition">Формула: <code>(КвкнмГЗН + КвкнмМЗК) / (КпкнмГЗН + КпкнмМЗК) × 100%</code><br/><span className="source">Отношение выявленных нарушений к количеству проведенных проверок (ГЗН + МЗК).</span></div></div>
-                                                    <div><div className="font-semibold text-xs uppercase tracking-wide text-slate-500">9.2. Устранение нарушений (И_укнм)</div><div className="definition">Формула: <code>(КукнмГЗН + КукнмМЗК) / (КвкнмГЗН + КвкнмМЗК) × 100%</code><br/><span className="source">Отношение устраненных нарушений к выявленным.</span><br/><span className="source">*Нарушения: самовольное занятие, нецелевое использование, неиспользование.</span></div></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </Card>
-                    </div>
-                    <div className="xl:col-span-1">
-                        <Card className="p-4 bg-white border-2 border-slate-200 shadow-xl sticky top-4 text-slate-800 print:shadow-none print:border print:border-slate-300">
-                            <h2 className="text-xs uppercase text-slate-500 font-bold mb-1 print:text-slate-600">Итоговая эффективность</h2>
-                            <div className="text-5xl font-bold mb-2 text-slate-900">{results.total.toFixed(2)}%</div>
-                            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-6 print:border print:border-slate-300">
-                                <div className="bg-blue-600 h-full transition-all print:bg-black" style={{ width: `${Math.min(results.total, 100)}%` }}></div>
-                            </div>
-                            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 border-b border-slate-200 pb-1">Итоговая таблица</div>
-                            <div className="space-y-3">
-                                {finalResultsArray.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 print:bg-white print:border-slate-200 hover:bg-slate-100 transition-colors">
-                                        <div className={`p-2 rounded-lg ${item.section.bg} ${item.section.color} print:bg-white`}>
-                                            {React.createElement(item.section.icon, { size: 20 })}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-bold text-slate-700 truncate print:text-slate-600">{item.section.title}</div>
-                                            <div className="flex justify-between items-center mt-1">
-                                                <span className="font-mono text-slate-400 text-[10px]">{item.val.toFixed(1)}%</span>
-                                                <div className="text-right leading-tight">
-                                                    <div className="text-[14px] font-bold text-slate-900">{(item.val * item.section.numWeight).toFixed(2)}%</div>
-                                                    <div className="text-[9px] text-slate-400">Вклад в итог (вес {item.section.numWeight})</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-6 pt-4 border-t border-slate-200 text-xs text-slate-400 print:text-black print:border-slate-300">
-                                Период: {periodsList.find(p=>p.id===period)?.label}
-                            </div>
-                        </Card>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ===== ЭКСПОРТ КОМПОНЕНТА В ГЛОБАЛЬНУЮ ОБЛАСТЬ =====
-    window.EfficiencyCalculator = EfficiencyCalculator;
+window.EfficiencyCalculator = EfficiencyCalculator;
+console.log('✅ EfficiencyCalculator зарегистрирован в window');
 </script>
     <script>
 function initCalculator() {
