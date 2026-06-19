@@ -2012,7 +2012,7 @@ const CalculatorInputGroup = (props) => {
 };
 
 // ============================================================
-// ГЛАВНЫЙ КОМПОНЕНТ КАЛЬКУЛЯТОРА
+// ГЛАВНЫЙ КОМПОНЕНТ КАЛЬКУЛЯТОРА (ПОЛНАЯ ВЕРСИЯ)
 // ============================================================
 
 function EfficiencyCalculator() {
@@ -2132,7 +2132,7 @@ function EfficiencyCalculator() {
         const sub5_2 = calcPerc(fixed_total, violations_total);
         const ind5 = (sub5_1 + sub5_2) / 2;
         const total = (ind1 * 0.25) + (ind2 * 0.25) + (ind3 * 0.25) + (ind4 * 0.125) + (ind5 * 0.125);
-        return { ind1, ind2, ind3, ind4, ind5, total };
+        return { ind1, ind2, ind3, ind4, ind5, total, sub1_1, sub1_2, sub1_3, sub2_1, sub2_2, sub3_1, sub3_2, sub4_1, sub4_2, sub5_1, sub5_2 };
     };
     
     const results = React.useMemo(() => calculateResults(currentData), [currentData]);
@@ -2152,8 +2152,8 @@ function EfficiencyCalculator() {
         const updatedData = { ...calculatorData, [period]: emptyData };
         setCalculatorData(updatedData);
         localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
-        if (typeof showNotification === 'function') {
-            showNotification('Данные для текущего периода очищены', 'success');
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Данные для текущего периода очищены', 'success');
         }
     };
     
@@ -2174,8 +2174,9 @@ function EfficiencyCalculator() {
         { section: sections[4], val: results.ind5 },
     ];
     
-    // ===== ОСНОВНОЙ РЕНДЕР (упрощённый, но рабочий) =====
+    // ===== ОСНОВНОЙ РЕНДЕР С ПОЛЯМИ ВВОДА =====
     return React.createElement("div", { className: "max-w-7xl mx-auto p-2 md:p-6" },
+        // ХЕДЕР
         React.createElement("header", { className: "mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4 no-print" },
             React.createElement("div", null,
                 React.createElement("h1", { className: "text-xl font-bold text-slate-900" }, "Калькулятор Эффективности"),
@@ -2200,8 +2201,11 @@ function EfficiencyCalculator() {
                 }, React.createElement(IconRotateCcw, { size: 16 }))
             )
         ),
+        
         React.createElement("div", { className: "grid grid-cols-1 xl:grid-cols-4 gap-6" },
+            // ЛЕВАЯ КОЛОНКА - КОНТЕНТ
             React.createElement("div", { className: "xl:col-span-3 space-y-4" },
+                // КНОПКИ РАЗДЕЛОВ
                 React.createElement("div", { className: "flex overflow-x-auto gap-2 pb-1 no-scrollbar no-print" },
                     sections.map((s, idx) => 
                         React.createElement("button", { 
@@ -2211,7 +2215,10 @@ function EfficiencyCalculator() {
                         }, React.createElement(s.icon, { size: 16 }), React.createElement("span", null, s.short))
                     )
                 ),
+                
+                // КАРТОЧКА С КОНТЕНТОМ
                 React.createElement(Card, { className: "p-5 print:shadow-none print:border-none print:p-0" },
+                    // Заголовок секции
                     activeCalcTab !== 5 ? React.createElement("div", { className: "flex flex-wrap items-center justify-between border-b pb-3 mb-4 gap-2 no-print" },
                         React.createElement("h2", { className: "text-lg font-bold flex items-center gap-2 text-slate-800" },
                             React.createElement(sections[activeCalcTab].icon, { className: "text-slate-400" }),
@@ -2229,14 +2236,137 @@ function EfficiencyCalculator() {
                             )
                         ) : null
                     ) : null,
-                    React.createElement("div", { className: "text-slate-600" },
-                        React.createElement("p", { className: "text-center py-8" }, "Выберите раздел для работы"),
-                        React.createElement("div", { className: "mt-4 p-4 bg-blue-50 rounded-lg" },
-                            React.createElement("p", { className: "font-bold" }, "Итоговая эффективность: ", results.total ? results.total.toFixed(2) : "0", "%")
-                        )
-                    )
+                    
+                    // ===== КОНТЕНТ В ЗАВИСИМОСТИ ОТ ВКЛАДКИ =====
+                    activeCalcTab === 0 ? React.createElement("div", null,
+                        React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
+                            React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "font-semibold text-slate-900 text-sm mb-3" }, "5.1. Уровень достижения суммарной КС (И_сум)"),
+                                React.createElement(CalculatorInputGroup, { label: `КС_отч - Текущая (${moneyLabels[moneyUnit]})`, value: currentData.ks_otch, onChange: (v) => updateCalcData('ks_otch', v) }),
+                                React.createElement(CalculatorInputGroup, { label: `КС_цел - Целевая 2030 (${moneyLabels[moneyUnit]})`, value: currentData.ks_cel, onChange: (v) => updateCalcData('ks_cel', v) })
+                            ),
+                            React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "font-semibold text-slate-900 text-sm mb-3" }, "5.2 & 5.3 Общие данные для снижения"),
+                                React.createElement(CalculatorInputGroup, { label: "К_он.общ - Всего объектов с КС (шт)", value: currentData.k_on_obsh, onChange: (v) => updateCalcData('k_on_obsh', v) }),
+                                React.createElement(CalculatorInputGroup, { label: `КС_общ - Общая стоимость (${moneyLabels[moneyUnit]})`, value: currentData.ks_on_obsh, onChange: (v) => updateCalcData('ks_on_obsh', v) })
+                            )
+                        ),
+                        React.createElement("div", { className: "bg-orange-50 p-3 rounded mt-4 border border-orange-100 print:bg-white print:border-slate-300" },
+                            React.createElement("h3", { className: "text-sm font-bold text-orange-800 mb-3" }, "Объекты с измененной КС (для И_изм.к и И_изм.кс)"),
+                            React.createElement("div", { className: "grid grid-cols-2 gap-4" },
+                                React.createElement("div", null,
+                                    React.createElement(CalculatorInputGroup, { label: "К21 - Ст. 21 (шт)", value: currentData.k_21, onChange: (v) => updateCalcData('k_21', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: `КС21 - Ст. 21 (${moneyLabels[moneyUnit]})`, value: currentData.ks_21, onChange: (v) => updateCalcData('ks_21', v) })
+                                ),
+                                React.createElement("div", null,
+                                    React.createElement(CalculatorInputGroup, { label: "К22 - Ст. 22 и 22.1 (шт)", value: currentData.k_22, onChange: (v) => updateCalcData('k_22', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: `КС22 - Ст. 22 и 22.1 (${moneyLabels[moneyUnit]})`, value: currentData.ks_22, onChange: (v) => updateCalcData('ks_22', v) })
+                                ),
+                                React.createElement("div", null,
+                                    React.createElement(CalculatorInputGroup, { label: "К22.1 - Ст. 22.1 (доп., шт)", value: currentData.k_22_1, onChange: (v) => updateCalcData('k_22_1', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: `КС22.1 - Ст. 22.1 (доп., ${moneyLabels[moneyUnit]})`, value: currentData.ks_22_1, onChange: (v) => updateCalcData('ks_22_1', v) })
+                                ),
+                                React.createElement("div", null,
+                                    React.createElement(CalculatorInputGroup, { label: "Ксуд - Суд (шт)", value: currentData.k_sud, onChange: (v) => updateCalcData('k_sud', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: `КСсуд - Суд (${moneyLabels[moneyUnit]})`, value: currentData.ks_sud, onChange: (v) => updateCalcData('ks_sud', v) })
+                                )
+                            )
+                        ),
+                        React.createElement(ResultBreakdown, { total: results.ind1, items: [
+                            { label: "5.1 И_сум", desc: "Достижение цели 2030", value: results.sub1_1 },
+                            { label: "5.2 И_изм.к", desc: "Снижение кол-ва изменений", value: results.sub1_2 },
+                            { label: "5.3 И_изм.кс", desc: "Снижение суммы изменений", value: results.sub1_3 }
+                        ] })
+                    ) : null,
+                    
+                    activeCalcTab === 1 ? React.createElement("div", null,
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement(CalculatorInputGroup, { label: "К_он.общ - Всего объектов в ЕГРН", value: currentData.k_on_obsh_reestr, onChange: (v) => updateCalcData('k_on_obsh_reestr', v) }),
+                            React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 grid md:grid-cols-3 gap-2 print:bg-white print:border-slate-300" },
+                                React.createElement(CalculatorInputGroup, { label: "Кбезрп - Права не зарег.", value: currentData.k_bezrp, onChange: (v) => updateCalcData('k_bezrp', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Кмкд - МКД (исключение)", value: currentData.k_mkd, onChange: (v) => updateCalcData('k_mkd', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Квыявл - Выявленные (искл)", value: currentData.k_vyyavl, onChange: (v) => updateCalcData('k_vyyavl', v) })
+                            ),
+                            React.createElement(CalculatorInputGroup, { label: "К_нкор - Без характеристик", value: currentData.k_nkor, onChange: (v) => updateCalcData('k_nkor', v), hint: "Количество объектов с отсутствующими характеристиками" })
+                        ),
+                        React.createElement(ResultBreakdown, { total: results.ind2, items: [
+                            { label: "6.1 И_он", desc: "Доля объектов с правами", value: results.sub2_1 },
+                            { label: "6.2 И_кач", desc: "Качество сведений ЕГРН", value: results.sub2_2 }
+                        ] })
+                    ) : null,
+                    
+                    activeCalcTab === 2 ? React.createElement("div", null,
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement("div", { className: "bg-green-50 p-3 rounded border border-green-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "font-semibold text-green-900 mb-2 text-sm" }, "7.1. Доля выявленной территории (И_выявл)"),
+                                React.createElement(CalculatorInputGroup, { label: "S_выявл - Площадь выявленная (га)", value: currentData.s_vyyavl, onChange: (v) => updateCalcData('s_vyyavl', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "S_тер - Общая площадь территории (га)", value: currentData.s_ter, onChange: (v) => updateCalcData('s_ter', v) })
+                            ),
+                            React.createElement("div", { className: "bg-green-50 p-3 rounded border border-green-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "font-semibold text-green-900 mb-2 text-sm" }, "7.2. Вовлечение в оборот (И_оборот)"),
+                                React.createElement(CalculatorInputGroup, { label: "S_предоставл - Площадь вовлеченная/сделки (га)", value: currentData.s_vuf, onChange: (v) => updateCalcData('s_vuf', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "S_госмун - Всего гос. и мун. земель (га)", value: currentData.s_gosmun, onChange: (v) => updateCalcData('s_gosmun', v) })
+                            )
+                        ),
+                        React.createElement(ResultBreakdown, { total: results.ind3, items: [
+                            { label: "7.1 И_выявл", desc: "Эффективность выявления", value: results.sub3_1 },
+                            { label: "7.2 И_оборот", desc: "Эффективность вовлечения", value: results.sub3_2 }
+                        ] })
+                    ) : null,
+                    
+                    activeCalcTab === 3 ? React.createElement("div", null,
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement("div", { className: "bg-purple-50 p-3 rounded border border-purple-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "font-semibold text-purple-900 mb-2 text-sm" }, "8.1. Передача пространственных данных (И_пд)"),
+                                React.createElement(CalculatorInputGroup, { label: "К_пс - Передано слоев", value: currentData.k_ps, onChange: (v) => updateCalcData('k_ps', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "К_пдпр - План по протоколу", value: currentData.k_pdpr, onChange: (v) => updateCalcData('k_pdpr', v) })
+                            ),
+                            React.createElement("div", { className: "bg-purple-50 p-3 rounded border border-purple-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "font-semibold text-purple-900 mb-2 text-sm" }, "8.2. Использование НСПД в услугах (И_усл)"),
+                                React.createElement(CalculatorInputGroup, { label: "К_рег - Регламенты с НСПД", value: currentData.k_reg, onChange: (v) => updateCalcData('k_reg', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "К_общ - Всего регламентов", value: currentData.k_obsh_reg, onChange: (v) => updateCalcData('k_obsh_reg', v) })
+                            )
+                        ),
+                        React.createElement(ResultBreakdown, { total: results.ind4, items: [
+                            { label: "8.1 И_пд", desc: "Выполнение плана", value: results.sub4_1 },
+                            { label: "8.2 И_усл", desc: "Цифровые услуги", value: results.sub4_2 }
+                        ] })
+                    ) : null,
+                    
+                    activeCalcTab === 4 ? React.createElement("div", null,
+                        React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
+                            React.createElement("div", { className: "bg-red-50 p-3 rounded border border-red-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "text-red-900 font-bold text-sm mb-2" }, "Федеральный (ГЗН)"),
+                                React.createElement(CalculatorInputGroup, { label: "Квкнм - Выявлено нарушений", value: currentData.k_vknm_gzn, onChange: (v) => updateCalcData('k_vknm_gzn', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Кпкнм - Проведено проверок", value: currentData.k_pknm_gzn, onChange: (v) => updateCalcData('k_pknm_gzn', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Кукнм - Устранено нарушений", value: currentData.k_uknm_gzn, onChange: (v) => updateCalcData('k_uknm_gzn', v) })
+                            ),
+                            React.createElement("div", { className: "bg-red-50 p-3 rounded border border-red-100 print:bg-white print:border-slate-300" },
+                                React.createElement("h3", { className: "text-red-900 font-bold text-sm mb-2" }, "Муниципальный (МЗК)"),
+                                React.createElement(CalculatorInputGroup, { label: "Квкнм - Выявлено нарушений", value: currentData.k_vknm_mzk, onChange: (v) => updateCalcData('k_vknm_mzk', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Кпкнм - Проведено проверок", value: currentData.k_pknm_mzk, onChange: (v) => updateCalcData('k_pknm_mzk', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Кукнм - Устранено нарушений", value: currentData.k_uknm_mzk, onChange: (v) => updateCalcData('k_uknm_mzk', v) })
+                            )
+                        ),
+                        React.createElement(ResultBreakdown, { total: results.ind5, items: [
+                            { label: "9.1 И_вкнм", desc: "Выявляемость (к проверкам)", value: results.sub5_1 },
+                            { label: "9.2 И_укнм", desc: "Устраняемость (к выявленным)", value: results.sub5_2 }
+                        ] })
+                    ) : null,
+                    
+                    activeCalcTab === 5 ? React.createElement("div", { className: "space-y-6 text-slate-800 methodology-text" },
+                        React.createElement("div", { className: "border-b pb-4" },
+                            React.createElement("h2", { className: "text-2xl font-bold" }, "Проект методики"),
+                            React.createElement("p", { className: "text-slate-500 mt-1" }, "О порядке расчета показателя эффективности капитализации территорий")
+                        ),
+                        React.createElement("p", null, "Настоящая методика определяет порядок расчета показателя, характеризующего эффективность мероприятий по повышению капитализации территорий (далее – показатель) за отчетный период (квартал, год) нарастающим итогом, начиная с отчетности за 2025 год."),
+                        React.createElement("p", null, "Показатель отражает эффективность мероприятий по повышению капитализации территорий высших должностных лиц субъектов Российской Федерации и деятельности исполнительных органов субъектов Российской Федерации."),
+                        React.createElement("p", null, "Федеральным органом исполнительной власти, ответственным за расчет показателя, является Росреестр.")
+                    ) : null
                 )
             ),
+            
+            // ПРАВАЯ КОЛОНКА - ИТОГИ
             React.createElement("div", { className: "xl:col-span-1" },
                 React.createElement(Card, { className: "p-4 bg-white border-2 border-slate-200 shadow-xl sticky top-4 text-slate-800 print:shadow-none print:border print:border-slate-300" },
                     React.createElement("h2", { className: "text-xs uppercase text-slate-500 font-bold mb-1 print:text-slate-600" }, "Итоговая эффективность"),
