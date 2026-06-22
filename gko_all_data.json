@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-06-22T09:12:16.062Z",
+  "exportDate": "2026-06-22T09:22:22.253Z",
   "npas": [
     {
       "id": 2,
@@ -5106,7 +5106,7 @@
       "k_22_1": 0,
       "k_sud": 0,
       "ks_on_obsh": 9.76,
-      "ks_21": 1802388.55,
+      "ks_21": 0.001,
       "ks_22": 0,
       "ks_22_1": 0,
       "ks_sud": 0,
@@ -5205,6 +5205,6 @@
     "employeesCount": 95,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1782119536062
+    "exportTimestamp": 1782120142253
   }
 }
