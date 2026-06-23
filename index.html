@@ -2633,7 +2633,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const GITHUB_SYNC_ENABLED = true;
     
     const GITHUB_SYNC_API = window.GITHUB_RAW_URL;
-
+const GITHUB_PAGES_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system';
+const USE_GITHUB_PAGES = true;
+    
 async function loadFromGitHub() {
     if (!GITHUB_SYNC_ENABLED) {
         loadData();
@@ -2644,40 +2646,52 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        // ✅ ИСПОЛЬЗУЕМ GitHub API (не кэшируется как CDN)
-        const apiUrl = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
+        let json = null;
         
-        console.log('⏳ Загрузка через GitHub API...');
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        
-        const response = await fetch(apiUrl, {
-            signal: controller.signal,
-            headers: {
-                'Accept': 'application/vnd.github.v3+json'
+        if (USE_GITHUB_PAGES) {
+            // ✅ СПОСОБ 1: GitHub Pages (БЫСТРО, БЕЗ CORS, БЕЗ ОГРАНИЧЕНИЙ)
+            console.log('📄 Загрузка через GitHub Pages...');
+            
+            const timestamp = Date.now();
+            const url = `${GITHUB_PAGES_URL}/gko_all_data.json?t=${timestamp}`;
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
+            const response = await fetch(url, {
+                signal: controller.signal,
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                }
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log('⚠️ Файл не найден на GitHub Pages, пробуем API...');
+                    json = await loadFromGitHubAPI();
+                    if (!json) {
+                        loadData();
+                        loadDashboardsData();
+                        return;
+                    }
+                } else {
+                    throw new Error(`Ошибка загрузки (${response.status})`);
+                }
+            } else {
+                json = await response.json();
+                console.log('✅ Загружено через GitHub Pages');
             }
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-            if (response.status === 404) {
-                console.log('⚠️ Файл не найден, используем локальные данные');
-                loadData();
-                loadDashboardsData();
-                return;
-            }
-            throw new Error(`Ошибка загрузки (${response.status})`);
+        } else {
+            // ✅ СПОСОБ 2: GitHub API (ЗАПАСНОЙ)
+            json = await loadFromGitHubAPI();
         }
         
-        // ✅ ПОЛУЧАЕМ ДАННЫЕ
-        const data = await response.json();
-        console.log('📊 Размер файла:', data.size, 'байт');
-        
-        // ✅ ДЕКОДИРУЕМ base64
-        const decoded = atob(data.content);
-        const json = JSON.parse(decoded);
+        if (!json) {
+            throw new Error('Не удалось загрузить данные');
+        }
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
         
@@ -2689,7 +2703,7 @@ async function loadFromGitHub() {
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
         
-        // ===== СОХРАНЯЕМ ВСЕ ДАННЫЕ (ВСЕГДА ПЕРЕЗАПИСЫВАЕМ) =====
+        // ===== СОХРАНЯЕМ ВСЕ ДАННЫЕ =====
         
         // НПА
         if (json.npas && Array.isArray(json.npas)) {
@@ -2805,7 +2819,7 @@ async function loadFromGitHub() {
             }
         }
         
-        // ===== КАЛЬКУЛЯТОР (ВСЕГДА ПЕРЕЗАПИСЫВАЕМ) =====
+        // ===== КАЛЬКУЛЯТОР =====
         if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             console.log('📊 Периоды:', Object.keys(json.calculator));
@@ -2815,11 +2829,9 @@ async function loadFromGitHub() {
             }
             
             try {
-                // ✅ ВСЕГДА ПЕРЕЗАПИСЫВАЕМ
                 localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
                 console.log('✅ Данные калькулятора обновлены в localStorage');
                 
-                // Перезагружаем калькулятор
                 if (typeof window.initCalculator === 'function') {
                     setTimeout(() => {
                         window.initCalculator();
@@ -2847,7 +2859,34 @@ async function loadFromGitHub() {
         }
     }
 }
-    
+    async function loadFromGitHubAPI() {
+    try {
+        console.log('⏳ Загрузка через GitHub API (запасной)...');
+        
+        const url = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Ошибка (${response.status})`);
+        }
+        
+        const data = await response.json();
+        const decoded = atob(data.content);
+        const json = JSON.parse(decoded);
+        
+        console.log('✅ Загружено через GitHub API');
+        return json;
+        
+    } catch (error) {
+        console.warn('⚠️ GitHub API недоступен:', error.message);
+        return null;
+    }
+}
     let currentGitHubToken = null;
 
     function showGitHubTokenModal() {
