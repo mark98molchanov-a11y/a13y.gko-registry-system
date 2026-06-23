@@ -2813,27 +2813,44 @@ async function loadFromGitHub() {
         showNotification('⚠️ GitHub недоступен, загружены локальные данные', 'warning');
     }
 }
-    async function loadFromGitHubAPI() {
+  async function loadFromGitHubAPI() {
     try {
-        console.log('⏳ Загрузка через GitHub API (запасной)...');
+        console.log('⏳ Загрузка через GitHub API...');
         
-        const url = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
-        
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/vnd.github.v3+json'
-            }
+        // ШАГ 1: Получаем метаданные
+        const metaUrl = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
+        const metaResponse = await fetch(metaUrl, {
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
         
-        if (!response.ok) {
-            throw new Error(`Ошибка (${response.status})`);
+        if (!metaResponse.ok) {
+            throw new Error(`Ошибка метаданных (${metaResponse.status})`);
         }
         
-        const data = await response.json();
-        const decoded = atob(data.content);
-        const json = JSON.parse(decoded);
+        const meta = await metaResponse.json();
+        console.log('📊 Размер файла:', meta.size, 'байт');
+        console.log('🔗 Ссылка:', meta.download_url);
         
-        console.log('✅ Загружено через GitHub API');
+        // ШАГ 2: Загружаем файл по прямой ссылке с обходом кэша
+        const timestamp = Date.now();
+        const fileUrl = `${meta.download_url}?t=${timestamp}`;
+        
+        console.log('⏳ Загрузка файла...');
+        const fileResponse = await fetch(fileUrl);
+        
+        if (!fileResponse.ok) {
+            throw new Error(`Ошибка загрузки (${fileResponse.status})`);
+        }
+        
+        const json = await fileResponse.json();
+        
+        console.log('✅ Данные загружены через GitHub API');
+        console.log('📦 Версия:', json.version || 'unknown');
+        
+        if (json.calculator && json.calculator['2026_2_kv']) {
+            console.log('✅ 2026_2_kv ks_otch:', json.calculator['2026_2_kv'].ks_otch);
+        }
+        
         return json;
         
     } catch (error) {
