@@ -2648,19 +2648,33 @@ async function loadFromGitHub() {
         
         let json = null;
         
-        if (USE_GITHUB_PAGES) {
-            // ✅ СПОСОБ 1: GitHub Pages (БЫСТРО, БЕЗ CORS, БЕЗ ОГРАНИЧЕНИЙ)
-            console.log('📄 Загрузка через GitHub Pages...');
-            
-            const timestamp = Date.now();
-            const url = `${GITHUB_PAGES_URL}/gko_all_data.json?t=${timestamp}`;
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-            
-            const response = await fetch(url, {
-                signal: controller.signal,
-            });
+if (USE_GITHUB_PAGES) {
+    // ✅ СПОСОБ 1: jsDelivr CDN (БЫСТРО, БЕЗ CORS, БЕЗ ОГРАНИЧЕНИЙ)
+    console.log('📄 Загрузка через jsDelivr CDN...');
+    
+    // ✅ 1. ОЧИЩАЕМ КЭШ jsDelivr
+    console.log('🧹 Очистка кэша jsDelivr...');
+    try {
+        const purgeUrl = `https://purge.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system/gko_all_data.json`;
+        await fetch(purgeUrl, { method: 'POST' });
+        console.log('✅ Кэш jsDelivr очищен');
+    } catch(e) {
+        console.warn('⚠️ Не удалось очистить кэш:', e.message);
+    }
+    
+    // ✅ 2. ЖДЕМ 500ms ДЛЯ ОБНОВЛЕНИЯ CDN
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // ✅ 3. ЗАГРУЖАЕМ ФАЙЛ
+    const timestamp = Date.now();
+    const url = `${GITHUB_PAGES_URL}/gko_all_data.json?t=${timestamp}`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const response = await fetch(url, {
+        signal: controller.signal,
+    });
             
             clearTimeout(timeoutId);
             
