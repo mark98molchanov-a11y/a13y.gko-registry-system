@@ -2644,60 +2644,10 @@ async function loadFromGitHub() {
     }
     
     try {
-        console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
+        console.log('=== ЗАГРУЗКА ЧЕРЕЗ GITHUB API ===');
         
-        let json = null;
-        
-if (USE_GITHUB_PAGES) {
-    // ✅ СПОСОБ 1: jsDelivr CDN (БЫСТРО, БЕЗ CORS, БЕЗ ОГРАНИЧЕНИЙ)
-    console.log('📄 Загрузка через jsDelivr CDN...');
-    
-    // ✅ 1. ОЧИЩАЕМ КЭШ jsDelivr
-    console.log('🧹 Очистка кэша jsDelivr...');
-    try {
-        const purgeUrl = `https://purge.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system/gko_all_data.json`;
-        await fetch(purgeUrl, { method: 'POST' });
-        console.log('✅ Кэш jsDelivr очищен');
-    } catch(e) {
-        console.warn('⚠️ Не удалось очистить кэш:', e.message);
-    }
-    
-    // ✅ 2. ЖДЕМ 500ms ДЛЯ ОБНОВЛЕНИЯ CDN
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // ✅ 3. ЗАГРУЖАЕМ ФАЙЛ
-    const timestamp = Date.now();
-    const url = `${GITHUB_PAGES_URL}/gko_all_data.json?t=${timestamp}`;
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(url, {
-        signal: controller.signal,
-    });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log('⚠️ Файл не найден на GitHub Pages, пробуем API...');
-                    json = await loadFromGitHubAPI();
-                    if (!json) {
-                        loadData();
-                        loadDashboardsData();
-                        return;
-                    }
-                } else {
-                    throw new Error(`Ошибка загрузки (${response.status})`);
-                }
-            } else {
-                json = await response.json();
-                console.log('✅ Загружено через GitHub Pages');
-            }
-        } else {
-            // ✅ СПОСОБ 2: GitHub API (ЗАПАСНОЙ)
-            json = await loadFromGitHubAPI();
-        }
+        // ✅ ИСПОЛЬЗУЕМ ТОЛЬКО GITHUB API
+        const json = await loadFromGitHubAPI();
         
         if (!json) {
             throw new Error('Не удалось загрузить данные');
@@ -2705,7 +2655,6 @@ if (USE_GITHUB_PAGES) {
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
         
-        // Проверяем значение
         if (json.calculator && json.calculator['2026_2_kv']) {
             console.log('✅ 2026_2_kv ks_otch:', json.calculator['2026_2_kv'].ks_otch);
         }
@@ -2857,16 +2806,11 @@ if (USE_GITHUB_PAGES) {
         showNotification('✅ Все данные загружены из GitHub', 'success');
         
     } catch (error) {
-        if (error.name === 'AbortError') {
-            console.error('❌ Таймаут загрузки (30 секунд)');
-            showNotification('⚠️ Таймаут загрузки, используем локальные данные', 'warning');
-        } else {
-            console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
-            console.warn('⚠️ Загружаем локальные данные...');
-            loadData();
-            loadDashboardsData();
-            showNotification('⚠️ GitHub недоступен, загружены локальные данные', 'warning');
-        }
+        console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
+        console.warn('⚠️ Загружаем локальные данные...');
+        loadData();
+        loadDashboardsData();
+        showNotification('⚠️ GitHub недоступен, загружены локальные данные', 'warning');
     }
 }
     async function loadFromGitHubAPI() {
