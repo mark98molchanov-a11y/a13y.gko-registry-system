@@ -2644,13 +2644,20 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        // ✅ ИЗМЕНЕНИЕ 1: Используем GitHub API
-        const apiUrl = 'https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json';
-        const response = await fetch(apiUrl, {
-            headers: {
-                'Accept': 'application/vnd.github.v3+json'
-            }
+        // ✅ ИСПОЛЬЗУЕМ RAW URL (это РАБОТАЕТ!)
+        const url = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/gko_all_data.json';
+        
+        console.log('⏳ Загрузка файла (12.3 МБ)...');
+        
+        // Добавляем таймаут для надежности
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        const response = await fetch(url, {
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             if (response.status === 404) {
@@ -2662,13 +2669,11 @@ async function loadFromGitHub() {
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
-        // ✅ ИЗМЕНЕНИЕ 2: Декодируем base64
-        const data = await response.json();
-        const decoded = atob(data.content);
-        const json = JSON.parse(decoded);
+        // ✅ ПРЯМОЙ ПАРСИНГ JSON (без base64!)
+        const json = await response.json();
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
-        console.log('📊 Размер файла:', data.size, 'байт');
+        console.log('📊 Размер:', JSON.stringify(json).length, 'символов');
         
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
@@ -2711,15 +2716,12 @@ async function loadFromGitHub() {
             const employees = [...(json.orgStructure.employees || [])];
             let restoredPhotoCount = 0;
             
-            // Если OrgDataManager уже инициализирован
             if (window.orgData) {
                 console.log('🔄 Восстанавливаем фото в IndexedDB...');
                 
-                // Обновляем отделы и должности
                 window.orgData.departments = departments;
                 window.orgData.positions = positions;
                 
-                // Восстанавливаем фото из base64 в IndexedDB
                 for (const emp of employees) {
                     if (emp.photo && emp.photo.startsWith('data:image')) {
                         console.log(`📸 Сохранение фото для ${emp.name}...`);
@@ -2741,16 +2743,13 @@ async function loadFromGitHub() {
                     }
                 }
                 
-                // Обновляем сотрудников
                 window.orgData.employees = employees;
                 console.log(`✅ Сохранено ${employees.length} сотрудников`);
                 console.log(`📸 Восстановлено фото: ${restoredPhotoCount} из ${photosInFile}`);
                 
-                // Сохраняем в IndexedDB
                 await window.orgData.saveData();
                 console.log('✅ Данные сохранены в IndexedDB');
                 
-                // Обновляем отображение
                 if (window.orgApp) {
                     window.orgApp.filterDepartment = '';
                     window.orgApp.filterPosition = '';
@@ -2771,7 +2770,6 @@ async function loadFromGitHub() {
                 }
                 
             } else {
-                // Если OrgDataManager еще не инициализирован, сохраняем в pending
                 console.log('⏳ OrgDataManager еще не инициализирован, сохраняем в pending');
                 window.pendingOrgData = {
                     departments: departments,
@@ -2783,7 +2781,6 @@ async function loadFromGitHub() {
                 console.log(`💾 Сохранено в pending: ${departments.length} отделов, ${employees.length} сотрудников`);
             }
             
-            // Показываем уведомление
             if (restoredPhotoCount === photosInFile && photosInFile > 0) {
                 showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников, все ${restoredPhotoCount} фото восстановлены`, 'success');
             } else if (restoredPhotoCount > 0) {
@@ -2798,16 +2795,22 @@ async function loadFromGitHub() {
         // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
         if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
+            console.log('📊 Периоды:', Object.keys(json.calculator));
+            
+            // Проверяем, есть ли 2 квартал
+            if (json.calculator['2026_2_kv']) {
+                console.log('✅ 2026_2_kv ЕСТЬ! ks_otch:', json.calculator['2026_2_kv'].ks_otch);
+            }
+            
             try {
                 localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
                 console.log('✅ Данные калькулятора сохранены в localStorage');
-                console.log('📊 Периоды:', Object.keys(json.calculator));
                 
-                // Перезагружаем калькулятор, если мы на его вкладке
-                if (currentTab === 'calculator' && typeof window.initCalculator === 'function') {
+                // Перезагружаем калькулятор
+                if (typeof window.initCalculator === 'function') {
                     setTimeout(() => {
                         window.initCalculator();
-                        console.log('✅ Калькулятор перезагружен с данными из GitHub');
+                        console.log('🔄 Калькулятор перезагружен');
                     }, 300);
                 }
             } catch(e) {
@@ -2816,14 +2819,19 @@ async function loadFromGitHub() {
         }
         
         console.log('=== ЗАГРУЗКА ЗАВЕРШЕНА УСПЕШНО ===');
-        showNotification('✅ Данные загружены из GitHub', 'success');
+        showNotification('✅ Все данные загружены из GitHub', 'success');
         
     } catch (error) {
-        console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
-        console.warn('⚠️ Загружаем локальные данные...');
-        loadData();
-        loadDashboardsData();
-        showNotification('⚠️ GitHub недоступен, загружены локальные данные', 'warning');
+        if (error.name === 'AbortError') {
+            console.error('❌ Таймаут загрузки (30 секунд)');
+            showNotification('⚠️ Таймаут загрузки, используем локальные данные', 'warning');
+        } else {
+            console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
+            console.warn('⚠️ Загружаем локальные данные...');
+            loadData();
+            loadDashboardsData();
+            showNotification('⚠️ GitHub недоступен, загружены локальные данные', 'warning');
+        }
     }
 }
     
