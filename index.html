@@ -2021,9 +2021,8 @@ function EfficiencyCalculator() {
     const [period, setPeriod] = React.useState('2025_year');
     const [calculatorData, setCalculatorData] = React.useState({});
     
-    // ===== ВСЕГДА ЗАГРУЖАЕМ ПУСТЫЕ ЗНАЧЕНИЯ =====
+    // ===== ЗАГРУЖАЕМ ДАННЫЕ ИЗ GITHUB (через window) =====
     React.useEffect(() => {
-        // Создаем пустые данные для всех периодов
         const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
         const emptyDataModel = {
             ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
@@ -2034,17 +2033,42 @@ function EfficiencyCalculator() {
             k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
         };
         
-        const newData = {};
-        periodsList.forEach(p => {
-            newData[p] = { ...emptyDataModel };
-        });
+        // ✅ ПРОВЕРЯЕМ ДАННЫЕ ИЗ GITHUB
+        if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object') {
+            console.log('📊 Загружаем данные калькулятора из GitHub');
+            
+            const newData = {};
+            periodsList.forEach(p => {
+                if (window.githubCalculatorData[p]) {
+                    newData[p] = { ...emptyDataModel, ...window.githubCalculatorData[p] };
+                    console.log(`✅ Загружен период ${p}:`, newData[p]);
+                } else {
+                    newData[p] = { ...emptyDataModel };
+                }
+            });
+            
+            setCalculatorData(newData);
+            
+            if (newData['2026_2_kv']) {
+                console.log('✅ 2026_2_kv ks_otch из GitHub:', newData['2026_2_kv'].ks_otch);
+            }
+            
+            console.log('✅ Калькулятор загружен из GitHub');
+        } else {
+            // ❌ НЕТ ДАННЫХ - ПУСТЫЕ ЗНАЧЕНИЯ
+            console.log('⚠️ Нет данных из GitHub, создаем пустые');
+            
+            const newData = {};
+            periodsList.forEach(p => {
+                newData[p] = { ...emptyDataModel };
+            });
+            setCalculatorData(newData);
+            console.log('🧮 Калькулятор инициализирован с пустыми значениями');
+        }
         
-        setCalculatorData(newData);
+        // ❌ НЕ ОЧИЩАЕМ localStorage (он нам не нужен)
+        // localStorage.removeItem('gko_calculator_data_v1');
         
-        // Очищаем localStorage, чтобы старые данные не мешали
-        localStorage.removeItem('gko_calculator_data_v1');
-        
-        console.log('🧮 Калькулятор инициализирован с пустыми значениями');
     }, []);
     
     // ===== ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ =====
@@ -2427,6 +2451,13 @@ function initCalculator() {
     }
     
     try {
+        // ✅ ПРОВЕРЯЕМ НАЛИЧИЕ ДАННЫХ ИЗ GITHUB
+        if (window.githubCalculatorData) {
+            console.log('📊 Данные из GitHub доступны для калькулятора');
+        } else {
+            console.log('⚠️ Данные из GitHub пока не загружены');
+        }
+        
         const reactRoot = ReactDOM.createRoot(root);
         reactRoot.render(React.createElement(Component));
         console.log('✅ Калькулятор запущен!');
@@ -2648,7 +2679,6 @@ async function loadFromGitHub() {
     try {
         console.log('=== ЗАГРУЗКА ЧЕРЕЗ GITHUB API ===');
         
-        // ✅ ИСПОЛЬЗУЕМ ТОЛЬКО GITHUB API
         const json = await loadFromGitHubAPI();
         
         if (!json) {
@@ -2780,7 +2810,7 @@ async function loadFromGitHub() {
             }
         }
         
-        // ===== КАЛЬКУЛЯТОР =====
+        // ===== КАЛЬКУЛЯТОР - НЕ СОХРАНЯЕМ В localStorage =====
         if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             console.log('📊 Периоды:', Object.keys(json.calculator));
@@ -2789,18 +2819,19 @@ async function loadFromGitHub() {
                 console.log('✅ 2026_2_kv ks_otch:', json.calculator['2026_2_kv'].ks_otch);
             }
             
-            try {
-                localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
-                console.log('✅ Данные калькулятора обновлены в localStorage');
-                
-                if (typeof window.initCalculator === 'function') {
-                    setTimeout(() => {
-                        window.initCalculator();
-                        console.log('🔄 Калькулятор перезагружен');
-                    }, 300);
-                }
-            } catch(e) {
-                console.warn('⚠️ Ошибка при обновлении калькулятора:', e);
+            // ❌ НЕ СОХРАНЯЕМ В localStorage
+            // localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+            
+            // ✅ СОХРАНЯЕМ В ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ ДЛЯ КАЛЬКУЛЯТОРА
+            window.githubCalculatorData = json.calculator;
+            console.log('✅ Данные калькулятора сохранены в window.githubCalculatorData');
+            
+            // ✅ ЗАПУСКАЕМ КАЛЬКУЛЯТОР С ДАННЫМИ ИЗ GITHUB
+            if (typeof window.initCalculator === 'function') {
+                setTimeout(() => {
+                    window.initCalculator();
+                    console.log('🔄 Калькулятор перезагружен с данными из GitHub');
+                }, 300);
             }
         }
         
