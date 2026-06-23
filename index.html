@@ -2972,8 +2972,49 @@ async function saveToGitHub() {
         console.warn('⚠️ OrgDataManager не найден');
     }
     
-    const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
+    // ===== ✅ ПОЛУЧАЕМ ДАННЫЕ КАЛЬКУЛЯТОРА =====
+    let calculatorData = {};
     
+    // 1. ПЫТАЕМСЯ ПОЛУЧИТЬ ИЗ window.githubCalculatorData (данные из GitHub)
+    if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object') {
+        calculatorData = window.githubCalculatorData;
+        console.log('✅ Данные калькулятора взяты из window.githubCalculatorData');
+        console.log('📊 Периодов:', Object.keys(calculatorData).length);
+    } 
+    // 2. ЕСЛИ НЕТ - ПЫТАЕМСЯ ИЗ localStorage
+    else {
+        const saved = localStorage.getItem(STORAGE_KEY_CALCULATOR);
+        if (saved) {
+            try {
+                calculatorData = JSON.parse(saved);
+                console.log('✅ Данные калькулятора взяты из localStorage');
+            } catch(e) {
+                console.warn('⚠️ Ошибка парсинга localStorage');
+            }
+        }
+    }
+    
+    // 3. ЕСЛИ ВСЕ РАВНО НЕТ ДАННЫХ - СОЗДАЕМ СТРУКТУРУ С ПУСТЫМИ ЗНАЧЕНИЯМИ
+    if (!calculatorData || Object.keys(calculatorData).length === 0) {
+        console.warn('⚠️ Нет данных калькулятора, создаем пустую структуру');
+        const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
+        const emptyDataModel = {
+            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
+            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
+            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+        };
+        const newData = {};
+        periodsList.forEach(p => {
+            newData[p] = { ...emptyDataModel };
+        });
+        calculatorData = newData;
+        console.log('✅ Создана пустая структура калькулятора');
+    }
+    
+    // ===== ФОРМИРУЕМ ПОЛНЫЙ JSON =====
     const allData = {
         version: "3.0",
         exportDate: new Date().toISOString(),
@@ -2983,7 +3024,7 @@ async function saveToGitHub() {
         tree: orgStructure?.tree || null,
         images: orgStructure?.images || {},
         filesData: orgStructure?.filesData || {},
-        calculator: calculatorData,
+        calculator: calculatorData,  // ✅ ТЕПЕРЬ С ПРАВИЛЬНЫМИ ДАННЫМИ
         metadata: {
             npaCount: appData.length,
             dashboardsCount: dashboardsData.length,
@@ -3000,13 +3041,13 @@ async function saveToGitHub() {
     const contentSize = Math.round(content.length / 1024);
     console.log(`📤 Размер JSON: ${contentSize} KB`);
     
+    // ===== СОХРАНЯЕМ В GITHUB =====
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
     const path = 'gko_all_data.json';
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
     
     try {
-        // Пытаемся получить текущий SHA (если файл существует)
         let sha = null;
         try {
             const res = await fetch(apiUrl, {
@@ -3023,7 +3064,6 @@ async function saveToGitHub() {
         
         console.log('📤 Отправка данных в GitHub...');
         
-        // Сохраняем с SHA (если есть) или без него
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
@@ -3033,22 +3073,24 @@ async function saveToGitHub() {
             body: JSON.stringify({
                 message: `Сохранение: ${photoCount} фото, ${new Date().toLocaleString('ru-RU')}`,
                 content: btoa(unescape(encodeURIComponent(content))),
-                sha: sha || undefined  // Если sha нет, отправляем undefined
+                sha: sha || undefined
             })
         });
         
         if (response.ok) {
             console.log('✅ Данные успешно сохранены в GitHub!');
+            console.log('📊 Периодов калькулятора сохранено:', Object.keys(calculatorData).length);
+            
             closeGitHubModal();
             
-            // Показываем уведомление
             const successMsg = document.createElement('div');
             successMsg.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
             successMsg.innerHTML = `
                 ✅ Сохранено в GitHub!<br>
                 📁 Отделов: ${allData.metadata.departmentsCount}<br>
                 👥 Сотрудников: ${allData.metadata.employeesCount}<br>
-                📸 Фото: ${photoCount}
+                📸 Фото: ${photoCount}<br>
+                🧮 Периодов калькулятора: ${Object.keys(calculatorData).length}
             `;
             document.body.appendChild(successMsg);
             setTimeout(() => successMsg.remove(), 5000);
@@ -3057,10 +3099,8 @@ async function saveToGitHub() {
             const error = await response.json();
             console.error('❌ Ошибка GitHub:', error);
             
-            // Если ошибка 409 (конфликт), предлагаем принудительное сохранение
             if (response.status === 409) {
                 if (confirm('Файл был изменен. Хотите принудительно перезаписать его?')) {
-                    // Повторная попытка без SHA (принудительная перезапись)
                     console.log('🔄 Принудительная перезапись...');
                     const forceResponse = await fetch(apiUrl, {
                         method: 'PUT',
@@ -3071,7 +3111,6 @@ async function saveToGitHub() {
                         body: JSON.stringify({
                             message: `Принудительное сохранение: ${photoCount} фото, ${new Date().toLocaleString('ru-RU')}`,
                             content: btoa(unescape(encodeURIComponent(content)))
-                            // Без SHA - создаст новый коммит
                         })
                     });
                     
