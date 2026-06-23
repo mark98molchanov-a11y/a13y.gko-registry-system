@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-06-23T14:30:56.398Z",
+  "exportDate": "2026-06-23T15:18:18.635Z",
   "npas": [
     {
       "id": 2,
@@ -5248,6 +5248,6 @@
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1782225056398
+    "exportTimestamp": 1782227898635
   }
 }
