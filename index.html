@@ -2644,17 +2644,21 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-const timestamp = Date.now();
-const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/gko_all_data.json?t=${timestamp}`;
+        const timestamp = Date.now();
+        const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/gko_all_data.json?t=${timestamp}`;
         
         console.log('⏳ Загрузка файла (12.3 МБ)...');
         
-        // Добавляем таймаут для надежности
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
         const response = await fetch(url, {
-            signal: controller.signal
+            signal: controller.signal,
+            cache: 'no-cache',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
         });
         
         clearTimeout(timeoutId);
@@ -2669,7 +2673,6 @@ const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-reg
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
-        // ✅ ПРЯМОЙ ПАРСИНГ JSON (без base64!)
         const json = await response.json();
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
@@ -2678,29 +2681,47 @@ const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-reg
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
         
-        // ===== ЗАГРУЖАЕМ НПА =====
+        // ===== ЗАГРУЖАЕМ НПА (С АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИЕЙ) =====
         if (json.npas && Array.isArray(json.npas)) {
-            appData = [...json.npas];
-            try {
-                localStorage.setItem(STORAGE_KEY_NPA, JSON.stringify(appData));
-            } catch(e) {
-                console.warn('⚠️ НПА не сохранены в localStorage (превышен лимит)');
+            const oldData = localStorage.getItem(STORAGE_KEY_NPA);
+            const newData = JSON.stringify(json.npas);
+            
+            if (oldData !== newData) {
+                console.log('🔄 Данные НПА изменились, обновляем...');
+                appData = [...json.npas];
+                try {
+                    localStorage.setItem(STORAGE_KEY_NPA, newData);
+                } catch(e) {
+                    console.warn('⚠️ НПА не сохранены в localStorage (превышен лимит)');
+                }
+                console.log(`📚 Загружено ${json.npas.length} записей НПА`);
+                renderGrid();
+            } else {
+                console.log('ℹ️ Данные НПА не изменились');
+                appData = [...json.npas];
             }
-            console.log(`📚 Загружено ${json.npas.length} записей НПА`);
-            renderGrid();
         }
         
-        // ===== ЗАГРУЖАЕМ ДАШБОРДЫ =====
+        // ===== ЗАГРУЖАЕМ ДАШБОРДЫ (С АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИЕЙ) =====
         if (json.dashboards && Array.isArray(json.dashboards)) {
-            dashboardsData = [...json.dashboards];
-            try {
-                localStorage.setItem(STORAGE_KEY_DASHBOARDS, JSON.stringify(dashboardsData));
-            } catch(e) {
-                console.warn('⚠️ Дашборды не сохранены в localStorage (превышен лимит)');
-            }
-            console.log(`📊 Загружено ${json.dashboards.length} дашбордов`);
-            if (currentTab === 'dashboards') {
-                renderDashboardsGrid();
+            const oldData = localStorage.getItem(STORAGE_KEY_DASHBOARDS);
+            const newData = JSON.stringify(json.dashboards);
+            
+            if (oldData !== newData) {
+                console.log('🔄 Данные дашбордов изменились, обновляем...');
+                dashboardsData = [...json.dashboards];
+                try {
+                    localStorage.setItem(STORAGE_KEY_DASHBOARDS, newData);
+                } catch(e) {
+                    console.warn('⚠️ Дашборды не сохранены в localStorage (превышен лимит)');
+                }
+                console.log(`📊 Загружено ${json.dashboards.length} дашбордов`);
+                if (currentTab === 'dashboards') {
+                    renderDashboardsGrid();
+                }
+            } else {
+                console.log('ℹ️ Данные дашбордов не изменились');
+                dashboardsData = [...json.dashboards];
             }
         }
         
@@ -2710,6 +2731,22 @@ const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-reg
             console.log(`📁 Отделов: ${json.orgStructure.departments.length}`);
             console.log(`👥 Сотрудников: ${json.orgStructure.employees?.length || 0}`);
             console.log(`📸 Фото в файле: ${photosInFile}`);
+            
+            // Проверяем, изменились ли данные структуры
+            const oldStructure = localStorage.getItem('org_data_v3');
+            const newStructure = JSON.stringify({
+                departments: json.orgStructure.departments,
+                employees: json.orgStructure.employees || [],
+                positions: json.orgStructure.positions || []
+            });
+            
+            const structureChanged = oldStructure !== newStructure;
+            
+            if (structureChanged) {
+                console.log('🔄 Данные структуры ДИО изменились, обновляем...');
+            } else {
+                console.log('ℹ️ Данные структуры ДИО не изменились');
+            }
             
             const departments = json.orgStructure.departments;
             const positions = json.orgStructure.positions || [];
@@ -2750,7 +2787,7 @@ const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-reg
                 await window.orgData.saveData();
                 console.log('✅ Данные сохранены в IndexedDB');
                 
-                if (window.orgApp) {
+                if (window.orgApp && structureChanged) {
                     window.orgApp.filterDepartment = '';
                     window.orgApp.filterPosition = '';
                     window.orgApp.searchQuery = '';
@@ -2792,29 +2829,35 @@ const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-reg
             }
         }
         
-        // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
+        // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР (С АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИЕЙ) =====
         if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             console.log('📊 Периоды:', Object.keys(json.calculator));
             
-            // Проверяем, есть ли 2 квартал
             if (json.calculator['2026_2_kv']) {
                 console.log('✅ 2026_2_kv ЕСТЬ! ks_otch:', json.calculator['2026_2_kv'].ks_otch);
             }
             
             try {
-                localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
-                console.log('✅ Данные калькулятора сохранены в localStorage');
+                const oldData = localStorage.getItem(STORAGE_KEY_CALCULATOR);
+                const newData = JSON.stringify(json.calculator);
                 
-                // Перезагружаем калькулятор
-                if (typeof window.initCalculator === 'function') {
-                    setTimeout(() => {
-                        window.initCalculator();
-                        console.log('🔄 Калькулятор перезагружен');
-                    }, 300);
+                if (oldData !== newData) {
+                    console.log('🔄 Данные калькулятора изменились, обновляем...');
+                    localStorage.setItem(STORAGE_KEY_CALCULATOR, newData);
+                    console.log('✅ Данные калькулятора обновлены в localStorage');
+                    
+                    if (typeof window.initCalculator === 'function') {
+                        setTimeout(() => {
+                            window.initCalculator();
+                            console.log('🔄 Калькулятор перезагружен с новыми данными');
+                        }, 300);
+                    }
+                } else {
+                    console.log('ℹ️ Данные калькулятора не изменились');
                 }
             } catch(e) {
-                console.warn('⚠️ Калькулятор не сохранен в localStorage:', e);
+                console.warn('⚠️ Ошибка при обновлении калькулятора:', e);
             }
         }
         
@@ -3170,7 +3213,6 @@ function importJson() {
                     hasOrgStructure = true;
                 }
                 
-                // 👇 ИЗМЕНЕНИЕ: БОЛЕЕ ДЕТАЛЬНАЯ ИНФОРМАЦИЯ О КАЛЬКУЛЯТОРЕ
                 if (json.calculator && typeof json.calculator === 'object') {
                     const periods = Object.keys(json.calculator);
                     confirmMessage += `Калькулятор: ${periods.length} периодов (${periods.join(', ')})\n`;
@@ -3182,62 +3224,99 @@ function importJson() {
                 }
                 
                 if (confirm(confirmMessage)) {
-                    // Загружаем НПА
+                    
+                    // ===== НПА (с проверкой изменений) =====
                     if (hasNPA) {
-                        appData = [...json.npas];
-                        saveData();
-                    }
-                    
-                    // Загружаем дашборды
-                    if (hasDashboards) {
-                        dashboardsData = [...json.dashboards];
-                        saveDashboardsData();
-                    }
-                    
-                    // Загружаем организационную структуру
-                    if (hasOrgStructure && window.orgData) {
-                        showNotification('⏳ Загрузка структуры ДИО...', 'info');
+                        const oldData = localStorage.getItem(STORAGE_KEY_NPA);
+                        const newData = JSON.stringify(json.npas);
                         
+                        if (oldData !== newData) {
+                            console.log('🔄 Данные НПА изменились при импорте, обновляем...');
+                            appData = [...json.npas];
+                            saveData();
+                        } else {
+                            console.log('ℹ️ Данные НПА не изменились');
+                            appData = [...json.npas];
+                        }
+                    }
+                    
+                    // ===== ДАШБОРДЫ (с проверкой изменений) =====
+                    if (hasDashboards) {
+                        const oldData = localStorage.getItem(STORAGE_KEY_DASHBOARDS);
+                        const newData = JSON.stringify(json.dashboards);
+                        
+                        if (oldData !== newData) {
+                            console.log('🔄 Данные дашбордов изменились при импорте, обновляем...');
+                            dashboardsData = [...json.dashboards];
+                            saveDashboardsData();
+                        } else {
+                            console.log('ℹ️ Данные дашбордов не изменились');
+                            dashboardsData = [...json.dashboards];
+                        }
+                    }
+                    
+                    // ===== СТРУКТУРА ДИО (с проверкой изменений) =====
+                    if (hasOrgStructure && window.orgData) {
                         const departments = json.orgStructure.departments;
                         const positions = json.orgStructure.positions || [];
                         const employees = json.orgStructure.employees || [];
                         
-                        // Обновляем данные в менеджере
-                        window.orgData.departments = departments;
-                        window.orgData.employees = employees;
-                        window.orgData.positions = positions;
+                        // Проверяем, изменились ли данные
+                        const oldStructure = localStorage.getItem('org_data_v3');
+                        const newStructure = JSON.stringify({
+                            departments: departments,
+                            employees: employees,
+                            positions: positions
+                        });
                         
-                        await window.orgData.saveData();
-                        
-                        // Обновляем отображение
-                        if (window.orgApp) {
-                            await window.orgApp.render();
-                            if (window.orgApp.renderChartsInDetails) {
-                                setTimeout(() => window.orgApp.renderChartsInDetails(), 100);
+                        if (oldStructure !== newStructure) {
+                            console.log('🔄 Данные структуры ДИО изменились при импорте, обновляем...');
+                            showNotification('⏳ Загрузка структуры ДИО...', 'info');
+                            
+                            window.orgData.departments = departments;
+                            window.orgData.employees = employees;
+                            window.orgData.positions = positions;
+                            
+                            await window.orgData.saveData();
+                            
+                            if (window.orgApp) {
+                                await window.orgApp.render();
+                                if (window.orgApp.renderChartsInDetails) {
+                                    setTimeout(() => window.orgApp.renderChartsInDetails(), 100);
+                                }
                             }
+                            
+                            showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников`, 'success');
+                        } else {
+                            console.log('ℹ️ Данные структуры ДИО не изменились');
                         }
-                        
-                        showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников`, 'success');
                     }
                     
-                    // 👇 ИЗМЕНЕНИЕ: ДОБАВЛЕНА ПЕРЕЗАГРУЗКА КАЛЬКУЛЯТОРА
+                    // ===== КАЛЬКУЛЯТОР (с проверкой изменений) =====
                     if (hasCalculator && json.calculator) {
                         try {
-                            localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
-                            console.log('✅ Данные калькулятора сохранены в localStorage');
-                            console.log('📊 Периоды:', Object.keys(json.calculator));
+                            const oldData = localStorage.getItem(STORAGE_KEY_CALCULATOR);
+                            const newData = JSON.stringify(json.calculator);
                             
-                            // 👇 НОВЫЙ КОД: ПЕРЕЗАГРУЖАЕМ КАЛЬКУЛЯТОР
-                            if (typeof window.initCalculator === 'function') {
-                                // Если мы на вкладке калькулятора - обновляем сразу
-                                if (currentTab === 'calculator') {
-                                    setTimeout(() => {
-                                        window.initCalculator();
-                                        showNotification('✅ Данные калькулятора обновлены!', 'success');
-                                    }, 300);
-                                } else {
-                                    showNotification('✅ Данные калькулятора импортированы!', 'success');
+                            if (oldData !== newData) {
+                                console.log('🔄 Данные калькулятора изменились при импорте, обновляем...');
+                                localStorage.setItem(STORAGE_KEY_CALCULATOR, newData);
+                                console.log('✅ Данные калькулятора сохранены в localStorage');
+                                console.log('📊 Периоды:', Object.keys(json.calculator));
+                                
+                                // Перезагружаем калькулятор
+                                if (typeof window.initCalculator === 'function') {
+                                    if (currentTab === 'calculator') {
+                                        setTimeout(() => {
+                                            window.initCalculator();
+                                            showNotification('✅ Данные калькулятора обновлены!', 'success');
+                                        }, 300);
+                                    } else {
+                                        showNotification('✅ Данные калькулятора импортированы!', 'success');
+                                    }
                                 }
+                            } else {
+                                console.log('ℹ️ Данные калькулятора не изменились');
                             }
                         } catch (e) {
                             console.error('Ошибка сохранения калькулятора:', e);
@@ -3256,7 +3335,6 @@ function importJson() {
     };
     input.click();
 }
-
 function switchTab(tabName) {
     // Убрать активность со всех пунктов навигации
     document.querySelectorAll('.book-section.main, .book-subsection, .book-subsubsection').forEach(el => {
