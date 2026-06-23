@@ -2644,20 +2644,21 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        // ✅ ИСПОЛЬЗУЕМ ТОЛЬКО GITHUB API
-        const apiUrl = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
+        // ✅ ИСПОЛЬЗУЕМ jsDelivr CDN (НЕТ CORS, РАБОТАЕТ С БОЛЬШИМИ ФАЙЛАМИ)
+        const timestamp = Date.now();
+        const url = `https://cdn.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system@main/gko_all_data.json?t=${timestamp}`;
         
-        console.log('⏳ Загрузка через GitHub API...');
+        console.log('⏳ Загрузка файла через jsDelivr CDN...');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        // ✅ ТОЛЬКО API, БЕЗ raw.githubusercontent.com
-        const response = await fetch(apiUrl, {
+        const response = await fetch(url, {
             signal: controller.signal,
+            cache: 'no-cache',
             headers: {
-                'Accept': 'application/vnd.github.v3+json'
-                // ⚠️ НЕ ДОБАВЛЯТЬ Cache-Control - вызывает CORS ошибку
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
             }
         });
         
@@ -2673,13 +2674,8 @@ async function loadFromGitHub() {
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
-        // ✅ ПОЛУЧАЕМ ДАННЫЕ ИЗ API
-        const data = await response.json();
-        console.log('📊 Размер файла:', data.size, 'байт');
-        
-        // ✅ ДЕКОДИРУЕМ base64
-        const decoded = atob(data.content);
-        const json = JSON.parse(decoded);
+        // ✅ ПРЯМОЙ ПАРСИНГ JSON
+        const json = await response.json();
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
         console.log('📊 Размер:', JSON.stringify(json).length, 'символов');
