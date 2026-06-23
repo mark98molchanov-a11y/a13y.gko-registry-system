@@ -2644,18 +2644,18 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        const timestamp = Date.now();
-        const url = `https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/gko_all_data.json?t=${timestamp}`;
+        // ✅ ИСПОЛЬЗУЕМ GITHUB API (работает без CORS)
+        const url = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
         
-        console.log('⏳ Загрузка файла (12.3 МБ)...');
+        console.log('⏳ Загрузка файла через GitHub API...');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
         const response = await fetch(url, {
             signal: controller.signal,
-            cache: 'no-cache',
             headers: {
+                'Accept': 'application/vnd.github.v3+json',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache'
             }
@@ -2673,7 +2673,12 @@ async function loadFromGitHub() {
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
-        const json = await response.json();
+        // ✅ ПОЛУЧАЕМ ДАННЫЕ ИЗ API И ДЕКОДИРУЕМ base64
+        const data = await response.json();
+        console.log('📊 Размер файла:', data.size, 'байт');
+        
+        const decoded = atob(data.content);
+        const json = JSON.parse(decoded);
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
         console.log('📊 Размер:', JSON.stringify(json).length, 'символов');
