@@ -2021,37 +2021,33 @@ function EfficiencyCalculator() {
     const [period, setPeriod] = React.useState('2025_year');
     const [calculatorData, setCalculatorData] = React.useState({});
     
+    // ===== ВСЕГДА ЗАГРУЖАЕМ ПУСТЫЕ ЗНАЧЕНИЯ =====
     React.useEffect(() => {
-        try {
-            const savedDataStr = localStorage.getItem('gko_calculator_data_v1');
-            if (savedDataStr) {
-                const savedData = JSON.parse(savedDataStr);
-                if (savedData && typeof savedData === 'object') {
-                    const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
-                    const initialDataModel = {
-                        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
-                        ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-                        k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-                        s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-                        k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-                        k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-                    };
-                    const newData = {};
-                    periodsList.forEach(p => {
-                        if (savedData[p]) {
-                            newData[p] = { ...initialDataModel, ...savedData[p] };
-                        } else {
-                            newData[p] = { ...initialDataModel };
-                        }
-                    });
-                    setCalculatorData(newData);
-                }
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки данных калькулятора:', error);
-        }
+        // Создаем пустые данные для всех периодов
+        const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
+        const emptyDataModel = {
+            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
+            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
+            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+        };
+        
+        const newData = {};
+        periodsList.forEach(p => {
+            newData[p] = { ...emptyDataModel };
+        });
+        
+        setCalculatorData(newData);
+        
+        // Очищаем localStorage, чтобы старые данные не мешали
+        localStorage.removeItem('gko_calculator_data_v1');
+        
+        console.log('🧮 Калькулятор инициализирован с пустыми значениями');
     }, []);
     
+    // ===== ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ =====
     const periodsList = [
         { id: '2025_year', label: '2025 год' },
         { id: '2026_1_kv', label: '2026 - 1 квартал' },
@@ -2062,7 +2058,7 @@ function EfficiencyCalculator() {
     
     const moneyLabels = { 'rub': 'руб.', 'mln': 'млн руб.', 'bln': 'млрд руб.', 'trln': 'трлн руб.' };
     
-    const initialDataModel = {
+    const emptyDataModel = {
         ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
         ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
         k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
@@ -2071,7 +2067,7 @@ function EfficiencyCalculator() {
         k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
     };
     
-    const currentData = calculatorData[period] || { ...initialDataModel };
+    const currentData = calculatorData[period] || { ...emptyDataModel };
     
     const updateCalcData = (field, value) => {
         const updatedData = {
@@ -2082,7 +2078,8 @@ function EfficiencyCalculator() {
             }
         };
         setCalculatorData(updatedData);
-        localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+        // ⚠️ НЕ СОХРАНЯЕМ В localStorage - только в памяти
+        // localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
     };
     
     const copyFromPreviousPeriod = () => {
@@ -2093,10 +2090,11 @@ function EfficiencyCalculator() {
             if (confirm(`Вставить все данные из "${periodsList[currentIndex - 1].label}" в текущий период?`)) {
                 const updatedData = {
                     ...calculatorData,
-                    [period]: prevData ? { ...prevData } : { ...initialDataModel }
+                    [period]: prevData ? { ...prevData } : { ...emptyDataModel }
                 };
                 setCalculatorData(updatedData);
-                localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+                // ⚠️ НЕ СОХРАНЯЕМ В localStorage
+                // localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
             }
         } else {
             alert("Это первый период, нет данных для вставки.");
@@ -2151,12 +2149,14 @@ function EfficiencyCalculator() {
         };
         const updatedData = { ...calculatorData, [period]: emptyData };
         setCalculatorData(updatedData);
-        localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+        // ⚠️ НЕ СОХРАНЯЕМ В localStorage
+        // localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
         if (typeof window.showNotification === 'function') {
             window.showNotification('Данные для текущего периода очищены', 'success');
         }
     };
     
+    // ===== ОСТАЛЬНОЙ КОД РЕНДЕРА (БЕЗ ИЗМЕНЕНИЙ) =====
     const sections = [
         { title: "Кадастровая оценка", short: "Кадастр", icon: IconCalculator, weight: "25%", color: "text-blue-600", bg: "bg-blue-100", numWeight: 0.25 },
         { title: "Реестр недвижимости", short: "Реестр", icon: IconDatabase, weight: "25%", color: "text-indigo-600", bg: "bg-indigo-100", numWeight: 0.25 },
@@ -2174,7 +2174,7 @@ function EfficiencyCalculator() {
         { section: sections[4], val: results.ind5 },
     ];
     
-    // ===== ОСНОВНОЙ РЕНДЕР С ПОЛЯМИ ВВОДА =====
+    // ===== ОСНОВНОЙ РЕНДЕР (БЕЗ ИЗМЕНЕНИЙ) =====
     return React.createElement("div", { className: "max-w-7xl mx-auto p-2 md:p-6" },
         // ХЕДЕР
         React.createElement("header", { className: "mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4 no-print" },
@@ -2216,6 +2216,8 @@ function EfficiencyCalculator() {
                     )
                 ),
                 
+                // ===== ОСТАЛЬНОЙ РЕНДЕР СЕКЦИЙ (БЕЗ ИЗМЕНЕНИЙ) =====
+                // ... (весь код рендера секций остается без изменений)
                 // КАРТОЧКА С КОНТЕНТОМ
                 React.createElement(Card, { className: "p-5 print:shadow-none print:border-none print:p-0" },
                     // Заголовок секции
@@ -2237,7 +2239,7 @@ function EfficiencyCalculator() {
                         ) : null
                     ) : null,
                     
-                    // ===== КОНТЕНТ В ЗАВИСИМОСТИ ОТ ВКЛАДКИ =====
+                    // КОНТЕНТ В ЗАВИСИМОСТИ ОТ ВКЛАДКИ
                     activeCalcTab === 0 ? React.createElement("div", null,
                         React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
                             React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300" },
