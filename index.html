@@ -2652,14 +2652,13 @@ async function loadFromGitHub() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        const response = await fetch(url, {
-            signal: controller.signal,
-            headers: {
-                'Accept': 'application/vnd.github.v3+json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-            }
-        });
+   const response = await fetch(url, {
+    signal: controller.signal,
+    headers: {
+        'Accept': 'application/vnd.github.v3+json'
+        // Cache-Control и Pragma УБРАНЫ
+    }
+});
         
         clearTimeout(timeoutId);
         
