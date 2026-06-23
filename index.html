@@ -2644,32 +2644,19 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        // ✅ 1. СНАЧАЛА ОЧИЩАЕМ КЭШ jsDelivr
-        const purgeUrl = `https://purge.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system@main/gko_all_data.json`;
+        // ✅ ИСПОЛЬЗУЕМ GitHub API (не кэшируется как CDN)
+        const apiUrl = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
         
-        console.log('🧹 Очистка кэша jsDelivr...');
-        try {
-            await fetch(purgeUrl, { method: 'POST' });
-            console.log('✅ Кэш очищен');
-        } catch(e) {
-            console.warn('⚠️ Не удалось очистить кэш:', e.message);
-        }
-        
-        // ✅ 2. ЖДЕМ 500ms ДЛЯ ОБНОВЛЕНИЯ CDN
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // ✅ 3. ЗАГРУЖАЕМ ФАЙЛ
-        const timestamp = Date.now();
-        const url = `https://cdn.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system@main/gko_all_data.json?t=${timestamp}`;
-        
-        console.log('⏳ Загрузка файла через jsDelivr (свежий)...');
+        console.log('⏳ Загрузка через GitHub API...');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        // ✅ ТОЛЬКО fetch, БЕЗ ЗАГОЛОВКОВ
-        const response = await fetch(url, {
-            signal: controller.signal
+        const response = await fetch(apiUrl, {
+            signal: controller.signal,
+            headers: {
+                'Accept': 'application/vnd.github.v3+json'
+            }
         });
         
         clearTimeout(timeoutId);
@@ -2684,8 +2671,13 @@ async function loadFromGitHub() {
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
-        // ✅ ПРЯМОЙ ПАРСИНГ JSON
-        const json = await response.json();
+        // ✅ ПОЛУЧАЕМ ДАННЫЕ
+        const data = await response.json();
+        console.log('📊 Размер файла:', data.size, 'байт');
+        
+        // ✅ ДЕКОДИРУЕМ base64
+        const decoded = atob(data.content);
+        const json = JSON.parse(decoded);
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
         
@@ -2697,7 +2689,7 @@ async function loadFromGitHub() {
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
         
-        // ===== СОХРАНЯЕМ ВСЕ ДАННЫЕ =====
+        // ===== СОХРАНЯЕМ ВСЕ ДАННЫЕ (ВСЕГДА ПЕРЕЗАПИСЫВАЕМ) =====
         
         // НПА
         if (json.npas && Array.isArray(json.npas)) {
