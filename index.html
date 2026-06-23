@@ -2644,19 +2644,32 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        // ✅ ИСПОЛЬЗУЕМ jsDelivr CDN (НЕТ CORS, РАБОТАЕТ С БОЛЬШИМИ ФАЙЛАМИ)
+        // ✅ 1. СНАЧАЛА ОЧИЩАЕМ КЭШ jsDelivr
+        const purgeUrl = `https://purge.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system@main/gko_all_data.json`;
+        
+        console.log('🧹 Очистка кэша jsDelivr...');
+        try {
+            await fetch(purgeUrl, { method: 'POST' });
+            console.log('✅ Кэш очищен');
+        } catch(e) {
+            console.warn('⚠️ Не удалось очистить кэш:', e.message);
+        }
+        
+        // ✅ 2. ЖДЕМ 500ms ДЛЯ ОБНОВЛЕНИЯ CDN
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // ✅ 3. ЗАГРУЖАЕМ ФАЙЛ
         const timestamp = Date.now();
         const url = `https://cdn.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system@main/gko_all_data.json?t=${timestamp}`;
         
-        console.log('⏳ Загрузка файла через jsDelivr CDN...');
+        console.log('⏳ Загрузка файла через jsDelivr (свежий)...');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        // ✅ УБИРАЕМ ВСЕ ЗАГОЛОВКИ, КРОМЕ ОБЫЧНЫХ
+        // ✅ ТОЛЬКО fetch, БЕЗ ЗАГОЛОВКОВ
         const response = await fetch(url, {
             signal: controller.signal
-            // ⚠️ НЕ ДОБАВЛЯТЬ Cache-Control, Pragma и другие кастомные заголовки!
         });
         
         clearTimeout(timeoutId);
@@ -2675,76 +2688,49 @@ async function loadFromGitHub() {
         const json = await response.json();
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
-        console.log('📊 Размер:', JSON.stringify(json).length, 'символов');
+        
+        // Проверяем значение
+        if (json.calculator && json.calculator['2026_2_kv']) {
+            console.log('✅ 2026_2_kv ks_otch:', json.calculator['2026_2_kv'].ks_otch);
+        }
         
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
         
-        // ===== ЗАГРУЖАЕМ НПА (С АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИЕЙ) =====
+        // ===== СОХРАНЯЕМ ВСЕ ДАННЫЕ =====
+        
+        // НПА
         if (json.npas && Array.isArray(json.npas)) {
-            const oldData = localStorage.getItem(STORAGE_KEY_NPA);
-            const newData = JSON.stringify(json.npas);
-            
-            if (oldData !== newData) {
-                console.log('🔄 Данные НПА изменились, обновляем...');
-                appData = [...json.npas];
-                try {
-                    localStorage.setItem(STORAGE_KEY_NPA, newData);
-                } catch(e) {
-                    console.warn('⚠️ НПА не сохранены в localStorage (превышен лимит)');
-                }
-                console.log(`📚 Загружено ${json.npas.length} записей НПА`);
-                renderGrid();
-            } else {
-                console.log('ℹ️ Данные НПА не изменились');
-                appData = [...json.npas];
+            appData = [...json.npas];
+            try {
+                localStorage.setItem(STORAGE_KEY_NPA, JSON.stringify(appData));
+            } catch(e) {
+                console.warn('⚠️ НПА не сохранены в localStorage (превышен лимит)');
             }
+            console.log(`📚 Загружено ${json.npas.length} записей НПА`);
+            renderGrid();
         }
         
-        // ===== ЗАГРУЖАЕМ ДАШБОРДЫ (С АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИЕЙ) =====
+        // ДАШБОРДЫ
         if (json.dashboards && Array.isArray(json.dashboards)) {
-            const oldData = localStorage.getItem(STORAGE_KEY_DASHBOARDS);
-            const newData = JSON.stringify(json.dashboards);
-            
-            if (oldData !== newData) {
-                console.log('🔄 Данные дашбордов изменились, обновляем...');
-                dashboardsData = [...json.dashboards];
-                try {
-                    localStorage.setItem(STORAGE_KEY_DASHBOARDS, newData);
-                } catch(e) {
-                    console.warn('⚠️ Дашборды не сохранены в localStorage (превышен лимит)');
-                }
-                console.log(`📊 Загружено ${json.dashboards.length} дашбордов`);
-                if (currentTab === 'dashboards') {
-                    renderDashboardsGrid();
-                }
-            } else {
-                console.log('ℹ️ Данные дашбордов не изменились');
-                dashboardsData = [...json.dashboards];
+            dashboardsData = [...json.dashboards];
+            try {
+                localStorage.setItem(STORAGE_KEY_DASHBOARDS, JSON.stringify(dashboardsData));
+            } catch(e) {
+                console.warn('⚠️ Дашборды не сохранены в localStorage (превышен лимит)');
+            }
+            console.log(`📊 Загружено ${json.dashboards.length} дашбордов`);
+            if (currentTab === 'dashboards') {
+                renderDashboardsGrid();
             }
         }
         
-        // ===== ЗАГРУЖАЕМ ОРГАНИЗАЦИОННУЮ СТРУКТУРУ =====
+        // СТРУКТУРА ДИО
         if (json.orgStructure && json.orgStructure.departments) {
             console.log('🏢 Загружаем организационную структуру...');
             console.log(`📁 Отделов: ${json.orgStructure.departments.length}`);
             console.log(`👥 Сотрудников: ${json.orgStructure.employees?.length || 0}`);
             console.log(`📸 Фото в файле: ${photosInFile}`);
-            
-            const oldStructure = localStorage.getItem('org_data_v3');
-            const newStructure = JSON.stringify({
-                departments: json.orgStructure.departments,
-                employees: json.orgStructure.employees || [],
-                positions: json.orgStructure.positions || []
-            });
-            
-            const structureChanged = oldStructure !== newStructure;
-            
-            if (structureChanged) {
-                console.log('🔄 Данные структуры ДИО изменились, обновляем...');
-            } else {
-                console.log('ℹ️ Данные структуры ДИО не изменились');
-            }
             
             const departments = json.orgStructure.departments;
             const positions = json.orgStructure.positions || [];
@@ -2785,7 +2771,7 @@ async function loadFromGitHub() {
                 await window.orgData.saveData();
                 console.log('✅ Данные сохранены в IndexedDB');
                 
-                if (window.orgApp && structureChanged) {
+                if (window.orgApp) {
                     window.orgApp.filterDepartment = '';
                     window.orgApp.filterPosition = '';
                     window.orgApp.searchQuery = '';
@@ -2827,32 +2813,26 @@ async function loadFromGitHub() {
             }
         }
         
-        // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР (С АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИЕЙ) =====
+        // ===== КАЛЬКУЛЯТОР (ВСЕГДА ПЕРЕЗАПИСЫВАЕМ) =====
         if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             console.log('📊 Периоды:', Object.keys(json.calculator));
             
             if (json.calculator['2026_2_kv']) {
-                console.log('✅ 2026_2_kv ЕСТЬ! ks_otch:', json.calculator['2026_2_kv'].ks_otch);
+                console.log('✅ 2026_2_kv ks_otch:', json.calculator['2026_2_kv'].ks_otch);
             }
             
             try {
-                const oldData = localStorage.getItem(STORAGE_KEY_CALCULATOR);
-                const newData = JSON.stringify(json.calculator);
+                // ✅ ВСЕГДА ПЕРЕЗАПИСЫВАЕМ
+                localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+                console.log('✅ Данные калькулятора обновлены в localStorage');
                 
-                if (oldData !== newData) {
-                    console.log('🔄 Данные калькулятора изменились, обновляем...');
-                    localStorage.setItem(STORAGE_KEY_CALCULATOR, newData);
-                    console.log('✅ Данные калькулятора обновлены в localStorage');
-                    
-                    if (typeof window.initCalculator === 'function') {
-                        setTimeout(() => {
-                            window.initCalculator();
-                            console.log('🔄 Калькулятор перезагружен с новыми данными');
-                        }, 300);
-                    }
-                } else {
-                    console.log('ℹ️ Данные калькулятора не изменились');
+                // Перезагружаем калькулятор
+                if (typeof window.initCalculator === 'function') {
+                    setTimeout(() => {
+                        window.initCalculator();
+                        console.log('🔄 Калькулятор перезагружен');
+                    }, 300);
                 }
             } catch(e) {
                 console.warn('⚠️ Ошибка при обновлении калькулятора:', e);
