@@ -2660,10 +2660,6 @@ async function loadFromGitHub() {
             
             const response = await fetch(url, {
                 signal: controller.signal,
-                cache: 'no-cache',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                }
             });
             
             clearTimeout(timeoutId);
