@@ -2676,15 +2676,21 @@ async function loadFromGitHub() {
         console.log('🔗 Ссылка на скачивание:', data.download_url);
         
         // ШАГ 2: Загружаем сам файл по прямой ссылке
-        console.log('⏳ Загрузка файла по прямой ссылке...');
-        
-        const fileResponse = await fetch(data.download_url, {
-            signal: controller.signal
-        });
-        
-        if (!fileResponse.ok) {
-            throw new Error(`Ошибка загрузки файла (${fileResponse.status})`);
-        }
+  console.log('⏳ Загрузка файла по прямой ссылке...');
+
+// ✅ ДОБАВЛЯЕМ TIMESTAMP ДЛЯ ОБХОДА КЭША
+const timestamp = Date.now();
+const fileResponse = await fetch(`${data.download_url}?t=${timestamp}`, {
+    cache: 'no-cache',
+    headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+    }
+});
+
+if (!fileResponse.ok) {
+    throw new Error(`Ошибка загрузки файла (${fileResponse.status})`);
+}
         
         // ✅ ПРЯМОЙ ПАРСИНГ JSON
         const json = await fileResponse.json();
