@@ -2784,13 +2784,23 @@ async function loadFromGitHub() {
             }
         }
         
-        // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
-        if (json.calculator) {
+        // 👇 ИЗМЕНЕНИЕ: ДОБАВЛЕНА ПЕРЕЗАГРУЗКА КАЛЬКУЛЯТОРА
+        if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             try {
                 localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+                console.log('✅ Данные калькулятора сохранены в localStorage');
+                console.log('📊 Периоды:', Object.keys(json.calculator));
+                
+                // 👇 НОВЫЙ КОД: ПЕРЕЗАГРУЖАЕМ КАЛЬКУЛЯТОР, ЕСЛИ МЫ НА ЕГО ВКЛАДКЕ
+                if (currentTab === 'calculator' && typeof window.initCalculator === 'function') {
+                    setTimeout(() => {
+                        window.initCalculator();
+                        console.log('✅ Калькулятор перезагружен с данными из GitHub');
+                    }, 300);
+                }
             } catch(e) {
-                console.warn('⚠️ Калькулятор не сохранен в localStorage');
+                console.warn('⚠️ Калькулятор не сохранен в localStorage:', e);
             }
         }
         
@@ -3140,8 +3150,10 @@ function importJson() {
                     hasOrgStructure = true;
                 }
                 
-                if (json.calculator) {
-                    confirmMessage += `Калькулятор: данные настроек\n`;
+                // 👇 ИЗМЕНЕНИЕ: БОЛЕЕ ДЕТАЛЬНАЯ ИНФОРМАЦИЯ О КАЛЬКУЛЯТОРЕ
+                if (json.calculator && typeof json.calculator === 'object') {
+                    const periods = Object.keys(json.calculator);
+                    confirmMessage += `Калькулятор: ${periods.length} периодов (${periods.join(', ')})\n`;
                     hasCalculator = true;
                 }
                 
@@ -3188,12 +3200,28 @@ function importJson() {
                         showNotification(`✅ Загружено: ${departments.length} отделов, ${employees.length} сотрудников`, 'success');
                     }
                     
-                    // Загружаем калькулятор
+                    // 👇 ИЗМЕНЕНИЕ: ДОБАВЛЕНА ПЕРЕЗАГРУЗКА КАЛЬКУЛЯТОРА
                     if (hasCalculator && json.calculator) {
                         try {
                             localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
+                            console.log('✅ Данные калькулятора сохранены в localStorage');
+                            console.log('📊 Периоды:', Object.keys(json.calculator));
+                            
+                            // 👇 НОВЫЙ КОД: ПЕРЕЗАГРУЖАЕМ КАЛЬКУЛЯТОР
+                            if (typeof window.initCalculator === 'function') {
+                                // Если мы на вкладке калькулятора - обновляем сразу
+                                if (currentTab === 'calculator') {
+                                    setTimeout(() => {
+                                        window.initCalculator();
+                                        showNotification('✅ Данные калькулятора обновлены!', 'success');
+                                    }, 300);
+                                } else {
+                                    showNotification('✅ Данные калькулятора импортированы!', 'success');
+                                }
+                            }
                         } catch (e) {
-                            console.warn('Не удалось сохранить калькулятор');
+                            console.error('Ошибка сохранения калькулятора:', e);
+                            showNotification('❌ Ошибка импорта калькулятора', 'error');
                         }
                     }
                     
@@ -3201,12 +3229,14 @@ function importJson() {
                 }
             } catch(e) {
                 alert("Ошибка чтения JSON файла: " + e.message);
+                console.error('Ошибка парсинга JSON:', e);
             }
         };
         reader.readAsText(file);
     };
     input.click();
 }
+
 function switchTab(tabName) {
     // Убрать активность со всех пунктов навигации
     document.querySelectorAll('.book-section.main, .book-subsection, .book-subsubsection').forEach(el => {
