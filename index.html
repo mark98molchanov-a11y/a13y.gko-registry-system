@@ -2644,18 +2644,20 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        // ШАГ 1: Получаем метаданные файла через API
+        // ✅ ИСПОЛЬЗУЕМ ТОЛЬКО GITHUB API
         const apiUrl = `https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json`;
         
-        console.log('⏳ Получение метаданных файла...');
+        console.log('⏳ Загрузка через GitHub API...');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
+        // ✅ ТОЛЬКО API, БЕЗ raw.githubusercontent.com
         const response = await fetch(apiUrl, {
             signal: controller.signal,
             headers: {
                 'Accept': 'application/vnd.github.v3+json'
+                // ⚠️ НЕ ДОБАВЛЯТЬ Cache-Control - вызывает CORS ошибку
             }
         });
         
@@ -2671,29 +2673,13 @@ async function loadFromGitHub() {
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
+        // ✅ ПОЛУЧАЕМ ДАННЫЕ ИЗ API
         const data = await response.json();
         console.log('📊 Размер файла:', data.size, 'байт');
-        console.log('🔗 Ссылка на скачивание:', data.download_url);
         
-        // ШАГ 2: Загружаем сам файл по прямой ссылке
-  console.log('⏳ Загрузка файла по прямой ссылке...');
-
-// ✅ ДОБАВЛЯЕМ TIMESTAMP ДЛЯ ОБХОДА КЭША
-const timestamp = Date.now();
-const fileResponse = await fetch(`${data.download_url}?t=${timestamp}`, {
-    cache: 'no-cache',
-    headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-    }
-});
-
-if (!fileResponse.ok) {
-    throw new Error(`Ошибка загрузки файла (${fileResponse.status})`);
-}
-        
-        // ✅ ПРЯМОЙ ПАРСИНГ JSON
-        const json = await fileResponse.json();
+        // ✅ ДЕКОДИРУЕМ base64
+        const decoded = atob(data.content);
+        const json = JSON.parse(decoded);
         
         console.log('📦 Получен JSON, версия:', json.version || 'unknown');
         console.log('📊 Размер:', JSON.stringify(json).length, 'символов');
