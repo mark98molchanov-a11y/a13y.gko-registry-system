@@ -2644,7 +2644,13 @@ async function loadFromGitHub() {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ ИЗ GITHUB ===');
         
-        const response = await fetch(`${GITHUB_SYNC_API}gko_all_data.json`);
+        // ✅ ИЗМЕНЕНИЕ 1: Используем GitHub API
+        const apiUrl = 'https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/contents/gko_all_data.json';
+        const response = await fetch(apiUrl, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
         
         if (!response.ok) {
             if (response.status === 404) {
@@ -2656,8 +2662,13 @@ async function loadFromGitHub() {
             throw new Error(`Ошибка загрузки (${response.status})`);
         }
         
-        const json = await response.json();
-        console.log('📦 Получен JSON, версия:', json.version);
+        // ✅ ИЗМЕНЕНИЕ 2: Декодируем base64
+        const data = await response.json();
+        const decoded = atob(data.content);
+        const json = JSON.parse(decoded);
+        
+        console.log('📦 Получен JSON, версия:', json.version || 'unknown');
+        console.log('📊 Размер файла:', data.size, 'байт');
         
         const photosInFile = json.metadata?.photosEmbedded || 0;
         console.log('📸 Фото в файле:', photosInFile);
@@ -2784,7 +2795,7 @@ async function loadFromGitHub() {
             }
         }
         
-        // 👇 ИЗМЕНЕНИЕ: ДОБАВЛЕНА ПЕРЕЗАГРУЗКА КАЛЬКУЛЯТОРА
+        // ===== ЗАГРУЖАЕМ КАЛЬКУЛЯТОР =====
         if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             try {
@@ -2792,7 +2803,7 @@ async function loadFromGitHub() {
                 console.log('✅ Данные калькулятора сохранены в localStorage');
                 console.log('📊 Периоды:', Object.keys(json.calculator));
                 
-                // 👇 НОВЫЙ КОД: ПЕРЕЗАГРУЖАЕМ КАЛЬКУЛЯТОР, ЕСЛИ МЫ НА ЕГО ВКЛАДКЕ
+                // Перезагружаем калькулятор, если мы на его вкладке
                 if (currentTab === 'calculator' && typeof window.initCalculator === 'function') {
                     setTimeout(() => {
                         window.initCalculator();
@@ -2805,6 +2816,7 @@ async function loadFromGitHub() {
         }
         
         console.log('=== ЗАГРУЗКА ЗАВЕРШЕНА УСПЕШНО ===');
+        showNotification('✅ Данные загружены из GitHub', 'success');
         
     } catch (error) {
         console.error('❌ ОШИБКА ЗАГРУЗКИ:', error.message);
