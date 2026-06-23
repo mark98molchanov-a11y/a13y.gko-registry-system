@@ -2653,13 +2653,10 @@ async function loadFromGitHub() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
+        // ✅ УБИРАЕМ ВСЕ ЗАГОЛОВКИ, КРОМЕ ОБЫЧНЫХ
         const response = await fetch(url, {
-            signal: controller.signal,
-            cache: 'no-cache',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-            }
+            signal: controller.signal
+            // ⚠️ НЕ ДОБАВЛЯТЬ Cache-Control, Pragma и другие кастомные заголовки!
         });
         
         clearTimeout(timeoutId);
