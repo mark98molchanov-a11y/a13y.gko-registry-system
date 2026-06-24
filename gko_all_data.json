@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-06-23T15:18:18.635Z",
+  "exportDate": "2026-06-24T03:41:38.455Z",
   "npas": [
     {
       "id": 2,
@@ -5141,7 +5141,7 @@
       "k_uknm_mzk": 614
     },
     "2026_2_kv": {
-      "ks_otch": 9.76,
+      "ks_otch": 9.7,
       "ks_cel": 9.5,
       "k_on_obsh": 620391,
       "k_21": 2,
@@ -5248,6 +5248,6 @@
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1782227898635
+    "exportTimestamp": 1782272498455
   }
 }
