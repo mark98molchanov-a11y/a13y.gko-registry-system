@@ -2034,8 +2034,8 @@ function EfficiencyCalculator() {
         };
         
         // ✅ ПРОВЕРЯЕМ ДАННЫЕ ИЗ GITHUB
-        if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object') {
-            console.log('📊 Загружаем данные калькулятора из GitHub');
+        if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object' && Object.keys(window.githubCalculatorData).length > 0) {
+            console.log('📊 Загружаем данные калькулятора из window.githubCalculatorData');
             
             const newData = {};
             periodsList.forEach(p => {
@@ -2051,12 +2051,13 @@ function EfficiencyCalculator() {
             
             if (newData['2026_2_kv']) {
                 console.log('✅ 2026_2_kv ks_otch из GitHub:', newData['2026_2_kv'].ks_otch);
+                console.log('✅ 2026_2_kv ks_on_obsh из GitHub:', newData['2026_2_kv'].ks_on_obsh);
             }
             
             console.log('✅ Калькулятор загружен из GitHub');
         } else {
             // ❌ НЕТ ДАННЫХ - ПУСТЫЕ ЗНАЧЕНИЯ
-            console.log('⚠️ Нет данных из GitHub, создаем пустые');
+            console.log('⚠️ Нет данных из window.githubCalculatorData, создаем пустые');
             
             const newData = {};
             periodsList.forEach(p => {
@@ -2065,13 +2066,26 @@ function EfficiencyCalculator() {
             setCalculatorData(newData);
             console.log('🧮 Калькулятор инициализирован с пустыми значениями');
         }
-        
-        // ❌ НЕ ОЧИЩАЕМ localStorage (он нам не нужен)
-        // localStorage.removeItem('gko_calculator_data_v1');
-        
     }, []);
     
-    // ===== ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ =====
+    // ===== ✅ НОВЫЙ useEffect: СОХРАНЯЕМ ДАННЫЕ В window.githubCalculatorData =====
+    React.useEffect(() => {
+        if (calculatorData && Object.keys(calculatorData).length > 0) {
+            // Сохраняем в глобальную переменную для saveToGitHub
+            window.githubCalculatorData = { ...calculatorData };
+            console.log('💾 Данные калькулятора синхронизированы с window.githubCalculatorData');
+            console.log('📊 Периодов в window:', Object.keys(window.githubCalculatorData).length);
+            
+            // Также сохраняем в localStorage как запасной вариант
+            try {
+                localStorage.setItem('gko_calculator_data_v1', JSON.stringify(calculatorData));
+            } catch(e) {
+                console.warn('⚠️ Не удалось сохранить в localStorage');
+            }
+        }
+    }, [calculatorData]);
+    
+    // ===== ОСТАЛЬНОЙ КОД =====
     const periodsList = [
         { id: '2025_year', label: '2025 год' },
         { id: '2026_1_kv', label: '2026 - 1 квартал' },
@@ -2102,8 +2116,8 @@ function EfficiencyCalculator() {
             }
         };
         setCalculatorData(updatedData);
-        // ⚠️ НЕ СОХРАНЯЕМ В localStorage - только в памяти
-        // localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+        // ✅ Данные синхронизируются через useEffect
+        console.log(`📝 Обновлено поле ${field} = ${value}`);
     };
     
     const copyFromPreviousPeriod = () => {
@@ -2117,8 +2131,7 @@ function EfficiencyCalculator() {
                     [period]: prevData ? { ...prevData } : { ...emptyDataModel }
                 };
                 setCalculatorData(updatedData);
-                // ⚠️ НЕ СОХРАНЯЕМ В localStorage
-                // localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+                // ✅ Данные синхронизируются через useEffect
             }
         } else {
             alert("Это первый период, нет данных для вставки.");
@@ -2173,8 +2186,7 @@ function EfficiencyCalculator() {
         };
         const updatedData = { ...calculatorData, [period]: emptyData };
         setCalculatorData(updatedData);
-        // ⚠️ НЕ СОХРАНЯЕМ В localStorage
-        // localStorage.setItem('gko_calculator_data_v1', JSON.stringify(updatedData));
+        // ✅ Данные синхронизируются через useEffect
         if (typeof window.showNotification === 'function') {
             window.showNotification('Данные для текущего периода очищены', 'success');
         }
@@ -2198,9 +2210,8 @@ function EfficiencyCalculator() {
         { section: sections[4], val: results.ind5 },
     ];
     
-    // ===== ОСНОВНОЙ РЕНДЕР (БЕЗ ИЗМЕНЕНИЙ) =====
+    // ===== ОСНОВНОЙ РЕНДЕР =====
     return React.createElement("div", { className: "max-w-7xl mx-auto p-2 md:p-6" },
-        // ХЕДЕР
         React.createElement("header", { className: "mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4 no-print" },
             React.createElement("div", null,
                 React.createElement("h1", { className: "text-xl font-bold text-slate-900" }, "Калькулятор Эффективности"),
@@ -2227,9 +2238,7 @@ function EfficiencyCalculator() {
         ),
         
         React.createElement("div", { className: "grid grid-cols-1 xl:grid-cols-4 gap-6" },
-            // ЛЕВАЯ КОЛОНКА - КОНТЕНТ
             React.createElement("div", { className: "xl:col-span-3 space-y-4" },
-                // КНОПКИ РАЗДЕЛОВ
                 React.createElement("div", { className: "flex overflow-x-auto gap-2 pb-1 no-scrollbar no-print" },
                     sections.map((s, idx) => 
                         React.createElement("button", { 
@@ -2240,11 +2249,7 @@ function EfficiencyCalculator() {
                     )
                 ),
                 
-                // ===== ОСТАЛЬНОЙ РЕНДЕР СЕКЦИЙ (БЕЗ ИЗМЕНЕНИЙ) =====
-                // ... (весь код рендера секций остается без изменений)
-                // КАРТОЧКА С КОНТЕНТОМ
                 React.createElement(Card, { className: "p-5 print:shadow-none print:border-none print:p-0" },
-                    // Заголовок секции
                     activeCalcTab !== 5 ? React.createElement("div", { className: "flex flex-wrap items-center justify-between border-b pb-3 mb-4 gap-2 no-print" },
                         React.createElement("h2", { className: "text-lg font-bold flex items-center gap-2 text-slate-800" },
                             React.createElement(sections[activeCalcTab].icon, { className: "text-slate-400" }),
@@ -2263,7 +2268,7 @@ function EfficiencyCalculator() {
                         ) : null
                     ) : null,
                     
-                    // КОНТЕНТ В ЗАВИСИМОСТИ ОТ ВКЛАДКИ
+                    // ===== КОНТЕНТ ВКЛАДОК (без изменений) =====
                     activeCalcTab === 0 ? React.createElement("div", null,
                         React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
                             React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300" },
