@@ -89,7 +89,12 @@ class MarketValuationApp {
                                     <option value="Салехард">Салехард</option><option value="Ноябрьск">Ноябрьск</option><option value="Новый Уренгой">Новый Уренгой</option><option value="Надым">Надым</option><option value="Губкинский">Губкинский</option><option value="Муравленко">Муравленко</option><option value="Лабытнанги">Лабытнанги</option><option value="Тарко-Сале">Пуровский район</option><option value="Тазовский">Тазовский район</option><option value="Яр-Сале">Ямальский район</option><option value="Красноселькуп">Красноселькупский район</option><option value="Мужи">Шурышкарский район</option><option value="Аксарка">Приуральский район</option>
                                 </select>
                             </div>
-                            
+                            <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Кадастровый номер</label>
+    <input type="text" id="cadastralNumber" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="86:00:0000000:123">
+    <p class="text-xs text-slate-400 mt-1">Необязательное поле</p>
+</div>
+
                             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50">🔍 Рассчитать стоимость</button>
                         </form>
                     </div>
@@ -223,6 +228,7 @@ class MarketValuationApp {
         const isOns=objectType==='Объект незавершённого строительства';
         const area=parseFloat(document.getElementById('area')?.value||0);
         const city=document.getElementById('city')?.value||'';
+        const cadastralNumber = document.getElementById('cadastralNumber')?.value?.trim() || '';
         if (!area||area<=0){this.showNotification('Введите площадь','error');return;}
         if (!city){this.showNotification('Выберите город','error');return;}
         let build_year=2015, name='', wall_material='', permitted_use='', purpose='', land_category='';
@@ -235,7 +241,7 @@ class MarketValuationApp {
         else if (isStructure){build_year=parseInt(document.getElementById('structureBuildYear')?.value||2015);name=document.getElementById('structureName')?.value||'Сооружение';wall_material=document.getElementById('structureMaterial')?.value||'';}
         else {build_year=parseInt(document.getElementById('buildYear')?.value||2015);name=document.getElementById('objectName')?.value||objectType;wall_material=document.getElementById('wallMaterial')?.value||'';purpose=document.getElementById('purposeInput')?.value||'';}
         
-        const args=[area, build_year, objectType, permitted_use, city, '', wall_material, name, purpose];
+        const args=[area, build_year, objectType, permitted_use, city, cadastralNumber, wall_material, name, purpose];
         this.setLoading(true);
         try {
             const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
@@ -253,7 +259,7 @@ class MarketValuationApp {
             }
             
             this.singleResult={
-                'Тип объекта':objectType,'Площадь (м²)':area,'Город (МО)':city,'Материал стен':wall_material,'Наименование':name,'Назначение':purpose||'(авто)','Год постройки':build_year,'ВРИ':permitted_use,'Категория земель':land_category,'Цена за м² (₽)':result.predicted.price_per_sqm,'Стоимость всего (₽)':result.predicted.price_total,'Аналогов':result.calculation.analogs_count,'Ср. цена аналогов (₽/м²)':avgAnalogPrice,'Кадастры аналогов':analogsKadastrs,'Как считали':calcInfo
+                'Тип объекта':objectType,'Площадь (м²)':area,'Город (МО)':city,'Кадастровый номер': cadastralNumber,'Материал стен':wall_material,'Наименование':name,'Назначение':purpose||'(авто)','Год постройки':build_year,'ВРИ':permitted_use,'Категория земель':land_category,'Цена за м² (₽)':result.predicted.price_per_sqm,'Стоимость всего (₽)':result.predicted.price_total,'Аналогов':result.calculation.analogs_count,'Ср. цена аналогов (₽/м²)':avgAnalogPrice,'Кадастры аналогов':analogsKadastrs,'Как считали':calcInfo
             };
             this.displayResult(result);
             this.showNotification('✅ Оценка выполнена','success');
