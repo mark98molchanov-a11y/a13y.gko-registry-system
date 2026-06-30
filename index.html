@@ -4570,7 +4570,7 @@ setExternalLinksInModal(dashboard.externalLinks || []);
             .filter(tag => tag.length > 0);
         
         const createdDateInput = document.getElementById('editCreatedDateDashboards').value;
-        const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();к
+        const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();
         const externalLinks = getExternalLinksFromModal();
         const newDashboard = {
             id: editIdDashboards || Date.now(),
