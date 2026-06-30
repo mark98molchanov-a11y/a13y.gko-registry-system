@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-06-30T09:45:35.240Z",
+  "exportDate": "2026-06-30T09:59:07.687Z",
   "npas": [
     {
       "id": 2,
@@ -820,6 +820,57 @@
     }
   ],
   "dashboards": [
+    {
+      "id": 1782813509737,
+      "title": "USL__08. Услуги и меры СВО",
+      "url": "https://bi.yanao.ru/superset/dashboard/1010/?native_filters_key=kXxwpjnGZNU",
+      "externalLinks": [],
+      "description": "Рейтинг субъекта по мерам уСВО",
+      "analysisType": "monitoring",
+      "status": "active",
+      "owner": "ДИТИС ЯНАО",
+      "tags": [
+        "Госуслуги"
+      ],
+      "dataSource": "ЕПГУ",
+      "updateFrequency": "realtime",
+      "notes": "",
+      "createdDate": 1772323200000
+    },
+    {
+      "id": 1782813446164,
+      "title": "USL__07. OKR Удобные и доступные услуги",
+      "url": "https://bi.yanao.ru/superset/dashboard/749/?native_filters_key=u1oOcpiczzs",
+      "externalLinks": [],
+      "description": "План мероприятий по государственным услугам",
+      "analysisType": "monitoring",
+      "status": "active",
+      "owner": "ДИТИС ЯНАО",
+      "tags": [
+        "Госуслуги"
+      ],
+      "dataSource": "ЕПГУ",
+      "updateFrequency": "realtime",
+      "notes": "",
+      "createdDate": 1772323200000
+    },
+    {
+      "id": 1782813342228,
+      "title": "USL__01. Ямальские госуслуги",
+      "url": "https://bi.yanao.ru/superset/dashboard/rta-gasu/?native_filters_key=J-uwkOlMgvk",
+      "externalLinks": [],
+      "description": "Статистика по государственным услугам ГБУ ЯНАО ГКО",
+      "analysisType": "monitoring",
+      "status": "active",
+      "owner": "ДИТИС ЯНАО",
+      "tags": [
+        "Госуслуги"
+      ],
+      "dataSource": "ЕПГУ",
+      "updateFrequency": "realtime",
+      "notes": "",
+      "createdDate": 1753920000000
+    },
     {
       "id": 1774327434628,
       "title": "GKO__13. Капитализация имущественного комплекса",
@@ -5280,12 +5331,12 @@
   },
   "metadata": {
     "npaCount": 51,
-    "dashboardsCount": 13,
+    "dashboardsCount": 16,
     "orgStructureVersion": "3.0",
     "departmentsCount": 19,
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1782812735240
+    "exportTimestamp": 1782813547687
   }
 }
