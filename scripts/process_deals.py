@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Скрипт для обработки данных о сделках ЯНАО
-Сохраняет ВСЕ поля для будущей таблицы с фильтрами
+Оптимизирован для большого объема данных
 """
 
 import csv
@@ -11,35 +11,11 @@ from collections import defaultdict
 from datetime import datetime
 
 def extract_quarter(cad_number):
-    """Извлекает код квартала из кадастрового номера (первые 9 символов)"""
     if not cad_number or len(cad_number) < 9:
         return None
     return cad_number[:9]
 
-def parse_date(date_str):
-    """Парсит дату в формате YYYY-MM-DD"""
-    try:
-        return datetime.strptime(date_str, '%Y-%m-%d')
-    except:
-        return None
-
-def parse_quarter(date_str):
-    """Определяет квартал по дате"""
-    dt = parse_date(date_str)
-    if not dt:
-        return None
-    month = dt.month
-    if month <= 3:
-        return 'Q1'
-    elif month <= 6:
-        return 'Q2'
-    elif month <= 9:
-        return 'Q3'
-    else:
-        return 'Q4'
-
 def safe_float(val):
-    """Безопасное преобразование в float"""
     if not val or val == '':
         return None
     try:
@@ -48,7 +24,6 @@ def safe_float(val):
         return None
 
 def safe_str(val):
-    """Безопасное преобразование в строку"""
     if val is None:
         return ''
     return str(val).strip()
@@ -61,21 +36,8 @@ def main():
         print(f"❌ Файл {csv_path} не найден")
         return
     
-    # Структуры для данных
-    quarter_stats = defaultdict(lambda: {
-        'count': 0,
-        'total_price': 0,
-        'avg_price': 0,
-        'min_price': float('inf'),
-        'max_price': 0,
-        'years': defaultdict(int),
-        'quarters': defaultdict(int),
-        'deal_types': defaultdict(int),
-        'object_types': defaultdict(int),
-        'cities': defaultdict(int),
-        # 🔥 НОВОЕ: для таблицы сохраняем ВСЕ сделки с полными данными
-        'all_deals': []  # Теперь храним ВСЕ сделки, а не только 10
-    })
+    # Используем обычный dict для экономии памяти
+    quarter_stats = {}
     
     total_rows = 0
     valid_rows = 0
@@ -88,50 +50,72 @@ def main():
         for row in reader:
             total_rows += 1
             
-            # Извлекаем квартал
             cad_number = row.get('cad_number', '')
             quarter = extract_quarter(cad_number)
             if not quarter:
                 continue
-                
-            # Парсим цену
+            
+            # Инициализируем квартал, если его нет
+            if quarter not in quarter_stats:
+                quarter_stats[quarter] = {
+                    'count': 0,
+                    'total_price': 0,
+                    'avg_price': 0,
+                    'min_price': float('inf'),
+                    'max_price': 0,
+                    'years': {},
+                    'quarters': {},
+                    'deal_types': {},
+                    'object_types': {},
+                    'cities': {},
+                    'all_deals': []  # Все сделки
+                }
+            
+            stats = quarter_stats[quarter]
+            
+            # Парсим данные
             price = safe_float(row.get('deal_price', 0))
-            
-            # Парсим кадастровую стоимость
             cad_cost = safe_float(row.get('cad_cost', 0))
-            
-            # Парсим УПКС
             upks = safe_float(row.get('upks', 0))
-            
-            # Парсим УПРС
             uprs = safe_float(row.get('uprs', 0))
             
-            # Парсим год постройки
             year_build = None
             try:
-                year_build = int(row.get('year_build', 0)) if row.get('year_build', '').strip() else None
+                val = row.get('year_build', '').strip()
+                if val:
+                    year_build = int(float(val))
             except:
                 year_build = None
             
-            # Парсим этаж
             floor = None
             try:
-                floor = int(row.get('floor', 0)) if row.get('floor', '').strip() else None
+                val = row.get('floor', '').strip()
+                if val:
+                    floor = int(float(val))
             except:
                 floor = None
             
-            # Парсим дату
+            # Дата и квартал
             date_str = row.get('reg_date', '')
             year = None
             quarter_name = None
             if date_str:
-                dt = parse_date(date_str)
-                if dt:
+                try:
+                    dt = datetime.strptime(date_str, '%Y-%m-%d')
                     year = dt.year
-                    quarter_name = parse_quarter(date_str)
+                    month = dt.month
+                    if month <= 3:
+                        quarter_name = 'Q1'
+                    elif month <= 6:
+                        quarter_name = 'Q2'
+                    elif month <= 9:
+                        quarter_name = 'Q3'
+                    else:
+                        quarter_name = 'Q4'
+                except:
+                    pass
             
-            # Собираем статистику
-            stats = quarter_stats[quarter]
+            # Обновляем статистику
             stats['count'] += 1
             if price and price > 0:
                 stats['total_price'] += price
@@ -139,24 +123,25 @@ def main():
                     stats['min_price'] = price
                 if price > stats['max_price']:
                     stats['max_price'] = price
+            
             if year:
-                stats['years'][year] += 1
+                stats['years'][year] = stats['years'].get(year, 0) + 1
             if quarter_name:
-                stats['quarters'][quarter_name] += 1
-                
+                stats['quarters'][quarter_name] = stats['quarters'].get(quarter_name, 0) + 1
+            
             deal_type = row.get('deal_kind_text', '')
             if deal_type:
-                stats['deal_types'][deal_type] += 1
-                
+                stats['deal_types'][deal_type] = stats['deal_types'].get(deal_type, 0) + 1
+            
             obj_type = row.get('obj_kind_text', '')
             if obj_type:
-                stats['object_types'][obj_type] += 1
-                
+                stats['object_types'][obj_type] = stats['object_types'].get(obj_type, 0) + 1
+            
             city = row.get('city', '')
             if city:
-                stats['cities'][city] += 1
+                stats['cities'][city] = stats['cities'].get(city, 0) + 1
             
-            # 🔥 СОХРАНЯЕМ ВСЕ ДАННЫЕ О СДЕЛКЕ (для таблицы)
+            # Сохраняем сделку (все поля)
             deal_record = {
                 'cad_number': cad_number,
                 'area': safe_float(row.get('area', 0)),
@@ -182,21 +167,14 @@ def main():
             stats['all_deals'].append(deal_record)
             valid_rows += 1
             
-            # Прогресс каждые 1000 строк
-            if total_rows % 1000 == 0:
+            # Прогресс каждые 5000 строк
+            if total_rows % 5000 == 0:
                 print(f"  Обработано {total_rows} строк... (сохранено сделок: {valid_rows})")
     
     # Вычисляем средние значения
     for quarter, stats in quarter_stats.items():
-        if stats['count'] > 0:
+        if stats['count'] > 0 and stats['total_price'] > 0:
             stats['avg_price'] = round(stats['total_price'] / stats['count'], 2)
-        
-        # Преобразуем defaultdict в обычный dict для JSON
-        stats['years'] = dict(stats['years'])
-        stats['quarters'] = dict(stats['quarters'])
-        stats['deal_types'] = dict(stats['deal_types'])
-        stats['object_types'] = dict(stats['object_types'])
-        stats['cities'] = dict(stats['cities'])
     
     # Подготавливаем финальный результат
     result = {
@@ -206,22 +184,15 @@ def main():
             'total_rows': total_rows,
             'valid_rows': valid_rows,
             'quarters_count': len(quarter_stats),
-            'source_file': 'all_deals_itog.csv',
-            'fields': [
-                'cad_number', 'area', 'reg_date', 'purpose_text', 'cad_cost',
-                'upks', 'deal_price', 'deal_currency', 'city', 'locality',
-                'street', 'deal_kind_text', 'obj_kind_text', 'vri', 'uprs',
-                'quarter', 'year_build', 'floor', 'wall_material_name'
-            ]
+            'source_file': 'all_deals_itog.csv'
         },
-        'quarters': dict(quarter_stats)
+        'quarters': quarter_stats
     }
     
     # Сохраняем JSON
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     
-    # Выводим статистику
     total_size_mb = os.path.getsize(json_path) / (1024 * 1024)
     print(f"\n✅ Обработка завершена!")
     print(f"📊 Всего строк: {total_rows}")
