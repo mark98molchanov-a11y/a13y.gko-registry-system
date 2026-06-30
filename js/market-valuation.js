@@ -1,4 +1,3 @@
-И// js/market-valuation.js - FINAL VERSION (ЧИСТЫЙ ИНТЕРФЕЙС + EXCEL С РАСШИФРОВКОЙ)
 class MarketValuationApp {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
