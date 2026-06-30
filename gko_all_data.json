@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-06-30T05:23:31.652Z",
+  "exportDate": "2026-06-30T09:45:35.240Z",
   "npas": [
     {
       "id": 2,
@@ -824,6 +824,10 @@
       "id": 1774327434628,
       "title": "GKO__13. Капитализация имущественного комплекса",
       "url": "https://bi.yanao.ru/superset/dashboard/p/ZVL1y9gz1xP/",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Данные%20ППК%20Роскадастр/?tid=r5ob&vid=0000",
+        "https://ditable.yanao.ru/workspace/20/dtable/378.2%20НК%20РФ/"
+      ],
       "description": "1. Капитализация имущественного комплекса Ямало-Ненецкого автономного округа                            2. Целевые показатели по кадастровой стоимости",
       "analysisType": "analytical",
       "status": "active",
@@ -840,7 +844,9 @@
       "id": 1771770179695,
       "title": "GKO__11. Мониторинг деятельности ДИО ЯНАО",
       "url": "https://bi.yanao.ru/superset/dashboard/p/yWRv3W4kvqN/",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Исполнение%20плана%20работы%20ДИО/?tid=Q01y&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Исполнение%20плана%20работы%20ДИО/?tid=Q01y&vid=0000"
+      ],
       "description": "Миссия Департамента имущественных отношений ЯНАО на 2025 год",
       "analysisType": "operational",
       "status": "active",
@@ -874,6 +880,12 @@
       "id": 1769080842449,
       "title": "GKO__09. Управление кадастровой оценкой",
       "url": "https://bi.yanao.ru/superset/dashboard/p/8aw1VnX1qKR/",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Обращения%20по%20ст.20%2C%2021%2C%2022.1/?tid=bB40&vid=0000",
+        "https://ditable.yanao.ru/workspace/530/dtable/Контроль%20качества/?tid=0000&vid=0000",
+        "https://ditable.yanao.ru/workspace/530/dtable/Глоссарий%20ГКО/?tid=cuQE&vid=0000",
+        "https://ditable.yanao.ru/workspace/530/dtable/ГКО%20на%2001.01.2025/?tid=M7ge&vid=0000"
+      ],
       "description": "1.Информация о ГКО в ЯНАО за 2019-2023 гг. в разрезе ЗУ/ОКС.\n2. Оспаривание кадастровой стоимости в комиссиях.\n3. Анализ распределения земельных участков и ОКС по субъектам УрФО\n4. Сводная информация по OKR \"Выявляем новые объекты налогообложения\" за 2025 год\n5.Анализ обращений в ГБУ ЯНАО «ГКО»: количество обращений, поступивших через сайт и Telegram-бота, а также доля обращений по вопросам пересчета КУ.\n6. Анализ налоговой баз от КС по 2 разделу формы 5-НИО\n7. Сводная информация по Государственной кадастровой оценки на 01.01.2025\n8. Протоколы контроля качества ГКО и сопутствующие материалы (2021-2024 гг.).\n9. Глоссарий ГКО (словарь терминов Государственной кадастровой оценки): Основные понятия, Ценообразующие факторы, Цифровизация и процедуры, Объекты и категории, Региональная специфика ЯНАО, Сокращения, Методология оценки\n10. Статистика по приказам об исправлении кадастровой стоимости за 2021–2023 годы",
       "analysisType": "analytical",
       "status": "active",
@@ -890,7 +902,9 @@
       "id": 1769080842450,
       "title": "GKO__03. Исполнение государственного задания",
       "url": "https://bi.yanao.ru/superset/dashboard/p/WRzlr6QlN36/",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Государственное%20задание/?tid=0000&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Государственное%20задание/?tid=0000&vid=0000"
+      ],
       "description": "Динамика исполнения показателей ГЗ (2021-2023 гг.)\nКомплекс значимых мероприятий (доход от платной деятельности, количество выполненных работ)",
       "analysisType": "audit",
       "status": "active",
@@ -907,7 +921,9 @@
       "id": 1769080842452,
       "title": "GKO__02. Сделки ППК  Роскадастр",
       "url": "https://bi.yanao.ru/superset/dashboard/p/02ovGj9OxRr/",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Реестры%20ППК%20Роскадастр/?tid=1C9P&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Реестры%20ППК%20Роскадастр/?tid=1C9P&vid=0000"
+      ],
       "description": "Статистическая информация на основе данных ППК \"Роскадастр\" по сделкам с недвижимостью: ипотека, купля-продажа, аренда, долевое участие.",
       "analysisType": "analytical",
       "status": "active",
@@ -940,7 +956,9 @@
       "id": 1769080842454,
       "title": "GKO__06. ЦУС и энергоэффективность",
       "url": "https://bi.yanao.ru/superset/dashboard/909/?native_filters_key=n0Smih2dBp0oOC4KugAG2-5P6vMg-vDGryjSNSveExTTkb92eKq07Y9C4K5_yYVy",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Энергоэффективность/?tid=jr47&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Энергоэффективность/?tid=jr47&vid=0000"
+      ],
       "description": "Статистическая информация по достижении Целевой уровень снижения потребления ресурсов (далее-ЦУС) ГБУ ЯНАО ГКО.",
       "analysisType": "audit",
       "status": "active",
@@ -957,7 +975,9 @@
       "id": 1769080842455,
       "title": "GKO__07.  Рынок недвижимости в деталях: УПРС по сегментам и муниципалитетам",
       "url": "https://bi.yanao.ru/superset/dashboard/942/?native_filters_key=r72N9Nq6hIJGgSQXhtXvR-1-6zFAaX_1ICk36djf829X82eLW1PCjq5h9Hepz2Ti",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Анализ%20Рынка%20(ГБУ%20ЯНАО%20ГКО)/?tid=25Z9&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Анализ%20Рынка%20(ГБУ%20ЯНАО%20ГКО)/?tid=25Z9&vid=0000"
+      ],
       "description": "Данный дашборд предназначен для сравнительного анализа ситуации на рынке ОН за первый квартал 2025 года относительно кадастровой стоимости аналогичных объектов за 2022–2023 годы. Основная цель — выявление изменений рыночных условий, динамики цен и особенностей оценки ОН.",
       "analysisType": "monitoring",
       "status": "active",
@@ -974,7 +994,9 @@
       "id": 1769080842456,
       "title": "GKO__04. Мониторинг штатной численности ГБУ ЯНАО ГКО",
       "url": "https://bi.yanao.ru/superset/dashboard/p/VY3O677PvAX/",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Штатное%20расписание%20ГБУ%20ЯНАО%20%22ГКО%22/?tid=1Ws3&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Штатное%20расписание%20ГБУ%20ЯНАО%20%22ГКО%22/?tid=1Ws3&vid=0000"
+      ],
       "description": "1.Штатная численность ГБУ ЯНАО ГКО:​Динамика за отчетные периоды на основе данных из ГИС «Имущество ЯНАО».\n2.Структура ФОТ:​ Анализ окладов по должностям и удельный вес северных надбавок.\n3.Динамика заработной платы:​Изменение среднемесячного уровня заработной платы по периодам.",
       "analysisType": "audit",
       "status": "active",
@@ -991,7 +1013,9 @@
       "id": 1769080842457,
       "title": "GKO__01.  Рынок недвижимости: анализ УПРС по сегментам и муниципалитетам",
       "url": "https://bi.yanao.ru/superset/dashboard/p/Gda1Qnndl82/",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Рыночная%20стоимость%20(Динамика%20за%20м²)%2014.07.2025/?tid=Cy09&vid=0000",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Рыночная%20стоимость%20(Динамика%20за%20м²)%2014.07.2025/?tid=Cy09&vid=0000"
+      ],
       "description": "1.Динамика рынка в разрезе 8 сегментов за 2021-2024 гг (кв.м.):​\n2. Источник данных:​ Перечни ГБУ ЯНАО «Государственная кадастровая оценка».\n3. Ключевой показатель:​Динамика изменений показателей по отношению к базовому 2021 году.\n​\n​\n​",
       "analysisType": "analytical",
       "status": "active",
@@ -1008,7 +1032,9 @@
       "id": 1769080842458,
       "title": "GKO__08. Объекты для налогообложения (378.2 НК РФ)",
       "url": "https://bi.yanao.ru/superset/dashboard/p/anEvZwKR1Aq/",
-      "externalLink": "https://ditable.yanao.ru/workspace/20/dtable/378.2%20НК%20РФ/",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/20/dtable/378.2%20НК%20РФ/"
+      ],
       "description": "Настоящий дашборд содержит аналитическую визуализацию потенциальных последствий расширения применения кадастровой стоимости в качестве налоговой базы по налогу на имущество организаций и физических лиц в Ямало-Ненецком автономном округе. В дашбордн представлены прогнозные расчеты налоговых поступлений, анализ объектов недвижимости и рекомендации по установлению ставок для различных категорий налогоплательщиков.",
       "analysisType": "analytical",
       "status": "active",
@@ -1025,7 +1051,9 @@
       "id": 1769080842459,
       "title": "GKO__10. Подготовка к ГКО. Мониторинг предоставления сведений",
       "url": "https://bi.yanao.ru/superset/dashboard/p/G62v8gQEOzY/",
-      "externalLink": "https://ditable.yanao.ru/workspace/530/dtable/Перечни%20из%20ЕГРН%20(сведения%20отсутствуют)/",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Перечни%20из%20ЕГРН%20(сведения%20отсутствуют)/"
+      ],
       "description": "1.Контроль полноты и качества данных по земельным участкам без ВРИ, анализ выполнения требований по предоставлению информации муниципальными образованиями.\n2.Мониторинг и анализ объектов капитального строительства (ОКС), не имеющих привязанных земельных участков, включая сравнительную оценку полноты, своевременности и качества предоставления данных по муниципальным образованиям, анализ эффективности взаимодействия МО с контролирующим органом.",
       "analysisType": "monitoring",
       "status": "active",
@@ -5258,6 +5286,6 @@
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1782797011652
+    "exportTimestamp": 1782812735240
   }
 }
