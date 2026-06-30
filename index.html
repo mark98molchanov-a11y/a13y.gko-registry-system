@@ -4920,144 +4920,145 @@ function exportToExcelDashboards() {
         return Date.now();
     }
     
-    function handleExcelImport(input) {
-        const file = input.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { 
-                    type: 'array',
-                    cellDates: true, 
-                    cellNF: false    
-                });
-                
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                const json = XLSX.utils.sheet_to_json(sheet, { 
-                    defval: '',
-                    raw: false,     
-                    dateNF: 'dd.mm.yyyy' 
-                });
-                
-                if (!json || json.length === 0) {
-                    alert("Файл пуст или не содержит данных");
+function handleExcelImport(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { 
+                type: 'array',
+                cellDates: true, 
+                cellNF: false    
+            });
+            
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            
+            const json = XLSX.utils.sheet_to_json(sheet, { 
+                defval: '',
+                raw: false,     
+                dateNF: 'dd.mm.yyyy' 
+            });
+            
+            if (!json || json.length === 0) {
+                alert("Файл пуст или не содержит данных");
+                return;
+            }
+            
+            const importedDashboards = [];
+            let skippedRows = 0;
+            
+            json.forEach((row, index) => {
+                if (!row['Название'] || !row['Ссылка']) {
+                    skippedRows++;
                     return;
                 }
                 
-                const importedDashboards = [];
-                let skippedRows = 0;
+                const statusText = row['Статус']?.toString().toLowerCase() || '';
+                let status = 'draft';
+                if (statusText.includes('актив')) status = 'active';
+                if (statusText.includes('архив')) status = 'archived';
                 
-                json.forEach((row, index) => {
-                    if (!row['Название'] || !row['Ссылка']) {
-                        skippedRows++;
-                        return;
-                    }
-                    
-                    const statusText = row['Статус']?.toString().toLowerCase() || '';
-                    let status = 'draft';
-                    if (statusText.includes('актив')) status = 'active';
-                    if (statusText.includes('архив')) status = 'archived';
-                    
-                    const typeText = row['Тип анализа']?.toString().toLowerCase() || '';
-                    let analysisType = 'analytical';
-                    if (typeText.includes('монитор')) analysisType = 'monitoring';
-                    if (typeText.includes('оператив')) analysisType = 'operational';
-                    if (typeText.includes('отчет')) analysisType = 'reporting';
-                    if (typeText.includes('прогноз')) analysisType = 'forecast';
-                    if (typeText.includes('деятельность гбу') || typeText.includes('гбу')) analysisType = 'audit';
-                    
-                    const frequencyText = row['Периодичность обновления']?.toString().toLowerCase() || 
-                                         row['Частота обновления']?.toString().toLowerCase() || 
-                                         row['Периодичность']?.toString().toLowerCase() || '';
-                    let updateFrequency = 'daily';
-                    if (frequencyText.includes('реальное время') || frequencyText.includes('реалтайм')) updateFrequency = 'realtime';
-                    if (frequencyText.includes('ежедневно') || frequencyText.includes('daily')) updateFrequency = 'daily';
-                    if (frequencyText.includes('еженедельно') || frequencyText.includes('weekly')) updateFrequency = 'weekly';
-                    if (frequencyText.includes('ежемесячно') || frequencyText.includes('monthly')) updateFrequency = 'monthly';
-                    if (frequencyText.includes('квартал') || frequencyText.includes('quarterly')) updateFrequency = 'quarterly';
-                    
-                    const tags = row['Теги'] ? 
-                        row['Теги'].toString().split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : 
-                        [];
+                const typeText = row['Тип анализа']?.toString().toLowerCase() || '';
+                let analysisType = 'analytical';
+                if (typeText.includes('монитор')) analysisType = 'monitoring';
+                if (typeText.includes('оператив')) analysisType = 'operational';
+                if (typeText.includes('отчет')) analysisType = 'reporting';
+                if (typeText.includes('прогноз')) analysisType = 'forecast';
+                if (typeText.includes('деятельность гбу') || typeText.includes('гбу')) analysisType = 'audit';
                 
-                    let createdDate = Date.now();
-                    if (row['Дата создания']) {
-                        try {
-                            createdDate = parseExcelDate(row['Дата создания'], index);
-                            
-                            if (createdDate > Date.now() + 31536000000) { // Больше года в будущем
-                                console.warn(`Дата создания в строке ${index + 1} кажется некорректной, используется текущая дата`);
-                                createdDate = Date.now();
-                            }
-                        } catch (e) {
-                            console.error(`Ошибка парсинга даты в строке ${index + 1}:`, e);
+                const frequencyText = row['Периодичность обновления']?.toString().toLowerCase() || 
+                                     row['Частота обновления']?.toString().toLowerCase() || 
+                                     row['Периодичность']?.toString().toLowerCase() || '';
+                let updateFrequency = 'daily';
+                if (frequencyText.includes('реальное время') || frequencyText.includes('реалтайм')) updateFrequency = 'realtime';
+                if (frequencyText.includes('ежедневно') || frequencyText.includes('daily')) updateFrequency = 'daily';
+                if (frequencyText.includes('еженедельно') || frequencyText.includes('weekly')) updateFrequency = 'weekly';
+                if (frequencyText.includes('ежемесячно') || frequencyText.includes('monthly')) updateFrequency = 'monthly';
+                if (frequencyText.includes('квартал') || frequencyText.includes('quarterly')) updateFrequency = 'quarterly';
+                
+                const tags = row['Теги'] ? 
+                    row['Теги'].toString().split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : 
+                    [];
+            
+                let createdDate = Date.now();
+                if (row['Дата создания']) {
+                    try {
+                        createdDate = parseExcelDate(row['Дата создания'], index);
+                        
+                        if (createdDate > Date.now() + 31536000000) { // Больше года в будущем
+                            console.warn(`Дата создания в строке ${index + 1} кажется некорректной, используется текущая дата`);
                             createdDate = Date.now();
                         }
+                    } catch (e) {
+                        console.error(`Ошибка парсинга даты в строке ${index + 1}:`, e);
+                        createdDate = Date.now();
                     }
-                    
-                    const newDashboard = {
-                        id: Date.now() + index,
-                        title: row['Название'].toString().trim(),
-                        url: row['Ссылка'].toString().trim().startsWith('http') ? 
-                             row['Ссылка'].toString().trim() : 
-                             `https://${row['Ссылка'].toString().trim()}`,
-                                                // Парсим внешние ссылки (могут быть через ; или ,)
+                }
+                
+                const newDashboard = {
+                    id: Date.now() + index,
+                    title: row['Название'].toString().trim(),
+                    url: row['Ссылка'].toString().trim().startsWith('http') ? 
+                         row['Ссылка'].toString().trim() : 
+                         `https://${row['Ссылка'].toString().trim()}`,
+                    // Парсим внешние ссылки (могут быть через ; или ,)
+                    externalLinks: (() => {
                         const linksStr = (row['Внешние ссылки'] || row['База table.yanao'] || '').toString().trim();
-                        const externalLinks = linksStr ? linksStr.split(/[;,]\s*/).filter(l => l.trim() && (l.trim().startsWith('http://') || l.trim().startsWith('https://'))) : [];
-                        externalLinks: externalLinks,
-                        description: (row['Описание'] || '').toString().trim(),
-                        analysisType: analysisType,
-                        status: status,
-                        owner: (row['Владелец'] || '').toString().trim(),
-                        tags: tags,
-                        dataSource: (row['Источник данных'] || '').toString().trim(),
-                        updateFrequency: updateFrequency,
-                        notes: (row['Комментарии'] || '').toString().trim(),
-                        createdDate: createdDate
-                    };
-                    
-                    importedDashboards.push(newDashboard);
-                });
+                        return linksStr ? linksStr.split(/[;,]\s*/).filter(l => l.trim() && (l.trim().startsWith('http://') || l.trim().startsWith('https://'))) : [];
+                    })(),
+                    description: (row['Описание'] || '').toString().trim(),
+                    analysisType: analysisType,
+                    status: status,
+                    owner: (row['Владелец'] || '').toString().trim(),
+                    tags: tags,
+                    dataSource: (row['Источник данных'] || '').toString().trim(),
+                    updateFrequency: updateFrequency,
+                    notes: (row['Комментарии'] || '').toString().trim(),
+                    createdDate: createdDate
+                };
                 
-                if (importedDashboards.length === 0) {
-                    alert("Не найдено корректных записей для импорта");
-                    return;
-                }
-                
-                const stats = `
-    Импортировано дашбордов: ${importedDashboards.length}
-    Пропущено строк: ${skippedRows}
-
-    Примеры импортированных дат:
-    ${importedDashboards.slice(0, 3).map(d => 
-        `• "${d.title}": ${new Date(d.createdDate).toLocaleDateString('ru-RU')}`
-    ).join('\n')}
-
-    Добавить импортированные дашборды в начало списка?
-                `.trim();
-                
-                if (confirm(stats)) {
-                    dashboardsData = [...importedDashboards, ...dashboardsData];
-                    saveDashboardsData();
-                    alert("Дашборды успешно импортированы!");
-                }
-                
-            } catch (error) {
-                console.error("Ошибка импорта:", error);
-                alert(`Ошибка при обработке файла: ${error.message}`);
+                importedDashboards.push(newDashboard);
+            });
+            
+            if (importedDashboards.length === 0) {
+                alert("Не найдено корректных записей для импорта");
+                return;
             }
-        };
-        
-        reader.onerror = function() {
-            alert("Ошибка чтения файла");
-        };
-        
-        reader.readAsArrayBuffer(file);
-        input.value = '';
-    }
+            
+            const stats = `
+Импортировано дашбордов: ${importedDashboards.length}
+Пропущено строк: ${skippedRows}
+
+Примеры импортированных дат:
+${importedDashboards.slice(0, 3).map(d => 
+    `• "${d.title}": ${new Date(d.createdDate).toLocaleDateString('ru-RU')}`
+).join('\n')}
+
+Добавить импортированные дашборды в начало списка?
+            `.trim();
+            
+            if (confirm(stats)) {
+                dashboardsData = [...importedDashboards, ...dashboardsData];
+                saveDashboardsData();
+                alert("Дашборды успешно импортированы!");
+            }
+            
+        } catch (error) {
+            console.error("Ошибка импорта:", error);
+            alert(`Ошибка при обработке файла: ${error.message}`);
+        }
+    };
+    
+    reader.onerror = function() {
+        alert("Ошибка чтения файла");
+    };
+    
+    reader.readAsArrayBuffer(file);
+    input.value = '';
+}
 
     function hardResetDashboards() {
         if (confirm("Восстановить начальные данные дашбордов? Все текущие дашборды будут удалены.")) {
