@@ -1491,7 +1491,15 @@
                         <input type="text" id="editUrlDashboards" placeholder="https://superset.example.com/dashboard/123/" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500 outline-none">
                     </div>
                 </div>
-                
+                <div class="grid grid-cols-1 gap-6 mt-4">
+    <div>
+        <label class="block text-xs font-bold text-orange-500 uppercase mb-2">🔗 Внешняя ссылка (дополнительная)</label>
+        <input type="text" id="editExternalLinkDashboards" 
+               placeholder="https://example.com/analytics" 
+               class="w-full border border-orange-200 bg-orange-50 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500">
+        <p class="text-xs text-slate-400 mt-1">Дополнительная ссылка для этого дашборда (будет отображаться оранжевым цветом)</p>
+    </div>
+</div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Описание</label>
                     <textarea id="editDescriptionDashboards" rows="2" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm outline-none" placeholder="Краткое описание назначения и содержания дашборда"></textarea>
@@ -4173,7 +4181,17 @@ function exportToExcelNPA() {
                             ${item.url.replace('https://', '').replace('http://', '')}
                         </a>
                     </div>
-                    
+                                    ${item.externalLink ? `
+                <div class="mt-2">
+                    <a href="${item.externalLink}" target="_blank" 
+                       class="text-sm text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 border-l-4 border-orange-400 pl-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Внешняя ссылка
+                    </a>
+                </div>
+                ` : ''}
                     <p class="text-slate-600 text-sm mb-4">${item.description}</p>
                     
                     <div class="flex items-center gap-2 mb-3 flex-wrap">
@@ -4406,17 +4424,21 @@ function updateDashboardStatsDashboards(filteredData = dashboardsData) {
         }
     }
 
-    function openModalDashboards() {
-        editIdDashboards = null;
-        document.getElementById('modalTitleDashboards').innerText = "Новый дашборд";
-        document.querySelectorAll('#modalContentDashboards input, #modalContentDashboards textarea, #modalContentDashboards select').forEach(e => {
-            if (e.type !== 'hidden') e.value = '';
-            if (e.tagName === 'SELECT') e.selectedIndex = 0;
-        });
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('editCreatedDateDashboards').value = today;
-        toggleModalDashboards(true);
-    }
+function openModalDashboards() {
+    editIdDashboards = null;
+    document.getElementById('modalTitleDashboards').innerText = "Новый дашборд";
+    document.querySelectorAll('#modalContentDashboards input, #modalContentDashboards textarea, #modalContentDashboards select').forEach(e => {
+        if (e.type !== 'hidden') e.value = '';
+        if (e.tagName === 'SELECT') e.selectedIndex = 0;
+    });
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('editCreatedDateDashboards').value = today;
+    
+    // Очищаем поле внешней ссылки при создании нового дашборда
+    document.getElementById('editExternalLinkDashboards').value = '';
+    
+    toggleModalDashboards(true);
+}
 
     function editDashboard(id) {
         const dashboard = dashboardsData.find(d => d.id === id);
@@ -4428,6 +4450,7 @@ function updateDashboardStatsDashboards(filteredData = dashboardsData) {
         document.getElementById('editIdDashboards').value = id;
         document.getElementById('editTitleDashboards').value = dashboard.title;
         document.getElementById('editUrlDashboards').value = dashboard.url;
+         document.getElementById('editExternalLinkDashboards').value = dashboard.externalLink || '';
         document.getElementById('editDescriptionDashboards').value = dashboard.description || '';
         document.getElementById('editAnalysisTypeDashboards').value = dashboard.analysisType;
         document.getElementById('editStatusDashboards').value = dashboard.status;
@@ -4471,11 +4494,12 @@ function updateDashboardStatsDashboards(filteredData = dashboardsData) {
         
         const createdDateInput = document.getElementById('editCreatedDateDashboards').value;
         const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();
-        
+        const externalLink = document.getElementById('editExternalLinkDashboards').value.trim();
         const newDashboard = {
             id: editIdDashboards || Date.now(),
             title: title,
             url: url,
+            externalLink: externalLink || '', 
             description: document.getElementById('editDescriptionDashboards').value.trim(),
             analysisType: document.getElementById('editAnalysisTypeDashboards').value,
             status: document.getElementById('editStatusDashboards').value,
@@ -4726,6 +4750,7 @@ function exportToExcelDashboards() {
     const data = filtered.map(d => ({
         'Название': d.title,
         'Ссылка': d.url,
+         'Внешняя ссылка': d.externalLink || '',
         'Описание': d.description,
         'Тип анализа': getTypeTextDashboards(d.analysisType),
         'Статус': getStatusTextDashboards(d.status),
@@ -4745,6 +4770,7 @@ function exportToExcelDashboards() {
     ws['!cols'] = [
         { wch: maxWidth },     // Название
         { wch: 40 },           // Ссылка
+        { wch: 40 }, 
         { wch: 50 },           // Описание
         { wch: 15 },           // Тип анализа
         { wch: 12 },           // Статус
@@ -4901,6 +4927,7 @@ function exportToExcelDashboards() {
                         url: row['Ссылка'].toString().trim().startsWith('http') ? 
                              row['Ссылка'].toString().trim() : 
                              `https://${row['Ссылка'].toString().trim()}`,
+                        externalLink: (row['Внешняя ссылка'] || '').toString().trim(),
                         description: (row['Описание'] || '').toString().trim(),
                         analysisType: analysisType,
                         status: status,
