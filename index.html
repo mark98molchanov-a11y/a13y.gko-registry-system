@@ -954,6 +954,73 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
+      .external-links-popup {
+    position: fixed;
+    z-index: 9999;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    padding: 16px;
+    min-width: 300px;
+    max-width: 500px;
+    border: 1px solid #e2e8f0;
+    animation: fadeInPopup 0.2s ease-out;
+}
+
+.external-links-popup .popup-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.external-links-popup .popup-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: #d97706;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.external-links-popup .popup-link:hover {
+    background: #fffbeb;
+}
+
+.external-links-popup .popup-link .link-icon {
+    font-size: 1.1rem;
+}
+
+.external-links-popup .popup-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.external-links-popup .popup-close:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+@keyframes fadeInPopup {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
@@ -1491,13 +1558,24 @@
                         <input type="text" id="editUrlDashboards" placeholder="https://superset.example.com/dashboard/123/" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500 outline-none">
                     </div>
                 </div>
-                <div class="grid grid-cols-1 gap-6 mt-4">
+       <div class="grid grid-cols-1 gap-4 mt-4">
     <div>
-        <label class="block text-xs font-bold text-orange-500 uppercase mb-2">🔗 База table.yanao</label>
-        <input type="text" id="editExternalLinkDashboards" 
-               placeholder="https://example.com/analytics" 
-               class="w-full border border-orange-200 bg-orange-50 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500">
-        <p class="text-xs text-slate-400 mt-1">Дополнительная ссылка для этого дашборда (будет отображаться оранжевым цветом)</p>
+        <label class="block text-xs font-bold text-orange-500 uppercase mb-2">🔗 Внешние ссылки (базы данных)</label>
+        <div id="externalLinksContainer">
+            <div class="flex gap-2 mb-2 external-link-row">
+                <input type="text" class="external-link-input w-full border border-orange-200 bg-orange-50 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500" 
+                       placeholder="https://example.com/analytics">
+                <button type="button" onclick="removeExternalLink(this)" class="text-red-400 hover:text-red-600 px-3 text-xl font-bold">&times;</button>
+            </div>
+        </div>
+        <button type="button" onclick="addExternalLinkInput()" 
+                class="text-xs text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 mt-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Добавить еще ссылку
+        </button>
+        <p class="text-xs text-slate-400 mt-1">Если несколько ссылок, при клике откроется список выбора</p>
     </div>
 </div>
                 <div>
@@ -4181,14 +4259,14 @@ function exportToExcelNPA() {
                             ${item.url.replace('https://', '').replace('http://', '')}
                         </a>
                     </div>
-                                    ${item.externalLink ? `
+                            ${item.externalLinks && item.externalLinks.length > 0 ? `
                 <div class="mt-2">
-                    <a href="${item.externalLink}" target="_blank" 
-                       class="text-sm text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 border-l-4 border-orange-400 pl-2">
+                    <a href="#" onclick="event.preventDefault(); showExternalLinksPopup(${JSON.stringify(item.externalLinks).replace(/"/g, '&quot;')}, event, '${item.title.replace(/'/g, "\\'")}'); return false;" 
+                       class="text-sm text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 border-l-4 border-orange-400 pl-2 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        База table.yanao
+                        Базы данных (${item.externalLinks.length})
                     </a>
                 </div>
                 ` : ''}
@@ -4434,8 +4512,7 @@ function openModalDashboards() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('editCreatedDateDashboards').value = today;
     
-    // Очищаем поле внешней ссылки при создании нового дашборда
-    document.getElementById('editExternalLinkDashboards').value = '';
+    setExternalLinksInModal([]);
     
     toggleModalDashboards(true);
 }
@@ -4450,7 +4527,7 @@ function openModalDashboards() {
         document.getElementById('editIdDashboards').value = id;
         document.getElementById('editTitleDashboards').value = dashboard.title;
         document.getElementById('editUrlDashboards').value = dashboard.url;
-         document.getElementById('editExternalLinkDashboards').value = dashboard.externalLink || '';
+setExternalLinksInModal(dashboard.externalLinks || []);
         document.getElementById('editDescriptionDashboards').value = dashboard.description || '';
         document.getElementById('editAnalysisTypeDashboards').value = dashboard.analysisType;
         document.getElementById('editStatusDashboards').value = dashboard.status;
@@ -4493,13 +4570,13 @@ function openModalDashboards() {
             .filter(tag => tag.length > 0);
         
         const createdDateInput = document.getElementById('editCreatedDateDashboards').value;
-        const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();
-        const externalLink = document.getElementById('editExternalLinkDashboards').value.trim();
+        const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();к
+        const externalLinks = getExternalLinksFromModal();
         const newDashboard = {
             id: editIdDashboards || Date.now(),
             title: title,
             url: url,
-            externalLink: externalLink || '', 
+                        externalLinks: externalLinks, 
             description: document.getElementById('editDescriptionDashboards').value.trim(),
             analysisType: document.getElementById('editAnalysisTypeDashboards').value,
             status: document.getElementById('editStatusDashboards').value,
@@ -4750,7 +4827,7 @@ function exportToExcelDashboards() {
     const data = filtered.map(d => ({
         'Название': d.title,
         'Ссылка': d.url,
-         'База table.yanao': d.externalLink || '',
+        'Базы table.yanao': d.externalLinks ? d.externalLinks.join('; ') : '',
         'Описание': d.description,
         'Тип анализа': getTypeTextDashboards(d.analysisType),
         'Статус': getStatusTextDashboards(d.status),
@@ -4927,7 +5004,10 @@ function exportToExcelDashboards() {
                         url: row['Ссылка'].toString().trim().startsWith('http') ? 
                              row['Ссылка'].toString().trim() : 
                              `https://${row['Ссылка'].toString().trim()}`,
-                        externalLink: (row['База table.yanao'] || '').toString().trim(),
+                                                // Парсим внешние ссылки (могут быть через ; или ,)
+                        const linksStr = (row['Внешние ссылки'] || row['База table.yanao'] || '').toString().trim();
+                        const externalLinks = linksStr ? linksStr.split(/[;,]\s*/).filter(l => l.trim() && (l.trim().startsWith('http://') || l.trim().startsWith('https://'))) : [];
+                        externalLinks: externalLinks,
                         description: (row['Описание'] || '').toString().trim(),
                         analysisType: analysisType,
                         status: status,
@@ -4989,6 +5069,137 @@ function exportToExcelDashboards() {
         // Реализация импорта Excel для НПА
         alert("Импорт Excel для НПА. Реализуйте эту функцию при необходимости.");
     }
+                        // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С НЕСКОЛЬКИМИ ВНЕШНИМИ ССЫЛКАМИ =====
+
+function addExternalLinkInput(value = '') {
+    const container = document.getElementById('externalLinksContainer');
+    if (!container) return;
+    
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 mb-2 external-link-row';
+    row.innerHTML = `
+        <input type="text" class="external-link-input w-full border border-orange-200 bg-orange-50 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500" 
+               placeholder="https://example.com/analytics" value="${value}">
+        <button type="button" onclick="removeExternalLink(this)" class="text-red-400 hover:text-red-600 px-3 text-xl font-bold">&times;</button>
+    `;
+    container.appendChild(row);
+}
+
+function removeExternalLink(btn) {
+    const container = document.getElementById('externalLinksContainer');
+    const rows = container.querySelectorAll('.external-link-row');
+    if (rows.length <= 1) {
+        // Не удаляем последнюю строку, просто очищаем
+        const input = rows[0].querySelector('.external-link-input');
+        if (input) input.value = '';
+        return;
+    }
+    btn.closest('.external-link-row').remove();
+}
+
+function getExternalLinksFromModal() {
+    const inputs = document.querySelectorAll('.external-link-input');
+    const links = [];
+    inputs.forEach(input => {
+        const val = input.value.trim();
+        if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+            links.push(val);
+        }
+    });
+    return links;
+}
+
+function setExternalLinksInModal(links) {
+    const container = document.getElementById('externalLinksContainer');
+    if (!container) return;
+    
+    // Очищаем контейнер, оставляя только первую строку
+    container.innerHTML = '';
+    
+    if (!links || links.length === 0) {
+        // Добавляем пустую строку
+        addExternalLinkInput('');
+        return;
+    }
+    
+    // Добавляем строки для каждой ссылки
+    links.forEach(link => {
+        addExternalLinkInput(link);
+    });
+}
+
+// ===== ФУНКЦИЯ ДЛЯ ОТОБРАЖЕНИЯ ВЫПАДАЮЩЕГО ОКНА СО ССЫЛКАМИ =====
+
+function showExternalLinksPopup(links, event, dashboardTitle) {
+    if (!links || links.length === 0) return;
+    
+    // Если только одна ссылка - открываем сразу
+    if (links.length === 1) {
+        window.open(links[0], '_blank');
+        return;
+    }
+    
+    // Удаляем старый попап если есть
+    const oldPopup = document.querySelector('.external-links-popup');
+    if (oldPopup) oldPopup.remove();
+    
+    // Создаем попап
+    const popup = document.createElement('div');
+    popup.className = 'external-links-popup';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '9999';
+    popup.style.background = 'white';
+    popup.style.borderRadius = '12px';
+    popup.style.boxShadow = '0 20px 60px rgba(0,0,0,0.3)';
+    popup.style.padding = '16px';
+    popup.style.minWidth = '300px';
+    popup.style.maxWidth = '500px';
+    popup.style.border = '1px solid #e2e8f0';
+    popup.style.animation = 'fadeInPopup 0.2s ease-out';
+    
+    // Позиционируем относительно клика
+    let left = event.clientX - 150;
+    let top = event.clientY + 16;
+    
+    // Корректируем чтобы не выходило за экран
+    if (left + 320 > window.innerWidth) left = window.innerWidth - 340;
+    if (left < 10) left = 10;
+    if (top + 200 > window.innerHeight) top = window.innerHeight - 220;
+    if (top < 10) top = 10;
+    
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+    
+    popup.innerHTML = `
+        <button class="popup-close" onclick="this.parentElement.remove()">&times;</button>
+        <div class="popup-title">📊 Внешние базы данных${dashboardTitle ? `: ${dashboardTitle}` : ''}</div>
+        ${links.map((link, index) => `
+            <a href="${link}" target="_blank" class="popup-link" onclick="event.stopPropagation();">
+                <span class="link-icon">${index === 0 ? '📌' : '🔗'}</span>
+                <span style="flex:1; word-break:break-all;">${link.replace('https://', '').replace('http://', '').substring(0, 60)}</span>
+                <span style="color:#94a3b8; font-size:0.7rem;">↗</span>
+            </a>
+        `).join('')}
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #f1f5f9; display:flex; justify-content:flex-end;">
+            <button onclick="this.closest('.external-links-popup').remove()" 
+                    style="font-size:0.7rem; color:#94a3b8; background:none; border:none; cursor:pointer;">
+                Закрыть ✕
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Закрываем при клике вне попапа
+    setTimeout(() => {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 10);
+}
 let areSubsectionsCollapsed = false;
 
 function toggleAllSections() {
