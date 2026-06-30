@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # <--- ЭТО КЛЮЧЕВОЕ ДОБАВЛЕНИЕ
+  contents: write
 
 jobs:
   process:
@@ -42,15 +42,50 @@ jobs:
         run: |
           python scripts/process_deals.py
           
-      - name: Commit and push changes
+      - name: Get latest release info
+        id: release_info
         run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-          git add data/deals_by_quarter.json
+          # Получаем информацию о последнем релизе
+          RELEASE_DATA=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest)
+          UPLOAD_URL=$(echo "$RELEASE_DATA" | grep -o '"upload_url": "[^"]*"' | sed 's/"upload_url": "//' | sed 's/"//' | sed 's/{?name,label}//')
+          RELEASE_ID=$(echo "$RELEASE_DATA" | grep -o '"id": [0-9]*' | head -1 | sed 's/"id": //')
           
-          if git diff --staged --quiet; then
-            echo "ℹ️ No changes to commit"
-          else
-            git commit -m "🤖 Auto-update deals data"
-            git push
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          
+      - name: Compress JSON file
+        run: |
+          # Сжимаем JSON для уменьшения размера
+          gzip -c data/deals_by_quarter.json > data/deals_by_quarter.json.gz
+          echo "✅ JSON сжат: $(du -h data/deals_by_quarter.json.gz | cut -f1)"
+          
+      - name: Upload JSON to release
+        run: |
+          UPLOAD_URL="${{ steps.release_info.outputs.upload_url }}"
+          
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "❌ No release found. Please create a release first."
+            exit 1
           fi
+          
+          # Загружаем сжатый JSON как asset
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @data/deals_by_quarter.json.gz \
+            "$UPLOAD_URL?name=deals_by_quarter.json.gz&label=Данные%20по%20сделкам%20(JSON)"
+          
+          echo "✅ JSON загружен в релиз"
+          
+      - name: Upload CSV to release (optional, for backup)
+        run: |
+          UPLOAD_URL="${{ steps.release_info.outputs.upload_url }}"
+          
+          # Загружаем CSV как backup
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @data/all_deals_itog.csv \
+            "$UPLOAD_URL?name=all_deals_itog_backup.csv&label=Резервная%20копия%20CSV"
+          
+          echo "✅ CSV загружен как backup"
