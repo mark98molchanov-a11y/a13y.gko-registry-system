@@ -940,11 +940,7 @@
 #org-positions-legend::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
-          @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in {
+          .animate-fade-in {
         animation: fadeIn 0.3s ease-out;
     }
     .valuation-card {
@@ -954,6 +950,11 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
+          @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
@@ -1491,14 +1492,21 @@
                         <input type="text" id="editUrlDashboards" placeholder="https://superset.example.com/dashboard/123/" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500 outline-none">
                     </div>
                 </div>
-                <div class="grid grid-cols-1 gap-6 mt-4">
-    <div>
-        <label class="block text-xs font-bold text-orange-500 uppercase mb-2">🔗 База table.yanao</label>
-        <input type="text" id="editExternalLinkDashboards" 
-               placeholder="https://example.com/analytics" 
-               class="w-full border border-orange-200 bg-orange-50 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500">
-        <p class="text-xs text-slate-400 mt-1">Дополнительная ссылка для этого дашборда (будет отображаться оранжевым цветом)</p>
+             <div class="border-t border-orange-200 pt-4 mt-4">
+    <div class="flex items-center justify-between mb-3">
+        <label class="block text-xs font-bold text-orange-500 uppercase">🔗 Внешние ссылки (базы данных)</label>
+        <button type="button" onclick="addExternalLinkField()" 
+                class="text-xs bg-orange-500 text-white px-3 py-1 rounded-lg hover:bg-orange-600 transition flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Добавить ссылку
+        </button>
     </div>
+    <div id="externalLinksContainer" class="space-y-2">
+        <div class="text-sm text-slate-400 italic">Нет внешних ссылок. Нажмите "Добавить ссылку"</div>
+    </div>
+    <p class="text-xs text-slate-400 mt-2">Дополнительные ссылки для этого дашборда (будут отображаться оранжевым цветом)</p>
 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Описание</label>
@@ -4181,15 +4189,26 @@ function exportToExcelNPA() {
                             ${item.url.replace('https://', '').replace('http://', '')}
                         </a>
                     </div>
-                                    ${item.externalLink ? `
+        ${item.externalLinks && item.externalLinks.length > 0 ? `
                 <div class="mt-2">
-                    <a href="${item.externalLink}" target="_blank" 
-                       class="text-sm text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 border-l-4 border-orange-400 pl-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                        База table.yanao
-                    </a>
+                    ${item.externalLinks.length === 1 ? `
+                        <a href="${item.externalLinks[0].url}" target="_blank" 
+                           class="text-sm text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 border-l-4 border-orange-400 pl-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            ${item.externalLinks[0].label || 'Внешняя ссылка'}
+                        </a>
+                    ` : `
+                        <button onclick="openExternalLinksPopup(${JSON.stringify(item.externalLinks).replace(/"/g, '&quot;')}, '${item.title}')" 
+                                class="text-sm text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 border-l-4 border-orange-400 pl-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            ${item.externalLinks.length} базы данных
+                            <span class="text-xs text-orange-400">▼</span>
+                        </button>
+                    `}
                 </div>
                 ` : ''}
                     <p class="text-slate-600 text-sm mb-4">${item.description}</p>
@@ -4424,6 +4443,141 @@ function updateDashboardStatsDashboards(filteredData = dashboardsData) {
         }
     }
 
+    let externalLinksData = [];
+
+function addExternalLinkField(url = '', label = '') {
+    const container = document.getElementById('externalLinksContainer');
+    if (!container) return;
+    
+    const placeholder = container.querySelector('.text-slate-400.italic');
+    if (placeholder && externalLinksData.length === 0) {
+        placeholder.remove();
+    }
+    
+    const linkId = Date.now() + Math.random();
+    const linkHtml = `
+        <div class="external-link-item flex items-center gap-2 bg-orange-50 p-2 rounded-lg border border-orange-200" data-id="${linkId}">
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input type="text" class="external-link-url w-full border border-orange-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500" 
+                       placeholder="https://example.com/database" value="${url}">
+                <input type="text" class="external-link-label w-full border border-orange-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500" 
+                       placeholder="Название базы (например: table.yanao)" value="${label}">
+            </div>
+            <button type="button" onclick="removeExternalLinkField(this)" 
+                    class="text-red-400 hover:text-red-600 transition p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', linkHtml);
+    externalLinksData.push({ id: linkId, url: url, label: label });
+}
+
+function removeExternalLinkField(button) {
+    const item = button.closest('.external-link-item');
+    if (!item) return;
+    
+    const id = parseFloat(item.dataset.id);
+    externalLinksData = externalLinksData.filter(link => link.id !== id);
+    item.remove();
+    
+    const container = document.getElementById('externalLinksContainer');
+    if (container && externalLinksData.length === 0) {
+        const existingPlaceholder = container.querySelector('.text-slate-400.italic');
+        if (!existingPlaceholder) {
+            container.insertAdjacentHTML('beforeend', 
+                '<div class="text-sm text-slate-400 italic">Нет внешних ссылок. Нажмите "Добавить ссылку"</div>'
+            );
+        }
+    }
+}
+
+function getExternalLinksData() {
+    const items = document.querySelectorAll('.external-link-item');
+    const links = [];
+    items.forEach(item => {
+        const urlInput = item.querySelector('.external-link-url');
+        const labelInput = item.querySelector('.external-link-label');
+        if (urlInput && urlInput.value.trim()) {
+            links.push({
+                url: urlInput.value.trim(),
+                label: labelInput ? labelInput.value.trim() || 'Внешняя ссылка' : 'Внешняя ссылка'
+            });
+        }
+    });
+    return links;
+}
+
+function setExternalLinksData(links) {
+    const container = document.getElementById('externalLinksContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    externalLinksData = [];
+    
+    if (!links || links.length === 0) {
+        container.insertAdjacentHTML('beforeend', 
+            '<div class="text-sm text-slate-400 italic">Нет внешних ссылок. Нажмите "Добавить ссылку"</div>'
+        );
+        return;
+    }
+    
+    links.forEach(link => {
+        addExternalLinkField(link.url, link.label);
+    });
+}
+
+function openExternalLinksPopup(links, title) {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm';
+    
+    const popup = document.createElement('div');
+    popup.className = 'bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden';
+    
+    popup.innerHTML = `
+        <div class="px-6 py-4 border-b border-slate-200 bg-orange-50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="text-orange-500">🔗</span>
+                ${title || 'Внешние ссылки'}
+            </h3>
+            <button onclick="this.closest('.fixed').remove()" 
+                    class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-2 max-h-80 overflow-y-auto">
+            ${links.map((link, index) => `
+                <a href="${link.url}" target="_blank" 
+                   class="flex items-center gap-3 p-3 rounded-lg border border-orange-200 hover:bg-orange-50 transition group">
+                    <span class="text-orange-500 text-xl">${index + 1}.</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-slate-700 truncate">${link.label || 'Внешняя ссылка'}</div>
+                        <div class="text-xs text-slate-400 truncate">${link.url}</div>
+                    </div>
+                    <svg class="w-4 h-4 text-orange-400 group-hover:text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+            `).join('')}
+        </div>
+        <div class="px-6 py-3 border-t border-slate-200 bg-slate-50 text-right">
+            <button onclick="this.closest('.fixed').remove()" 
+                    class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition text-sm">
+                Закрыть
+            </button>
+        </div>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.remove();
+        }
+    });
+}
 function openModalDashboards() {
     editIdDashboards = null;
     document.getElementById('modalTitleDashboards').innerText = "Новый дашборд";
@@ -4434,95 +4588,104 @@ function openModalDashboards() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('editCreatedDateDashboards').value = today;
     
-    // Очищаем поле внешней ссылки при создании нового дашборда
-    document.getElementById('editExternalLinkDashboards').value = '';
+    // Очищаем внешние ссылки
+    externalLinksData = [];
+    const container = document.getElementById('externalLinksContainer');
+    if (container) {
+        container.innerHTML = '<div class="text-sm text-slate-400 italic">Нет внешних ссылок. Нажмите "Добавить ссылку"</div>';
+    }
+    
+    toggleModalDashboards(true);
+}
+   function editDashboard(id) {
+    const dashboard = dashboardsData.find(d => d.id === id);
+    if (!dashboard) return;
+    
+    editIdDashboards = id;
+    document.getElementById('modalTitleDashboards').innerText = "Редактирование дашборда";
+    
+    document.getElementById('editIdDashboards').value = id;
+    document.getElementById('editTitleDashboards').value = dashboard.title;
+    document.getElementById('editUrlDashboards').value = dashboard.url;
+    document.getElementById('editDescriptionDashboards').value = dashboard.description || '';
+    document.getElementById('editAnalysisTypeDashboards').value = dashboard.analysisType;
+    document.getElementById('editStatusDashboards').value = dashboard.status;
+    document.getElementById('editOwnerDashboards').value = dashboard.owner || '';
+    document.getElementById('editTagsDashboards').value = dashboard.tags ? dashboard.tags.join(', ') : '';
+    
+    if (dashboard.createdDate) {
+        const date = new Date(dashboard.createdDate);
+        const formattedDate = date.toISOString().split('T')[0];
+        document.getElementById('editCreatedDateDashboards').value = formattedDate;
+    } else {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('editCreatedDateDashboards').value = today;
+    }
+    
+    document.getElementById('editDataSourceDashboards').value = dashboard.dataSource || '';
+    document.getElementById('editUpdateFrequencyDashboards').value = dashboard.updateFrequency || 'daily';
+    document.getElementById('editNotesDashboards').value = dashboard.notes || '';
+    
+    // Загружаем внешние ссылки
+    const externalLinks = dashboard.externalLinks || [];
+    setExternalLinksData(externalLinks);
     
     toggleModalDashboards(true);
 }
 
-    function editDashboard(id) {
-        const dashboard = dashboardsData.find(d => d.id === id);
-        if (!dashboard) return;
-        
-        editIdDashboards = id;
-        document.getElementById('modalTitleDashboards').innerText = "Редактирование дашборда";
-        
-        document.getElementById('editIdDashboards').value = id;
-        document.getElementById('editTitleDashboards').value = dashboard.title;
-        document.getElementById('editUrlDashboards').value = dashboard.url;
-         document.getElementById('editExternalLinkDashboards').value = dashboard.externalLink || '';
-        document.getElementById('editDescriptionDashboards').value = dashboard.description || '';
-        document.getElementById('editAnalysisTypeDashboards').value = dashboard.analysisType;
-        document.getElementById('editStatusDashboards').value = dashboard.status;
-        document.getElementById('editOwnerDashboards').value = dashboard.owner || '';
-        document.getElementById('editTagsDashboards').value = dashboard.tags ? dashboard.tags.join(', ') : '';
-        
-        if (dashboard.createdDate) {
-            const date = new Date(dashboard.createdDate);
-            const formattedDate = date.toISOString().split('T')[0];
-            document.getElementById('editCreatedDateDashboards').value = formattedDate;
-        } else {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('editCreatedDateDashboards').value = today;
-        }
-        
-        document.getElementById('editDataSourceDashboards').value = dashboard.dataSource || '';
-        document.getElementById('editUpdateFrequencyDashboards').value = dashboard.updateFrequency || 'daily';
-        document.getElementById('editNotesDashboards').value = dashboard.notes || '';
-        
-        toggleModalDashboards(true);
-    }
-
     function saveDashboard() {
-        const title = document.getElementById('editTitleDashboards').value.trim();
-        const url = document.getElementById('editUrlDashboards').value.trim();
-        
-        if (!title || !url) {
-            alert("Название и ссылка обязательны для заполнения");
-            return;
-        }
-        
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            alert("Ссылка должна начинаться с http:// или https://");
-            return;
-        }
-        
-        const tags = document.getElementById('editTagsDashboards').value
-            .split(',')
-            .map(tag => tag.trim())
-            .filter(tag => tag.length > 0);
-        
-        const createdDateInput = document.getElementById('editCreatedDateDashboards').value;
-        const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();
-        const externalLink = document.getElementById('editExternalLinkDashboards').value.trim();
-        const newDashboard = {
-            id: editIdDashboards || Date.now(),
-            title: title,
-            url: url,
-            externalLink: externalLink || '', 
-            description: document.getElementById('editDescriptionDashboards').value.trim(),
-            analysisType: document.getElementById('editAnalysisTypeDashboards').value,
-            status: document.getElementById('editStatusDashboards').value,
-            owner: document.getElementById('editOwnerDashboards').value.trim(),
-            tags: tags,
-            dataSource: document.getElementById('editDataSourceDashboards').value.trim(),
-            updateFrequency: document.getElementById('editUpdateFrequencyDashboards').value,
-            notes: document.getElementById('editNotesDashboards').value.trim(),
-            createdDate: createdDate
-        };
-        
-        if (editIdDashboards) {
-            const index = dashboardsData.findIndex(d => d.id === editIdDashboards);
-            if (index > -1) {
-                dashboardsData[index] = newDashboard;
-            }
-        } else {
-            dashboardsData.unshift(newDashboard);
-        }
-        
-        toggleModalDashboards(false);
-        saveDashboardsData();
+    const title = document.getElementById('editTitleDashboards').value.trim();
+    const url = document.getElementById('editUrlDashboards').value.trim();
+    
+    if (!title || !url) {
+        alert("Название и ссылка обязательны для заполнения");
+        return;
     }
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        alert("Ссылка должна начинаться с http:// или https://");
+        return;
+    }
+    
+    const tags = document.getElementById('editTagsDashboards').value
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+    
+    const createdDateInput = document.getElementById('editCreatedDateDashboards').value;
+    const createdDate = createdDateInput ? new Date(createdDateInput).getTime() : Date.now();
+    
+    // Получаем внешние ссылки
+    const externalLinks = getExternalLinksData();
+    
+    const newDashboard = {
+        id: editIdDashboards || Date.now(),
+        title: title,
+        url: url,
+        externalLinks: externalLinks,
+        description: document.getElementById('editDescriptionDashboards').value.trim(),
+        analysisType: document.getElementById('editAnalysisTypeDashboards').value,
+        status: document.getElementById('editStatusDashboards').value,
+        owner: document.getElementById('editOwnerDashboards').value.trim(),
+        tags: tags,
+        dataSource: document.getElementById('editDataSourceDashboards').value.trim(),
+        updateFrequency: document.getElementById('editUpdateFrequencyDashboards').value,
+        notes: document.getElementById('editNotesDashboards').value.trim(),
+        createdDate: createdDate
+    };
+    
+    if (editIdDashboards) {
+        const index = dashboardsData.findIndex(d => d.id === editIdDashboards);
+        if (index > -1) {
+            dashboardsData[index] = newDashboard;
+        }
+    } else {
+        dashboardsData.unshift(newDashboard);
+    }
+    
+    toggleModalDashboards(false);
+    saveDashboardsData();
+}
 
     function getStatusColorDashboards(status) {
         switch(status) {
@@ -4750,7 +4913,7 @@ function exportToExcelDashboards() {
     const data = filtered.map(d => ({
         'Название': d.title,
         'Ссылка': d.url,
-         'База table.yanao': d.externalLink || '',
+         'Внешние ссылки': d.externalLinks ? d.externalLinks.map(link => `${link.label}: ${link.url}`).join('; ') : '',
         'Описание': d.description,
         'Тип анализа': getTypeTextDashboards(d.analysisType),
         'Статус': getStatusTextDashboards(d.status),
@@ -4927,7 +5090,33 @@ function exportToExcelDashboards() {
                         url: row['Ссылка'].toString().trim().startsWith('http') ? 
                              row['Ссылка'].toString().trim() : 
                              `https://${row['Ссылка'].toString().trim()}`,
-                        externalLink: (row['База table.yanao'] || '').toString().trim(),
+let externalLinks = [];
+const externalLinksStr = row['Внешние ссылки'] || row['База table.yanao'] || '';
+if (externalLinksStr) {
+    const parts = externalLinksStr.split(';');
+    parts.forEach(part => {
+        const trimmed = part.trim();
+        if (trimmed) {
+            const colonIndex = trimmed.indexOf(':');
+            if (colonIndex > 0) {
+                const label = trimmed.substring(0, colonIndex).trim();
+                const url = trimmed.substring(colonIndex + 1).trim();
+                if (url) {
+                    externalLinks.push({
+                        label: label || 'Внешняя ссылка',
+                        url: url
+                    });
+                }
+            } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                externalLinks.push({
+                    label: 'Внешняя ссылка',
+                    url: trimmed
+                });
+            }
+        }
+    });
+}
+externalLinks: externalLinks,
                         description: (row['Описание'] || '').toString().trim(),
                         analysisType: analysisType,
                         status: status,
