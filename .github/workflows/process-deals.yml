@@ -1,10 +1,8 @@
 name: Process Deals Data
 
 on:
-  # Запуск при создании нового релиза
   release:
     types: [published]
-  # Или вручную из интерфейса
   workflow_dispatch:
 
 jobs:
@@ -13,10 +11,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # Обновлено с v3 на v4
         
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5  # Обновлено с v4 на v5
         with:
           python-version: '3.10'
           
@@ -25,16 +23,15 @@ jobs:
           
       - name: Download CSV from latest release
         run: |
-          # Получаем URL последнего релиза с CSV
           RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | \
             grep -o '"browser_download_url": "[^"]*all_deals_itog.csv[^"]*"' | \
             head -1 | sed 's/"browser_download_url": "//' | sed 's/"//')
           
           if [ -n "$RELEASE_URL" ]; then
-            echo "📥 Скачиваем файл: $RELEASE_URL"
+            echo "📥 Downloading: $RELEASE_URL"
             curl -L -o data/all_deals_itog.csv "$RELEASE_URL"
           else
-            echo "❌ CSV файл не найден в релизах"
+            echo "❌ CSV file not found in releases"
             exit 1
           fi
           
@@ -47,5 +44,13 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git add data/deals_by_quarter.json
-          git diff --staged --quiet || git commit -m "🤖 Автообновление данных о сделках"
-          git push
+          
+          # Проверяем, есть ли изменения
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+          else
+            git commit -m "🤖 Auto-update deals data"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Добавлено
