@@ -5173,7 +5173,7 @@ function showExternalLinksPopup(links, event, dashboardTitle) {
     
     popup.innerHTML = `
         <button class="popup-close" onclick="this.parentElement.remove()">&times;</button>
-       <div class="popup-title">📊 Базы table.yanao${dashboardTitle ? `: ${dashboardTitle}` : ''}</div>
+       <div class="popup-title">Базы table.yanao${dashboardTitle ? `: ${dashboardTitle}` : ''}</div>
         ${links.map((link, index) => `
             <a href="${link}" target="_blank" class="popup-link" onclick="event.stopPropagation();">
                 <span class="link-icon">${index === 0 ? '📌' : '🔗'}</span>
