@@ -4266,7 +4266,7 @@ function exportToExcelNPA() {
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        Базы данных (${item.externalLinks.length})
+                        Базы table.yanao (${item.externalLinks.length})
                     </a>
                 </div>
                 ` : ''}
@@ -5173,7 +5173,7 @@ function showExternalLinksPopup(links, event, dashboardTitle) {
     
     popup.innerHTML = `
         <button class="popup-close" onclick="this.parentElement.remove()">&times;</button>
-        <div class="popup-title">📊 Внешние базы данных${dashboardTitle ? `: ${dashboardTitle}` : ''}</div>
+       <div class="popup-title">📊 Базы table.yanao${dashboardTitle ? `: ${dashboardTitle}` : ''}</div>
         ${links.map((link, index) => `
             <a href="${link}" target="_blank" class="popup-link" onclick="event.stopPropagation();">
                 <span class="link-icon">${index === 0 ? '📌' : '🔗'}</span>
