@@ -1493,7 +1493,7 @@
                 </div>
                 <div class="grid grid-cols-1 gap-6 mt-4">
     <div>
-        <label class="block text-xs font-bold text-orange-500 uppercase mb-2">🔗 Внешняя ссылка (дополнительная)</label>
+        <label class="block text-xs font-bold text-orange-500 uppercase mb-2">🔗 База table.yanao</label>
         <input type="text" id="editExternalLinkDashboards" 
                placeholder="https://example.com/analytics" 
                class="w-full border border-orange-200 bg-orange-50 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500">
@@ -4188,7 +4188,7 @@ function exportToExcelNPA() {
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        Внешняя ссылка
+                        База table.yanao
                     </a>
                 </div>
                 ` : ''}
@@ -4750,7 +4750,7 @@ function exportToExcelDashboards() {
     const data = filtered.map(d => ({
         'Название': d.title,
         'Ссылка': d.url,
-         'Внешняя ссылка': d.externalLink || '',
+         'База table.yanao': d.externalLink || '',
         'Описание': d.description,
         'Тип анализа': getTypeTextDashboards(d.analysisType),
         'Статус': getStatusTextDashboards(d.status),
@@ -4927,7 +4927,7 @@ function exportToExcelDashboards() {
                         url: row['Ссылка'].toString().trim().startsWith('http') ? 
                              row['Ссылка'].toString().trim() : 
                              `https://${row['Ссылка'].toString().trim()}`,
-                        externalLink: (row['Внешняя ссылка'] || '').toString().trim(),
+                        externalLink: (row['База table.yanao'] || '').toString().trim(),
                         description: (row['Описание'] || '').toString().trim(),
                         analysisType: analysisType,
                         status: status,
