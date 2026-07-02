@@ -1114,6 +1114,10 @@
                     <div class="section-icon">🧮</div>
                     <span>Калькулятор эффективности</span>
                 </div>
+                   <div class="book-subsubsection" onclick="openMapPage()" id="navMap">
+                <div class="section-icon">🗺️</div>
+                <span>Карта сделок</span>
+            </div>
             </div>
         </div>
     </div> <!-- Закрывается subsectionsContainer -->
@@ -5477,6 +5481,9 @@ window.addEventListener('hashchange', function() {
         switchTab('dashboards');
     }
 });
+    function openMapPage() {
+    window.location.href = 'map.html';
+}
 </script>
 </body>
 </html>
