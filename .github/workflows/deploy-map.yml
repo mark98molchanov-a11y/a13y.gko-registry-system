@@ -1,0 +1,56 @@
+name: 🗺️ Deploy Map with LFS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Verify LFS file
+        run: |
+          echo "📁 Проверка файла data/yanao_hierarchical_web.geojson"
+          ls -lh data/yanao_hierarchical_web.geojson
+          head -c 200 data/yanao_hierarchical_web.geojson
+      
+      - name: Copy LFS file to root
+        run: |
+          cp data/yanao_hierarchical_web.geojson .
+          echo "✅ Файл скопирован в корень"
+      
+      - name: Ensure map.html exists
+        run: |
+          if [ ! -f map.html ]; then
+            echo "❌ map.html не найден в корне"
+            exit 1
+          fi
+          echo "✅ map.html найден"
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
