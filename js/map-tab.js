@@ -1,0 +1,299 @@
+// ============================================================
+// map-tab.js — Логика карты для вкладки
+// ============================================================
+
+let mapInstance = null;
+let mapData = null;
+let currentLevel = 0;
+let currentParentId = null;
+
+const MAP_URL = 'data/yanao_hierarchical_web.geojson';
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ КАРТЫ
+// ============================================================
+function initMapTab(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.error('❌ Контейнер не найден:', containerId);
+        return;
+    }
+
+    // Если карта уже есть — не создаём заново
+    if (container._leaflet_id) {
+        console.log('⚠️ Карта уже инициализирована');
+        return;
+    }
+
+    // Создаём карту внутри контейнера
+    mapInstance = L.map(container, {
+        center: [66.0, 76.0],
+        zoom: 5,
+        zoomControl: true
+    });
+
+    // Базовый слой
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(mapInstance);
+
+    // Загружаем данные
+    loadMapData();
+}
+
+// ============================================================
+// ЗАГРУЗКА ДАННЫХ
+// ============================================================
+async function loadMapData() {
+    try {
+        console.log('📥 Загрузка:', MAP_URL);
+        const response = await fetch(MAP_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        mapData = await response.json();
+        console.log('✅ Данные карты загружены:', mapData.features?.length || 0);
+        
+        // Показываем начальный уровень
+        renderMapLevel(0);
+    } catch (error) {
+        console.error('❌ Ошибка загрузки:', error);
+        showMapError(error.message);
+    }
+}
+
+// ============================================================
+// ОТРИСОВКА УРОВНЯ
+// ============================================================
+function renderMapLevel(level, parentId = null) {
+    if (!mapData || !mapInstance) return;
+
+    // Фильтруем объекты
+    let filtered = mapData.features.filter(f => {
+        const props = f.properties;
+        if (props.level !== level) return false;
+        if (level === 0) return true;
+        if (level === 1) return props.parent_id === '89';
+        if (level === 2) return props.parent_id === parentId || props.district_id === parentId;
+        return false;
+    });
+
+    console.log(`📊 Уровень ${level}, родитель ${parentId}: ${filtered.length} объектов`);
+
+    // Удаляем старый слой
+    if (window.mapLayer) {
+        mapInstance.removeLayer(window.mapLayer);
+    }
+
+    // Создаём новый слой
+    window.mapLayer = L.geoJSON(filtered, {
+        style: getMapStyle,
+        onEachFeature: onMapFeatureClick
+    }).addTo(mapInstance);
+
+    // Подгоняем границы
+    if (window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
+
+    // Обновляем статистику
+    updateMapStats(filtered);
+}
+
+// ============================================================
+// СТИЛИ ДЛЯ КВАРТАЛОВ
+// ============================================================
+function getMapStyle(feature) {
+    const price = feature.properties?.deals_median || 0;
+    return {
+        fillColor: getMapColor(price),
+        fillOpacity: 0.7,
+        color: '#334155',
+        weight: 1,
+        opacity: 0.5
+    };
+}
+
+function getMapColor(price) {
+    if (price === 0 || !price) return '#e2e8f0';
+    if (price < 10000) return '#fee2e2';
+    if (price < 50000) return '#fef08a';
+    if (price < 100000) return '#86efac';
+    if (price < 500000) return '#60a5fa';
+    return '#7c3aed';
+}
+
+// ============================================================
+// ОБРАБОТКА КЛИКОВ
+// ============================================================
+function onMapFeatureClick(feature, layer) {
+    const props = feature.properties;
+    const levelName = props.level_name || 'unknown';
+
+    // Попап
+    let popupContent = buildPopupContent(feature);
+    layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
+
+    // Клик для перехода на уровень ниже
+    layer.on('click', function(e) {
+        if (levelName === 'okrug') {
+            renderMapLevel(1);
+            updateBreadcrumb('okrug');
+            if (window.mapLayer && window.mapLayer.getBounds().isValid()) {
+                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+            }
+        } else if (levelName === 'district') {
+            const districtId = props.district_id || props.cadastral_number;
+            renderMapLevel(2, districtId);
+            updateBreadcrumb('district', districtId, props.district_name);
+            if (window.mapLayer && window.mapLayer.getBounds().isValid()) {
+                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+            }
+        }
+    });
+
+    // Ховер
+    layer.on('mouseover', function(e) {
+        this.setStyle({ fillOpacity: 0.9, weight: 2, color: '#0ea5e9' });
+        this.bringToFront();
+    });
+    layer.on('mouseout', function(e) {
+        this.setStyle(getMapStyle(feature));
+    });
+}
+
+// ============================================================
+// ПОСТРОЕНИЕ ПОПАПА
+// ============================================================
+function buildPopupContent(feature) {
+    const props = feature.properties;
+    const levelName = props.level_name || 'unknown';
+    
+    if (levelName === 'okrug') {
+        return `
+            <div class="popup-title">🏛️ ${props.district_name || 'ЯНАО'}</div>
+            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Округ</span></div>
+            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть районы →</div>
+        `;
+    }
+    
+    if (levelName === 'district') {
+        const dealsCount = props.deals_count || 0;
+        const medianPrice = props.deals_median || 0;
+        return `
+            <div class="popup-title">📋 ${props.district_name || props.cadastral_number || 'Район'}</div>
+            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Район</span></div>
+            ${dealsCount > 0 ? `
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть кварталы →</div>
+        `;
+    }
+    
+    if (levelName === 'quarter') {
+        const cadNum = props.cadastral_number || '—';
+        const dealsCount = props.deals_count || 0;
+        const medianPrice = props.deals_median || 0;
+        const minPrice = props.deals_min || 0;
+        const maxPrice = props.deals_max || 0;
+        const uprsMedian = props.uprs_median || 0;
+        return `
+            <div class="popup-title">${cadNum}</div>
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+            ${dealsCount > 0 ? `
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+        `;
+    }
+    
+    return `<div>Неизвестный уровень</div>`;
+}
+
+// ============================================================
+// ОБНОВЛЕНИЕ СТАТИСТИКИ
+// ============================================================
+function updateMapStats(features) {
+    const statsEl = document.getElementById('map-stats');
+    if (!statsEl) return;
+    
+    let withDeals = 0;
+    let totalDeals = 0;
+    
+    features.forEach(f => {
+        const count = f.properties?.deals_count || 0;
+        if (count > 0) {
+            withDeals++;
+            totalDeals += count;
+        }
+    });
+    
+    statsEl.innerHTML = `
+        <span>Объектов: <strong>${features.length}</strong></span>
+        <span>Со сделками: <strong>${withDeals}</strong></span>
+        <span>Всего сделок: <strong>${totalDeals}</strong></span>
+    `;
+}
+
+// ============================================================
+// ХЛЕБНЫЕ КРОШКИ
+// ============================================================
+function updateBreadcrumb(level, id, name) {
+    const breadcrumb = document.getElementById('map-breadcrumb');
+    if (!breadcrumb) return;
+    
+    if (level === 'okrug') {
+        breadcrumb.innerHTML = '<span style="font-weight:600;">🏛️ ЯНАО</span>';
+    } else if (level === 'district') {
+        breadcrumb.innerHTML = `
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9;">🏛️ ЯНАО</span>
+            → <span style="font-weight:600;">${name || id}</span>
+        `;
+    } else if (level === 'quarter') {
+        breadcrumb.innerHTML = `
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9;">🏛️ ЯНАО</span>
+            → <span onclick="renderMapLevel(1)" style="cursor:pointer;color:#0ea5e9;">Район</span>
+            → <span style="font-weight:600;">Кварталы</span>
+        `;
+    }
+}
+
+// ============================================================
+// ОШИБКИ
+// ============================================================
+function showMapError(message) {
+    const container = document.getElementById('map-container');
+    if (container) {
+        container.innerHTML = `
+            <div style="display:flex;justify-content:center;align-items:center;height:100%;color:#ef4444;text-align:center;">
+                <div>
+                    <div style="font-size:2rem;margin-bottom:8px;">❌</div>
+                    <p>Ошибка загрузки карты</p>
+                    <p style="font-size:0.8rem;color:#94a3b8;">${message}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// ============================================================
+// ОЧИСТКА КАРТЫ (при переключении вкладок)
+// ============================================================
+function destroyMap() {
+    if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
+        window.mapLayer = null;
+        console.log('🗺️ Карта уничтожена');
+    }
+}
+
+// ============================================================
+// ЭКСПОРТ ФУНКЦИЙ
+// ============================================================
+window.initMapTab = initMapTab;
+window.destroyMap = destroyMap;
+window.renderMapLevel = renderMapLevel;
+
+console.log('✅ map-tab.js загружен');
