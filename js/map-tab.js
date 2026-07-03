@@ -77,11 +77,16 @@ function renderMapLevel(level, parentId = null) {
     let filtered = mapData.features.filter(f => {
         const props = f.properties;
         if (props.level !== level) return false;
+        
+        // 🔥 ВАЖНО: Исключаем полигоны районов (кад. номер заканчивается на 0000000)
+        if (props.cadastral_number && props.cadastral_number.endsWith('0000000')) {
+            return false;
+        }
+        
         if (level === 0) return true;
         if (level === 1) return props.parent_id === '89';
         if (level === 2) {
             if (parentId) {
-                // Приводим к строке для надежности
                 return String(props.parent_id) === String(parentId) || String(props.district_id) === String(parentId);
             }
             return true;
@@ -97,14 +102,14 @@ function renderMapLevel(level, parentId = null) {
         return;
     }
 
-    // === УДАЛЯЕМ СТАРЫЙ СЛОЙ ПОЛНОСТЬЮ ===
+    // === УДАЛЯЕМ СТАРЫЙ СЛОЙ ===
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
-        window.mapLayer.off(); // Очищаем все обработчики
+        window.mapLayer.off();
         window.mapLayer = null;
     }
 
-    // === СОЗДАЕМ НОВЫЙ СЛОЙ ===
+    // === СОЗДАЁМ НОВЫЙ СЛОЙ ===
     window.mapLayer = L.geoJSON(filtered, {
         style: function(feature) {
             const level = feature.properties?.level || 0;
@@ -112,9 +117,9 @@ function renderMapLevel(level, parentId = null) {
             
             if (level === 2) {
                 return {
-                    fillColor: getMapColor(price),
+                    fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
                     fillOpacity: 0.7,
-                    color: '#0ea5e9',
+                    color: price > 0 ? '#0ea5e9' : '#64748b',
                     weight: 2,
                     opacity: 0.9,
                     dashArray: null
@@ -123,36 +128,34 @@ function renderMapLevel(level, parentId = null) {
             
             if (level === 1) {
                 return {
-                    fillColor: getMapColor(price),
-                    fillOpacity: 0.4,
-                    color: '#1e293b',
+                    fillColor: '#fbbf24',
+                    fillOpacity: 0.3,
+                    color: '#92400e',
                     weight: 2,
                     opacity: 0.6
                 };
             }
             
             return {
-                fillColor: getMapColor(price),
-                fillOpacity: 0.3,
-                color: '#334155',
+                fillColor: '#60a5fa',
+                fillOpacity: 0.2,
+                color: '#1e293b',
                 weight: 1,
                 opacity: 0.5
             };
         },
-        // === ЯВНО ПЕРЕДАЕМ ФУНКЦИЮ ОБРАБОТКИ ===
         onEachFeature: onMapFeatureClick
     }).addTo(mapInstance);
 
     // Подгоняем границы
     if (window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-    } else {
-        console.warn('⚠️ Некорректные границы у слоя');
     }
 
     // Обновляем статистику
     updateMapStats(filtered);
 }
+
 
 // ============================================================
 // СТИЛИ ДЛЯ КВАРТАЛОВ
