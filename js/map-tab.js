@@ -90,9 +90,26 @@ function renderMapLevel(level, parentId = null) {
 
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
+    // Логирование для кварталов
+    if (level === 2) {
+        console.log(`🔍 Кварталы для района ${parentId}: ${filtered.length} объектов`);
+        if (filtered.length > 0) {
+            console.log('📌 Пример квартала:', filtered[0].properties);
+        } else {
+            console.warn('⚠️ Нет кварталов для района', parentId);
+            const allQuarters = mapData.features.filter(f => f.properties.level === 2);
+            console.log(`📊 Всего кварталов в данных: ${allQuarters.length}`);
+            const quartersForDistrict = allQuarters.filter(f => 
+                f.properties.parent_id === parentId || f.properties.district_id === parentId
+            );
+            console.log(`📊 Кварталов с parent_id=${parentId}: ${quartersForDistrict.length}`);
+            return;
+        }
+    }
+    
     if (filtered.length === 0) {
         console.warn('⚠️ Нет объектов для отображения!');
-        showMapError('Нет кварталов в этом районе');
+        showMapError('Нет объектов для отображения');
         return;
     }
 
@@ -101,35 +118,39 @@ function renderMapLevel(level, parentId = null) {
         mapInstance.removeLayer(window.mapLayer);
     }
 
-    // Создаём новый слой
+    // Создаём новый слой с правильными стилями для кварталов
     window.mapLayer = L.geoJSON(filtered, {
         style: function(feature) {
             const level = feature.properties?.level || 0;
             const price = feature.properties?.deals_median || 0;
             
+            // 🟦 КВАРТАЛЫ (level 2) — яркие, с толстой рамкой
             if (level === 2) {
                 return {
                     fillColor: getMapColor(price),
                     fillOpacity: 0.7,
                     color: '#0ea5e9',
                     weight: 2,
-                    opacity: 0.8
+                    opacity: 0.9,
+                    dashArray: null
                 };
             }
             
+            // 🟨 РАЙОНЫ (level 1)
             if (level === 1) {
                 return {
                     fillColor: getMapColor(price),
-                    fillOpacity: 0.5,
+                    fillOpacity: 0.4,
                     color: '#1e293b',
                     weight: 2,
-                    opacity: 0.8
+                    opacity: 0.6
                 };
             }
             
+            // 🟩 ОКРУГ (level 0)
             return {
                 fillColor: getMapColor(price),
-                fillOpacity: 0.7,
+                fillOpacity: 0.3,
                 color: '#334155',
                 weight: 1,
                 opacity: 0.5
@@ -141,6 +162,8 @@ function renderMapLevel(level, parentId = null) {
     // Подгоняем границы
     if (window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    } else {
+        console.warn('⚠️ Некорректные границы у слоя');
     }
 
     // Обновляем статистику
