@@ -411,45 +411,30 @@ function updateMapStats(features, level, parentId) {
     let totalDeals = 0;
     let objectCount = 0;
     
-    // Получаем все валидные кварталы (исключая полигоны районов)
-    const allQuarters = mapData.features.filter(f => {
-        if (f.properties.level !== 2) return false;
-        const cadNum = f.properties.cadastral_number || '';
-        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
-    });
+    // ✅ ТЕПЕРЬ УЧИТЫВАЕМ И КВАРТАЛЫ, И ОБЕРТКИ (все объекты level=2)
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
     
-    // === УРОВЕНЬ 0 (Округ) — показываем все кварталы ===
-    if (level === 0) {
-        objectCount = allQuarters.length;
-        allQuarters.forEach(q => {
-            const count = q.properties.deals_count || 0;
+    // === УРОВЕНЬ 0 (Округ) — показываем все объекты ===
+    if (level === 0 || level === 1) {
+        objectCount = allObjects.length;
+        allObjects.forEach(f => {
+            const count = f.properties.deals_count || 0;
             if (count > 0) {
                 withDeals++;
                 totalDeals += count;
             }
         });
     }
-    // === УРОВЕНЬ 1 (Районы) — показываем все кварталы (общая статистика по ЯНАО) ===
-    else if (level === 1) {
-        objectCount = allQuarters.length;
-        allQuarters.forEach(q => {
-            const count = q.properties.deals_count || 0;
-            if (count > 0) {
-                withDeals++;
-                totalDeals += count;
-            }
-        });
-    }
-    // === УРОВЕНЬ 2 (Кварталы) — показываем кварталы конкретного района ===
+    // === УРОВЕНЬ 2 (Кварталы) — показываем объекты конкретного района ===
     else if (level === 2) {
-        const districtQuarters = allQuarters.filter(q => {
-            const qParentId = q.properties.parent_id || q.properties.district_id;
-            return qParentId === parentId;
+        const districtObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return fParentId === parentId;
         });
         
-        objectCount = districtQuarters.length;
-        districtQuarters.forEach(q => {
-            const count = q.properties.deals_count || 0;
+        objectCount = districtObjects.length;
+        districtObjects.forEach(f => {
+            const count = f.properties.deals_count || 0;
             if (count > 0) {
                 withDeals++;
                 totalDeals += count;
