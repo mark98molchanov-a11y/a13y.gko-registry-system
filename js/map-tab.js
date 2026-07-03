@@ -70,10 +70,23 @@ function renderMapLevel(level, parentId = null) {
     // Фильтруем объекты
     let filtered = mapData.features.filter(f => {
         const props = f.properties;
+        
+        // Показываем только объекты нужного уровня
         if (props.level !== level) return false;
+        
+        // Уровень 0: показываем округ
         if (level === 0) return true;
+        
+        // Уровень 1: показываем все районы
         if (level === 1) return props.parent_id === '89';
-        if (level === 2) return props.parent_id === parentId || props.district_id === parentId;
+        
+        // Уровень 2: показываем кварталы по parent_id ИЛИ district_id
+        if (level === 2) {
+            if (parentId) {
+                return props.parent_id === parentId || props.district_id === parentId;
+            }
+            return true; // Если parentId не указан, показываем все кварталы
+        }
         return false;
     });
 
@@ -82,6 +95,12 @@ function renderMapLevel(level, parentId = null) {
     // Удаляем старый слой
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
+    }
+
+    // Если объектов нет — показываем сообщение
+    if (filtered.length === 0) {
+        console.warn('⚠️ Нет объектов для отображения');
+        return;
     }
 
     // Создаём новый слой
@@ -143,10 +162,21 @@ function onMapFeatureClick(feature, layer) {
             }
         } else if (levelName === 'district') {
             const districtId = props.district_id || props.cadastral_number;
-            renderMapLevel(2, districtId);
+            renderMapLevel(2, districtId);  // ← Переход к кварталам
             updateBreadcrumb('district', districtId, props.district_name);
             if (window.mapLayer && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+            }
+        } else if (levelName === 'quarter') {
+            // При клике на квартал — показываем информацию в попапе (уже есть)
+            console.log('🏘️ Квартал выбран:', props.cadastral_number);
+            // При клике на квартал можно приблизиться к нему
+            if (window.mapLayer && window.mapLayer.getBounds && window.mapLayer.getBounds().isValid()) {
+                // Приближаемся к кварталу
+                const bounds = window.mapLayer.getBounds();
+                if (bounds.isValid()) {
+                    mapInstance.fitBounds(bounds, { padding: [30, 30] });
+                }
             }
         }
     });
@@ -190,23 +220,23 @@ function buildPopupContent(feature) {
         `;
     }
     
-    if (levelName === 'quarter') {
-        const cadNum = props.cadastral_number || '—';
-        const dealsCount = props.deals_count || 0;
-        const medianPrice = props.deals_median || 0;
-        const minPrice = props.deals_min || 0;
-        const maxPrice = props.deals_max || 0;
-        const uprsMedian = props.uprs_median || 0;
-        return `
-            <div class="popup-title">${cadNum}</div>
-            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-            ${dealsCount > 0 ? `
-            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-        `;
-    }
+if (levelName === 'quarter') {
+    const cadNum = props.cadastral_number || '—';
+    const dealsCount = props.deals_count || 0;
+    const medianPrice = props.deals_median || 0;
+    const minPrice = props.deals_min || 0;
+    const maxPrice = props.deals_max || 0;
+    const uprsMedian = props.uprs_median || 0;
+    return `
+        <div class="popup-title">${cadNum}</div>
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+        ${dealsCount > 0 ? `
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+}
     
     return `<div>Неизвестный уровень</div>`;
 }
