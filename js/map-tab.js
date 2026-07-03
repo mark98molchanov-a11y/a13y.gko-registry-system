@@ -238,12 +238,13 @@ function onMapFeatureClick(feature, layer) {
     const props = feature.properties;
     const levelName = props.level_name || 'unknown';
     const level = props.level;
+    const cadNum = props.cadastral_number || '—';
 
     // Попап
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
 
-    // 🖱️ КЛИК
+    // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
         if (levelName === 'okrug') {
             renderMapLevel(1);
@@ -260,30 +261,31 @@ function onMapFeatureClick(feature, layer) {
             }
         } else if (levelName === 'quarter') {
             // 🏘️ КЛИК НА КВАРТАЛ
-            console.log('🏘️ Квартал выбран:', props.cadastral_number);
+            console.log('🏘️ Квартал выбран:', cadNum);
+            console.log('📊 Сделок:', props.deals_count || 0);
             
-            // Показываем попап с информацией о сделках (уже есть)
-            // Дополнительно: приближаемся к кварталу
+            // Приближаемся к кварталу
             if (layer.getBounds && layer.getBounds().isValid()) {
                 mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
             } else if (layer.getLatLng) {
                 mapInstance.setView(layer.getLatLng(), 15);
             }
+            
+            // Открываем попап
+            layer.openPopup();
         }
     });
 
-    // 🖱️ ХОВЕР (наведение)
+    // ===== 🖱️ ХОВЕР (наведение) =====
     layer.on('mouseover', function(e) {
-        // Увеличиваем яркость и толщину границ при наведении
+        // Меняем стиль при наведении
         this.setStyle({
             fillOpacity: 0.9,
             weight: 3,
-            color: '#f59e0b',  // Оранжевый при наведении
+            color: '#f59e0b',  // Оранжевый
             opacity: 1
         });
         this.bringToFront();
-        
-        // Меняем курсор
         this._container.style.cursor = 'pointer';
     });
 
@@ -316,7 +318,7 @@ function onMapFeatureClick(feature, layer) {
                 fillOpacity: 0.5,
                 color: '#1e293b',
                 weight: 2,
-                opacity: 0.8
+                opacity: 0.6
             };
         }
         
