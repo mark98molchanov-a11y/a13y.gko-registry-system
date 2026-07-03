@@ -7,7 +7,7 @@ let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
 
-const MAP_URL = 'data/yanao_hierarchical_web.geojson';
+const MAP_URL = 'https://ghproxy.net/https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/data/yanao_hierarchical_web.geojson';
 
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
