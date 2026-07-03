@@ -101,25 +101,34 @@ function renderMapLevel(level, parentId = null) {
         return;
     }
 
+    // Удаляем старый слой
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
         window.mapLayer.off();
         window.mapLayer = null;
     }
 
-    // 🔥 СОЗДАЕМ ОДИН СЛОЙ С РАЗНЫМИ СТИЛЯМИ
-    window.mapLayer = L.geoJSON(filtered, {
-        style: function(feature) {
-            const props = feature.properties;
-            const cadNum = props?.cadastral_number || '';
-            const price = props?.deals_median || 0;
-            
-            // Проверяем, является ли квартал оберткой
-            const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
-            
-            if (isWrapper) {
-                // Обертка — полупрозрачная
-                console.log(`  🔥 Обертка найдена: ${cadNum}`);
+    // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
+    const wrapperQuarters = filtered.filter(f => {
+        const cadNum = f.properties?.cadastral_number || '';
+        return cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+    });
+    
+    const normalQuarters = filtered.filter(f => {
+        const cadNum = f.properties?.cadastral_number || '';
+        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+    });
+
+    console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
+
+    // 🔥 СОЗДАЕМ ГРУППУ ДЛЯ ВСЕХ СЛОЕВ
+    window.mapLayer = L.layerGroup();
+
+    // 1️⃣ СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
+    if (wrapperQuarters.length > 0) {
+        const wrapperLayer = L.geoJSON(wrapperQuarters, {
+            style: function(feature) {
+                const price = feature.properties?.deals_median || 0;
                 return {
                     fillColor: price > 0 ? '#fbbf24' : '#e2e8f0',
                     fillOpacity: 0.3,
@@ -127,31 +136,16 @@ function renderMapLevel(level, parentId = null) {
                     weight: 1,
                     opacity: 0.3,
                     dashArray: '4 4',
+                    interactive: false  // ← ОТКЛЮЧАЕМ КЛИКИ НА ОБЕРТКЕ
                 };
-            }
-            
-            // Обычный квартал
-            return {
-                fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
-                fillOpacity: 0.7,
-                color: price > 0 ? '#0ea5e9' : '#64748b',
-                weight: 2,
-                opacity: 0.9,
-                dashArray: null
-            };
-        },
-        onEachFeature: function(feature, layer) {
-            const props = feature.properties;
-            const cadNum = props?.cadastral_number || '';
-            
-            // Проверяем, является ли квартал оберткой
-            const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
-            
-            if (isWrapper) {
-                // Обертка — только попап, без кликов
+            },
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties;
+                const cadNum = props.cadastral_number || '—';
                 const dealsCount = props.deals_count || 0;
                 const medianPrice = props.deals_median || 0;
                 
+                // Попап для обертки (только по клику, если interactive: false — не работает)
                 layer.bindPopup(`
                     <div class="popup-title"><b>${cadNum}</b> (общая территория)</div>
                     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
@@ -161,6 +155,7 @@ function renderMapLevel(level, parentId = null) {
                     <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
                 `, { className: 'custom-popup', maxWidth: 300 });
                 
+                // Клик по обертке (будет работать, если interactive: false убрать)
                 layer.on('click', function(e) {
                     const statObjects = document.getElementById('stat-objects');
                     const statWithDeals = document.getElementById('stat-with-deals');
@@ -174,29 +169,56 @@ function renderMapLevel(level, parentId = null) {
                     
                     layer.openPopup();
                 });
-                
-                return;
             }
-            
-            // Обычный квартал — полная интерактивность
-            onMapFeatureClick(feature, layer);
-        }
-    }).addTo(mapInstance);
+        });
+        window.mapLayer.addLayer(wrapperLayer);
+        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.)`);
+    }
+
+    // 2️⃣ ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
+    if (normalQuarters.length > 0) {
+        const normalLayer = L.geoJSON(normalQuarters, {
+            style: function(feature) {
+                const price = feature.properties?.deals_median || 0;
+                return {
+                    fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
+                    fillOpacity: 0.7,
+                    color: price > 0 ? '#0ea5e9' : '#64748b',
+                    weight: 2,
+                    opacity: 0.9,
+                    dashArray: null
+                };
+            },
+            onEachFeature: onMapFeatureClick
+        });
+        window.mapLayer.addLayer(normalLayer);
+        console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.)`);
+    }
+
+    // Добавляем группу на карту
+    window.mapLayer.addTo(mapInstance);
 
     // Подгоняем границы
     try {
-        if (window.mapLayer.getBounds && window.mapLayer.getBounds().isValid()) {
-            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+        let bounds = null;
+        window.mapLayer.eachLayer(function(layer) {
+            if (layer.getBounds && layer.getBounds().isValid()) {
+                if (!bounds) {
+                    bounds = layer.getBounds();
+                } else {
+                    bounds.extend(layer.getBounds());
+                }
+            }
+        });
+        
+        if (bounds && bounds.isValid()) {
+            mapInstance.fitBounds(bounds, { padding: [30, 30] });
         }
     } catch(e) {
         console.warn('⚠️ Не удалось подогнать границы:', e);
     }
 
     // Обновляем статистику (без оберток)
-    const normalQuarters = filtered.filter(f => {
-        const cadNum = f.properties?.cadastral_number || '';
-        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
-    });
     updateMapStats(normalQuarters, level, parentId);
 }
 
