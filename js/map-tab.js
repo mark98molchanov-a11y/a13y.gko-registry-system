@@ -65,41 +65,40 @@ async function loadMapData() {
 // ОТРИСОВКА УРОВНЯ
 // ============================================================
 function renderMapLevel(level, parentId = null) {
-    if (!mapData || !mapInstance) return;
+    if (!mapData || !mapInstance) {
+        console.warn('⚠️ mapData или mapInstance не инициализированы');
+        return;
+    }
+
+    console.log(`🔍 Фильтрация: level=${level}, parentId=${parentId}`);
+    console.log(`📊 Всего объектов в mapData: ${mapData.features.length}`);
 
     // Фильтруем объекты
     let filtered = mapData.features.filter(f => {
         const props = f.properties;
-        
-        // Показываем только объекты нужного уровня
         if (props.level !== level) return false;
-        
-        // Уровень 0: показываем округ
         if (level === 0) return true;
-        
-        // Уровень 1: показываем все районы
         if (level === 1) return props.parent_id === '89';
-        
-        // Уровень 2: показываем кварталы по parent_id ИЛИ district_id
         if (level === 2) {
             if (parentId) {
-                return props.parent_id === parentId || props.district_id === parentId;
+                // ПРОВЕРЯЕМ ОБА ПОЛЯ
+                const match = props.parent_id === parentId || props.district_id === parentId;
+                if (match) {
+                    console.log(`✅ Найден квартал: ${props.cadastral_number}, parent_id=${props.parent_id}, district_id=${props.district_id}`);
+                }
+                return match;
             }
-            return true; // Если parentId не указан, показываем все кварталы
+            return true;
         }
         return false;
     });
 
-    console.log(`📊 Уровень ${level}, родитель ${parentId}: ${filtered.length} объектов`);
-
-    // Удаляем старый слой
-    if (window.mapLayer) {
-        mapInstance.removeLayer(window.mapLayer);
-    }
-
-    // Если объектов нет — показываем сообщение
+    console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
+    
     if (filtered.length === 0) {
-        console.warn('⚠️ Нет объектов для отображения');
+        console.warn('⚠️ Нет объектов для отображения!');
+        // Показываем сообщение на карте
+        showMapError('Нет кварталов в этом районе');
         return;
     }
 
