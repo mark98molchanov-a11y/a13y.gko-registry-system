@@ -273,18 +273,36 @@ function updateBreadcrumb(level, id, name) {
     const breadcrumb = document.getElementById('map-breadcrumb');
     if (!breadcrumb) return;
     
+    // Получаем название района для кварталов
+    let districtName = name || id || 'Район';
+    if (level === 'quarter' && id) {
+        // Пытаемся найти название района
+        if (mapData && mapData.features) {
+            const district = mapData.features.find(f => 
+                f.properties.level === 1 && 
+                (f.properties.district_id === id || f.properties.cadastral_number === id)
+            );
+            if (district) {
+                districtName = district.properties.district_name || district.properties.cadastral_number || id;
+            }
+        }
+    }
+    
     if (level === 'okrug') {
-        breadcrumb.innerHTML = '<span style="font-weight:600;">🏛️ ЯНАО</span>';
+        breadcrumb.innerHTML = '<span style="font-weight:600; font-size:0.95rem;">🏛️ ЯНАО</span>';
     } else if (level === 'district') {
         breadcrumb.innerHTML = `
-            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9;">🏛️ ЯНАО</span>
-            → <span style="font-weight:600;">${name || id}</span>
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+            <span style="color:#94a3b8; margin:0 4px;">›</span>
+            <span style="font-weight:600; font-size:0.95rem;">${name || id}</span>
         `;
     } else if (level === 'quarter') {
         breadcrumb.innerHTML = `
-            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9;">🏛️ ЯНАО</span>
-            → <span onclick="renderMapLevel(1)" style="cursor:pointer;color:#0ea5e9;">Район</span>
-            → <span style="font-weight:600;">Кварталы</span>
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+            <span style="color:#94a3b8; margin:0 4px;">›</span>
+            <span onclick="renderMapLevel(1)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">${districtName}</span>
+            <span style="color:#94a3b8; margin:0 4px;">›</span>
+            <span style="font-weight:600; font-size:0.95rem;">Кварталы</span>
         `;
     }
 }
