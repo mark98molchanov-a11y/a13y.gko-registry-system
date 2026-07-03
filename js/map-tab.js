@@ -275,6 +275,12 @@ function getMapColor(price) {
 // ОБРАБОТКА КЛИКОВ
 // ============================================================
 function onMapFeatureClick(feature, layer) {
+    // Проверка: если feature нет — выходим
+    if (!feature || !feature.properties) {
+        console.warn('⚠️ onMapFeatureClick: feature или properties отсутствуют');
+        return;
+    }
+    
     const props = feature.properties;
     const levelName = props.level_name || 'unknown';
     const level = props.level;
@@ -289,48 +295,52 @@ function onMapFeatureClick(feature, layer) {
         if (levelName === 'okrug') {
             renderMapLevel(1);
             updateBreadcrumb('okrug');
-            if (window.mapLayer && window.mapLayer.getBounds().isValid()) {
+            // Проверяем, что mapLayer существует и у него есть метод getBounds
+            if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
         } else if (levelName === 'district') {
             const districtId = props.district_id || props.cadastral_number;
             renderMapLevel(2, districtId);
             updateBreadcrumb('district', districtId, props.district_name);
-            if (window.mapLayer && window.mapLayer.getBounds().isValid()) {
+            if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
         } else if (levelName === 'quarter') {
-            // 🏘️ КЛИК НА КВАРТАЛ
             console.log('🏘️ Квартал выбран:', cadNum);
             console.log('📊 Сделок:', props.deals_count || 0);
             
-            // Приближаемся к кварталу
             if (layer.getBounds && layer.getBounds().isValid()) {
                 mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
             } else if (layer.getLatLng) {
                 mapInstance.setView(layer.getLatLng(), 15);
             }
             
-            // Открываем попап
             layer.openPopup();
         }
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
     layer.on('mouseover', function(e) {
-        // Меняем стиль при наведении
+        // Проверяем, что слой ещё существует
+        if (!this || !this.setStyle) return;
+        
         this.setStyle({
             fillOpacity: 0.9,
             weight: 3,
-            color: '#f59e0b',  // Оранжевый
+            color: '#f59e0b',
             opacity: 1
         });
         this.bringToFront();
-        this._container.style.cursor = 'pointer';
+        if (this._container) {
+            this._container.style.cursor = 'pointer';
+        }
     });
 
     layer.on('mouseout', function(e) {
-        // Возвращаем исходный стиль
+        // Проверяем, что слой и feature ещё существуют
+        if (!this || !this.setStyle || !feature) return;
+        
         const price = feature.properties?.deals_median || 0;
         const level = feature.properties?.level || 0;
         
