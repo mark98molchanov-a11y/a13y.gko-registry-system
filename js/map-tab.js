@@ -81,12 +81,7 @@ function renderMapLevel(level, parentId = null) {
         if (level === 1) return props.parent_id === '89';
         if (level === 2) {
             if (parentId) {
-                // ПРОВЕРЯЕМ ОБА ПОЛЯ
-                const match = props.parent_id === parentId || props.district_id === parentId;
-                if (match) {
-                    console.log(`✅ Найден квартал: ${props.cadastral_number}, parent_id=${props.parent_id}, district_id=${props.district_id}`);
-                }
-                return match;
+                return props.parent_id === parentId || props.district_id === parentId;
             }
             return true;
         }
@@ -97,14 +92,49 @@ function renderMapLevel(level, parentId = null) {
     
     if (filtered.length === 0) {
         console.warn('⚠️ Нет объектов для отображения!');
-        // Показываем сообщение на карте
         showMapError('Нет кварталов в этом районе');
         return;
     }
 
+    // Удаляем старый слой
+    if (window.mapLayer) {
+        mapInstance.removeLayer(window.mapLayer);
+    }
+
     // Создаём новый слой
     window.mapLayer = L.geoJSON(filtered, {
-        style: getMapStyle,
+        style: function(feature) {
+            const level = feature.properties?.level || 0;
+            const price = feature.properties?.deals_median || 0;
+            
+            if (level === 2) {
+                return {
+                    fillColor: getMapColor(price),
+                    fillOpacity: 0.7,
+                    color: '#0ea5e9',
+                    weight: 2,
+                    opacity: 0.8
+                };
+            }
+            
+            if (level === 1) {
+                return {
+                    fillColor: getMapColor(price),
+                    fillOpacity: 0.5,
+                    color: '#1e293b',
+                    weight: 2,
+                    opacity: 0.8
+                };
+            }
+            
+            return {
+                fillColor: getMapColor(price),
+                fillOpacity: 0.7,
+                color: '#334155',
+                weight: 1,
+                opacity: 0.5
+            };
+        },
         onEachFeature: onMapFeatureClick
     }).addTo(mapInstance);
 
@@ -121,15 +151,45 @@ function renderMapLevel(level, parentId = null) {
 // СТИЛИ ДЛЯ КВАРТАЛОВ
 // ============================================================
 function getMapStyle(feature) {
-    const price = feature.properties?.deals_median || 0;
-    return {
+    const props = feature.properties;
+    const level = props.level;
+    const price = props.deals_median || 0;
+    
+    // Базовый стиль
+    let style = {
         fillColor: getMapColor(price),
         fillOpacity: 0.7,
         color: '#334155',
         weight: 1,
         opacity: 0.5
     };
+    
+    // Для кварталов делаем границы толще и ярче
+    if (level === 2) {
+        style = {
+            fillColor: getMapColor(price),
+            fillOpacity: 0.7,
+            color: '#0ea5e9',        // Синий цвет для границ кварталов
+            weight: 2,                // Толще границы
+            opacity: 0.8,             // Более яркие
+            dashArray: null
+        };
+    }
+    
+    // Для районов
+    if (level === 1) {
+        style = {
+            fillColor: getMapColor(price),
+            fillOpacity: 0.5,
+            color: '#1e293b',
+            weight: 2,
+            opacity: 0.8
+        };
+    }
+    
+    return style;
 }
+
 
 function getMapColor(price) {
     if (price === 0 || !price) return '#e2e8f0';
@@ -146,12 +206,13 @@ function getMapColor(price) {
 function onMapFeatureClick(feature, layer) {
     const props = feature.properties;
     const levelName = props.level_name || 'unknown';
+    const level = props.level;
 
     // Попап
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
 
-    // Клик для перехода на уровень ниже
+    // 🖱️ КЛИК
     layer.on('click', function(e) {
         if (levelName === 'okrug') {
             renderMapLevel(1);
@@ -161,32 +222,74 @@ function onMapFeatureClick(feature, layer) {
             }
         } else if (levelName === 'district') {
             const districtId = props.district_id || props.cadastral_number;
-            renderMapLevel(2, districtId);  // ← Переход к кварталам
+            renderMapLevel(2, districtId);
             updateBreadcrumb('district', districtId, props.district_name);
             if (window.mapLayer && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
         } else if (levelName === 'quarter') {
-            // При клике на квартал — показываем информацию в попапе (уже есть)
+            // 🏘️ КЛИК НА КВАРТАЛ
             console.log('🏘️ Квартал выбран:', props.cadastral_number);
-            // При клике на квартал можно приблизиться к нему
-            if (window.mapLayer && window.mapLayer.getBounds && window.mapLayer.getBounds().isValid()) {
-                // Приближаемся к кварталу
-                const bounds = window.mapLayer.getBounds();
-                if (bounds.isValid()) {
-                    mapInstance.fitBounds(bounds, { padding: [30, 30] });
-                }
+            
+            // Показываем попап с информацией о сделках (уже есть)
+            // Дополнительно: приближаемся к кварталу
+            if (layer.getBounds && layer.getBounds().isValid()) {
+                mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
+            } else if (layer.getLatLng) {
+                mapInstance.setView(layer.getLatLng(), 15);
             }
         }
     });
 
-    // Ховер
+    // 🖱️ ХОВЕР (наведение)
     layer.on('mouseover', function(e) {
-        this.setStyle({ fillOpacity: 0.9, weight: 2, color: '#0ea5e9' });
+        // Увеличиваем яркость и толщину границ при наведении
+        this.setStyle({
+            fillOpacity: 0.9,
+            weight: 3,
+            color: '#f59e0b',  // Оранжевый при наведении
+            opacity: 1
+        });
         this.bringToFront();
+        
+        // Меняем курсор
+        this._container.style.cursor = 'pointer';
     });
+
     layer.on('mouseout', function(e) {
-        this.setStyle(getMapStyle(feature));
+        // Возвращаем исходный стиль
+        const price = feature.properties?.deals_median || 0;
+        const level = feature.properties?.level || 0;
+        
+        let style = {
+            fillColor: getMapColor(price),
+            fillOpacity: 0.7,
+            color: '#334155',
+            weight: 1,
+            opacity: 0.5
+        };
+        
+        if (level === 2) {
+            style = {
+                fillColor: getMapColor(price),
+                fillOpacity: 0.7,
+                color: '#0ea5e9',
+                weight: 2,
+                opacity: 0.8
+            };
+        }
+        
+        if (level === 1) {
+            style = {
+                fillColor: getMapColor(price),
+                fillOpacity: 0.5,
+                color: '#1e293b',
+                weight: 2,
+                opacity: 0.8
+            };
+        }
+        
+        this.setStyle(style);
     });
 }
 
