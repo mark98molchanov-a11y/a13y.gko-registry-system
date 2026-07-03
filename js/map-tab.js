@@ -101,11 +101,15 @@ function renderMapLevel(level, parentId = null) {
         return;
     }
 
-    // Удаляем старый слой
+    // Удаляем старые слои
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
         window.mapLayer.off();
         window.mapLayer = null;
+    }
+    if (window.wrapperLayer) {
+        mapInstance.removeLayer(window.wrapperLayer);
+        window.wrapperLayer = null;
     }
 
     // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
@@ -121,69 +125,117 @@ function renderMapLevel(level, parentId = null) {
 
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
-    // 🔥 СОЗДАЕМ ГРУППУ ДЛЯ ВСЕХ СЛОЕВ
+    // 🔥 СОЗДАЕМ ГРУППУ ДЛЯ КВАРТАЛОВ
     window.mapLayer = L.layerGroup();
 
-    // 1️⃣ СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-   if (wrapperQuarters.length > 0) {
-    // 🔥 ВЫЧИТАЕМ КВАРТАЛЫ ИЗ КАЖДОЙ ОБЕРТКИ
-    const processedWrappers = wrapperQuarters.map(wrapper => {
-        return subtractQuartersFromWrapper(wrapper, normalQuarters);
-    });
-    
-    const wrapperLayer = L.geoJSON(processedWrappers, {
-        style: function(feature) {
-            const price = feature.properties?.deals_median || 0;
-            const isSubtracted = feature.properties?.isSubtracted || false;
-            
-            // Если вычитание выполнено — показываем остаточную территорию
-            return {
-                fillColor: isSubtracted ? '#fbbf24' : '#e2e8f0',
-                fillOpacity: isSubtracted ? 0.5 : 0.3,
-                color: '#94a3b8',
-                weight: 1,
-                opacity: 0.3,
-                dashArray: '4 4',
-                interactive: false
-            };
-        },
-        onEachFeature: function(feature, layer) {
-            const props = feature.properties;
-            const cadNum = props.cadastral_number || '—';
-            const dealsCount = props.deals_count || 0;
-            const medianPrice = props.deals_median || 0;
-            const subtractedCount = props.subtractedCount || 0;
-            
-            layer.bindPopup(`
-                <div class="popup-title"><b>${cadNum}</b></div>
-                <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">Остаточная территория</span></div>
-                <div class="popup-row"><span class="popup-label">Вычтено кварталов</span><span class="popup-value">${subtractedCount}</span></div>
-                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                ${dealsCount > 0 ? `
-                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                ` : ''}
-            `, { className: 'custom-popup', maxWidth: 300 });
-            
-            layer.on('click', function(e) {
-                const statObjects = document.getElementById('stat-objects');
-                const statWithDeals = document.getElementById('stat-with-deals');
-                const statTotalDeals = document.getElementById('stat-total-deals');
+    // 1️⃣ ДОБАВЛЯЕМ ОБЕРТКУ ОТДЕЛЬНЫМ СЛОЕМ (НЕ В ГРУППУ!)
+    if (wrapperQuarters.length > 0) {
+        // Вычитаем кварталы из оберток
+        const processedWrappers = wrapperQuarters.map(wrapper => {
+            return subtractQuartersFromWrapper(wrapper, normalQuarters);
+        });
+        
+        // Создаём ОТДЕЛЬНЫЙ слой для обертки
+        window.wrapperLayer = L.geoJSON(processedWrappers, {
+            style: function(feature) {
+                const price = feature.properties?.deals_median || 0;
+                const isSubtracted = feature.properties?.isSubtracted || false;
+                const cadNum = feature.properties?.cadastral_number || '';
                 
-                if (statObjects && statWithDeals && statTotalDeals) {
-                    statObjects.textContent = '1';
-                    statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
-                    statTotalDeals.textContent = dealsCount.toLocaleString();
+                // Если это обертка с вычитанием — показываем остаточную территорию
+                if (isSubtracted) {
+                    return {
+                        fillColor: '#ff6b6b',
+                        fillOpacity: 0.5,
+                        color: '#ff0000',
+                        weight: 2,
+                        opacity: 0.8,
+                        dashArray: null
+                    };
                 }
                 
-                layer.openPopup();
-            });
-        }
-    });
-    window.mapLayer.addLayer(wrapperLayer);
-    console.log(`✅ Добавлена обертка с вычитанием кварталов`);
-}
+                // Если вычитание не сработало — показываем как есть
+                return {
+                    fillColor: '#fbbf24',
+                    fillOpacity: 0.3,
+                    color: '#94a3b8',
+                    weight: 1,
+                    opacity: 0.3,
+                    dashArray: '4 4'
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties;
+                const cadNum = props.cadastral_number || '—';
+                const dealsCount = props.deals_count || 0;
+                const medianPrice = props.deals_median || 0;
+                const subtractedCount = props.subtractedCount || 0;
+                
+                // Добавляем попап для обертки
+                layer.bindPopup(`
+                    <div class="popup-title"><b>${cadNum}</b></div>
+                    <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">Остаточная территория</span></div>
+                    <div class="popup-row"><span class="popup-label">Вычтено кварталов</span><span class="popup-value">${subtractedCount}</span></div>
+                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                    ${dealsCount > 0 ? `
+                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                    ` : ''}
+                `, { className: 'custom-popup', maxWidth: 300 });
+                
+                // 🔥 КЛИК НА ОБЕРТКУ — обновляем статистику
+                layer.on('click', function(e) {
+                    const statObjects = document.getElementById('stat-objects');
+                    const statWithDeals = document.getElementById('stat-with-deals');
+                    const statTotalDeals = document.getElementById('stat-total-deals');
+                    
+                    if (statObjects && statWithDeals && statTotalDeals) {
+                        statObjects.textContent = '1';
+                        statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
+                        statTotalDeals.textContent = dealsCount.toLocaleString();
+                    }
+                    
+                    layer.openPopup();
+                });
+                
+                // 🔥 ХОВЕР на обертку
+                layer.on('mouseover', function() {
+                    this.setStyle({
+                        fillOpacity: 0.8,
+                        weight: 3,
+                        color: '#ff0000',
+                        opacity: 1
+                    });
+                    this.bringToFront();
+                    if (this._container) {
+                        this._container.style.cursor = 'pointer';
+                    }
+                });
+                
+                layer.on('mouseout', function() {
+                    const isSubtracted = feature.properties?.isSubtracted || false;
+                    if (isSubtracted) {
+                        this.setStyle({
+                            fillOpacity: 0.5,
+                            weight: 2,
+                            color: '#ff0000',
+                            opacity: 0.8
+                        });
+                    } else {
+                        this.setStyle({
+                            fillOpacity: 0.3,
+                            weight: 1,
+                            color: '#94a3b8',
+                            opacity: 0.3
+                        });
+                    }
+                });
+            }
+        }).addTo(mapInstance);
+        
+        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) ОТДЕЛЬНЫМ СЛОЕМ`);
+    }
 
-    // 2️⃣ ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
+    // 2️⃣ ДОБАВЛЯЕМ КВАРТАЛЫ В ГРУППУ
     if (normalQuarters.length > 0) {
         const normalLayer = L.geoJSON(normalQuarters, {
             style: function(feature) {
@@ -200,24 +252,38 @@ function renderMapLevel(level, parentId = null) {
             onEachFeature: onMapFeatureClick
         });
         window.mapLayer.addLayer(normalLayer);
-        console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.)`);
+        console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.) в группу`);
     }
 
-    // Добавляем группу на карту
+    // Добавляем группу с кварталами на карту
     window.mapLayer.addTo(mapInstance);
+
+    // 3️⃣ ПОДНИМАЕМ ОБЕРТКУ НАВЕРХ (ПОВЕРХ КВАРТАЛОВ)
+    if (window.wrapperLayer) {
+        window.wrapperLayer.bringToFront();
+        console.log('✅ Обертка поднята наверх');
+    }
 
     // Подгоняем границы
     try {
         let bounds = null;
-        window.mapLayer.eachLayer(function(layer) {
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                if (!bounds) {
-                    bounds = layer.getBounds();
-                } else {
-                    bounds.extend(layer.getBounds());
+        
+        // Собираем границы из всех слоёв
+        if (window.wrapperLayer && window.wrapperLayer.getBounds && window.wrapperLayer.getBounds().isValid()) {
+            bounds = window.wrapperLayer.getBounds();
+        }
+        
+        if (window.mapLayer) {
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.getBounds && layer.getBounds().isValid()) {
+                    if (!bounds) {
+                        bounds = layer.getBounds();
+                    } else {
+                        bounds.extend(layer.getBounds());
+                    }
                 }
-            }
-        });
+            });
+        }
         
         if (bounds && bounds.isValid()) {
             mapInstance.fitBounds(bounds, { padding: [30, 30] });
