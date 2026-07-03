@@ -323,102 +323,60 @@ function onMapFeatureClick(feature, layer) {
 // ============================================================
 // ПОСТРОЕНИЕ ПОПАПА
 // ============================================================
-function buildPopupContent(feature) {
-    const props = feature.properties;
-    const levelName = props.level_name || 'unknown';
-    
-    if (levelName === 'okrug') {
-        return `
-            <div class="popup-title">🏛️ ${props.district_name || 'ЯНАО'}</div>
-            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Округ</span></div>
-            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть районы →</div>
-        `;
-    }
-    
-    if (levelName === 'district') {
-        const dealsCount = props.deals_count || 0;
-        const medianPrice = props.deals_median || 0;
-        return `
-            <div class="popup-title">📋 ${props.district_name || props.cadastral_number || 'Район'}</div>
-            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Район</span></div>
-            ${dealsCount > 0 ? `
-            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть кварталы →</div>
-        `;
-    }
-    
-if (levelName === 'quarter') {
-    const cadNum = props.cadastral_number || '—';
-    const dealsCount = props.deals_count || 0;
-    const medianPrice = props.deals_median || 0;
-    const minPrice = props.deals_min || 0;
-    const maxPrice = props.deals_max || 0;
-    const uprsMedian = props.uprs_median || 0;
-    return `
-        <div class="popup-title">${cadNum}</div>
-        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-        ${dealsCount > 0 ? `
-        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-    `;
-}
-    
-    return `<div>Неизвестный уровень</div>`;
-}
-
-// ============================================================
-// ОБНОВЛЕНИЕ СТАТИСТИКИ
-// ============================================================
 function updateMapStats(features, level, parentId) {
     const statsEl = document.getElementById('map-stats');
     if (!statsEl) return;
     
     let withDeals = 0;
     let totalDeals = 0;
-    let objectCount = features.length;
+    let objectCount = 0;
     
-    // Если это уровень округа (level === 0) — суммируем по всем кварталам
+    // Получаем все валидные кварталы (исключая полигоны районов)
+    const allQuarters = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const cadNum = f.properties.cadastral_number || '';
+        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+    });
+    
+    // === УРОВЕНЬ 0 (Округ) — показываем все кварталы ===
     if (level === 0) {
-        const allQuarters = mapData.features.filter(f => f.properties.level === 2);
-        const validQuarters = allQuarters.filter(q => {
-            const cadNum = q.properties.cadastral_number || '';
-            return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
-        });
-        
-        withDeals = validQuarters.filter(q => (q.properties.deals_count || 0) > 0).length;
-        totalDeals = validQuarters.reduce((sum, q) => sum + (q.properties.deals_count || 0), 0);
-        objectCount = validQuarters.length;
-    }
-    // Если это уровень района (level === 1) — суммируем по кварталам ТОЛЬКО этого района
-    else if (level === 1) {
-        const allQuarters = mapData.features.filter(f => f.properties.level === 2);
-        const validQuarters = allQuarters.filter(q => {
-            const cadNum = q.properties.cadastral_number || '';
-            if (cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/)) {
-                return false;
-            }
-            const qParentId = q.properties.parent_id || q.properties.district_id;
-            return qParentId === parentId;
-        });
-        
-        withDeals = validQuarters.filter(q => (q.properties.deals_count || 0) > 0).length;
-        totalDeals = validQuarters.reduce((sum, q) => sum + (q.properties.deals_count || 0), 0);
-        objectCount = validQuarters.length;
-    }
-    // Если это уровень кварталов (level === 2) — используем переданные features
-    else if (level === 2) {
-        features.forEach(f => {
-            const count = f.properties?.deals_count || 0;
+        objectCount = allQuarters.length;
+        allQuarters.forEach(q => {
+            const count = q.properties.deals_count || 0;
             if (count > 0) {
                 withDeals++;
                 totalDeals += count;
             }
         });
-        objectCount = features.length;
+    }
+    // === УРОВЕНЬ 1 (Районы) — показываем все кварталы (общая статистика по ЯНАО) ===
+    else if (level === 1) {
+        // На уровне районов показываем общую статистику по всем кварталам
+        objectCount = allQuarters.length;
+        allQuarters.forEach(q => {
+            const count = q.properties.deals_count || 0;
+            if (count > 0) {
+                withDeals++;
+                totalDeals += count;
+            }
+        });
+    }
+    // === УРОВЕНЬ 2 (Кварталы) — показываем кварталы конкретного района ===
+    else if (level === 2) {
+        // Фильтруем кварталы только для этого района
+        const districtQuarters = allQuarters.filter(q => {
+            const qParentId = q.properties.parent_id || q.properties.district_id;
+            return qParentId === parentId;
+        });
+        
+        objectCount = districtQuarters.length;
+        districtQuarters.forEach(q => {
+            const count = q.properties.deals_count || 0;
+            if (count > 0) {
+                withDeals++;
+                totalDeals += count;
+            }
+        });
     }
     
     statsEl.innerHTML = `
