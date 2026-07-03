@@ -87,7 +87,6 @@ function renderMapLevel(level, parentId = null) {
                                String(props.district_id) === String(parentId);
                 if (!belongs) return false;
             }
-            // 🔥 НЕ ИСКЛЮЧАЕМ ПОЛИГОНЫ — оставляем все кварталы
             return true;
         }
         
@@ -154,7 +153,6 @@ function renderMapLevel(level, parentId = null) {
                     <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
                 `, { className: 'custom-popup', maxWidth: 300 });
                 
-                // При клике на обёртку — обновляем статистику
                 layer.on('click', function(e) {
                     const statObjects = document.getElementById('stat-objects');
                     const statWithDeals = document.getElementById('stat-with-deals');
@@ -196,8 +194,24 @@ function renderMapLevel(level, parentId = null) {
 
     window.mapLayer.addTo(mapInstance);
 
-    if (window.mapLayer.getBounds().isValid()) {
-        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    // 🔥 ИСПРАВЛЕННАЯ ПОДГОНКА ГРАНИЦ
+    try {
+        let bounds = null;
+        window.mapLayer.eachLayer(function(layer) {
+            if (layer.getBounds && layer.getBounds().isValid()) {
+                if (!bounds) {
+                    bounds = layer.getBounds();
+                } else {
+                    bounds.extend(layer.getBounds());
+                }
+            }
+        });
+        
+        if (bounds && bounds.isValid()) {
+            mapInstance.fitBounds(bounds, { padding: [30, 30] });
+        }
+    } catch(e) {
+        console.warn('⚠️ Не удалось подогнать границы:', e);
     }
 
     // Обновляем статистику (без обёрток)
