@@ -128,40 +128,22 @@ function renderMapLevel(level, parentId = null) {
     // 🔥 СОЗДАЕМ ГРУППУ ДЛЯ КВАРТАЛОВ
     window.mapLayer = L.layerGroup();
 
-    // 1️⃣ ДОБАВЛЯЕМ ОБЕРТКУ ОТДЕЛЬНЫМ СЛОЕМ (НЕ В ГРУППУ!)
+    // 1️⃣ ДОБАВЛЯЕМ ОБЕРТКУ ОТДЕЛЬНЫМ СЛОЕМ (БЕЗ ВЫЧИТАНИЯ — БЫСТРО!)
     if (wrapperQuarters.length > 0) {
-        // Вычитаем кварталы из оберток
-        const processedWrappers = wrapperQuarters.map(wrapper => {
-            return subtractQuartersFromWrapper(wrapper, normalQuarters);
-        });
-        
-        // Создаём ОТДЕЛЬНЫЙ слой для обертки
-        window.wrapperLayer = L.geoJSON(processedWrappers, {
+        // 🔥 НЕ ВЫЧИТАЕМ! Просто показываем обертку красной и полупрозрачной
+        window.wrapperLayer = L.geoJSON(wrapperQuarters, {
             style: function(feature) {
                 const price = feature.properties?.deals_median || 0;
-                const isSubtracted = feature.properties?.isSubtracted || false;
                 const cadNum = feature.properties?.cadastral_number || '';
                 
-                // Если это обертка с вычитанием — показываем остаточную территорию
-                if (isSubtracted) {
-                    return {
-                        fillColor: '#ff6b6b',
-                        fillOpacity: 0.5,
-                        color: '#ff0000',
-                        weight: 2,
-                        opacity: 0.8,
-                        dashArray: null
-                    };
-                }
-                
-                // Если вычитание не сработало — показываем как есть
+                // Обертка — яркая, полупрозрачная, чтобы было видно сквозь кварталы
                 return {
-                    fillColor: '#fbbf24',
-                    fillOpacity: 0.3,
-                    color: '#94a3b8',
-                    weight: 1,
-                    opacity: 0.3,
-                    dashArray: '4 4'
+                    fillColor: '#ff0000',
+                    fillOpacity: 0.35,
+                    color: '#ff0000',
+                    weight: 2,
+                    opacity: 0.7,
+                    dashArray: null
                 };
             },
             onEachFeature: function(feature, layer) {
@@ -169,20 +151,19 @@ function renderMapLevel(level, parentId = null) {
                 const cadNum = props.cadastral_number || '—';
                 const dealsCount = props.deals_count || 0;
                 const medianPrice = props.deals_median || 0;
-                const subtractedCount = props.subtractedCount || 0;
                 
-                // Добавляем попап для обертки
+                // Попап для обертки
                 layer.bindPopup(`
                     <div class="popup-title"><b>${cadNum}</b></div>
-                    <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">Остаточная территория</span></div>
-                    <div class="popup-row"><span class="popup-label">Вычтено кварталов</span><span class="popup-value">${subtractedCount}</span></div>
+                    <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">Общая территория района</span></div>
                     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
                     ${dealsCount > 0 ? `
                     <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
                     ` : ''}
+                    <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
                 `, { className: 'custom-popup', maxWidth: 300 });
                 
-                // 🔥 КЛИК НА ОБЕРТКУ — обновляем статистику
+                // 🔥 КЛИК — обновляем статистику
                 layer.on('click', function(e) {
                     const statObjects = document.getElementById('stat-objects');
                     const statWithDeals = document.getElementById('stat-with-deals');
@@ -197,11 +178,11 @@ function renderMapLevel(level, parentId = null) {
                     layer.openPopup();
                 });
                 
-                // 🔥 ХОВЕР на обертку
+                // 🔥 ХОВЕР — подсветка
                 layer.on('mouseover', function() {
                     this.setStyle({
-                        fillOpacity: 0.8,
-                        weight: 3,
+                        fillOpacity: 0.7,
+                        weight: 4,
                         color: '#ff0000',
                         opacity: 1
                     });
@@ -212,27 +193,17 @@ function renderMapLevel(level, parentId = null) {
                 });
                 
                 layer.on('mouseout', function() {
-                    const isSubtracted = feature.properties?.isSubtracted || false;
-                    if (isSubtracted) {
-                        this.setStyle({
-                            fillOpacity: 0.5,
-                            weight: 2,
-                            color: '#ff0000',
-                            opacity: 0.8
-                        });
-                    } else {
-                        this.setStyle({
-                            fillOpacity: 0.3,
-                            weight: 1,
-                            color: '#94a3b8',
-                            opacity: 0.3
-                        });
-                    }
+                    this.setStyle({
+                        fillOpacity: 0.35,
+                        weight: 2,
+                        color: '#ff0000',
+                        opacity: 0.7
+                    });
                 });
             }
         }).addTo(mapInstance);
         
-        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) ОТДЕЛЬНЫМ СЛОЕМ`);
+        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) КРАСНАЯ, полупрозрачная`);
     }
 
     // 2️⃣ ДОБАВЛЯЕМ КВАРТАЛЫ В ГРУППУ
@@ -258,7 +229,7 @@ function renderMapLevel(level, parentId = null) {
     // Добавляем группу с кварталами на карту
     window.mapLayer.addTo(mapInstance);
 
-    // 3️⃣ ПОДНИМАЕМ ОБЕРТКУ НАВЕРХ (ПОВЕРХ КВАРТАЛОВ)
+    // 3️⃣ ПОДНИМАЕМ ОБЕРТКУ НАВЕРХ
     if (window.wrapperLayer) {
         window.wrapperLayer.bringToFront();
         console.log('✅ Обертка поднята наверх');
@@ -268,7 +239,6 @@ function renderMapLevel(level, parentId = null) {
     try {
         let bounds = null;
         
-        // Собираем границы из всех слоёв
         if (window.wrapperLayer && window.wrapperLayer.getBounds && window.wrapperLayer.getBounds().isValid()) {
             bounds = window.wrapperLayer.getBounds();
         }
@@ -295,7 +265,6 @@ function renderMapLevel(level, parentId = null) {
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
 }
-
 // ============================================================
 // СТИЛИ ДЛЯ КВАРТАЛОВ
 // ============================================================
