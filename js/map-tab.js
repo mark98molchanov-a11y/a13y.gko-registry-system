@@ -78,10 +78,10 @@ function renderMapLevel(level, parentId = null) {
         const props = f.properties;
         if (props.level !== level) return false;
         
-        // Уровень 0 (Округ) — показываем всегда
+        // Уровень 0 (Округ)
         if (level === 0) return true;
         
-        // Уровень 1 (Районы) — показываем только те, у кого parent_id === '89'
+        // Уровень 1 (Районы)
         if (level === 1) return props.parent_id === '89';
         
         // Уровень 2 (Кварталы)
@@ -91,18 +91,19 @@ function renderMapLevel(level, parentId = null) {
                 const belongs = String(props.parent_id) === String(parentId) || 
                                String(props.district_id) === String(parentId);
                 if (!belongs) return false;
-            } else {
-                // Если parentId не указан — показываем все кварталы (для уровня 0)
-                return true;
             }
             
-            // 🔥 ТОЛЬКО ДЛЯ РАЙОНА 89:08 исключаем полигоны
-            if (parentId === '89:08') {
-                const cadNum = props.cadastral_number || '';
-                if (cadNum === '89:08:0000000' || cadNum === '89:08:000000') {
-                    console.log(`  ❌ Исключён полигон: ${cadNum} (только для 89:08)`);
-                    return false;
-                }
+            // 🔥 ИСКЛЮЧАЕМ ВСЕ ПОЛИГОНЫ РАЙОНОВ
+            const cadNum = props.cadastral_number || '';
+            // Исключаем номера, заканчивающиеся на 0000000
+            if (cadNum.endsWith('0000000')) {
+                console.log(`  ❌ Исключён полигон: ${cadNum}`);
+                return false;
+            }
+            // Исключаем номера формата XX:XX:000000 (для Салехарда)
+            if (cadNum.match(/^\d{2}:\d{2}:000000$/)) {
+                console.log(`  ❌ Исключён полигон: ${cadNum}`);
+                return false;
             }
             
             return true;
