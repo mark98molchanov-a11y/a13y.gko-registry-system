@@ -125,55 +125,63 @@ function renderMapLevel(level, parentId = null) {
     window.mapLayer = L.layerGroup();
 
     // 1️⃣ СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-    if (wrapperQuarters.length > 0) {
-        const wrapperLayer = L.geoJSON(wrapperQuarters, {
-            style: function(feature) {
-                const price = feature.properties?.deals_median || 0;
-                return {
-                    fillColor: price > 0 ? '#fbbf24' : '#e2e8f0',
-                    fillOpacity: 0.3,
-                    color: '#94a3b8',
-                    weight: 1,
-                    opacity: 0.3,
-                    dashArray: '4 4',
-                    interactive: false  // ← ОТКЛЮЧАЕМ КЛИКИ НА ОБЕРТКЕ
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                const props = feature.properties;
-                const cadNum = props.cadastral_number || '—';
-                const dealsCount = props.deals_count || 0;
-                const medianPrice = props.deals_median || 0;
+   if (wrapperQuarters.length > 0) {
+    // 🔥 ВЫЧИТАЕМ КВАРТАЛЫ ИЗ КАЖДОЙ ОБЕРТКИ
+    const processedWrappers = wrapperQuarters.map(wrapper => {
+        return subtractQuartersFromWrapper(wrapper, normalQuarters);
+    });
+    
+    const wrapperLayer = L.geoJSON(processedWrappers, {
+        style: function(feature) {
+            const price = feature.properties?.deals_median || 0;
+            const isSubtracted = feature.properties?.isSubtracted || false;
+            
+            // Если вычитание выполнено — показываем остаточную территорию
+            return {
+                fillColor: isSubtracted ? '#fbbf24' : '#e2e8f0',
+                fillOpacity: isSubtracted ? 0.5 : 0.3,
+                color: '#94a3b8',
+                weight: 1,
+                opacity: 0.3,
+                dashArray: '4 4',
+                interactive: false
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            const props = feature.properties;
+            const cadNum = props.cadastral_number || '—';
+            const dealsCount = props.deals_count || 0;
+            const medianPrice = props.deals_median || 0;
+            const subtractedCount = props.subtractedCount || 0;
+            
+            layer.bindPopup(`
+                <div class="popup-title"><b>${cadNum}</b></div>
+                <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">Остаточная территория</span></div>
+                <div class="popup-row"><span class="popup-label">Вычтено кварталов</span><span class="popup-value">${subtractedCount}</span></div>
+                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                ${dealsCount > 0 ? `
+                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                ` : ''}
+            `, { className: 'custom-popup', maxWidth: 300 });
+            
+            layer.on('click', function(e) {
+                const statObjects = document.getElementById('stat-objects');
+                const statWithDeals = document.getElementById('stat-with-deals');
+                const statTotalDeals = document.getElementById('stat-total-deals');
                 
-                // Попап для обертки (только по клику, если interactive: false — не работает)
-                layer.bindPopup(`
-                    <div class="popup-title"><b>${cadNum}</b> (общая территория)</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    ` : ''}
-                    <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
-                `, { className: 'custom-popup', maxWidth: 300 });
+                if (statObjects && statWithDeals && statTotalDeals) {
+                    statObjects.textContent = '1';
+                    statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
+                    statTotalDeals.textContent = dealsCount.toLocaleString();
+                }
                 
-                // Клик по обертке (будет работать, если interactive: false убрать)
-                layer.on('click', function(e) {
-                    const statObjects = document.getElementById('stat-objects');
-                    const statWithDeals = document.getElementById('stat-with-deals');
-                    const statTotalDeals = document.getElementById('stat-total-deals');
-                    
-                    if (statObjects && statWithDeals && statTotalDeals) {
-                        statObjects.textContent = '1';
-                        statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
-                        statTotalDeals.textContent = dealsCount.toLocaleString();
-                    }
-                    
-                    layer.openPopup();
-                });
-            }
-        });
-        window.mapLayer.addLayer(wrapperLayer);
-        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.)`);
-    }
+                layer.openPopup();
+            });
+        }
+    });
+    window.mapLayer.addLayer(wrapperLayer);
+    console.log(`✅ Добавлена обертка с вычитанием кварталов`);
+}
 
     // 2️⃣ ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
@@ -274,7 +282,77 @@ function getMapColor(price) {
     if (price < 500000) return '#60a5fa';
     return '#7c3aed';
 }
-
+// ============================================================
+// ВЫЧИТАНИЕ ПОЛИГОНОВ КВАРТАЛОВ ИЗ ОБЕРТКИ
+// ============================================================
+function subtractQuartersFromWrapper(wrapperFeature, quarterFeatures) {
+    // Проверяем, загружен ли Turf.js
+    if (typeof turf === 'undefined') {
+        console.warn('⚠️ Turf.js не загружен, используем обертку как есть');
+        return wrapperFeature;
+    }
+    
+    try {
+        // Проверяем, что обертка — это полигон
+        if (!wrapperFeature.geometry || 
+            (wrapperFeature.geometry.type !== 'Polygon' && 
+             wrapperFeature.geometry.type !== 'MultiPolygon')) {
+            return wrapperFeature;
+        }
+        
+        // Фильтруем кварталы с геометрией
+        const validQuarters = quarterFeatures.filter(q => 
+            q.geometry && 
+            (q.geometry.type === 'Polygon' || q.geometry.type === 'MultiPolygon')
+        );
+        
+        if (validQuarters.length === 0) {
+            return wrapperFeature;
+        }
+        
+        console.log(`🔪 Вычитаем ${validQuarters.length} кварталов из обертки...`);
+        
+        // Начинаем с обертки
+        let result = turf.clone(wrapperFeature);
+        let subtractedCount = 0;
+        
+        // Последовательно вычитаем каждый квартал
+        validQuarters.forEach((quarter, index) => {
+            try {
+                // Проверяем пересечение
+                const intersect = turf.intersect(result, quarter);
+                if (intersect) {
+                    const diff = turf.difference(result, quarter);
+                    if (diff) {
+                        result = diff;
+                        subtractedCount++;
+                    }
+                }
+            } catch (e) {
+                // Пропускаем проблемные кварталы
+            }
+        });
+        
+        console.log(`✅ Вычтено ${subtractedCount} кварталов из обертки`);
+        
+        // Проверяем результат
+        if (!result || !result.geometry || result.geometry.coordinates.length === 0) {
+            console.warn('⚠️ Результат вычитания пуст, оставляем исходную обертку');
+            return wrapperFeature;
+        }
+        
+        // Сохраняем свойства
+        result.properties = wrapperFeature.properties;
+        result.properties.isSubtracted = true;
+        result.properties.subtractedCount = subtractedCount;
+        
+        return result;
+        
+    } catch (error) {
+        console.error('❌ Ошибка вычитания:', error);
+        return wrapperFeature;
+    }
+}
 // ============================================================
 // ОБРАБОТКА КЛИКОВ
 // ============================================================
