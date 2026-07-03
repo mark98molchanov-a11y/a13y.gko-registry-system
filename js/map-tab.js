@@ -78,32 +78,16 @@ function renderMapLevel(level, parentId = null) {
         const props = f.properties;
         if (props.level !== level) return false;
         
-        // Уровень 0 (Округ)
         if (level === 0) return true;
-        
-        // Уровень 1 (Районы)
         if (level === 1) return props.parent_id === '89';
         
-        // Уровень 2 (Кварталы)
         if (level === 2) {
-            // Если parentId указан — фильтруем по нему
             if (parentId) {
                 const belongs = String(props.parent_id) === String(parentId) || 
                                String(props.district_id) === String(parentId);
                 if (!belongs) return false;
             }
-            
-            // 🔥 ИСКЛЮЧАЕМ ВСЕ ПОЛИГОНЫ РАЙОНОВ
-            const cadNum = props.cadastral_number || '';
-            if (cadNum.endsWith('0000000')) {
-                console.log(`  ❌ Исключён полигон: ${cadNum}`);
-                return false;
-            }
-            if (cadNum.match(/^\d{2}:\d{2}:000000$/)) {
-                console.log(`  ❌ Исключён полигон: ${cadNum}`);
-                return false;
-            }
-            
+            // 🔥 НЕ ИСКЛЮЧАЕМ ПОЛИГОНЫ — оставляем все кварталы
             return true;
         }
         
@@ -118,20 +102,83 @@ function renderMapLevel(level, parentId = null) {
         return;
     }
 
-    // Удаляем старый слой
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
         window.mapLayer.off();
         window.mapLayer = null;
     }
 
-    // Создаём новый слой
-    window.mapLayer = L.geoJSON(filtered, {
-        style: function(feature) {
-            const level = feature.properties?.level || 0;
-            const price = feature.properties?.deals_median || 0;
-            
-            if (level === 2) {
+    // Разделяем на обёртки и обычные кварталы
+    const wrapperQuarters = filtered.filter(f => {
+        const cadNum = f.properties?.cadastral_number || '';
+        return cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+    });
+    
+    const normalQuarters = filtered.filter(f => {
+        const cadNum = f.properties?.cadastral_number || '';
+        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+    });
+
+    console.log(`📊 Кварталов-обёрток: ${wrapperQuarters.length}, обычных: ${normalQuarters.length}`);
+
+    // Создаём слой
+    window.mapLayer = L.layerGroup();
+
+    // 1. Добавляем обёртки (снизу, полупрозрачные)
+    if (wrapperQuarters.length > 0) {
+        const wrapperLayer = L.geoJSON(wrapperQuarters, {
+            style: function(feature) {
+                const price = feature.properties?.deals_median || 0;
+                return {
+                    fillColor: price > 0 ? '#fbbf24' : '#e2e8f0',
+                    fillOpacity: 0.3,
+                    color: '#94a3b8',
+                    weight: 1,
+                    opacity: 0.3,
+                    dashArray: '4 4',
+                    interactive: false
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties;
+                const cadNum = props.cadastral_number || '—';
+                const dealsCount = props.deals_count || 0;
+                const medianPrice = props.deals_median || 0;
+                
+                layer.bindPopup(`
+                    <div class="popup-title"><b>${cadNum}</b> (общая территория)</div>
+                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                    ${dealsCount > 0 ? `
+                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                    ` : ''}
+                    <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
+                `, { className: 'custom-popup', maxWidth: 300 });
+                
+                // При клике на обёртку — обновляем статистику
+                layer.on('click', function(e) {
+                    const statObjects = document.getElementById('stat-objects');
+                    const statWithDeals = document.getElementById('stat-with-deals');
+                    const statTotalDeals = document.getElementById('stat-total-deals');
+                    
+                    if (statObjects && statWithDeals && statTotalDeals) {
+                        statObjects.textContent = '1';
+                        statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
+                        statTotalDeals.textContent = dealsCount.toLocaleString();
+                    }
+                    
+                    layer.openPopup();
+                });
+            }
+        });
+        window.mapLayer.addLayer(wrapperLayer);
+        console.log(`✅ Добавлено ${wrapperQuarters.length} кварталов-обёрток`);
+    }
+
+    // 2. Добавляем обычные кварталы (сверху, кликабельные)
+    if (normalQuarters.length > 0) {
+        const normalLayer = L.geoJSON(normalQuarters, {
+            style: function(feature) {
+                const price = feature.properties?.deals_median || 0;
                 return {
                     fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
                     fillOpacity: 0.7,
@@ -140,36 +187,21 @@ function renderMapLevel(level, parentId = null) {
                     opacity: 0.9,
                     dashArray: null
                 };
-            }
-            
-            if (level === 1) {
-                return {
-                    fillColor: '#fbbf24',
-                    fillOpacity: 0.3,
-                    color: '#92400e',
-                    weight: 2,
-                    opacity: 0.6
-                };
-            }
-            
-            return {
-                fillColor: '#60a5fa',
-                fillOpacity: 0.2,
-                color: '#1e293b',
-                weight: 1,
-                opacity: 0.5
-            };
-        },
-        onEachFeature: onMapFeatureClick
-    }).addTo(mapInstance);
+            },
+            onEachFeature: onMapFeatureClick
+        });
+        window.mapLayer.addLayer(normalLayer);
+        console.log(`✅ Добавлено ${normalQuarters.length} обычных кварталов`);
+    }
 
-    // Подгоняем границы
+    window.mapLayer.addTo(mapInstance);
+
     if (window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
     }
 
-    // 🔥 ОБНОВЛЯЕМ СТАТИСТИКУ (передаём уровень и parentId)
-    updateMapStats(filtered, level, parentId);
+    // Обновляем статистику (без обёрток)
+    updateMapStats(normalQuarters, level, parentId);
 }
 
 // ============================================================
