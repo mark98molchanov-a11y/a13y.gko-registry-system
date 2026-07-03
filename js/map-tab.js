@@ -107,27 +107,19 @@ function renderMapLevel(level, parentId = null) {
         window.mapLayer = null;
     }
 
-    // Разделяем на обёртки и обычные кварталы
-    const wrapperQuarters = filtered.filter(f => {
-        const cadNum = f.properties?.cadastral_number || '';
-        return cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
-    });
-    
-    const normalQuarters = filtered.filter(f => {
-        const cadNum = f.properties?.cadastral_number || '';
-        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
-    });
-
-    console.log(`📊 Кварталов-обёрток: ${wrapperQuarters.length}, обычных: ${normalQuarters.length}`);
-
-    // 🔥 ИСПОЛЬЗУЕМ featureGroup ВМЕСТО layerGroup
-    window.mapLayer = L.featureGroup();
-
-    // 1. Добавляем обёртки (снизу, полупрозрачные)
-    if (wrapperQuarters.length > 0) {
-        const wrapperLayer = L.geoJSON(wrapperQuarters, {
-            style: function(feature) {
-                const price = feature.properties?.deals_median || 0;
+    // 🔥 СОЗДАЕМ ОДИН СЛОЙ С РАЗНЫМИ СТИЛЯМИ
+    window.mapLayer = L.geoJSON(filtered, {
+        style: function(feature) {
+            const props = feature.properties;
+            const cadNum = props?.cadastral_number || '';
+            const price = props?.deals_median || 0;
+            
+            // Проверяем, является ли квартал оберткой
+            const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+            
+            if (isWrapper) {
+                // Обертка — полупрозрачная
+                console.log(`  🔥 Обертка найдена: ${cadNum}`);
                 return {
                     fillColor: price > 0 ? '#fbbf24' : '#e2e8f0',
                     fillOpacity: 0.3,
@@ -137,13 +129,27 @@ function renderMapLevel(level, parentId = null) {
                     dashArray: '4 4',
                     interactive: false
                 };
-            },
-            onEachFeature: function(feature, layer) {
-                // 🔥 УСТАНАВЛИВАЕМ ФЛАГ НЕПОСРЕДСТВЕННО НА СЛОЙ
-                layer._isWrapper = true;
-                
-                const props = feature.properties;
-                const cadNum = props.cadastral_number || '—';
+            }
+            
+            // Обычный квартал
+            return {
+                fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
+                fillOpacity: 0.7,
+                color: price > 0 ? '#0ea5e9' : '#64748b',
+                weight: 2,
+                opacity: 0.9,
+                dashArray: null
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            const props = feature.properties;
+            const cadNum = props?.cadastral_number || '';
+            
+            // Проверяем, является ли квартал оберткой
+            const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+            
+            if (isWrapper) {
+                // Обертка — только попап, без кликов
                 const dealsCount = props.deals_count || 0;
                 const medianPrice = props.deals_median || 0;
                 
@@ -169,55 +175,29 @@ function renderMapLevel(level, parentId = null) {
                     
                     layer.openPopup();
                 });
+                
+                return;
             }
-        });
-        window.mapLayer.addLayer(wrapperLayer);
-        console.log(`✅ Добавлено ${wrapperQuarters.length} кварталов-обёрток`);
-    }
-
-    // 2. Добавляем обычные кварталы (сверху, кликабельные)
-    if (normalQuarters.length > 0) {
-        const normalLayer = L.geoJSON(normalQuarters, {
-            style: function(feature) {
-                const price = feature.properties?.deals_median || 0;
-                return {
-                    fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
-                    fillOpacity: 0.7,
-                    color: price > 0 ? '#0ea5e9' : '#64748b',
-                    weight: 2,
-                    opacity: 0.9,
-                    dashArray: null
-                };
-            },
-            onEachFeature: onMapFeatureClick
-        });
-        window.mapLayer.addLayer(normalLayer);
-        console.log(`✅ Добавлено ${normalQuarters.length} обычных кварталов`);
-    }
-
-    window.mapLayer.addTo(mapInstance);
+            
+            // Обычный квартал — полная интерактивность
+            onMapFeatureClick(feature, layer);
+        }
+    }).addTo(mapInstance);
 
     // Подгоняем границы
     try {
-        let bounds = null;
-        window.mapLayer.eachLayer(function(layer) {
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                if (!bounds) {
-                    bounds = layer.getBounds();
-                } else {
-                    bounds.extend(layer.getBounds());
-                }
-            }
-        });
-        
-        if (bounds && bounds.isValid()) {
-            mapInstance.fitBounds(bounds, { padding: [30, 30] });
+        if (window.mapLayer.getBounds && window.mapLayer.getBounds().isValid()) {
+            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
         }
     } catch(e) {
         console.warn('⚠️ Не удалось подогнать границы:', e);
     }
 
-    // Обновляем статистику (без обёрток)
+    // Обновляем статистику (без оберток)
+    const normalQuarters = filtered.filter(f => {
+        const cadNum = f.properties?.cadastral_number || '';
+        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+    });
     updateMapStats(normalQuarters, level, parentId);
 }
 
