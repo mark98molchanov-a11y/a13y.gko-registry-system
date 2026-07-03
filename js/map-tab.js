@@ -127,7 +127,6 @@ function renderMapLevel(level, parentId = null) {
                     weight: 1,
                     opacity: 0.3,
                     dashArray: '4 4',
-                    interactive: false
                 };
             }
             
