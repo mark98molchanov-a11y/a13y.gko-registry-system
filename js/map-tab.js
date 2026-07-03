@@ -242,48 +242,6 @@ function renderMapLevel(level, parentId = null) {
     updateMapStats(normalQuarters, level, parentId);
 }
 
-// ============================================================
-// СТИЛИ ДЛЯ КВАРТАЛОВ
-// ============================================================
-function getMapStyle(feature) {
-    const props = feature.properties;
-    const level = props.level;
-    const price = props.deals_median || 0;
-    
-    // Базовый стиль
-    let style = {
-        fillColor: getMapColor(price),
-        fillOpacity: 0.7,
-        color: '#334155',
-        weight: 1,
-        opacity: 0.5
-    };
-    
-    // Для кварталов делаем границы толще и ярче
-    if (level === 2) {
-        style = {
-            fillColor: getMapColor(price),
-            fillOpacity: 0.7,
-            color: '#0ea5e9',        // Синий цвет для границ кварталов
-            weight: 2,                // Толще границы
-            opacity: 0.8,             // Более яркие
-            dashArray: null
-        };
-    }
-    
-    // Для районов
-    if (level === 1) {
-        style = {
-            fillColor: getMapColor(price),
-            fillOpacity: 0.5,
-            color: '#1e293b',
-            weight: 2,
-            opacity: 0.8
-        };
-    }
-    
-    return style;
-}
 
 
 function getMapColor(price) {
@@ -294,80 +252,7 @@ function getMapColor(price) {
     if (price < 500000) return '#60a5fa';
     return '#7c3aed';
 }
-// ============================================================
-// ВЫЧИТАНИЕ ПОЛИГОНОВ КВАРТАЛОВ ИЗ ОБЕРТКИ
-// ============================================================
-function subtractQuartersFromWrapper(wrapperFeature, quarterFeatures) {
-    // Проверяем, загружен ли Turf.js
-    if (typeof turf === 'undefined') {
-        console.warn('⚠️ Turf.js не загружен, используем обертку как есть');
-        return wrapperFeature;
-    }
-    
-    try {
-        // Проверяем, что обертка — это полигон
-        if (!wrapperFeature.geometry || 
-            (wrapperFeature.geometry.type !== 'Polygon' && 
-             wrapperFeature.geometry.type !== 'MultiPolygon')) {
-            return wrapperFeature;
-        }
-        
-        // Фильтруем кварталы с геометрией
-        const validQuarters = quarterFeatures.filter(q => 
-            q.geometry && 
-            (q.geometry.type === 'Polygon' || q.geometry.type === 'MultiPolygon')
-        );
-        
-        if (validQuarters.length === 0) {
-            return wrapperFeature;
-        }
-        
-        console.log(`🔪 Вычитаем ${validQuarters.length} кварталов из обертки...`);
-        
-        // Начинаем с обертки
-        let result = turf.clone(wrapperFeature);
-        let subtractedCount = 0;
-        
-        // Последовательно вычитаем каждый квартал
-        validQuarters.forEach((quarter, index) => {
-            try {
-                // Проверяем пересечение
-                const intersect = turf.intersect(result, quarter);
-                if (intersect) {
-                    const diff = turf.difference(result, quarter);
-                    if (diff) {
-                        result = diff;
-                        subtractedCount++;
-                    }
-                }
-            } catch (e) {
-                // Пропускаем проблемные кварталы
-            }
-        });
-        
-        console.log(`✅ Вычтено ${subtractedCount} кварталов из обертки`);
-        
-        // Проверяем результат
-        if (!result || !result.geometry || result.geometry.coordinates.length === 0) {
-            console.warn('⚠️ Результат вычитания пуст, оставляем исходную обертку');
-            return wrapperFeature;
-        }
-        
-        // Сохраняем свойства
-        result.properties = wrapperFeature.properties;
-        result.properties.isSubtracted = true;
-        result.properties.subtractedCount = subtractedCount;
-        
-        return result;
-        
-    } catch (error) {
-        console.error('❌ Ошибка вычитания:', error);
-        return wrapperFeature;
-    }
-}
-// ============================================================
-// ОБРАБОТКА КЛИКОВ
-// ============================================================
+
 function onMapFeatureClick(feature, layer) {
     // Проверка: если feature нет — выходим
     if (!feature || !feature.properties) {
