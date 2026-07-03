@@ -78,25 +78,36 @@ function renderMapLevel(level, parentId = null) {
         const props = f.properties;
         if (props.level !== level) return false;
         
-        // 🔥 ТОЛЬКО ДЛЯ РАЙОНА 89:08 исключаем полигоны
-        // Проверяем, что это уровень кварталов И parentId = 89:08
-        if (level === 2 && parentId === '89:08') {
-            const cadNum = props.cadastral_number || '';
-            // Исключаем только два конкретных полигона в Салехарде
-            if (cadNum === '89:08:0000000' || cadNum === '89:08:000000') {
-                console.log(`  ❌ Исключён полигон: ${cadNum} (только для 89:08)`);
-                return false;
-            }
-        }
-        
+        // ===== ОБЩИЙ ФИЛЬТР ДЛЯ ВСЕХ РАЙОНОВ =====
         if (level === 0) return true;
         if (level === 1) return props.parent_id === '89';
+        
         if (level === 2) {
+            // Проверяем, принадлежит ли квартал нужному району
+            let belongsToDistrict = false;
             if (parentId) {
-                return String(props.parent_id) === String(parentId) || String(props.district_id) === String(parentId);
+                belongsToDistrict = String(props.parent_id) === String(parentId) || 
+                                   String(props.district_id) === String(parentId);
+            } else {
+                belongsToDistrict = true;
             }
+            
+            if (!belongsToDistrict) return false;
+            
+            // 🔥 ТОЛЬКО ДЛЯ РАЙОНА 89:08 исключаем полигоны
+            // Это условие срабатывает ТОЛЬКО когда parentId === '89:08'
+            if (parentId === '89:08') {
+                const cadNum = props.cadastral_number || '';
+                // Исключаем только два конкретных полигона в Салехарде
+                if (cadNum === '89:08:0000000' || cadNum === '89:08:000000') {
+                    console.log(`  ❌ Исключён полигон: ${cadNum} (только для 89:08)`);
+                    return false;
+                }
+            }
+            
             return true;
         }
+        
         return false;
     });
 
