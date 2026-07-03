@@ -95,12 +95,10 @@ function renderMapLevel(level, parentId = null) {
             
             // 🔥 ИСКЛЮЧАЕМ ВСЕ ПОЛИГОНЫ РАЙОНОВ
             const cadNum = props.cadastral_number || '';
-            // Исключаем номера, заканчивающиеся на 0000000
             if (cadNum.endsWith('0000000')) {
                 console.log(`  ❌ Исключён полигон: ${cadNum}`);
                 return false;
             }
-            // Исключаем номера формата XX:XX:000000 (для Салехарда)
             if (cadNum.match(/^\d{2}:\d{2}:000000$/)) {
                 console.log(`  ❌ Исключён полигон: ${cadNum}`);
                 return false;
@@ -170,10 +168,9 @@ function renderMapLevel(level, parentId = null) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
     }
 
-    // Обновляем статистику
-    updateMapStats(filtered);
+    // 🔥 ОБНОВЛЯЕМ СТАТИСТИКУ (передаём уровень и parentId)
+    updateMapStats(filtered, level, parentId);
 }
-
 
 // ============================================================
 // СТИЛИ ДЛЯ КВАРТАЛОВ
@@ -376,25 +373,58 @@ if (levelName === 'quarter') {
 // ============================================================
 // ОБНОВЛЕНИЕ СТАТИСТИКИ
 // ============================================================
-function updateMapStats(features) {
+function updateMapStats(features, level, parentId) {
     const statsEl = document.getElementById('map-stats');
     if (!statsEl) return;
     
     let withDeals = 0;
     let totalDeals = 0;
+    let objectCount = features.length;
     
-    features.forEach(f => {
-        const count = f.properties?.deals_count || 0;
-        if (count > 0) {
-            withDeals++;
-            totalDeals += count;
-        }
-    });
+    // Если это уровень округа (level === 0) — суммируем по всем кварталам
+    if (level === 0) {
+        const allQuarters = mapData.features.filter(f => f.properties.level === 2);
+        const validQuarters = allQuarters.filter(q => {
+            const cadNum = q.properties.cadastral_number || '';
+            return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+        });
+        
+        withDeals = validQuarters.filter(q => (q.properties.deals_count || 0) > 0).length;
+        totalDeals = validQuarters.reduce((sum, q) => sum + (q.properties.deals_count || 0), 0);
+        objectCount = validQuarters.length;
+    }
+    // Если это уровень района (level === 1) — суммируем по кварталам ТОЛЬКО этого района
+    else if (level === 1) {
+        const allQuarters = mapData.features.filter(f => f.properties.level === 2);
+        const validQuarters = allQuarters.filter(q => {
+            const cadNum = q.properties.cadastral_number || '';
+            if (cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/)) {
+                return false;
+            }
+            const qParentId = q.properties.parent_id || q.properties.district_id;
+            return qParentId === parentId;
+        });
+        
+        withDeals = validQuarters.filter(q => (q.properties.deals_count || 0) > 0).length;
+        totalDeals = validQuarters.reduce((sum, q) => sum + (q.properties.deals_count || 0), 0);
+        objectCount = validQuarters.length;
+    }
+    // Если это уровень кварталов (level === 2) — используем переданные features
+    else if (level === 2) {
+        features.forEach(f => {
+            const count = f.properties?.deals_count || 0;
+            if (count > 0) {
+                withDeals++;
+                totalDeals += count;
+            }
+        });
+        objectCount = features.length;
+    }
     
     statsEl.innerHTML = `
-        <span>Объектов: <strong>${features.length}</strong></span>
+        <span>Объектов: <strong>${objectCount}</strong></span>
         <span>Со сделками: <strong>${withDeals}</strong></span>
-        <span>Всего сделок: <strong>${totalDeals}</strong></span>
+        <span>Всего сделок: <strong>${totalDeals.toLocaleString()}</strong></span>
     `;
 }
 
