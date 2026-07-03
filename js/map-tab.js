@@ -126,71 +126,21 @@ function renderMapLevel(level, parentId = null) {
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-    if (wrapperQuarters.length > 0) {
-        window.wrapperLayer = L.geoJSON(wrapperQuarters, {
-            style: function(feature) {
-                const price = feature.properties?.deals_median || 0;
-                return {
-                    fillColor: '#ff6b6b',
-                    fillOpacity: 0.25,  // 🔥 ЕЩЁ ПРОЗРАЧНЕЕ
-                    color: '#ff0000',
-                    weight: 1,
-                    opacity: 0.4,
-                    dashArray: '4 4'
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                const props = feature.properties;
-                const cadNum = props.cadastral_number || '—';
-                const dealsCount = props.deals_count || 0;
-                const medianPrice = props.deals_median || 0;
-                
-                layer.bindPopup(`
-                    <div class="popup-title"><b>${cadNum}</b></div>
-                    <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">Общая территория района</span></div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    ` : ''}
-                    <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
-                `, { className: 'custom-popup', maxWidth: 300 });
-                
-                layer.on('click', function(e) {
-                    const statObjects = document.getElementById('stat-objects');
-                    const statWithDeals = document.getElementById('stat-with-deals');
-                    const statTotalDeals = document.getElementById('stat-total-deals');
-                    
-                    if (statObjects && statWithDeals && statTotalDeals) {
-                        statObjects.textContent = '1';
-                        statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
-                        statTotalDeals.textContent = dealsCount.toLocaleString();
-                    }
-                    
-                    layer.openPopup();
-                });
-                
-                layer.on('mouseover', function() {
-                    this.setStyle({
-                        fillOpacity: 0.5,
-                        weight: 2,
-                        color: '#ff0000',
-                        opacity: 0.7
-                    });
-                });
-                
-                layer.on('mouseout', function() {
-                    this.setStyle({
-                        fillOpacity: 0.25,
-                        weight: 1,
-                        color: '#ff0000',
-                        opacity: 0.4
-                    });
-                });
-            }
-        }).addTo(mapInstance);
-        
-        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
-    }
+  if (wrapperQuarters.length > 0) {
+    window.wrapperLayer = L.geoJSON(wrapperQuarters, {
+        style: {
+            fillColor: '#ff6b6b',
+            fillOpacity: 0.25,
+            color: '#ff0000',
+            weight: 1,
+            opacity: 0.4,
+            dashArray: '4 4'
+        },
+        onEachFeature: onMapFeatureClick  // ✅ ВСЕГО ОДНА СТРОЧКА!
+    }).addTo(mapInstance);
+    
+    console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
+}
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
@@ -264,6 +214,7 @@ function onMapFeatureClick(feature, layer) {
     const levelName = props.level_name || 'unknown';
     const level = props.level;
     const cadNum = props.cadastral_number || '—';
+    const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
 
     // Попап
     let popupContent = buildPopupContent(feature);
@@ -316,43 +267,56 @@ function onMapFeatureClick(feature, layer) {
         }
     });
 
-    layer.on('mouseout', function(e) {
-        // Проверяем, что слой и feature ещё существуют
-        if (!this || !this.setStyle || !feature) return;
-        
-        const price = feature.properties?.deals_median || 0;
-        const level = feature.properties?.level || 0;
-        
-        let style = {
+ layer.on('mouseout', function(e) {
+    if (!this || !this.setStyle || !feature) return;
+    
+    const price = feature.properties?.deals_median || 0;
+    const level = feature.properties?.level || 0;
+    const cadNum = feature.properties?.cadastral_number || '';
+    const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+    
+    let style = {
+        fillColor: getMapColor(price),
+        fillOpacity: 0.7,
+        color: '#334155',
+        weight: 1,
+        opacity: 0.5
+    };
+    
+    if (level === 2) {
+        style = {
             fillColor: getMapColor(price),
             fillOpacity: 0.7,
-            color: '#334155',
-            weight: 1,
-            opacity: 0.5
+            color: '#0ea5e9',
+            weight: 2,
+            opacity: 0.8
         };
-        
-        if (level === 2) {
-            style = {
-                fillColor: getMapColor(price),
-                fillOpacity: 0.7,
-                color: '#0ea5e9',
-                weight: 2,
-                opacity: 0.8
-            };
-        }
-        
-        if (level === 1) {
-            style = {
-                fillColor: getMapColor(price),
-                fillOpacity: 0.5,
-                color: '#1e293b',
-                weight: 2,
-                opacity: 0.6
-            };
-        }
-        
-        this.setStyle(style);
-    });
+    }
+    
+    if (level === 1) {
+        style = {
+            fillColor: getMapColor(price),
+            fillOpacity: 0.5,
+            color: '#1e293b',
+            weight: 2,
+            opacity: 0.6
+        };
+    }
+    
+    // ✅ ДОБАВИТЬ ЭТОТ БЛОК
+    if (isWrapper) {
+        style = {
+            fillColor: '#ff6b6b',
+            fillOpacity: 0.25,
+            color: '#ff0000',
+            weight: 1,
+            opacity: 0.4,
+            dashArray: '4 4'
+        };
+    }
+    
+    this.setStyle(style);
+});
 }
 function buildPopupContent(feature) {
     const props = feature.properties;
@@ -387,6 +351,26 @@ if (levelName === 'quarter') {
     const minPrice = props.deals_min || 0;
     const maxPrice = props.deals_max || 0;
     const uprsMedian = props.uprs_median || 0;
+    
+    // ✅ ОПРЕДЕЛЯЕМ ОБЕРТКУ
+    const isWrapper = cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+    
+    // ✅ ЕСЛИ ОБЕРТКА — ДОБАВЛЯЕМ ПОМЕТКУ
+    if (isWrapper) {
+        return `
+            <div class="popup-title">🔴 ${cadNum}</div>
+            <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value" style="color:#dc2626;font-weight:600;">Общая территория района</span></div>
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+            ${dealsCount > 0 ? `
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+            <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района (обертка)</div>
+        `;
+    }
+    
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ (БЕЗ ИЗМЕНЕНИЙ)
     return `
         <div class="popup-title">${cadNum}</div>
         <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
