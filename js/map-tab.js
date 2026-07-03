@@ -81,8 +81,8 @@ function renderMapLevel(level, parentId = null) {
         if (level === 1) return props.parent_id === '89';
         if (level === 2) {
             if (parentId) {
-                // Проверяем оба поля: parent_id и district_id
-                return props.parent_id === parentId || props.district_id === parentId;
+                // Приводим к строке для надежности
+                return String(props.parent_id) === String(parentId) || String(props.district_id) === String(parentId);
             }
             return true;
         }
@@ -91,48 +91,25 @@ function renderMapLevel(level, parentId = null) {
 
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
-    // ===== ЛОГИРОВАНИЕ ДЛЯ КВАРТАЛОВ =====
-    if (level === 2) {
-        console.log(`🔍 Кварталы для района ${parentId}: ${filtered.length} объектов`);
-        if (filtered.length > 0) {
-            console.log('📌 Пример квартала:', filtered[0].properties);
-        } else {
-            console.warn('⚠️ Нет кварталов для района', parentId);
-            // Проверяем, есть ли кварталы вообще в данных
-            const allQuarters = mapData.features.filter(f => f.properties.level === 2);
-            console.log(`📊 Всего кварталов в данных: ${allQuarters.length}`);
-            // Проверяем кварталы с этим parent_id
-            const quartersForDistrict = allQuarters.filter(f => 
-                f.properties.parent_id === parentId || f.properties.district_id === parentId
-            );
-            console.log(`📊 Кварталов с parent_id=${parentId}: ${quartersForDistrict.length}`);
-            // Показываем первые 3 для проверки
-            if (quartersForDistrict.length > 0) {
-                console.log('📌 Первые 3 квартала:', quartersForDistrict.slice(0, 3).map(f => f.properties.cadastral_number));
-            }
-            showMapError(`Нет кварталов в районе ${parentId}`);
-            return;
-        }
-    }
-    
     if (filtered.length === 0) {
         console.warn('⚠️ Нет объектов для отображения!');
         showMapError('Нет объектов для отображения');
         return;
     }
 
-    // Удаляем старый слой
+    // === УДАЛЯЕМ СТАРЫЙ СЛОЙ ПОЛНОСТЬЮ ===
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
+        window.mapLayer.off(); // Очищаем все обработчики
+        window.mapLayer = null;
     }
 
-    // Создаём новый слой с правильными стилями
+    // === СОЗДАЕМ НОВЫЙ СЛОЙ ===
     window.mapLayer = L.geoJSON(filtered, {
         style: function(feature) {
             const level = feature.properties?.level || 0;
             const price = feature.properties?.deals_median || 0;
             
-            // 🟦 КВАРТАЛЫ (level 2) — синие, с толстой рамкой
             if (level === 2) {
                 return {
                     fillColor: getMapColor(price),
@@ -144,7 +121,6 @@ function renderMapLevel(level, parentId = null) {
                 };
             }
             
-            // 🟨 РАЙОНЫ (level 1)
             if (level === 1) {
                 return {
                     fillColor: getMapColor(price),
@@ -155,7 +131,6 @@ function renderMapLevel(level, parentId = null) {
                 };
             }
             
-            // 🟩 ОКРУГ (level 0)
             return {
                 fillColor: getMapColor(price),
                 fillOpacity: 0.3,
@@ -164,6 +139,7 @@ function renderMapLevel(level, parentId = null) {
                 opacity: 0.5
             };
         },
+        // === ЯВНО ПЕРЕДАЕМ ФУНКЦИЮ ОБРАБОТКИ ===
         onEachFeature: onMapFeatureClick
     }).addTo(mapInstance);
 
