@@ -369,8 +369,12 @@ if (levelName === 'quarter') {
 // ПОСТРОЕНИЕ ПОПАПА
 // ============================================================
 function updateMapStats(features, level, parentId) {
-    const statsEl = document.getElementById('map-stats');
-    if (!statsEl) return;
+    // Получаем элементы для карточек
+    const statObjects = document.getElementById('stat-objects');
+    const statWithDeals = document.getElementById('stat-with-deals');
+    const statTotalDeals = document.getElementById('stat-total-deals');
+    
+    if (!statObjects || !statWithDeals || !statTotalDeals) return;
     
     let withDeals = 0;
     let totalDeals = 0;
@@ -396,7 +400,6 @@ function updateMapStats(features, level, parentId) {
     }
     // === УРОВЕНЬ 1 (Районы) — показываем все кварталы (общая статистика по ЯНАО) ===
     else if (level === 1) {
-        // На уровне районов показываем общую статистику по всем кварталам
         objectCount = allQuarters.length;
         allQuarters.forEach(q => {
             const count = q.properties.deals_count || 0;
@@ -408,7 +411,6 @@ function updateMapStats(features, level, parentId) {
     }
     // === УРОВЕНЬ 2 (Кварталы) — показываем кварталы конкретного района ===
     else if (level === 2) {
-        // Фильтруем кварталы только для этого района
         const districtQuarters = allQuarters.filter(q => {
             const qParentId = q.properties.parent_id || q.properties.district_id;
             return qParentId === parentId;
@@ -424,11 +426,10 @@ function updateMapStats(features, level, parentId) {
         });
     }
     
-    statsEl.innerHTML = `
-        <span>Объектов: <strong>${objectCount}</strong></span>
-        <span>Со сделками: <strong>${withDeals}</strong></span>
-        <span>Всего сделок: <strong>${totalDeals.toLocaleString()}</strong></span>
-    `;
+    // Обновляем карточки
+    statObjects.textContent = objectCount;
+    statWithDeals.textContent = withDeals;
+    statTotalDeals.textContent = totalDeals.toLocaleString();
 }
 
 // ============================================================
