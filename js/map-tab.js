@@ -79,10 +79,12 @@ function renderMapLevel(level, parentId = null) {
         if (props.level !== level) return false;
         
         // 🔥 ТОЛЬКО ДЛЯ РАЙОНА 89:08 исключаем полигоны
+        // Проверяем, что это уровень кварталов И parentId = 89:08
         if (level === 2 && parentId === '89:08') {
             const cadNum = props.cadastral_number || '';
-            // Исключаем 89:08:0000000 и 89:08:000000
+            // Исключаем только два конкретных полигона в Салехарде
             if (cadNum === '89:08:0000000' || cadNum === '89:08:000000') {
+                console.log(`  ❌ Исключён полигон: ${cadNum} (только для 89:08)`);
                 return false;
             }
         }
