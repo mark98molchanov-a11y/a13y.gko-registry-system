@@ -81,6 +81,7 @@ function renderMapLevel(level, parentId = null) {
         if (level === 1) return props.parent_id === '89';
         if (level === 2) {
             if (parentId) {
+                // Проверяем оба поля: parent_id и district_id
                 return props.parent_id === parentId || props.district_id === parentId;
             }
             return true;
@@ -90,19 +91,26 @@ function renderMapLevel(level, parentId = null) {
 
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
-    // Логирование для кварталов
+    // ===== ЛОГИРОВАНИЕ ДЛЯ КВАРТАЛОВ =====
     if (level === 2) {
         console.log(`🔍 Кварталы для района ${parentId}: ${filtered.length} объектов`);
         if (filtered.length > 0) {
             console.log('📌 Пример квартала:', filtered[0].properties);
         } else {
             console.warn('⚠️ Нет кварталов для района', parentId);
+            // Проверяем, есть ли кварталы вообще в данных
             const allQuarters = mapData.features.filter(f => f.properties.level === 2);
             console.log(`📊 Всего кварталов в данных: ${allQuarters.length}`);
+            // Проверяем кварталы с этим parent_id
             const quartersForDistrict = allQuarters.filter(f => 
                 f.properties.parent_id === parentId || f.properties.district_id === parentId
             );
             console.log(`📊 Кварталов с parent_id=${parentId}: ${quartersForDistrict.length}`);
+            // Показываем первые 3 для проверки
+            if (quartersForDistrict.length > 0) {
+                console.log('📌 Первые 3 квартала:', quartersForDistrict.slice(0, 3).map(f => f.properties.cadastral_number));
+            }
+            showMapError(`Нет кварталов в районе ${parentId}`);
             return;
         }
     }
@@ -118,13 +126,13 @@ function renderMapLevel(level, parentId = null) {
         mapInstance.removeLayer(window.mapLayer);
     }
 
-    // Создаём новый слой с правильными стилями для кварталов
+    // Создаём новый слой с правильными стилями
     window.mapLayer = L.geoJSON(filtered, {
         style: function(feature) {
             const level = feature.properties?.level || 0;
             const price = feature.properties?.deals_median || 0;
             
-            // 🟦 КВАРТАЛЫ (level 2) — яркие, с толстой рамкой
+            // 🟦 КВАРТАЛЫ (level 2) — синие, с толстой рамкой
             if (level === 2) {
                 return {
                     fillColor: getMapColor(price),
