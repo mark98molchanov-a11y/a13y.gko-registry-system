@@ -319,7 +319,52 @@ function onMapFeatureClick(feature, layer) {
         this.setStyle(style);
     });
 }
-
+function buildPopupContent(feature) {
+    const props = feature.properties;
+    const levelName = props.level_name || 'unknown';
+    
+    if (levelName === 'okrug') {
+        return `
+            <div class="popup-title">🏛️ ${props.district_name || 'ЯНАО'}</div>
+            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Округ</span></div>
+            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть районы →</div>
+        `;
+    }
+    
+    if (levelName === 'district') {
+        const dealsCount = props.deals_count || 0;
+        const medianPrice = props.deals_median || 0;
+        return `
+            <div class="popup-title">📋 ${props.district_name || props.cadastral_number || 'Район'}</div>
+            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Район</span></div>
+            ${dealsCount > 0 ? `
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть кварталы →</div>
+        `;
+    }
+    
+if (levelName === 'quarter') {
+    const cadNum = props.cadastral_number || '—';
+    const dealsCount = props.deals_count || 0;
+    const medianPrice = props.deals_median || 0;
+    const minPrice = props.deals_min || 0;
+    const maxPrice = props.deals_max || 0;
+    const uprsMedian = props.uprs_median || 0;
+    return `
+        <div class="popup-title">${cadNum}</div>
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+        ${dealsCount > 0 ? `
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+}
+    
+    return `<div>Неизвестный уровень</div>`;
+}
 // ============================================================
 // ПОСТРОЕНИЕ ПОПАПА
 // ============================================================
