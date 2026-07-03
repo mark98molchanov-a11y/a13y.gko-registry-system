@@ -78,9 +78,13 @@ function renderMapLevel(level, parentId = null) {
         const props = f.properties;
         if (props.level !== level) return false;
         
-        // 🔥 ВАЖНО: Исключаем полигоны районов (кад. номер заканчивается на 0000000)
-        if (props.cadastral_number && props.cadastral_number.endsWith('0000000')) {
-            return false;
+        // 🔥 ТОЛЬКО ДЛЯ РАЙОНА 89:08 исключаем полигоны
+        if (level === 2 && parentId === '89:08') {
+            const cadNum = props.cadastral_number || '';
+            // Исключаем 89:08:0000000 и 89:08:000000
+            if (cadNum === '89:08:0000000' || cadNum === '89:08:000000') {
+                return false;
+            }
         }
         
         if (level === 0) return true;
@@ -102,14 +106,14 @@ function renderMapLevel(level, parentId = null) {
         return;
     }
 
-    // === УДАЛЯЕМ СТАРЫЙ СЛОЙ ===
+    // Удаляем старый слой
     if (window.mapLayer) {
         mapInstance.removeLayer(window.mapLayer);
         window.mapLayer.off();
         window.mapLayer = null;
     }
 
-    // === СОЗДАЁМ НОВЫЙ СЛОЙ ===
+    // Создаём новый слой
     window.mapLayer = L.geoJSON(filtered, {
         style: function(feature) {
             const level = feature.properties?.level || 0;
