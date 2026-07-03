@@ -125,52 +125,55 @@ function renderMapLevel(level, parentId = null) {
 
     // 1. Добавляем обёртки (снизу, полупрозрачные)
     if (wrapperQuarters.length > 0) {
-        const wrapperLayer = L.geoJSON(wrapperQuarters, {
-            style: function(feature) {
-                const price = feature.properties?.deals_median || 0;
-                return {
-                    fillColor: price > 0 ? '#fbbf24' : '#e2e8f0',
-                    fillOpacity: 0.3,
-                    color: '#94a3b8',
-                    weight: 1,
-                    opacity: 0.3,
-                    dashArray: '4 4',
-                    interactive: false
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                const props = feature.properties;
-                const cadNum = props.cadastral_number || '—';
-                const dealsCount = props.deals_count || 0;
-                const medianPrice = props.deals_median || 0;
+    const wrapperLayer = L.geoJSON(wrapperQuarters, {
+        style: function(feature) {
+            const price = feature.properties?.deals_median || 0;
+            return {
+                fillColor: price > 0 ? '#fbbf24' : '#e2e8f0',
+                fillOpacity: 0.3,
+                color: '#94a3b8',
+                weight: 1,
+                opacity: 0.3,
+                dashArray: '4 4',
+                interactive: false
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            // 🔥 ПОМЕЧАЕМ СЛОЙ КАК ОБЁРТКУ
+            layer.isWrapper = true;
+            
+            const props = feature.properties;
+            const cadNum = props.cadastral_number || '—';
+            const dealsCount = props.deals_count || 0;
+            const medianPrice = props.deals_median || 0;
+            
+            layer.bindPopup(`
+                <div class="popup-title"><b>${cadNum}</b> (общая территория)</div>
+                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                ${dealsCount > 0 ? `
+                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                ` : ''}
+                <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
+            `, { className: 'custom-popup', maxWidth: 300 });
+            
+            layer.on('click', function(e) {
+                const statObjects = document.getElementById('stat-objects');
+                const statWithDeals = document.getElementById('stat-with-deals');
+                const statTotalDeals = document.getElementById('stat-total-deals');
                 
-                layer.bindPopup(`
-                    <div class="popup-title"><b>${cadNum}</b> (общая территория)</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    ` : ''}
-                    <div style="margin-top:6px;font-size:0.7rem;color:#94a3b8;">Остаточная территория района</div>
-                `, { className: 'custom-popup', maxWidth: 300 });
+                if (statObjects && statWithDeals && statTotalDeals) {
+                    statObjects.textContent = '1';
+                    statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
+                    statTotalDeals.textContent = dealsCount.toLocaleString();
+                }
                 
-                layer.on('click', function(e) {
-                    const statObjects = document.getElementById('stat-objects');
-                    const statWithDeals = document.getElementById('stat-with-deals');
-                    const statTotalDeals = document.getElementById('stat-total-deals');
-                    
-                    if (statObjects && statWithDeals && statTotalDeals) {
-                        statObjects.textContent = '1';
-                        statWithDeals.textContent = dealsCount > 0 ? '1' : '0';
-                        statTotalDeals.textContent = dealsCount.toLocaleString();
-                    }
-                    
-                    layer.openPopup();
-                });
-            }
-        });
-        window.mapLayer.addLayer(wrapperLayer);
-        console.log(`✅ Добавлено ${wrapperQuarters.length} кварталов-обёрток`);
-    }
+                layer.openPopup();
+            });
+        }
+    });
+    window.mapLayer.addLayer(wrapperLayer);
+    console.log(`✅ Добавлено ${wrapperQuarters.length} кварталов-обёрток`);
+}
 
     // 2. Добавляем обычные кварталы (сверху, кликабельные)
     if (normalQuarters.length > 0) {
