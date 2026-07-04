@@ -570,10 +570,50 @@ if (levelName === 'district') {
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
     const dealsCount = props.deals_count || 0;
-    const medianPrice = props.deals_median || 0;
-    const minPrice = props.deals_min || 0;
-    const maxPrice = props.deals_max || 0;
-    const uprsMedian = props.uprs_median || 0;
+    
+    // ✅ Пересчитываем взвешенную медиану для квартала
+    let allPrices = [];
+    let allMins = [];
+    let allMaxs = [];
+    let allUprs = [];
+    
+    if (dealsCount > 0) {
+        const median = props.deals_median || 0;
+        const min = props.deals_min || 0;
+        const max = props.deals_max || 0;
+        const uprs = props.uprs_median || 0;
+        
+        if (median > 0) {
+            // Добавляем с весом = количество сделок
+            allPrices.push({ value: median, weight: dealsCount });
+            allMins.push(min);
+            allMaxs.push(max);
+            allUprs.push({ value: uprs, weight: dealsCount });
+        }
+    }
+    
+    function getWeightedMedian(arr, totalWeight) {
+        if (arr.length === 0 || totalWeight === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a.value - b.value);
+        let cumulative = 0;
+        const halfWeight = totalWeight / 2;
+        for (let i = 0; i < sorted.length; i++) {
+            cumulative += sorted[i].weight;
+            if (cumulative >= halfWeight) {
+                return sorted[i].value;
+            }
+        }
+        return sorted[sorted.length - 1].value;
+    }
+    
+    const totalPriceWeight = allPrices.reduce((sum, p) => sum + p.weight, 0);
+    const totalUprsWeight = allUprs.reduce((sum, p) => sum + p.weight, 0);
+    
+    const medianPrice = getWeightedMedian(allPrices, totalPriceWeight);
+    const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
+    const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
+    const uprsMedian = getWeightedMedian(allUprs, totalUprsWeight);
+    
     return `
         <div class="popup-title">${cadNum}</div>
         <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
