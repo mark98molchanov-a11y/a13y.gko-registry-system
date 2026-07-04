@@ -298,65 +298,87 @@ function onMapFeatureClick(feature, layer) {
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
     
-   if (levelName === 'district') {
-        const cadNum = props.cadastral_number || props.district_id || '—';
-        const districtName = props.district_name || cadNum;
-        const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
-        const districtId = props.district_id || cadNum;
+ if (levelName === 'district') {
+    const cadNum = props.cadastral_number || props.district_id || '—';
+    const districtName = props.district_name || cadNum;
+    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+    const districtId = props.district_id || cadNum;
+    
+    const districtObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return fParentId === districtId || f.properties.district_id === districtId;
+    });
+    
+    let totalDeals = 0;
+    let allPrices = [];
+    let allMins = [];
+    let allMaxs = [];
+    let allUprs = [];
+    
+    districtObjects.forEach(f => {
+        const count = f.properties.deals_count || 0;
+        const median = f.properties.deals_median || 0;
+        const min = f.properties.deals_min || 0;
+        const max = f.properties.deals_max || 0;
+        const uprs = f.properties.uprs_median || 0;
         
-        const districtObjects = mapData.features.filter(f => {
-            if (f.properties.level !== 2) return false;
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === districtId || f.properties.district_id === districtId;
-        });
-        
-        let totalDeals = 0;
-        let allMedians = [];
-        let allMins = [];
-        let allMaxs = [];
-        let allUprs = [];
-        
-        districtObjects.forEach(f => {
-            const count = f.properties.deals_count || 0;
-            if (count > 0) {
-                totalDeals += count;
-                if (f.properties.deals_median > 0) allMedians.push(f.properties.deals_median);
-                if (f.properties.deals_min > 0) allMins.push(f.properties.deals_min);
-                if (f.properties.deals_max > 0) allMaxs.push(f.properties.deals_max);
-                if (f.properties.uprs_median > 0) allUprs.push(f.properties.uprs_median);
+        if (count > 0 && median > 0) {
+            totalDeals += count;
+            allPrices.push({ value: median, weight: count });
+            allMins.push(min);
+            allMaxs.push(max);
+            allUprs.push({ value: uprs, weight: count });
+        }
+    });
+    
+    function getWeightedMedian(arr, totalWeight) {
+        if (arr.length === 0 || totalWeight === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a.value - b.value);
+        let cumulative = 0;
+        const halfWeight = totalWeight / 2;
+        for (let i = 0; i < sorted.length; i++) {
+            cumulative += sorted[i].weight;
+            if (cumulative >= halfWeight) {
+                return sorted[i].value;
             }
-        });
-        
-        const medianPrice = allMedians.length > 0 ? allMedians.reduce((a,b) => a + b, 0) / allMedians.length : 0;
-        const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-        const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
-        const uprsMedian = allUprs.length > 0 ? allUprs.reduce((a,b) => a + b, 0) / allUprs.length : 0;
-        
-        const formatNum = (num) => num.toLocaleString();
-        const formatPrice = (num) => num.toLocaleString() + ' ₽';
-        const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
-        
-        const tooltipContent = `
-            <div class="popup-title">📋 ${districtName}</div>
-            <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-            ${totalDeals > 0 ? `
-            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
-            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(medianPrice)}</span></div>
-            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
-            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(uprsMedian)}</span></div>
-            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-        `;
-        
-        layer.bindTooltip(tooltipContent, {
-            className: 'custom-popup',
-            permanent: false,
-            direction: 'top',
-            offset: [0, -10],
-            opacity: 0.95,
-            sticky: true,
-            interactive: false
-        });
+        }
+        return sorted[sorted.length - 1].value;
     }
+    
+    const totalPriceWeight = allPrices.reduce((sum, p) => sum + p.weight, 0);
+    const totalUprsWeight = allUprs.reduce((sum, p) => sum + p.weight, 0);
+    
+    const medianPrice = getWeightedMedian(allPrices, totalPriceWeight);
+    const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
+    const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
+    const uprsMedian = getWeightedMedian(allUprs, totalUprsWeight);
+    
+    const formatNum = (num) => num.toLocaleString();
+    const formatPrice = (num) => num.toLocaleString() + ' ₽';
+    const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
+    
+    const tooltipContent = `
+        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+        ${totalDeals > 0 ? `
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(medianPrice)}</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(uprsMedian)}</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+    
+    layer.bindTooltip(tooltipContent, {
+        className: 'custom-popup',
+        permanent: false,
+        direction: 'top',
+        offset: [0, -10],
+        opacity: 0.95,
+        sticky: true,
+        interactive: false
+    });
+}
 
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
