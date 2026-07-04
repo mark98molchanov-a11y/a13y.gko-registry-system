@@ -29,9 +29,9 @@ function initMapTab(containerId) {
     });
 
     // Базовый слой
-L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    maxZoom: 17,
-    attribution: '© OpenStreetMap, © OpenTopoMap'
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
 }).addTo(mapInstance);
 
     // Загружаем данные
