@@ -265,7 +265,6 @@ function getMapColor(dealsCount) {
 }
 
 function onMapFeatureClick(feature, layer) {
-    // Проверка: если feature нет — выходим
     if (!feature || !feature.properties) {
         console.warn('⚠️ onMapFeatureClick: feature или properties отсутствуют');
         return;
@@ -276,7 +275,6 @@ function onMapFeatureClick(feature, layer) {
     const level = props.level;
     const cadNum = props.cadastral_number || '—';
 
-    // Попап
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
 
@@ -285,7 +283,6 @@ function onMapFeatureClick(feature, layer) {
         if (levelName === 'okrug') {
             renderMapLevel(1);
             updateBreadcrumb('okrug');
-            // Проверяем, что mapLayer существует и у него есть метод getBounds
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
@@ -305,63 +302,73 @@ function onMapFeatureClick(feature, layer) {
             } else if (layer.getLatLng) {
                 mapInstance.setView(layer.getLatLng(), 15);
             }
-            
             layer.openPopup();
         }
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
     layer.on('mouseover', function(e) {
-        // Проверяем, что слой ещё существует
         if (!this || !this.setStyle) return;
         
-        this.setStyle({
-            fillOpacity: 0.9,
-            weight: 3,
-            color: '#f59e0b',
-            opacity: 1
-        });
+        const lvl = feature?.properties?.level || 0;
+        
+        if (lvl === 2) {
+            this.setStyle({
+                fillOpacity: 0.2,
+                weight: 2,
+                color: '#60a5fa',
+                opacity: 0.8
+            });
+        } else {
+            this.setStyle({
+                fillOpacity: 0.7,
+                weight: 2,
+                color: '#3b82f6',
+                opacity: 0.9
+            });
+        }
+        
         this.bringToFront();
         if (this._container) {
             this._container.style.cursor = 'pointer';
         }
     });
 
+    // ===== 🖱️ УХОД МЫШИ =====
     layer.on('mouseout', function(e) {
-        // Проверяем, что слой и feature ещё существуют
         if (!this || !this.setStyle || !feature) return;
         
-        const price = feature.properties?.deals_median || 0;
         const level = feature.properties?.level || 0;
+        const deals = feature.properties?.deals_count || 0;
+        const price = feature.properties?.deals_median || 0;
         
-        let style = {
-            fillColor: getMapColor(price),
-            fillOpacity: 0.7,
-            color: '#334155',
-            weight: 1,
-            opacity: 0.5
-        };
+        let style = {};
         
-if (level === 2) {
-    const deals = feature.properties?.deals_count || 0;
-    style = {
-        fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
-        fillOpacity: 0.2,     // 🔥 ПРОЗРАЧНЕЕ (было 0.6)
-        color: '#3b82f6',
-        weight: 1,
-        opacity: 0.4
-    };
-}
-        
-if (level === 1) {
-    style = {
-        fillColor: getMapColor(price),
-        fillOpacity: 0.4,     // 🔥 ПРОЗРАЧНЕЕ
-        color: '#3b82f6',     // 🔥 ГОЛУБЫЕ ГРАНИЦЫ
-        weight: 1.5,          // 🔥 ТОНЬШЕ
-        opacity: 0.6
-    };
-}
+        if (level === 2) {
+            style = {
+                fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
+                fillOpacity: 0.2,
+                color: '#3b82f6',
+                weight: 1,
+                opacity: 0.4
+            };
+        } else if (level === 1) {
+            style = {
+                fillColor: getMapColor(price),
+                fillOpacity: 0.4,
+                color: '#3b82f6',
+                weight: 1.5,
+                opacity: 0.6
+            };
+        } else {
+            style = {
+                fillColor: getMapColor(price),
+                fillOpacity: 0.7,
+                color: '#334155',
+                weight: 1,
+                opacity: 0.5
+            };
+        }
         
         this.setStyle(style);
     });
