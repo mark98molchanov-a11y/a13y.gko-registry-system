@@ -29,9 +29,9 @@ function initMapTab(containerId) {
     });
 
     // Базовый слой
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap, © CartoDB'
+L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: '© OpenStreetMap, © OpenTopoMap'
 }).addTo(mapInstance);
 
     // Загружаем данные
@@ -196,10 +196,10 @@ if (normalQuarters.length > 0) {
             const hasDeals = deals > 0;
             return {
                 fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
-                fillOpacity: 0.6,  // 🔥 ПРОЗРАЧНЕЕ
-                color: '#3b82f6',   // 🔥 ГОЛУБЫЕ ГРАНИЦЫ
-                weight: 1,          // 🔥 ТОНЬШЕ
-                opacity: 0.5,
+                fillOpacity: 0.2,  
+                color: '#3b82f6',
+                weight: 1,
+                opacity: 0.4,       // 🔥 ТОНЬШЕ (было 0.5)
                 dashArray: null
             };
         },
@@ -209,7 +209,6 @@ if (normalQuarters.length > 0) {
     window.mapLayer.addTo(mapInstance);
     console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.) СВЕРХУ`);
 }
-
     // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
     // Подгоняем границы
@@ -339,14 +338,14 @@ function onMapFeatureClick(feature, layer) {
             opacity: 0.5
         };
         
-   if (level === 2) {
+if (level === 2) {
     const deals = feature.properties?.deals_count || 0;
     style = {
         fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
-        fillOpacity: 0.6,
+        fillOpacity: 0.2,     // 🔥 ПРОЗРАЧНЕЕ (было 0.6)
         color: '#3b82f6',
         weight: 1,
-        opacity: 0.5
+        opacity: 0.4
     };
 }
         
