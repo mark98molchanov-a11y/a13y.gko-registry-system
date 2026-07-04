@@ -269,22 +269,19 @@ function onMapFeatureClick(feature, layer) {
 
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
-
-    // ===== ТУЛТИП (при наведении на район) =====
-    if (levelName === 'district') {
+    
+   if (levelName === 'district') {
         const cadNum = props.cadastral_number || props.district_id || '—';
         const districtName = props.district_name || cadNum;
         const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
         const districtId = props.district_id || cadNum;
         
-        // Собираем все объекты level=2 в этом районе
         const districtObjects = mapData.features.filter(f => {
             if (f.properties.level !== 2) return false;
             const fParentId = f.properties.parent_id || f.properties.district_id;
             return fParentId === districtId || f.properties.district_id === districtId;
         });
         
-        // Суммируем данные
         let totalDeals = 0;
         let allMedians = [];
         let allMins = [];
@@ -307,7 +304,6 @@ function onMapFeatureClick(feature, layer) {
         const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
         const uprsMedian = allUprs.length > 0 ? allUprs.reduce((a,b) => a + b, 0) / allUprs.length : 0;
         
-        // Форматируем числа
         const formatNum = (num) => num.toLocaleString();
         const formatPrice = (num) => num.toLocaleString() + ' ₽';
         const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
