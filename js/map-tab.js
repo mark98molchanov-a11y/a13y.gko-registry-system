@@ -299,32 +299,34 @@ function onMapFeatureClick(feature, layer) {
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
-    layer.on('mouseover', function(e) {
-        if (!this || !this.setStyle) return;
-        
-        const lvl = feature?.properties?.level || 0;
-        
-        if (lvl === 2) {
-            this.setStyle({
-                fillOpacity: 0.2,
-                weight: 2,
-                color: '#60a5fa',
-                opacity: 0.8
-            });
-        } else {
-            this.setStyle({
-                fillOpacity: 0.7,
-                weight: 2,
-                color: '#3b82f6',
-                opacity: 0.9
-            });
-        }
-        
-        this.bringToFront();
-        if (this._container) {
-            this._container.style.cursor = 'pointer';
-        }
-    });
+layer.on('mouseover', function(e) {
+    if (!this || !this.setStyle) return;
+    
+    const lvl = feature?.properties?.level || 0;
+    
+    // ДЛЯ ВСЕХ УРОВНЕЙ — ТОЛЬКО ТОНКАЯ ГОЛУБАЯ ГРАНИЦА, БЕЗ ЗАЛИВКИ
+    if (lvl === 2) {
+        // Кварталы — оставляем как есть
+        this.setStyle({
+            fillOpacity: 0.2,
+            weight: 2,
+            color: '#60a5fa',
+            opacity: 0.8
+        });
+    } else {
+        // Районы и Округ — ТОЛЬКО ГРАНИЦА, заливка не меняется
+        this.setStyle({
+            weight: 2.5,
+            color: '#60a5fa',    // светлая голубая граница
+            opacity: 0.9
+        });
+    }
+    
+    this.bringToFront();
+    if (this._container) {
+        this._container.style.cursor = 'pointer';
+    }
+});
 
     // ===== 🖱️ УХОД МЫШИ =====
     layer.on('mouseout', function(e) {
