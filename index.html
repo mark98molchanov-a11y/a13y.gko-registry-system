@@ -1123,6 +1123,15 @@
 .leaflet-tooltip.custom-popup .popup-value {
     font-weight: 500;
 }
+.leaflet-interactive {
+    outline: none !important;
+    stroke-linejoin: round !important;
+}
+
+/* Отключаем выделение при клике/тапе */
+.leaflet-container {
+    -webkit-tap-highlight-color: transparent !important;
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
