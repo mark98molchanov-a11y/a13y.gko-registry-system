@@ -474,20 +474,31 @@ function updateMapStats(features, level, parentId) {
     }
     
     // Форматирование
-    const formatPrice = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ₽';
-    };
-    
-    const formatNumber = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    };
-    
-    const formatUprs = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toFixed(2) + ' ₽/м²';
-    };
+const formatPrice = (num) => {
+    if (num === 0 || isNaN(num)) return '—';
+    // Если число целое (например, 800000) — показываем без копеек
+    if (Number.isInteger(num)) {
+        return num.toLocaleString('ru-RU') + ' ₽';
+    }
+    // Если есть копейки — показываем с 2 знаками
+    return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
+};
+
+const formatNumber = (num) => {
+    if (num === 0 || isNaN(num)) return '—';
+    // Если число целое — без копеек
+    if (Number.isInteger(num)) {
+        return num.toLocaleString('ru-RU');
+    }
+    // Если есть дробная часть — с 2 знаками
+    return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatUprs = (num) => {
+    if (num === 0 || isNaN(num)) return '—';
+    // УПРС всегда показываем с 2 знаками
+    return num.toFixed(2) + ' ₽/м²';
+};
     
     // Обновляем карточки
     statMedian.textContent = formatPrice(medianPrice);
