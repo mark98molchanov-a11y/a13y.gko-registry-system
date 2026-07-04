@@ -366,8 +366,19 @@ function onMapFeatureClick(feature, layer) {
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
-       } else if (levelName === 'district') {
-    // Сбрасываем выделение района
+       }  else if (levelName === 'district') {
+    // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
+    // Сбрасываем стиль текущего слоя (района)
+    if (layer && layer.setStyle) {
+        layer.setStyle({
+            weight: 2.5,
+            color: '#2563eb',
+            opacity: 0.7,
+            fillOpacity: 0.3
+        });
+    }
+    
+    // Сбрасываем обертку
     if (window.wrapperLayer) {
         window.wrapperLayer.setStyle({
             fillOpacity: 0.25,
@@ -377,20 +388,18 @@ function onMapFeatureClick(feature, layer) {
             dashArray: '4 4'
         });
     }
-    // Сбрасываем выделение кварталов
-    if (window.mapLayer) {
-        window.mapLayer.eachLayer(function(l) {
-            if (l.setStyle) {
-                l.setStyle({
-                    fillColor: l.feature?.properties?.deals_count > 0 ? '#f1f5f9' : '#f1f5f9',
-                    fillOpacity: 0.2,
-                    color: '#3b82f6',
-                    weight: 2.5,
-                    opacity: 0.4
-                });
-            }
-        });
-    }
+    
+    // Сбрасываем все слои на карте
+    mapInstance.eachLayer(function(layer) {
+        if (layer.setStyle && layer.options && layer.options.weight) {
+            layer.setStyle({
+                weight: 1,
+                color: '#ff0000',
+                opacity: 0.4,
+                fillOpacity: 0.25
+            });
+        }
+    });
     
     const districtId = props.district_id || props.cadastral_number;
     renderMapLevel(2, districtId);
