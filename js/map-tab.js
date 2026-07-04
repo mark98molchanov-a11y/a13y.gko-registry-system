@@ -73,6 +73,20 @@ function renderMapLevel(level, parentId = null) {
     console.log(`🔍 Фильтрация: level=${level}, parentId=${parentId}`);
     console.log(`📊 Всего объектов в mapData: ${mapData.features.length}`);
 
+    // ✅ СБРАСЫВАЕМ ВЫДЕЛЕНИЕ ПРИ ПЕРЕХОДЕ НА КВАРТАЛЫ
+    if (level === 2) {
+        mapInstance.eachLayer(function(layer) {
+            if (layer.setStyle && layer.options && layer.options.weight) {
+                layer.setStyle({
+                    weight: 1,
+                    color: '#ff0000',
+                    opacity: 0.4,
+                    fillOpacity: 0.25
+                });
+            }
+        });
+    }
+
     // Фильтруем объекты
     let filtered = mapData.features.filter(f => {
         const props = f.properties;
@@ -132,7 +146,7 @@ function renderMapLevel(level, parentId = null) {
                 const price = feature.properties?.deals_median || 0;
                 return {
                     fillColor: '#ff6b6b',
-                    fillOpacity: 0.25,  // 🔥 ЕЩЁ ПРОЗРАЧНЕЕ
+                    fillOpacity: 0.25,
                     color: '#ff0000',
                     weight: 1,
                     opacity: 0.4,
@@ -145,7 +159,7 @@ function renderMapLevel(level, parentId = null) {
                 const dealsCount = props.deals_count || 0;
                 const medianPrice = props.deals_median || 0;
                 
-               layer.bindPopup(`
+                layer.bindPopup(`
     <div class="popup-title">${cadNum}</div>
     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
     ${dealsCount > 0 ? `
@@ -193,25 +207,25 @@ function renderMapLevel(level, parentId = null) {
     }
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
-if (normalQuarters.length > 0) {
-    const normalLayer = L.geoJSON(normalQuarters, {
-        style: function(feature) {
-            const deals = feature.properties?.deals_count || 0;
-            const hasDeals = deals > 0;
-            return {
-                fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
-                fillOpacity: 0.2,  
-                color: '#3b82f6',
-                weight: 2.5,       // 🔥 УВЕЛИЧЕНА
-                opacity: 0.6,      // 🔥 ЧУТЬ ЯРЧЕ
-                dashArray: null
-            };
-        },
-        onEachFeature: onMapFeatureClick
-    });
-    window.mapLayer = normalLayer;
-    window.mapLayer.addTo(mapInstance);
-}
+    if (normalQuarters.length > 0) {
+        const normalLayer = L.geoJSON(normalQuarters, {
+            style: function(feature) {
+                const deals = feature.properties?.deals_count || 0;
+                const hasDeals = deals > 0;
+                return {
+                    fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
+                    fillOpacity: 0.2,  
+                    color: '#3b82f6',
+                    weight: 2.5,
+                    opacity: 0.6,
+                    dashArray: null
+                };
+            },
+            onEachFeature: onMapFeatureClick
+        });
+        window.mapLayer = normalLayer;
+        window.mapLayer.addTo(mapInstance);
+    }
     // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
     // Подгоняем границы
@@ -236,18 +250,20 @@ if (normalQuarters.length > 0) {
     } catch(e) {
         console.warn('⚠️ Не удалось подогнать границы:', e);
     }
-addMapLegend();
+    
+    addMapLegend();
 
-// Сбрасываем выделение при переходе
-if (window.wrapperLayer) {
-    window.wrapperLayer.setStyle({
-        fillOpacity: 0.25,
-        weight: 1,
-        color: '#ff0000',
-        opacity: 0.4,
-        dashArray: '4 4'
-    });
-}
+    // Сбрасываем выделение при переходе
+    if (window.wrapperLayer) {
+        window.wrapperLayer.setStyle({
+            fillOpacity: 0.25,
+            weight: 1,
+            color: '#ff0000',
+            opacity: 0.4,
+            dashArray: '4 4'
+        });
+    }
+    
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
 }
