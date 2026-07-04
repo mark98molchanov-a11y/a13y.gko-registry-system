@@ -202,8 +202,8 @@ if (normalQuarters.length > 0) {
                 fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
                 fillOpacity: 0.2,  
                 color: '#3b82f6',
-                weight: 1,
-                opacity: 0.4,       // 🔥 ТОНЬШЕ (было 0.5)
+                weight: 2.5,       // 🔥 УВЕЛИЧЕНА
+                opacity: 0.6,      // 🔥 ЧУТЬ ЯРЧЕ
                 dashArray: null
             };
         },
@@ -211,7 +211,6 @@ if (normalQuarters.length > 0) {
     });
     window.mapLayer = normalLayer;
     window.mapLayer.addTo(mapInstance);
-    console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.) СВЕРХУ`);
 }
     // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
@@ -245,23 +244,16 @@ addMapLegend();
 
 
 function getMapColor(dealsCount) {
-    // Нет сделок — серый
-    if (!dealsCount || dealsCount === 0) return '#e8ecf0';
+    if (!dealsCount || dealsCount === 0) return '#f1f5f9';  // нет сделок
     
-    // Мало сделок (1-50) — красный
-    if (dealsCount <= 50) return '#ef4444';
+    // МАЛО (1-100) — красный
+    if (dealsCount <= 100) return '#ef4444';
     
-    // Средне (51-200) — оранжевый/желтый
-    if (dealsCount <= 200) return '#f59e0b';
+    // СРЕДНЕ (101-500) — оранжевый/желтый
+    if (dealsCount <= 500) return '#f59e0b';
     
-    // Средне-высокое (201-500) — желто-зеленый
-    if (dealsCount <= 500) return '#84cc16';
-    
-    // Высокое (501-1000) — зеленый
-    if (dealsCount <= 1000) return '#22c55e';
-    
-    // Очень высокое (>1000) — темно-зеленый
-    return '#15803d';
+    // МНОГО (>500) — зеленый
+    return '#22c55e';
 }
 
 function onMapFeatureClick(feature, layer) {
@@ -353,14 +345,14 @@ function onMapFeatureClick(feature, layer) {
                 opacity: 0.4
             };
         } else if (level === 1) {
-            style = {
-                fillColor: getMapColor(price),
-                fillOpacity: 0.4,
-                color: '#3b82f6',
-                weight: 1.5,
-                opacity: 0.6
-            };
-        } else {
+    style = {
+        fillColor: getMapColor(price),
+        fillOpacity: 0.3,
+        color: '#2563eb',      // 🔥 БОЛЕЕ НАСЫЩЕННЫЙ СИНИЙ
+        weight: 2.5,           // 🔥 УВЕЛИЧЕНА
+        opacity: 0.7
+    };
+} else {
             style = {
                 fillColor: getMapColor(price),
                 fillOpacity: 0.7,
@@ -603,11 +595,9 @@ function destroyMap() {
     }
 }
 function addMapLegend() {
-    // Удаляем старую легенду если есть
     const oldLegend = document.querySelector('.map-legend');
     if (oldLegend) oldLegend.remove();
     
-    // Создаем легенду
     const legend = document.createElement('div');
     legend.className = 'map-legend';
     legend.style.cssText = `
@@ -622,7 +612,7 @@ function addMapLegend() {
         font-family: 'Inter', sans-serif;
         z-index: 1000;
         border: 1px solid #e2e8f0;
-        min-width: 160px;
+        min-width: 140px;
     `;
     
     legend.innerHTML = `
@@ -630,24 +620,16 @@ function addMapLegend() {
             📊 Сделки в квартале
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#15803d;"></span>
-            <span style="color:#475569;">более 1 000</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
-            <span style="color:#475569;">501 - 1 000</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#84cc16;"></span>
-            <span style="color:#475569;">201 - 500</span>
+            <span style="color:#475569;">много</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f59e0b;"></span>
-            <span style="color:#475569;">51 - 200</span>
+            <span style="color:#475569;">средне</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
-            <span style="color:#475569;">1 - 50</span>
+            <span style="color:#475569;">мало</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
@@ -655,7 +637,6 @@ function addMapLegend() {
         </div>
     `;
     
-    // Добавляем в контейнер карты
     const mapContainer = document.getElementById('map-container');
     if (mapContainer) {
         mapContainer.style.position = 'relative';
