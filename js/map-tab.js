@@ -380,7 +380,7 @@ function buildPopupContent(feature) {
     }
     
 if (levelName === 'district') {
-    const cadNum = props.cadastral_number || '—';
+    const cadNum = props.cadastral_number || props.district_id || '—';
     const districtName = props.district_name || cadNum;
     const dealsCount = props.deals_count || 0;
     const medianPrice = props.deals_median || 0;
@@ -388,9 +388,12 @@ if (levelName === 'district') {
     const maxPrice = props.deals_max || 0;
     const uprsMedian = props.uprs_median || 0;
     
+    // Если у района нет cadastral_number, используем district_id
+    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+    
     return `
         <div class="popup-title">📋 ${districtName}</div>
-        <div class="popup-row"><span class="popup-label">${cadNum}</span></div>
+        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
         ${dealsCount > 0 ? `
         <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
         <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
