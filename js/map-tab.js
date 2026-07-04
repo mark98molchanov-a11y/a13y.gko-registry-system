@@ -336,15 +336,15 @@ function onMapFeatureClick(feature, layer) {
         
         let style = {};
         
-        if (level === 2) {
-            style = {
-                fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
-                fillOpacity: 0.2,
-                color: '#3b82f6',
-                weight: 1,
-                opacity: 0.4
-            };
-        } else if (level === 1) {
+      if (level === 2) {
+    style = {
+        fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
+        fillOpacity: 0.2,
+        color: '#3b82f6',
+        weight: 2.5,        // 🔥 БЫЛО 1, СТАЛО 2.5
+        opacity: 0.4
+    };
+} else if (level === 1) {
     style = {
         fillColor: getMapColor(price),
         fillOpacity: 0.3,
@@ -612,7 +612,7 @@ function addMapLegend() {
         font-family: 'Inter', sans-serif;
         z-index: 1000;
         border: 1px solid #e2e8f0;
-        min-width: 140px;
+        min-width: 160px;
     `;
     
     legend.innerHTML = `
@@ -621,15 +621,15 @@ function addMapLegend() {
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
-            <span style="color:#475569;">много</span>
+            <span style="color:#475569;">> 500 сделок</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f59e0b;"></span>
-            <span style="color:#475569;">средне</span>
+            <span style="color:#475569;">101 – 500</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
-            <span style="color:#475569;">мало</span>
+            <span style="color:#475569;">1 – 100</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
