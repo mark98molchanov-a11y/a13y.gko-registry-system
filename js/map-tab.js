@@ -22,20 +22,23 @@ function initMapTab(containerId) {
     }
 
     // Создаём карту внутри контейнера
-    mapInstance = L.map(container, {
-        center: [66.0, 76.0],
-        zoom: 5,
-        zoomControl: true
-    });
+mapInstance = L.map(container, {
+    center: [66.0, 76.0],
+    zoom: 5,
+    zoomControl: true
+});
 
-    // Базовый слой
+// ✅ УБИРАЕМ АТРИБУЦИЮ (Leaflet | © OpenStreetMap)
+mapInstance.attributionControl.remove();
+
+// Базовый слой
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
 }).addTo(mapInstance);
 
-    // Загружаем данные
-    loadMapData();
+// Загружаем данные
+loadMapData();
 }
 
 // ============================================================
