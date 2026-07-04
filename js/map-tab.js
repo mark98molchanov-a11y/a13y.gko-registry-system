@@ -569,7 +569,6 @@ if (levelName === 'quarter') {
 // ПОСТРОЕНИЕ ПОПАПА
 // ============================================================
 function updateMapStats(features, level, parentId) {
-    // Получаем элементы для карточек
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
     const statUprs = document.getElementById('stat-uprs');
@@ -583,37 +582,29 @@ function updateMapStats(features, level, parentId) {
     let maxPrice = 0;
     let uprsMedian = 0;
     
-    // Все объекты level=2 (кварталы + обертки)
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     
     let targetObjects = [];
     
-    // === УРОВЕНЬ 0 (Округ) или 1 (Районы) — показываем все объекты ===
     if (level === 0 || level === 1) {
         targetObjects = allObjects;
-    }
-    // === УРОВЕНЬ 2 (Кварталы) — показываем объекты конкретного района ===
-    else if (level === 2) {
+    } else if (level === 2) {
         targetObjects = allObjects.filter(f => {
             const fParentId = f.properties.parent_id || f.properties.district_id;
             return fParentId === parentId;
         });
     }
     
-    // Собираем данные по объектам со сделками
     const objectsWithDeals = targetObjects.filter(f => (f.properties.deals_count || 0) > 0);
     
     if (objectsWithDeals.length > 0) {
-        // Суммируем сделки
         totalDeals = objectsWithDeals.reduce((sum, f) => sum + (f.properties.deals_count || 0), 0);
         
-        // Собираем цены
-        let weightedSum = 0;
-        let totalWeight = 0;
-        let allMin = Infinity;
-        let allMax = -Infinity;
-        let weightedUprsSum = 0;
-        let uprsTotalWeight = 0;
+        // ✅ Оптимизированный расчет истинной медианы (без раздувания массива)
+        let allPrices = [];
+        let allMins = [];
+        let allMaxs = [];
+        let allUprs = [];
         
         objectsWithDeals.forEach(f => {
             const count = f.properties.deals_count || 0;
@@ -623,53 +614,59 @@ function updateMapStats(features, level, parentId) {
             const uprs = f.properties.uprs_median || 0;
             
             if (count > 0 && median > 0) {
-                weightedSum += median * count;
-                totalWeight += count;
-            }
-            
-            if (min > 0 && min < allMin) allMin = min;
-            if (max > 0 && max > allMax) allMax = max;
-            
-            if (count > 0 && uprs > 0) {
-                weightedUprsSum += uprs * count;
-                uprsTotalWeight += count;
+                // ✅ Добавляем только медиану (по 1 разу на объект) + вес = количество сделок
+                allPrices.push({ value: median, weight: count });
+                allMins.push(min);
+                allMaxs.push(max);
+                allUprs.push({ value: uprs, weight: count });
             }
         });
         
-        medianPrice = totalWeight > 0 ? weightedSum / totalWeight : 0;
-        minPrice = allMin !== Infinity ? allMin : 0;
-        maxPrice = allMax !== -Infinity ? allMax : 0;
-        uprsMedian = uprsTotalWeight > 0 ? weightedUprsSum / uprsTotalWeight : 0;
+        // ✅ Функция для вычисления взвешенной медианы
+        function getWeightedMedian(arr, totalWeight) {
+            if (arr.length === 0 || totalWeight === 0) return 0;
+            const sorted = arr.slice().sort((a, b) => a.value - b.value);
+            let cumulative = 0;
+            const halfWeight = totalWeight / 2;
+            for (let i = 0; i < sorted.length; i++) {
+                cumulative += sorted[i].weight;
+                if (cumulative >= halfWeight) {
+                    return sorted[i].value;
+                }
+            }
+            return sorted[sorted.length - 1].value;
+        }
+        
+        const totalPriceWeight = allPrices.reduce((sum, p) => sum + p.weight, 0);
+        const totalUprsWeight = allUprs.reduce((sum, p) => sum + p.weight, 0);
+        
+        medianPrice = getWeightedMedian(allPrices, totalPriceWeight);
+        minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
+        maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
+        uprsMedian = getWeightedMedian(allUprs, totalUprsWeight);
     }
     
-    // Форматирование
-const formatPrice = (num) => {
-    if (num === 0 || isNaN(num)) return '—';
-    // Если число целое (например, 800000) — показываем без копеек
-    if (Number.isInteger(num)) {
-        return num.toLocaleString('ru-RU') + ' ₽';
-    }
-    // Если есть копейки — показываем с 2 знаками
-    return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
-};
+    const formatPrice = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        if (Number.isInteger(num)) {
+            return num.toLocaleString('ru-RU') + ' ₽';
+        }
+        return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
+    };
 
-const formatNumber = (num) => {
-    if (num === 0 || isNaN(num)) return '—';
-    // Если число целое — без копеек
-    if (Number.isInteger(num)) {
-        return num.toLocaleString('ru-RU');
-    }
-    // Если есть дробная часть — с 2 знаками
-    return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
+    const formatNumber = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        if (Number.isInteger(num)) {
+            return num.toLocaleString('ru-RU');
+        }
+        return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
 
-const formatUprs = (num) => {
-    if (num === 0 || isNaN(num)) return '—';
-    // УПРС всегда показываем с 2 знаками
-    return num.toFixed(2) + ' ₽/м²';
-};
+    const formatUprs = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toFixed(2) + ' ₽/м²';
+    };
     
-    // Обновляем карточки
     statMedian.textContent = formatPrice(medianPrice);
     statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
         ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
