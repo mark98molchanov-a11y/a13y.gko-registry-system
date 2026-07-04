@@ -237,6 +237,17 @@ if (normalQuarters.length > 0) {
         console.warn('⚠️ Не удалось подогнать границы:', e);
     }
 addMapLegend();
+
+// Сбрасываем выделение при переходе
+if (window.wrapperLayer) {
+    window.wrapperLayer.setStyle({
+        fillOpacity: 0.25,
+        weight: 1,
+        color: '#ff0000',
+        opacity: 0.4,
+        dashArray: '4 4'
+    });
+}
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
 }
@@ -338,14 +349,39 @@ function onMapFeatureClick(feature, layer) {
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
-        } else if (levelName === 'district') {
-            const districtId = props.district_id || props.cadastral_number;
-            renderMapLevel(2, districtId);
-            updateBreadcrumb('district', districtId, props.district_name);
-            if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+       } else if (levelName === 'district') {
+    // Сбрасываем выделение района
+    if (window.wrapperLayer) {
+        window.wrapperLayer.setStyle({
+            fillOpacity: 0.25,
+            weight: 1,
+            color: '#ff0000',
+            opacity: 0.4,
+            dashArray: '4 4'
+        });
+    }
+    // Сбрасываем выделение кварталов
+    if (window.mapLayer) {
+        window.mapLayer.eachLayer(function(l) {
+            if (l.setStyle) {
+                l.setStyle({
+                    fillColor: l.feature?.properties?.deals_count > 0 ? '#f1f5f9' : '#f1f5f9',
+                    fillOpacity: 0.2,
+                    color: '#3b82f6',
+                    weight: 2.5,
+                    opacity: 0.4
+                });
             }
-        } else if (levelName === 'quarter') {
+        });
+    }
+    
+    const districtId = props.district_id || props.cadastral_number;
+    renderMapLevel(2, districtId);
+    updateBreadcrumb('district', districtId, props.district_name);
+    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
+} else if (levelName === 'quarter') {
             console.log('🏘️ Квартал выбран:', cadNum);
             console.log('📊 Сделок:', props.deals_count || 0);
             
