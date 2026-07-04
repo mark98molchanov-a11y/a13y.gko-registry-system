@@ -379,19 +379,26 @@ function buildPopupContent(feature) {
         `;
     }
     
-    if (levelName === 'district') {
-        const dealsCount = props.deals_count || 0;
-        const medianPrice = props.deals_median || 0;
-        return `
-            <div class="popup-title">📋 ${props.district_name || props.cadastral_number || 'Район'}</div>
-            <div class="popup-row"><span class="popup-label">Уровень</span><span class="popup-value">Район</span></div>
-            ${dealsCount > 0 ? `
-            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-            <div style="margin-top:8px;color:#0ea5e9;font-size:0.7rem;">Кликните, чтобы увидеть кварталы →</div>
-        `;
-    }
+if (levelName === 'district') {
+    const cadNum = props.cadastral_number || '—';
+    const districtName = props.district_name || cadNum;
+    const dealsCount = props.deals_count || 0;
+    const medianPrice = props.deals_median || 0;
+    const minPrice = props.deals_min || 0;
+    const maxPrice = props.deals_max || 0;
+    const uprsMedian = props.uprs_median || 0;
+    
+    return `
+        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-row"><span class="popup-label">${cadNum}</span></div>
+        ${dealsCount > 0 ? `
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+}
     
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
