@@ -25,7 +25,8 @@ function initMapTab(containerId) {
 mapInstance = L.map(container, {
     center: [66.0, 76.0],
     zoom: 5,
-    zoomControl: true
+    zoomControl: true,
+    boxZoom: false 
 });
 
 // ✅ УБИРАЕМ АТРИБУЦИЮ (Leaflet | © OpenStreetMap)
