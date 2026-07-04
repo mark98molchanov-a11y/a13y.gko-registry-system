@@ -401,50 +401,100 @@ if (levelName === 'quarter') {
 // ============================================================
 function updateMapStats(features, level, parentId) {
     // Получаем элементы для карточек
-    const statObjects = document.getElementById('stat-objects');
-    const statWithDeals = document.getElementById('stat-with-deals');
+    const statMedian = document.getElementById('stat-median');
+    const statMinMax = document.getElementById('stat-minmax');
+    const statUprs = document.getElementById('stat-uprs');
     const statTotalDeals = document.getElementById('stat-total-deals');
     
-    if (!statObjects || !statWithDeals || !statTotalDeals) return;
+    if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
-    let withDeals = 0;
     let totalDeals = 0;
-    let objectCount = 0;
+    let medianPrice = 0;
+    let minPrice = 0;
+    let maxPrice = 0;
+    let uprsMedian = 0;
     
-    // ✅ ТЕПЕРЬ УЧИТЫВАЕМ И КВАРТАЛЫ, И ОБЕРТКИ (все объекты level=2)
+    // Все объекты level=2 (кварталы + обертки)
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     
-    // === УРОВЕНЬ 0 (Округ) — показываем все объекты ===
+    let targetObjects = [];
+    
+    // === УРОВЕНЬ 0 (Округ) или 1 (Районы) — показываем все объекты ===
     if (level === 0 || level === 1) {
-        objectCount = allObjects.length;
-        allObjects.forEach(f => {
-            const count = f.properties.deals_count || 0;
-            if (count > 0) {
-                withDeals++;
-                totalDeals += count;
-            }
-        });
+        targetObjects = allObjects;
     }
     // === УРОВЕНЬ 2 (Кварталы) — показываем объекты конкретного района ===
     else if (level === 2) {
-        const districtObjects = allObjects.filter(f => {
+        targetObjects = allObjects.filter(f => {
             const fParentId = f.properties.parent_id || f.properties.district_id;
             return fParentId === parentId;
         });
-        
-        objectCount = districtObjects.length;
-        districtObjects.forEach(f => {
-            const count = f.properties.deals_count || 0;
-            if (count > 0) {
-                withDeals++;
-                totalDeals += count;
-            }
-        });
     }
     
+    // Собираем данные по объектам со сделками
+    const objectsWithDeals = targetObjects.filter(f => (f.properties.deals_count || 0) > 0);
+    
+    if (objectsWithDeals.length > 0) {
+        // Суммируем сделки
+        totalDeals = objectsWithDeals.reduce((sum, f) => sum + (f.properties.deals_count || 0), 0);
+        
+        // Собираем цены
+        let weightedSum = 0;
+        let totalWeight = 0;
+        let allMin = Infinity;
+        let allMax = -Infinity;
+        let weightedUprsSum = 0;
+        let uprsTotalWeight = 0;
+        
+        objectsWithDeals.forEach(f => {
+            const count = f.properties.deals_count || 0;
+            const median = f.properties.deals_median || 0;
+            const min = f.properties.deals_min || 0;
+            const max = f.properties.deals_max || 0;
+            const uprs = f.properties.uprs_median || 0;
+            
+            if (count > 0 && median > 0) {
+                weightedSum += median * count;
+                totalWeight += count;
+            }
+            
+            if (min > 0 && min < allMin) allMin = min;
+            if (max > 0 && max > allMax) allMax = max;
+            
+            if (count > 0 && uprs > 0) {
+                weightedUprsSum += uprs * count;
+                uprsTotalWeight += count;
+            }
+        });
+        
+        medianPrice = totalWeight > 0 ? weightedSum / totalWeight : 0;
+        minPrice = allMin !== Infinity ? allMin : 0;
+        maxPrice = allMax !== -Infinity ? allMax : 0;
+        uprsMedian = uprsTotalWeight > 0 ? weightedUprsSum / uprsTotalWeight : 0;
+    }
+    
+    // Форматирование
+    const formatPrice = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ₽';
+    };
+    
+    const formatNumber = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
+    
+    const formatUprs = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toFixed(2) + ' ₽/м²';
+    };
+    
     // Обновляем карточки
-    statObjects.textContent = objectCount;
-    statWithDeals.textContent = withDeals;
+    statMedian.textContent = formatPrice(medianPrice);
+    statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
+        ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
+        : '—';
+    statUprs.textContent = formatUprs(uprsMedian);
     statTotalDeals.textContent = totalDeals.toLocaleString();
 }
 
