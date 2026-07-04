@@ -588,26 +588,21 @@ function updateMapStats(features, level, parentId) {
     
     let targetObjects = [];
     
-    // === УРОВЕНЬ 0 (Округ) или 1 (Районы) — показываем все объекты ===
     if (level === 0 || level === 1) {
         targetObjects = allObjects;
-    }
-    // === УРОВЕНЬ 2 (Кварталы) — показываем объекты конкретного района ===
-    else if (level === 2) {
+    } else if (level === 2) {
         targetObjects = allObjects.filter(f => {
             const fParentId = f.properties.parent_id || f.properties.district_id;
             return fParentId === parentId;
         });
     }
     
-    // Собираем данные по объектам со сделками
     const objectsWithDeals = targetObjects.filter(f => (f.properties.deals_count || 0) > 0);
     
     if (objectsWithDeals.length > 0) {
-        // Суммируем сделки
         totalDeals = objectsWithDeals.reduce((sum, f) => sum + (f.properties.deals_count || 0), 0);
         
-        // ✅ ПРАВИЛЬНАЯ ЛОГИКА (как в тултипе) — собираем все значения в массивы
+        // Собираем все значения
         let allPrices = [];
         let allMins = [];
         let allMaxs = [];
@@ -621,8 +616,7 @@ function updateMapStats(features, level, parentId) {
             const uprs = f.properties.uprs_median || 0;
             
             if (count > 0 && median > 0) {
-                // Добавляем медиану столько раз, сколько сделок
-                for (let i = 0; i < count; i++) {
+                for (let i = 0; i < count && i < 1000; i++) {
                     allPrices.push(median);
                     allMins.push(min);
                     allMaxs.push(max);
@@ -631,7 +625,6 @@ function updateMapStats(features, level, parentId) {
             }
         });
         
-        // ✅ Функция для вычисления истинной медианы
         function getMedian(arr) {
             if (arr.length === 0) return 0;
             const sorted = arr.slice().sort((a, b) => a - b);
@@ -648,7 +641,6 @@ function updateMapStats(features, level, parentId) {
         uprsMedian = getMedian(allUprs);
     }
     
-    // Форматирование
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
         if (Number.isInteger(num)) {
@@ -670,7 +662,6 @@ function updateMapStats(features, level, parentId) {
         return num.toFixed(2) + ' ₽/м²';
     };
     
-    // Обновляем карточки
     statMedian.textContent = formatPrice(medianPrice);
     statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
         ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
