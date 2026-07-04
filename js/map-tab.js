@@ -270,6 +270,20 @@ function onMapFeatureClick(feature, layer) {
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
 
+    // ===== ТУЛТИП (при наведении на район) =====
+    if (levelName === 'district') {
+        const districtName = props.district_name || cadNum;
+        const displayCad = props.cadastral_number || props.district_id || '—';
+        const tooltipContent = `<b>${districtName}</b><br>${displayCad}`;
+        layer.bindTooltip(tooltipContent, {
+            className: 'custom-popup',
+            permanent: false,
+            direction: 'top',
+            offset: [0, -10],
+            opacity: 0.9
+        });
+    }
+
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
         if (levelName === 'okrug') {
@@ -299,34 +313,31 @@ function onMapFeatureClick(feature, layer) {
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
-layer.on('mouseover', function(e) {
-    if (!this || !this.setStyle) return;
-    
-    const lvl = feature?.properties?.level || 0;
-    
-    // ДЛЯ ВСЕХ УРОВНЕЙ — ТОЛЬКО ТОНКАЯ ГОЛУБАЯ ГРАНИЦА, БЕЗ ЗАЛИВКИ
-    if (lvl === 2) {
-        // Кварталы — оставляем как есть
-        this.setStyle({
-            fillOpacity: 0.2,
-            weight: 2,
-            color: '#60a5fa',
-            opacity: 0.8
-        });
-    } else {
-        // Районы и Округ — ТОЛЬКО ГРАНИЦА, заливка не меняется
-        this.setStyle({
-            weight: 2.5,
-            color: '#60a5fa',    // светлая голубая граница
-            opacity: 0.9
-        });
-    }
-    
-    this.bringToFront();
-    if (this._container) {
-        this._container.style.cursor = 'pointer';
-    }
-});
+    layer.on('mouseover', function(e) {
+        if (!this || !this.setStyle) return;
+        
+        const lvl = feature?.properties?.level || 0;
+        
+        if (lvl === 2) {
+            this.setStyle({
+                fillOpacity: 0.2,
+                weight: 2,
+                color: '#60a5fa',
+                opacity: 0.8
+            });
+        } else {
+            this.setStyle({
+                weight: 2.5,
+                color: '#60a5fa',
+                opacity: 0.9
+            });
+        }
+        
+        this.bringToFront();
+        if (this._container) {
+            this._container.style.cursor = 'pointer';
+        }
+    });
 
     // ===== 🖱️ УХОД МЫШИ =====
     layer.on('mouseout', function(e) {
@@ -338,23 +349,23 @@ layer.on('mouseover', function(e) {
         
         let style = {};
         
-      if (level === 2) {
-    style = {
-        fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
-        fillOpacity: 0.2,
-        color: '#3b82f6',
-        weight: 2.5,        // 🔥 БЫЛО 1, СТАЛО 2.5
-        opacity: 0.4
-    };
-} else if (level === 1) {
-    style = {
-        fillColor: getMapColor(price),
-        fillOpacity: 0.3,
-        color: '#2563eb',      // 🔥 БОЛЕЕ НАСЫЩЕННЫЙ СИНИЙ
-        weight: 2.5,           // 🔥 УВЕЛИЧЕНА
-        opacity: 0.7
-    };
-} else {
+        if (level === 2) {
+            style = {
+                fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
+                fillOpacity: 0.2,
+                color: '#3b82f6',
+                weight: 2.5,
+                opacity: 0.4
+            };
+        } else if (level === 1) {
+            style = {
+                fillColor: getMapColor(price),
+                fillOpacity: 0.3,
+                color: '#2563eb',
+                weight: 2.5,
+                opacity: 0.7
+            };
+        } else {
             style = {
                 fillColor: getMapColor(price),
                 fillOpacity: 0.7,
@@ -385,14 +396,12 @@ if (levelName === 'district') {
     const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
     const districtId = props.district_id || cadNum;
     
-    // Собираем все объекты level=2 в этом районе
     const districtObjects = mapData.features.filter(f => {
         if (f.properties.level !== 2) return false;
         const fParentId = f.properties.parent_id || f.properties.district_id;
         return fParentId === districtId || f.properties.district_id === districtId;
     });
     
-    // Суммируем сделки
     let totalDeals = 0;
     let allMedians = [];
     let allMins = [];
@@ -410,7 +419,6 @@ if (levelName === 'district') {
         }
     });
     
-    // Вычисляем медиану по всем кварталам
     const medianPrice = allMedians.length > 0 ? allMedians.reduce((a,b) => a + b, 0) / allMedians.length : 0;
     const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
     const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
@@ -427,6 +435,7 @@ if (levelName === 'district') {
         ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
     `;
 }
+
     
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
