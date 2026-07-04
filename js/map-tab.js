@@ -272,15 +272,65 @@ function onMapFeatureClick(feature, layer) {
 
     // ===== ТУЛТИП (при наведении на район) =====
     if (levelName === 'district') {
+        const cadNum = props.cadastral_number || props.district_id || '—';
         const districtName = props.district_name || cadNum;
-        const displayCad = props.cadastral_number || props.district_id || '—';
-        const tooltipContent = `<b>${districtName}</b><br>${displayCad}`;
+        const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+        const districtId = props.district_id || cadNum;
+        
+        // Собираем все объекты level=2 в этом районе
+        const districtObjects = mapData.features.filter(f => {
+            if (f.properties.level !== 2) return false;
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return fParentId === districtId || f.properties.district_id === districtId;
+        });
+        
+        // Суммируем данные
+        let totalDeals = 0;
+        let allMedians = [];
+        let allMins = [];
+        let allMaxs = [];
+        let allUprs = [];
+        
+        districtObjects.forEach(f => {
+            const count = f.properties.deals_count || 0;
+            if (count > 0) {
+                totalDeals += count;
+                if (f.properties.deals_median > 0) allMedians.push(f.properties.deals_median);
+                if (f.properties.deals_min > 0) allMins.push(f.properties.deals_min);
+                if (f.properties.deals_max > 0) allMaxs.push(f.properties.deals_max);
+                if (f.properties.uprs_median > 0) allUprs.push(f.properties.uprs_median);
+            }
+        });
+        
+        const medianPrice = allMedians.length > 0 ? allMedians.reduce((a,b) => a + b, 0) / allMedians.length : 0;
+        const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
+        const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
+        const uprsMedian = allUprs.length > 0 ? allUprs.reduce((a,b) => a + b, 0) / allUprs.length : 0;
+        
+        // Форматируем числа
+        const formatNum = (num) => num.toLocaleString();
+        const formatPrice = (num) => num.toLocaleString() + ' ₽';
+        const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
+        
+        const tooltipContent = `
+            <div class="popup-title">📋 ${districtName}</div>
+            <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+            ${totalDeals > 0 ? `
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(medianPrice)}</span></div>
+            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
+            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(uprsMedian)}</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+        `;
+        
         layer.bindTooltip(tooltipContent, {
             className: 'custom-popup',
             permanent: false,
             direction: 'top',
             offset: [0, -10],
-            opacity: 0.9
+            opacity: 0.95,
+            sticky: true,
+            interactive: false
         });
     }
 
