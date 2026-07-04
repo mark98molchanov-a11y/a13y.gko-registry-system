@@ -29,10 +29,10 @@ function initMapTab(containerId) {
     });
 
     // Базовый слой
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-    }).addTo(mapInstance);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap, © CartoDB'
+}).addTo(mapInstance);
 
     // Загружаем данные
     loadMapData();
@@ -189,25 +189,26 @@ function renderMapLevel(level, parentId = null) {
     }
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
-    if (normalQuarters.length > 0) {
-        const normalLayer = L.geoJSON(normalQuarters, {
-            style: function(feature) {
-                const price = feature.properties?.deals_median || 0;
-                return {
-                    fillColor: price > 0 ? '#60a5fa' : '#94a3b8',
-                    fillOpacity: 0.8,
-                    color: price > 0 ? '#0ea5e9' : '#64748b',
-                    weight: 2,
-                    opacity: 0.9,
-                    dashArray: null
-                };
-            },
-            onEachFeature: onMapFeatureClick
-        });
-        window.mapLayer = normalLayer;  // 🔥 КВАРТАЛЫ — ОТДЕЛЬНЫЙ СЛОЙ
-        window.mapLayer.addTo(mapInstance);
-        console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.) СВЕРХУ`);
-    }
+if (normalQuarters.length > 0) {
+    const normalLayer = L.geoJSON(normalQuarters, {
+        style: function(feature) {
+            const deals = feature.properties?.deals_count || 0;
+            const hasDeals = deals > 0;
+            return {
+                fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
+                fillOpacity: 0.6,  // 🔥 ПРОЗРАЧНЕЕ
+                color: '#3b82f6',   // 🔥 ГОЛУБЫЕ ГРАНИЦЫ
+                weight: 1,          // 🔥 ТОНЬШЕ
+                opacity: 0.5,
+                dashArray: null
+            };
+        },
+        onEachFeature: onMapFeatureClick
+    });
+    window.mapLayer = normalLayer;
+    window.mapLayer.addTo(mapInstance);
+    console.log(`✅ Добавлены кварталы (${normalQuarters.length} шт.) СВЕРХУ`);
+}
 
     // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
@@ -233,20 +234,31 @@ function renderMapLevel(level, parentId = null) {
     } catch(e) {
         console.warn('⚠️ Не удалось подогнать границы:', e);
     }
-
+addMapLegend();
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
 }
 
 
 
-function getMapColor(price) {
-    if (price === 0 || !price) return '#e2e8f0';
-    if (price < 10000) return '#fee2e2';
-    if (price < 50000) return '#fef08a';
-    if (price < 100000) return '#86efac';
-    if (price < 500000) return '#60a5fa';
-    return '#7c3aed';
+function getMapColor(dealsCount) {
+    // Нет сделок — серый
+    if (!dealsCount || dealsCount === 0) return '#e8ecf0';
+    
+    // Мало сделок (1-50) — красный
+    if (dealsCount <= 50) return '#ef4444';
+    
+    // Средне (51-200) — оранжевый/желтый
+    if (dealsCount <= 200) return '#f59e0b';
+    
+    // Средне-высокое (201-500) — желто-зеленый
+    if (dealsCount <= 500) return '#84cc16';
+    
+    // Высокое (501-1000) — зеленый
+    if (dealsCount <= 1000) return '#22c55e';
+    
+    // Очень высокое (>1000) — темно-зеленый
+    return '#15803d';
 }
 
 function onMapFeatureClick(feature, layer) {
@@ -327,25 +339,26 @@ function onMapFeatureClick(feature, layer) {
             opacity: 0.5
         };
         
-        if (level === 2) {
-            style = {
-                fillColor: getMapColor(price),
-                fillOpacity: 0.7,
-                color: '#0ea5e9',
-                weight: 2,
-                opacity: 0.8
-            };
-        }
+   if (level === 2) {
+    const deals = feature.properties?.deals_count || 0;
+    style = {
+        fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
+        fillOpacity: 0.6,
+        color: '#3b82f6',
+        weight: 1,
+        opacity: 0.5
+    };
+}
         
-        if (level === 1) {
-            style = {
-                fillColor: getMapColor(price),
-                fillOpacity: 0.5,
-                color: '#1e293b',
-                weight: 2,
-                opacity: 0.6
-            };
-        }
+if (level === 1) {
+    style = {
+        fillColor: getMapColor(price),
+        fillOpacity: 0.4,     // 🔥 ПРОЗРАЧНЕЕ
+        color: '#3b82f6',     // 🔥 ГОЛУБЫЕ ГРАНИЦЫ
+        weight: 1.5,          // 🔥 ТОНЬШЕ
+        opacity: 0.6
+    };
+}
         
         this.setStyle(style);
     });
@@ -579,7 +592,66 @@ function destroyMap() {
         console.log('🗺️ Карта уничтожена');
     }
 }
-
+function addMapLegend() {
+    // Удаляем старую легенду если есть
+    const oldLegend = document.querySelector('.map-legend');
+    if (oldLegend) oldLegend.remove();
+    
+    // Создаем легенду
+    const legend = document.createElement('div');
+    legend.className = 'map-legend';
+    legend.style.cssText = `
+        position: absolute;
+        bottom: 30px;
+        left: 30px;
+        background: white;
+        padding: 12px 16px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        font-size: 12px;
+        font-family: 'Inter', sans-serif;
+        z-index: 1000;
+        border: 1px solid #e2e8f0;
+        min-width: 160px;
+    `;
+    
+    legend.innerHTML = `
+        <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
+            📊 Сделки в квартале
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#15803d;"></span>
+            <span style="color:#475569;">более 1 000</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
+            <span style="color:#475569;">501 - 1 000</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#84cc16;"></span>
+            <span style="color:#475569;">201 - 500</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f59e0b;"></span>
+            <span style="color:#475569;">51 - 200</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
+            <span style="color:#475569;">1 - 50</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
+            <span style="color:#475569;">нет сделок</span>
+        </div>
+    `;
+    
+    // Добавляем в контейнер карты
+    const mapContainer = document.getElementById('map-container');
+    if (mapContainer) {
+        mapContainer.style.position = 'relative';
+        mapContainer.appendChild(legend);
+    }
+}
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
