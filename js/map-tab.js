@@ -1001,7 +1001,7 @@ function searchQuarter() {
         return cadNum.toLowerCase().includes(query.toLowerCase());
     });
     
-    if (!found) {
+   if (!found) {
         console.log(`❌ Квартал "${query}" не найден`);
         input.style.borderColor = '#ef4444';
         input.style.background = '#fef2f2';
@@ -1009,7 +1009,7 @@ function searchQuarter() {
             input.style.borderColor = '#e2e8f0';
             input.style.background = '#f8fafc';
         }, 2000);
-        showMapError(`Квартал "${query}" не найден`);
+        // ✅ НИЧЕГО НЕ ДЕЛАЕМ, КАРТА ОСТАЕТСЯ КАК БЫЛА
         return;
     }
     
