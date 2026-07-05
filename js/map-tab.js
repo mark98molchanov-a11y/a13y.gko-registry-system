@@ -4,6 +4,301 @@ let currentLevel = 0;
 let currentParentId = null;
 
 const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/yanao_hierarchical_web.geojson';
+let dealsData = {};
+let dealTypes = {};
+let currentDealTypeFilter = null;
+
+const DEALS_CSV_URL = 'data/all_deals_itog_rub_with_uprs.csv';
+async function loadDealsCSV() {
+    try {
+        console.log('📥 Загрузка CSV с данными о сделках...');
+        const response = await fetch(DEALS_CSV_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const csvText = await response.text();
+        
+        // Парсим CSV
+        const lines = csvText.split('\n').filter(line => line.trim());
+        if (lines.length < 2) {
+            console.warn('⚠️ CSV пустой');
+            return;
+        }
+        
+        const headers = lines[0].split(',').map(h => h.trim());
+        
+        // Находим индексы нужных колонок
+        const cadIndex = headers.indexOf('cad_number');
+        const kindIndex = headers.indexOf('deal_kind_text');
+        const priceIndex = headers.indexOf('deal_price_rub');
+        const uprsIndex = headers.indexOf('uprs_rub');
+        const areaIndex = headers.indexOf('area');
+        
+        if (cadIndex === -1 || kindIndex === -1) {
+            console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
+            return;
+        }
+        
+        // Группируем данные
+        const dealsByCad = {};
+        const typesCount = {};
+        
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
+            
+            const cadNum = values[cadIndex] || '';
+            const kind = values[kindIndex] || 'Неизвестно';
+            const price = parseFloat(values[priceIndex]) || 0;
+            const uprs = parseFloat(values[uprsIndex]) || 0;
+            const area = parseFloat(values[areaIndex]) || 0;
+            
+            if (!cadNum) continue;
+            
+            if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
+            dealsByCad[cadNum].push({
+                kind: kind,
+                price: price,
+                uprs: uprs,
+                area: area
+            });
+            
+            typesCount[kind] = (typesCount[kind] || 0) + 1;
+        }
+        
+        dealsData = dealsByCad;
+        dealTypes = typesCount;
+        
+        console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
+        console.log('📊 Типы сделок:', dealTypes);
+        
+        // Обновляем таблицу фильтров
+        renderDealTypeFilters();
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки CSV:', error);
+        document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
+    }
+}
+
+function renderDealTypeFilters() {
+    const container = document.getElementById('deal-type-filters');
+    if (!container) return;
+    
+    const types = Object.keys(dealTypes).sort((a, b) => dealTypes[b] - dealTypes[a]);
+    
+    if (types.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет данных о сделках</div>';
+        return;
+    }
+    
+    let html = '';
+    types.forEach(kind => {
+        const count = dealTypes[kind];
+        const isActive = currentDealTypeFilter === kind;
+        const totalDeals = Object.values(dealsData).reduce((sum, deals) => sum + deals.length, 0);
+        const percentage = totalDeals > 0 ? Math.round((count / totalDeals) * 100) : 0;
+        
+        html += `
+            <div onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
+                 style="
+                     display: flex;
+                     justify-content: space-between;
+                     align-items: center;
+                     padding: 6px 10px;
+                     border-radius: 6px;
+                     cursor: pointer;
+                     transition: all 0.2s;
+                     background: ${isActive ? '#e0f2fe' : 'transparent'};
+                     border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                     font-size: 12px;
+                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                     font-weight: ${isActive ? '600' : '400'};
+                 "
+                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <span>${kind}</span>
+                <span style="background: #f1f5f9; padding: 1px 8px; border-radius: 12px; font-size: 11px; color: #64748b;">${count} (${percentage}%)</span>
+            </div>
+        `;
+    });
+    
+    // Добавляем кнопку "Сбросить фильтр"
+    if (currentDealTypeFilter) {
+        html += `
+            <div onclick="applyDealTypeFilter(null)" 
+                 style="
+                     text-align: center;
+                     padding: 6px;
+                     margin-top: 8px;
+                     border-top: 1px solid #e2e8f0;
+                     font-size: 11px;
+                     color: #ef4444;
+                     cursor: pointer;
+                     font-weight: 500;
+                 "
+                 onmouseover="this.style.background='#fef2f2'"
+                 onmouseout="this.style.background='transparent'">
+                ✕ Сбросить фильтр
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+function applyDealTypeFilter(kind) {
+    currentDealTypeFilter = currentDealTypeFilter === kind ? null : kind;
+    renderDealTypeFilters();
+    
+    // Пересчитываем статистику с фильтром
+    if (window.mapLayer && window.mapLayer.feature) {
+        // Получаем текущий уровень и parentId
+        const level = currentLevel;
+        const parentId = currentParentId;
+        
+        // Получаем объекты для текущего уровня
+        let targetObjects = [];
+        const allObjects = mapData.features.filter(f => f.properties.level === 2);
+        
+        if (level === 0 || level === 1) {
+            targetObjects = allObjects;
+        } else if (level === 2) {
+            targetObjects = allObjects.filter(f => {
+                const fParentId = f.properties.parent_id || f.properties.district_id;
+                return fParentId === parentId;
+            });
+        }
+        
+        // Обновляем статистику с фильтром
+        updateMapStatsWithDealFilter(targetObjects, level, parentId);
+    }
+}
+function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
+    const statMedian = document.getElementById('stat-median');
+    const statMinMax = document.getElementById('stat-minmax');
+    const statUprs = document.getElementById('stat-uprs');
+    const statTotalDeals = document.getElementById('stat-total-deals');
+    
+    if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
+    
+    let allDeals = [];
+    
+    targetObjects.forEach(f => {
+        const cadNum = f.properties.cadastral_number;
+        if (!cadNum) return;
+        
+        const deals = dealsData[cadNum] || [];
+        
+        // Применяем фильтр по типу сделки
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                return false;
+            }
+            return true;
+        });
+        
+        allDeals = allDeals.concat(filteredDeals);
+    });
+    
+    if (allDeals.length === 0) {
+        statMedian.textContent = '—';
+        statMinMax.textContent = '—';
+        statUprs.textContent = '—';
+        statTotalDeals.textContent = '0';
+        return;
+    }
+    
+    const prices = allDeals.map(d => d.price).sort((a, b) => a - b);
+    const uprsValues = allDeals.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a - b);
+    
+    function getMedian(arr) {
+        if (arr.length === 0) return 0;
+        const mid = Math.floor(arr.length / 2);
+        if (arr.length % 2 === 0) {
+            return (arr[mid - 1] + arr[mid]) / 2;
+        }
+        return arr[mid];
+    }
+    
+    const medianPrice = getMedian(prices);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const medianUprs = getMedian(uprsValues);
+    
+    const formatPrice = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toLocaleString('ru-RU') + ' ₽';
+    };
+    
+    const formatNumber = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toLocaleString('ru-RU');
+    };
+    
+    const formatUprs = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toFixed(2) + ' ₽/м²';
+    };
+    
+    statMedian.textContent = formatPrice(medianPrice);
+    statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
+        ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
+        : '—';
+    statUprs.textContent = formatUprs(medianUprs);
+    statTotalDeals.textContent = allDeals.length.toLocaleString();
+    
+    // Обновляем список кварталов
+    updateQuartersListWithDealFilter(targetObjects);
+}
+
+function updateQuartersListWithDealFilter(targetObjects) {
+    const quartersList = document.getElementById('quarters-list');
+    if (!quartersList) return;
+    
+    // Собираем кварталы с фильтром
+    const quarterStats = [];
+    
+    targetObjects.forEach(f => {
+        const cadNum = f.properties.cadastral_number;
+        if (!cadNum) return;
+        
+        const deals = dealsData[cadNum] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                return false;
+            }
+            return true;
+        });
+        
+        if (filteredDeals.length > 0) {
+            quarterStats.push({
+                cadastral_number: cadNum,
+                count: filteredDeals.length
+            });
+        }
+    });
+    
+    if (quarterStats.length === 0) {
+        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
+        return;
+    }
+    
+    quarterStats.sort((a, b) => b.count - a.count);
+    
+    let html = '';
+    quarterStats.forEach(q => {
+        html += `
+            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
+                 onclick="window.searchQuarterByCadNumber('${q.cadastral_number}')"
+                 onmouseover="this.style.background='#f1f5f9'"
+                 onmouseout="this.style.background='transparent'">
+                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${q.cadastral_number}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${q.count.toLocaleString('ru-RU')} сделок</div>
+            </div>
+        `;
+    });
+    quartersList.innerHTML = html;
+}
+
 
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
@@ -41,6 +336,7 @@ L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
 
 // Загружаем данные
 loadMapData();
+loadDealsCSV();
 }
 
 // ============================================================
@@ -268,6 +564,26 @@ function renderMapLevel(level, parentId = null) {
     
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
+    
+    // ============================================================
+    // ✅ ПРИМЕНЯЕМ ФИЛЬТР ПО ТИПУ СДЕЛКИ, ЕСЛИ ОН АКТИВЕН
+    // ============================================================
+    if (currentDealTypeFilter) {
+        // Получаем объекты для текущего уровня
+        let targetObjects = [];
+        const allObjects = mapData.features.filter(f => f.properties.level === 2);
+        
+        if (level === 0 || level === 1) {
+            targetObjects = allObjects;
+        } else if (level === 2) {
+            targetObjects = allObjects.filter(f => {
+                const fParentId = f.properties.parent_id || f.properties.district_id;
+                return fParentId === parentId;
+            });
+        }
+        
+        updateMapStatsWithDealFilter(targetObjects, level, parentId);
+    }
     
     // ============================================================
     // ✅ ДОБАВЛЯЕМ ПОДПИСИ НА ПОЛИГОНЫ (ЗДЕСЬ!)
