@@ -748,7 +748,7 @@ function updateMapStats(features, level, parentId) {
 // ============================================================
 // ХЛЕБНЫЕ КРОШКИ
 // ============================================================
-function updateBreadcrumb(level, id, name) {
+function updateBreadcrumb(level, id, name, isSearch = false) {
     const breadcrumb = document.getElementById('map-breadcrumb');
     if (!breadcrumb) return;
     
@@ -776,15 +776,25 @@ function updateBreadcrumb(level, id, name) {
             <span style="font-weight:600; font-size:0.95rem;">${name || id}</span>
         `;
     } else if (level === 'quarter') {
-        breadcrumb.innerHTML = `
-            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
-            <span style="color:#94a3b8; margin:0 4px;">›</span>
-            <span onclick="renderMapLevel(1)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">${districtName}</span>
-            <span style="color:#94a3b8; margin:0 4px;">›</span>
-            <span style="font-weight:600; font-size:0.95rem;">Кварталы</span>
-        `;
+        // ✅ ЕСЛИ ЭТО ПОИСК - НЕ ПОКАЗЫВАЕМ "Кварталы"
+        if (isSearch) {
+            breadcrumb.innerHTML = `
+                <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+                <span style="color:#94a3b8; margin:0 4px;">›</span>
+                <span style="font-weight:600; font-size:0.95rem;">${districtName}</span>
+            `;
+        } else {
+            breadcrumb.innerHTML = `
+                <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+                <span style="color:#94a3b8; margin:0 4px;">›</span>
+                <span onclick="renderMapLevel(1)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">${districtName}</span>
+                <span style="color:#94a3b8; margin:0 4px;">›</span>
+                <span style="font-weight:600; font-size:0.95rem;">Кварталы</span>
+            `;
+        }
     }
 }
+
 
 // ============================================================
 // ОШИБКИ
@@ -1017,7 +1027,7 @@ function searchQuarter() {
     
     // Переходим на уровень кварталов с этим районом
     renderMapLevel(2, districtId);
-    updateBreadcrumb('quarter', districtId, districtName);
+    updateBreadcrumb('quarter', districtId, districtName, true);
     
     // Подсвечиваем найденный квартал
     setTimeout(() => {
