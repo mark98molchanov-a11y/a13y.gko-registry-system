@@ -267,6 +267,27 @@ function renderMapLevel(level, parentId = null) {
     
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
+    
+    // ============================================================
+    // ✅ ДОБАВЛЯЕМ ПОДПИСИ ЗДЕСЬ (ПОСЛЕ updateMapStats)
+    // ============================================================
+    
+    // Подписи для районов (уровень 1)
+    if (level === 1) {
+        addDistrictLabels();
+    }
+    
+    // Подписи для кварталов (уровень 2)
+    if (level === 2 && window.mapLayer) {
+        // Удаляем старые подписи кварталов
+        if (window.mapLayer._labels) {
+            window.mapLayer._labels.forEach(label => {
+                if (mapInstance) mapInstance.removeLayer(label);
+            });
+            window.mapLayer._labels = [];
+        }
+        addLabelsToLayer(window.mapLayer, normalQuarters, level);
+    }
 }
 
 
@@ -854,6 +875,136 @@ function addMapLegend() {
         mapContainer.style.position = 'relative';
         mapContainer.appendChild(legend);
     }
+}
+function addLabelsToLayer(layer, features, level) {
+    if (!layer) return;
+    
+    // Удаляем старые подписи
+    if (layer._labels) {
+        layer._labels.forEach(label => {
+            if (mapInstance && label) {
+                mapInstance.removeLayer(label);
+            }
+        });
+        layer._labels = [];
+    }
+    
+    // Определяем, какие объекты подписывать
+    let labelFeatures = features;
+    
+    // Для уровня кварталов - подписываем кварталы
+    if (level === 2) {
+        labelFeatures = features.filter(f => f.properties.level === 2);
+    }
+    
+    // Добавляем подписи
+    labelFeatures.forEach(feature => {
+        const props = feature.properties;
+        const cadNum = props.cadastral_number || props.district_id || '';
+        
+        // Показываем только если есть номер
+        if (!cadNum) return;
+        
+        // Находим центр полигона
+        const coords = feature.geometry.coordinates[0];
+        if (!coords || coords.length === 0) return;
+        
+        // Вычисляем центр (среднее по координатам)
+        let lat = 0, lng = 0;
+        coords.forEach(coord => {
+            lat += coord[1];
+            lng += coord[0];
+        });
+        lat /= coords.length;
+        lng /= coords.length;
+        
+        // Создаем маркер с текстом
+        const label = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'map-label',
+                html: `<div style="
+                    background: rgba(255,255,255,0.85);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 9px;
+                    font-weight: 500;
+                    color: #475569;
+                    border: 1px solid #cbd5e1;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                    white-space: nowrap;
+                    pointer-events: none;
+                    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+                ">${cadNum}</div>`,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0]
+            }),
+            interactive: false
+        }).addTo(mapInstance);
+        
+        // Сохраняем ссылку для удаления
+        if (!layer._labels) layer._labels = [];
+        layer._labels.push(label);
+    });
+}
+
+// ============================================================
+// ДОБАВЛЕНИЕ ПОДПИСЕЙ ДЛЯ РАЙОНОВ
+// ============================================================
+
+function addDistrictLabels() {
+    // Удаляем старые подписи районов
+    if (window.districtLabels) {
+        mapInstance.removeLayer(window.districtLabels);
+        window.districtLabels = null;
+    }
+    
+    // Находим все районы (level === 1)
+    const districts = mapData.features.filter(f => f.properties.level === 1);
+    if (districts.length === 0) return;
+    
+    const labelGroup = L.layerGroup().addTo(mapInstance);
+    window.districtLabels = labelGroup;
+    
+    districts.forEach(feature => {
+        const props = feature.properties;
+        const districtName = props.district_name || props.cadastral_number || '';
+        if (!districtName) return;
+        
+        // Находим центр полигона
+        const coords = feature.geometry.coordinates[0];
+        if (!coords || coords.length === 0) return;
+        
+        let lat = 0, lng = 0;
+        coords.forEach(coord => {
+            lat += coord[1];
+            lng += coord[0];
+        });
+        lat /= coords.length;
+        lng /= coords.length;
+        
+        // Создаем подпись района
+        const label = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'district-label',
+                html: `<div style="
+                    background: rgba(255,255,255,0.9);
+                    padding: 4px 10px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #0f172a;
+                    border: 2px solid #334155;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    white-space: nowrap;
+                    pointer-events: none;
+                    text-shadow: 0 1px 2px rgba(255,255,255,0.9);
+                ">${districtName}</div>`,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0]
+            }),
+            interactive: false
+        }).addTo(labelGroup);
+    });
 }
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
