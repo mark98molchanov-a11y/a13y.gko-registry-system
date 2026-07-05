@@ -8,7 +8,7 @@ let dealsData = {};
 let dealTypes = {};
 let currentDealTypeFilter = null;
 
-const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/all_deals_itog_rub_with_uprs.csv';
+const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
