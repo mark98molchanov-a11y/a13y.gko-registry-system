@@ -744,6 +744,43 @@ function updateMapStats(features, level, parentId) {
         : '—';
     statUprs.textContent = formatUprs(uprsMedian);
     statTotalDeals.textContent = totalDeals.toLocaleString();
+    
+    // ============================================================
+    // ✅ ДОБАВЛЯЕМ СПИСОК КВАРТАЛОВ СО СДЕЛКАМИ
+    // ============================================================
+    const quartersList = document.getElementById('quarters-list');
+    if (quartersList) {
+        // Используем objectsWithDeals из текущего контекста
+        if (objectsWithDeals.length === 0) {
+            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px;">Нет сделок</div>';
+        } else {
+            // Сортируем кварталы по количеству сделок (по убыванию)
+            const sorted = objectsWithDeals.slice().sort((a, b) => 
+                (b.properties.deals_count || 0) - (a.properties.deals_count || 0)
+            );
+            
+            let html = '';
+            sorted.forEach(f => {
+                const cadNum = f.properties.cadastral_number || '—';
+                const count = f.properties.deals_count || 0;
+                const median = f.properties.deals_median || 0;
+                
+                // Форматируем цену с пробелами
+                const formattedMedian = median > 0 ? median.toLocaleString('ru-RU') + ' ₽' : '—';
+                
+                html += `
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; color: #1e293b; cursor: pointer;" 
+                         onclick="window.searchQuarterByCadNumber('${cadNum}')"
+                         onmouseover="this.style.background='#f1f5f9'"
+                         onmouseout="this.style.background='transparent'">
+                        <span style="font-weight: 500;">${cadNum}</span>
+                        <span>${count} сд. · ${formattedMedian}</span>
+                    </div>
+                `;
+            });
+            quartersList.innerHTML = html;
+        }
+    }
 }
 // ============================================================
 // ХЛЕБНЫЕ КРОШКИ
@@ -1047,7 +1084,48 @@ function searchQuarter() {
         }
     }, 300);
 }
-
+function searchQuarterByCadNumber(cadNumber) {
+    if (!cadNumber) return;
+    
+    console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
+    
+    // Ищем квартал по точному кадастровому номеру
+    const found = mapData.features.find(f => {
+        if (f.properties.level !== 2) return false;
+        return f.properties.cadastral_number === cadNumber;
+    });
+    
+    if (!found) {
+        console.log(`❌ Квартал "${cadNumber}" не найден`);
+        return;
+    }
+    
+    console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
+    
+    // Определяем район (parent_id)
+    const districtId = found.properties.parent_id || found.properties.district_id;
+    const districtName = found.properties.district_name || districtId || 'Район';
+    
+    // Переходим на уровень кварталов с этим районом
+    renderMapLevel(2, districtId);
+    updateBreadcrumb('quarter', districtId, districtName, true);
+    
+    // Показываем попап и центрируем на квартале
+    setTimeout(() => {
+        if (window.mapLayer) {
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    if (layer.feature.properties.cadastral_number === cadNumber) {
+                        layer.openPopup();
+                        if (layer.getBounds && layer.getBounds().isValid()) {
+                            mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+                        }
+                    }
+                }
+            });
+        }
+    }, 300);
+}
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
@@ -1055,5 +1133,5 @@ window.initMapTab = initMapTab;
 window.destroyMap = destroyMap;
 window.renderMapLevel = renderMapLevel;
 window.searchQuarter = searchQuarter;
-
+window.searchQuarterByCadNumber = searchQuarterByCadNumber; 
 console.log('✅ map-tab.js загружен');
