@@ -46,7 +46,7 @@ async function loadDealsCSV() {
             if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
             
             const cadNum = values[cadIndex] || '';
-            const kind = values[kindIndex] || 'Неизвестно';
+            const kind = values[kindIndex] || '';
             const price = parseFloat(values[priceIndex]) || 0;
             const uprs = parseFloat(values[uprsIndex]) || 0;
             const area = parseFloat(values[areaIndex]) || 0;
