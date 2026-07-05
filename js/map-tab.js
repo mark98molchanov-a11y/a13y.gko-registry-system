@@ -267,8 +267,21 @@ function renderMapLevel(level, parentId = null) {
     
     // Обновляем статистику (без оберток)
     updateMapStats(normalQuarters, level, parentId);
+    
+    // ============================================================
+    // ✅ ДОБАВЛЯЕМ ПОДПИСИ НА ПОЛИГОНЫ (ЗДЕСЬ!)
+    // ============================================================
+    
+    // Для районов (уровень 1)
+    if (level === 1 && window.mapLayer) {
+        addLabelsToPolygons(window.mapLayer, filtered, level);
+    }
+    
+    // Для кварталов (уровень 2)
+    if (level === 2 && window.mapLayer) {
+        addLabelsToPolygons(window.mapLayer, normalQuarters, level);
+    }
 }
-
 
 
 function getMapColor(dealsCount) {
@@ -854,6 +867,88 @@ function addMapLegend() {
         mapContainer.style.position = 'relative';
         mapContainer.appendChild(legend);
     }
+}
+function addLabelsToPolygons(layer, features, level) {
+    if (!layer || !features) return;
+    
+    // Удаляем старые подписи
+    if (layer._labels) {
+        layer._labels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        layer._labels = [];
+    }
+    
+    // Определяем, какие объекты подписывать
+    let labelFeatures = features;
+    
+    // Для уровня кварталов - подписываем кварталы
+    if (level === 2) {
+        labelFeatures = features.filter(f => f.properties.level === 2);
+    }
+    
+    // Для уровня районов - подписываем районы
+    if (level === 1) {
+        labelFeatures = features.filter(f => f.properties.level === 1);
+    }
+    
+    // Добавляем подписи
+    labelFeatures.forEach(feature => {
+        const props = feature.properties;
+        const cadNum = props.cadastral_number || props.district_id || '';
+        
+        // Показываем только если есть номер
+        if (!cadNum) return;
+        
+        // Находим центр полигона
+        const coords = feature.geometry.coordinates[0];
+        if (!coords || coords.length === 0) return;
+        
+        // Вычисляем центр (среднее по координатам)
+        let lat = 0, lng = 0;
+        coords.forEach(coord => {
+            lat += coord[1];
+            lng += coord[0];
+        });
+        lat /= coords.length;
+        lng /= coords.length;
+        
+        // Определяем размер шрифта в зависимости от уровня
+        const fontSize = level === 1 ? '14px' : '10px';
+        const fontWeight = level === 1 ? '700' : '600';
+        const textColor = level === 1 ? '#0f172a' : '#334155';
+        const bgOpacity = level === 1 ? '0.3' : '0.2';
+        const padding = level === 1 ? '6px 12px' : '3px 6px';
+        
+        // Создаем подпись с прозрачным фоном, как у полигонов
+        const label = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'map-polygon-label',
+                html: `<div style="
+                    background: rgba(255, 255, 255, ${bgOpacity});
+                    padding: ${padding};
+                    border-radius: 4px;
+                    font-size: ${fontSize};
+                    font-weight: ${fontWeight};
+                    color: ${textColor};
+                    border: ${level === 1 ? '1px solid rgba(51, 65, 85, 0.2)' : '1px solid rgba(148, 163, 184, 0.15)'};
+                    backdrop-filter: blur(2px);
+                    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+                    white-space: nowrap;
+                    pointer-events: none;
+                    user-select: none;
+                    letter-spacing: 0.3px;
+                ">${cadNum}</div>`,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0]
+            }),
+            interactive: false
+        }).addTo(mapInstance);
+        
+        // Сохраняем ссылку для удаления
+        if (!layer._labels) layer._labels = [];
+        layer._labels.push(label);
+    });
 }
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
