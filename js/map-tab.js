@@ -1026,17 +1026,8 @@ function searchQuarter() {
                 if (layer.feature && layer.feature.properties) {
                     const cadNum = layer.feature.properties.cadastral_number || '';
                     if (cadNum === found.properties.cadastral_number) {
-                        // Подсвечиваем найденный квартал
-                        layer.setStyle({
-                            fillColor: '#22c55e',
-                            fillOpacity: 0.5,
-                            weight: 4,
-                            color: '#16a34a',
-                            opacity: 1
-                        });
-                        // Показываем попап
+                        // ✅ ТОЛЬКО ПОПАП И ЦЕНТРИРОВКА, БЕЗ ЗЕЛЕНОГО ВЫДЕЛЕНИЯ
                         layer.openPopup();
-                        // Центрируем на квартале
                         if (layer.getBounds && layer.getBounds().isValid()) {
                             mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
                         }
