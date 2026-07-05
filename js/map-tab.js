@@ -126,6 +126,7 @@ function renderMapLevel(level, parentId = null) {
         mapInstance.removeLayer(window.wrapperLayer);
         window.wrapperLayer = null;
     }
+    clearAllLabels();
 
     // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
     const wrapperQuarters = filtered.filter(f => {
@@ -866,19 +867,22 @@ function addMapLegend() {
 function addLabelsToPolygons(layer, features, level) {
     if (!layer || !features) return;
     
-    // Удаляем старые подписи
-    if (layer._labels) {
-        layer._labels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
-        });
-        layer._labels = [];
-    }
-    
     // ✅ ТОЛЬКО ДЛЯ РАЙОНОВ (уровень 1)
     if (level !== 1) return;
     
+    // Удаляем старые подписи районов
+    if (window.districtLabels) {
+        window.districtLabels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        window.districtLabels = [];
+    }
+    
     // Берем только районы
     const districtFeatures = features.filter(f => f.properties.level === 1);
+    
+    // Массив для хранения подписей
+    const labels = [];
     
     // Добавляем подписи
     districtFeatures.forEach(feature => {
@@ -925,11 +929,45 @@ function addLabelsToPolygons(layer, features, level) {
             interactive: false
         }).addTo(mapInstance);
         
-        // Сохраняем ссылку для удаления
-        if (!layer._labels) layer._labels = [];
-        layer._labels.push(label);
+        labels.push(label);
     });
+    
+    // Сохраняем подписи в глобальную переменную
+    window.districtLabels = labels;
 }
+function clearAllLabels() {
+    // Очищаем подписи районов
+    if (window.districtLabels) {
+        window.districtLabels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        window.districtLabels = [];
+    }
+    
+    // Очищаем подписи кварталов
+    if (window.quarterLabels) {
+        window.quarterLabels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        window.quarterLabels = [];
+    }
+    
+    // Очищаем подписи в слоях
+    if (window.mapLayer && window.mapLayer._labels) {
+        window.mapLayer._labels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        window.mapLayer._labels = [];
+    }
+    
+    if (window.wrapperLayer && window.wrapperLayer._labels) {
+        window.wrapperLayer._labels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        window.wrapperLayer._labels = [];
+    }
+}
+
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
