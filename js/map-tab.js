@@ -276,11 +276,6 @@ function renderMapLevel(level, parentId = null) {
     if (level === 1 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
-    
-    // Для кварталов (уровень 2)
-    if (level === 2 && window.mapLayer) {
-        addLabelsToPolygons(window.mapLayer, normalQuarters, level);
-    }
 }
 
 
@@ -879,23 +874,16 @@ function addLabelsToPolygons(layer, features, level) {
         layer._labels = [];
     }
     
-    // Определяем, какие объекты подписывать
-    let labelFeatures = features;
+    // ✅ ТОЛЬКО ДЛЯ РАЙОНОВ (уровень 1)
+    if (level !== 1) return;
     
-    // Для уровня кварталов - подписываем кварталы
-    if (level === 2) {
-        labelFeatures = features.filter(f => f.properties.level === 2);
-    }
-    
-    // Для уровня районов - подписываем районы
-    if (level === 1) {
-        labelFeatures = features.filter(f => f.properties.level === 1);
-    }
+    // Берем только районы
+    const districtFeatures = features.filter(f => f.properties.level === 1);
     
     // Добавляем подписи
-    labelFeatures.forEach(feature => {
+    districtFeatures.forEach(feature => {
         const props = feature.properties;
-        const cadNum = props.cadastral_number || props.district_id || '';
+        const cadNum = props.district_id || props.cadastral_number || '';
         
         // Показываем только если есть номер
         if (!cadNum) return;
@@ -913,31 +901,23 @@ function addLabelsToPolygons(layer, features, level) {
         lat /= coords.length;
         lng /= coords.length;
         
-        // Определяем размер шрифта в зависимости от уровня
-        const fontSize = level === 1 ? '14px' : '10px';
-        const fontWeight = level === 1 ? '700' : '600';
-        const textColor = level === 1 ? '#0f172a' : '#334155';
-        const bgOpacity = level === 1 ? '0.3' : '0.2';
-        const padding = level === 1 ? '6px 12px' : '3px 6px';
-        
-        // Создаем подпись с прозрачным фоном, как у полигонов
+        // ✅ ТОЛЬКО ТЕКСТ, БЕЗ ФОНА И РАМКИ
         const label = L.marker([lat, lng], {
             icon: L.divIcon({
                 className: 'map-polygon-label',
                 html: `<div style="
-                    background: rgba(255, 255, 255, ${bgOpacity});
-                    padding: ${padding};
-                    border-radius: 4px;
-                    font-size: ${fontSize};
-                    font-weight: ${fontWeight};
-                    color: ${textColor};
-                    border: ${level === 1 ? '1px solid rgba(51, 65, 85, 0.2)' : '1px solid rgba(148, 163, 184, 0.15)'};
-                    backdrop-filter: blur(2px);
-                    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #1e293b;
+                    text-shadow: 0 0 8px rgba(255,255,255,0.9), 0 0 4px rgba(255,255,255,0.8);
                     white-space: nowrap;
                     pointer-events: none;
                     user-select: none;
-                    letter-spacing: 0.3px;
+                    letter-spacing: 0.5px;
+                    background: none;
+                    padding: 0;
+                    border: none;
+                    backdrop-filter: none;
                 ">${cadNum}</div>`,
                 iconSize: [0, 0],
                 iconAnchor: [0, 0]
