@@ -967,6 +967,85 @@ function clearAllLabels() {
         window.wrapperLayer._labels = [];
     }
 }
+function searchQuarter() {
+    const input = document.getElementById('quarter-search-input');
+    if (!input) return;
+    
+    const query = input.value.trim();
+    if (!query) {
+        input.style.borderColor = '#ef4444';
+        input.style.background = '#fef2f2';
+        setTimeout(() => {
+            input.style.borderColor = '#e2e8f0';
+            input.style.background = '#f8fafc';
+        }, 1500);
+        return;
+    }
+    
+    console.log(`🔍 Поиск квартала: ${query}`);
+    
+    // Ищем квартал по кадастровому номеру (level === 2)
+    const found = mapData.features.find(f => {
+        if (f.properties.level !== 2) return false;
+        const cadNum = f.properties.cadastral_number || '';
+        return cadNum.toLowerCase().includes(query.toLowerCase());
+    });
+    
+    if (!found) {
+        console.log(`❌ Квартал "${query}" не найден`);
+        input.style.borderColor = '#ef4444';
+        input.style.background = '#fef2f2';
+        setTimeout(() => {
+            input.style.borderColor = '#e2e8f0';
+            input.style.background = '#f8fafc';
+        }, 2000);
+        showMapError(`Квартал "${query}" не найден`);
+        return;
+    }
+    
+    console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
+    input.style.borderColor = '#22c55e';
+    input.style.background = '#f0fdf4';
+    setTimeout(() => {
+        input.style.borderColor = '#e2e8f0';
+        input.style.background = '#f8fafc';
+    }, 1500);
+    
+    // Определяем район (parent_id)
+    const districtId = found.properties.parent_id || found.properties.district_id;
+    const districtName = found.properties.district_name || districtId || 'Район';
+    
+    // Переходим на уровень кварталов с этим районом
+    renderMapLevel(2, districtId);
+    updateBreadcrumb('quarter', districtId, districtName);
+    
+    // Подсвечиваем найденный квартал
+    setTimeout(() => {
+        if (window.mapLayer) {
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    const cadNum = layer.feature.properties.cadastral_number || '';
+                    if (cadNum === found.properties.cadastral_number) {
+                        // Подсвечиваем найденный квартал
+                        layer.setStyle({
+                            fillColor: '#22c55e',
+                            fillOpacity: 0.5,
+                            weight: 4,
+                            color: '#16a34a',
+                            opacity: 1
+                        });
+                        // Показываем попап
+                        layer.openPopup();
+                        // Центрируем на квартале
+                        if (layer.getBounds && layer.getBounds().isValid()) {
+                            mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+                        }
+                    }
+                }
+            });
+        }
+    }, 300);
+}
 
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
@@ -974,5 +1053,6 @@ function clearAllLabels() {
 window.initMapTab = initMapTab;
 window.destroyMap = destroyMap;
 window.renderMapLevel = renderMapLevel;
+window.searchQuarter = searchQuarter;
 
 console.log('✅ map-tab.js загружен');

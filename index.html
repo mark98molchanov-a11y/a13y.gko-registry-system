@@ -1565,13 +1565,52 @@
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         <!-- ТОЛЬКО ХЛЕБНЫЕ КРОШКИ (над картой) -->
-        <div class="flex justify-start mb-3">
-            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-width: 900px; width: 100%;">
-                <div id="map-breadcrumb" style="font-size:0.85rem;color:#475569;">
-                    🏛️ ЯНАО
-                </div>
-            </div>
+<div class="flex justify-start mb-3">
+    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-width: 900px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <div id="map-breadcrumb" style="font-size:0.85rem;color:#475569;">
+            🏛️ ЯНАО
         </div>
+        
+        <!-- ✅ ПОЛЕ ПОИСКА КВАРТАЛА -->
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <input type="text" 
+                   id="quarter-search-input" 
+                   placeholder="🔍 Введите номер квартала" 
+                   style="
+                       padding: 6px 12px;
+                       border: 1px solid #e2e8f0;
+                       border-radius: 8px;
+                       font-size: 0.85rem;
+                       width: 200px;
+                       outline: none;
+                       transition: all 0.2s;
+                       background: #f8fafc;
+                       font-family: 'Inter', sans-serif;
+                   "
+                   onfocus="this.style.borderColor='#0ea5e9'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(14,165,233,0.15)';"
+                   onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
+                   onkeydown="if(event.key==='Enter') searchQuarter()">
+            <button onclick="searchQuarter()" 
+                    style="
+                        padding: 6px 14px;
+                        background: #0ea5e9;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 0.8rem;
+                        font-weight: 500;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.background='#0284c7'"
+                    onmouseout="this.style.background='#0ea5e9'">
+                Найти
+            </button>
+        </div>
+    </div>
+</div>
 
         <!-- КАРТА + СТАТИСТИКА В ОДНОЙ СТРОКЕ -->
         <div class="flex gap-4">
