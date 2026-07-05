@@ -16,16 +16,41 @@ async function loadDealsCSV() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const csvText = await response.text();
         
-        // Парсим CSV
+        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ПАРСИНГ CSV (через PAPAPARSE или РУЧНОЙ)
+        // Функция для правильного парсинга CSV с кавычками
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+        
         const lines = csvText.split('\n').filter(line => line.trim());
         if (lines.length < 2) {
             console.warn('⚠️ CSV пустой');
             return;
         }
         
-        const headers = lines[0].split(',').map(h => h.trim());
-        
-        // Находим индексы нужных колонок
+        const headers = parseCSVLine(lines[0]);
         const cadIndex = headers.indexOf('cad_number');
         const kindIndex = headers.indexOf('deal_kind_text');
         const priceIndex = headers.indexOf('deal_price_rub');
@@ -37,21 +62,24 @@ async function loadDealsCSV() {
             return;
         }
         
-        // Группируем данные
         const dealsByCad = {};
         const typesCount = {};
         
         for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
+            const values = parseCSVLine(lines[i]);
             if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
             
             const cadNum = values[cadIndex] || '';
-            const kind = values[kindIndex] || 'nan';
+            const kind = values[kindIndex] || '';
+            
+            if (!cadNum || !kind) continue;
+            
+            // ✅ ПРОПУСКАЕМ "nan" (пустые значения)
+            if (kind === 'nan') continue;
+            
             const price = parseFloat(values[priceIndex]) || 0;
             const uprs = parseFloat(values[uprsIndex]) || 0;
             const area = parseFloat(values[areaIndex]) || 0;
-            
-            if (!cadNum) continue;
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
             dealsByCad[cadNum].push({
@@ -70,7 +98,6 @@ async function loadDealsCSV() {
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Типы сделок:', dealTypes);
         
-        // Обновляем таблицу фильтров
         renderDealTypeFilters();
         
     } catch (error) {
@@ -78,7 +105,6 @@ async function loadDealsCSV() {
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
     }
 }
-
 function renderDealTypeFilters() {
     const container = document.getElementById('deal-type-filters');
     if (!container) return;
