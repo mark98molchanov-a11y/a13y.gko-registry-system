@@ -16,7 +16,6 @@ async function loadDealsCSV() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const csvText = await response.text();
         
-        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ПАРСИНГ CSV (через PAPAPARSE или РУЧНОЙ)
         // Функция для правильного парсинга CSV с кавычками
         function parseCSVLine(line) {
             const result = [];
@@ -70,12 +69,9 @@ async function loadDealsCSV() {
             if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
             
             const cadNum = values[cadIndex] || '';
-            const kind = values[kindIndex] || '';
+            const kind = values[kindIndex] || 'nan';  // ← ДОБАВЛЯЕМ 'nan' ДЛЯ ПУСТЫХ
             
-            if (!cadNum || !kind) continue;
-            
-            // ✅ ПРОПУСКАЕМ "nan" (пустые значения)
-            if (kind === 'nan') continue;
+            if (!cadNum) continue;
             
             const price = parseFloat(values[priceIndex]) || 0;
             const uprs = parseFloat(values[uprsIndex]) || 0;
