@@ -750,9 +750,8 @@ function updateMapStats(features, level, parentId) {
     // ============================================================
     const quartersList = document.getElementById('quarters-list');
     if (quartersList) {
-        // Используем objectsWithDeals из текущего контекста
         if (objectsWithDeals.length === 0) {
-            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px;">Нет сделок</div>';
+            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
         } else {
             // Сортируем кварталы по количеству сделок (по убыванию)
             const sorted = objectsWithDeals.slice().sort((a, b) => 
@@ -763,25 +762,20 @@ function updateMapStats(features, level, parentId) {
             sorted.forEach(f => {
                 const cadNum = f.properties.cadastral_number || '—';
                 const count = f.properties.deals_count || 0;
-                const median = f.properties.deals_median || 0;
-                
-                // Форматируем цену с пробелами
-                const formattedMedian = median > 0 ? median.toLocaleString('ru-RU') + ' ₽' : '—';
                 
                 html += `
-                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; color: #1e293b; cursor: pointer;" 
+                    <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
                          onclick="window.searchQuarterByCadNumber('${cadNum}')"
                          onmouseover="this.style.background='#f1f5f9'"
                          onmouseout="this.style.background='transparent'">
-                        <span style="font-weight: 500;">${cadNum}</span>
-                        <span>${count} сд. · ${formattedMedian}</span>
+                        <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
                     </div>
                 `;
             });
             quartersList.innerHTML = html;
         }
     }
-}
 // ============================================================
 // ХЛЕБНЫЕ КРОШКИ
 // ============================================================
