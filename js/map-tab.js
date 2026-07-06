@@ -936,15 +936,26 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     const quartersList = document.getElementById('quarters-list');
     if (!quartersList) return;
     
-    // ✅ Если переданы объекты - используем их, но ДОБАВЛЯЕМ обертки
+    // ✅ ВСЕГДА начинаем с пустого массива
     let itemsToShow = [];
     
+    // ✅ Если переданы объекты - добавляем их
     if (objectsWithDeals && objectsWithDeals.length > 0) {
-        // Используем переданные объекты
         itemsToShow = [...objectsWithDeals];
     }
     
-    // ✅ ВСЕГДА добавляем обертки (даже если objectsWithDeals пустой)
+    // ✅ ВСЕГДА добавляем ВСЕ кварталы из GeoJSON (не только обертки!)
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    
+    // Добавляем все кварталы из GeoJSON
+    allObjects.forEach(f => {
+        const cadNum = f.properties.cadastral_number;
+        if (cadNum && !itemsToShow.some(item => item.properties?.cadastral_number === cadNum)) {
+            itemsToShow.push(f);
+        }
+    });
+    
+    // ✅ Добавляем обертки из CSV
     const prefix = currentParentId ? String(currentParentId).substring(0, 5) : '89';
     const allCadNumbers = Object.keys(dealsData);
     const wrapperQuarters = allCadNumbers.filter(cad => {
@@ -952,7 +963,6 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
         return String(cad).startsWith(prefix);
     });
     
-    // Добавляем обертки, которых еще нет в списке
     wrapperQuarters.forEach(cad => {
         if (!itemsToShow.some(f => f.properties?.cadastral_number === cad)) {
             itemsToShow.push({
@@ -964,7 +974,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
         }
     });
     
-    // Фильтруем по наличию сделок с учетом фильтра
+    // ✅ Фильтруем по наличию сделок с учетом фильтра
     const withDeals = itemsToShow.filter(f => {
         const cadNum = f.properties?.cadastral_number;
         if (!cadNum) return false;
@@ -981,7 +991,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
         return;
     }
     
-    // Сортируем по количеству сделок
+    // ✅ Сортируем по количеству сделок
     const sorted = withDeals.sort((a, b) => {
         const countA = getDealsCountForObject(a);
         const countB = getDealsCountForObject(b);
@@ -1004,6 +1014,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     });
     quartersList.innerHTML = html;
 }
+
 
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
