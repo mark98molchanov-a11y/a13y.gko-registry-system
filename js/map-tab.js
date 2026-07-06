@@ -114,12 +114,6 @@ function renderDealTypeFilters() {
     
     let html = `
         <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <thead>
-                <tr style="border-bottom: 2px solid #e2e8f0;">
-                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;">Тип сделки</th>
-                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;">Кол-во</th>
-                </tr>
-            </thead>
             <tbody>
     `;
     
