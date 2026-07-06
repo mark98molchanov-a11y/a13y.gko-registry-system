@@ -1,4 +1,3 @@
-let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
 
@@ -6,15 +5,6 @@ const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system
 let dealsData = {};
 let dealTypes = {};
 let currentDealTypeFilter = null;
-function getMedian(arr) {
-    if (!arr || arr.length === 0) return 0;
-    const sorted = arr.slice().sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    if (sorted.length % 2 === 0) {
-        return (sorted[mid - 1] + sorted[mid]) / 2;
-    }
-    return sorted[mid];
-}
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
@@ -1028,7 +1018,7 @@ function renderMapLevel(level, parentId = null) {
     }
 
     // Фильтруем объекты
-   let filtered = mapData.features.filter(f => {
+    let filtered = mapData.features.filter(f => {
         const props = f.properties;
         if (props.level !== level) return false;
         
@@ -1046,33 +1036,6 @@ function renderMapLevel(level, parentId = null) {
         
         return false;
     });
-
-    // ✅ НА УРОВНЕ ОКРУГА (level 0) ДОБАВЛЯЕМ ОБЕРТКУ ПРИНУДИТЕЛЬНО
-    if (level === 0) {
-        const hasWrapper = filtered.some(f => 
-            f.properties?.cadastral_number === '89:00:000000'
-        );
-        
-        if (!hasWrapper) {
-            const okrugFeature = mapData.features.find(f => f.properties.level === 0);
-            
-            if (okrugFeature) {
-                const wrapperFeature = {
-                    type: 'Feature',
-                    properties: {
-                        cadastral_number: '89:00:000000',
-                        level: 2,
-                        level_name: 'quarter',
-                        district_name: 'ЯНАО'
-                    },
-                    geometry: okrugFeature.geometry
-                };
-                
-                filtered.push(wrapperFeature);
-                console.log('✅ Добавлена обертка 89:00:000000 принудительно на уровень округа');
-            }
-        }
-    }
 
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
@@ -1110,6 +1073,82 @@ function renderMapLevel(level, parentId = null) {
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
+if (wrapperQuarters.length > 0) {
+    window.wrapperLayer = L.geoJSON(wrapperQuarters, {
+        style: function(feature) {
+            const price = feature.properties?.deals_median || 0;
+            return {
+                fillColor: '#ff6b6b',
+                fillOpacity: 0.25,
+                color: '#ff0000',
+                weight: 1,
+                opacity: 0.4,
+                dashArray: '4 4'
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            const cadNum = feature.properties.cadastral_number || '—';
+            
+            // ✅ ДОБАВЛЯЕМ КЛИК ДЛЯ ПЕРЕХОДА НА РАЙОНЫ
+   layer.on('click', function(e) {
+    renderMapLevel(0);
+    updateBreadcrumb('okrug');
+    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
+});
+
+            
+            // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            
+            const dealsCount = filteredDeals.length;
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
+            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+            const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+            const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
+
+            layer.bindPopup(`
+                <div class="popup-title">${cadNum}</div>
+                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                ${dealsCount > 0 ? `
+                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+            `, { className: 'custom-popup', maxWidth: 300 });
+            
+            layer.on('mouseover', function() {
+                this.setStyle({
+                    fillOpacity: 0.5,
+                    weight: 2,
+                    color: '#ff0000',
+                    opacity: 0.7
+                });
+            });
+            
+            layer.on('mouseout', function() {
+                this.setStyle({
+                    fillOpacity: 0.25,
+                    weight: 1,
+                    color: '#ff0000',
+                    opacity: 0.4
+                });
+            });
+        }
+    }).addTo(mapInstance);
+    
+    console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
+}
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
@@ -1133,105 +1172,7 @@ function renderMapLevel(level, parentId = null) {
         window.mapLayer = normalLayer;
         window.mapLayer.addTo(mapInstance);
     }
-        const wrapperFeature = filtered.find(f => 
-        f.properties?.cadastral_number === '89:00:000000'
-    );
-
-    if (wrapperFeature) {
-        // Если обертка уже есть в filtered, используем её
-        window.wrapperLayer = L.geoJSON(wrapperFeature, {
-            style: function(feature) {
-                const cadNum = feature.properties?.cadastral_number;
-                const deals = dealsData[cadNum] || [];
-                const filteredDeals = deals.filter(deal => {
-                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                        return false;
-                    }
-                    return true;
-                });
-                const dealsCount = filteredDeals.length;
-                const hasDeals = dealsCount > 0;
-                return {
-                    fillColor: hasDeals ? getMapColor(dealsCount) : '#f1f5f9',
-                    fillOpacity: 0.2,
-                    color: '#ff0000',
-                    weight: 2.5,
-                    opacity: 0.8,
-                    dashArray: null
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                const cadNum = feature.properties.cadastral_number || '—';
-                
-                // ✅ ДОБАВЛЯЕМ КЛИК ДЛЯ ПЕРЕХОДА НА УРОВЕНЬ ОКРУГА
-                layer.on('click', function(e) {
-                    renderMapLevel(0);
-                    updateBreadcrumb('okrug');
-                    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-                    }
-                });
-                
-                // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
-                const deals = dealsData[cadNum] || [];
-                const filteredDeals = deals.filter(deal => {
-                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                        return false;
-                    }
-                    return true;
-                });
-                
-                const dealsCount = filteredDeals.length;
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                
-                function getMedian(arr) {
-                    if (arr.length === 0) return 0;
-                    const sorted = arr.slice().sort((a, b) => a - b);
-                    const mid = Math.floor(sorted.length / 2);
-                    if (sorted.length % 2 === 0) {
-                        return (sorted[mid - 1] + sorted[mid]) / 2;
-                    }
-                    return sorted[mid];
-                }
-                
-                const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
-                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
-
-                layer.bindPopup(`
-                    <div class="popup-title">${cadNum}</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                `, { className: 'custom-popup', maxWidth: 300 });
-                
-                layer.on('mouseover', function() {
-                    this.setStyle({
-                        fillOpacity: 0.5,
-                        weight: 3,
-                        color: '#ff0000',
-                        opacity: 0.9
-                    });
-                });
-                
-                layer.on('mouseout', function() {
-                    this.setStyle({
-                        fillOpacity: 0.2,
-                        weight: 2.5,
-                        color: '#ff0000',
-                        opacity: 0.8
-                    });
-                });
-            }
-        }).addTo(mapInstance);
-        
-        console.log('✅ Добавлена обертка 89:00:000000 как отдельный слой');
-    }// 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
+    // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
     // Подгоняем границы
     try {
@@ -2152,40 +2093,26 @@ function searchQuarterByCadNumber(cadNumber) {
         // Проверяем, есть ли такой кадастровый номер в dealsData
         const isWrapper = Object.keys(dealsData).includes(cadNumber);
         if (isWrapper) {
-            console.log(`✅ Найдена обертка: ${cadNumber}, переходим на уровень округа с фильтром`);
+            console.log(`✅ Найдена обертка: ${cadNumber}`);
             
-            // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ ОКРУГА (level 0) — ТАМ ВИДНА ОБЕРТКА
-            renderMapLevel(0);
-            updateBreadcrumb('okrug');
+            // Для обертки — просто показываем уведомление
+            // или можно попытаться найти геометрию обертки
+            // Показываем алерт с информацией
+            alert(`📋 Обертка ${cadNumber}\nСделок: ${dealsData[cadNumber]?.length || 0}`);
             
-            // ✅ ПРИМЕНЯЕМ ФИЛЬТР (если активен)
-            if (currentDealTypeFilter) {
-                updateMapStatsFromDeals(0, null);
-                updateQuartersListWithFilteredObjects(null);
-            }
-            
-            // ✅ ПОДСВЕЧИВАЕМ ОБЕРТКУ НА КАРТЕ
-            setTimeout(() => {
-                if (window.wrapperLayer) {
-                    window.wrapperLayer.eachLayer(function(layer) {
-                        if (layer.feature && layer.feature.properties) {
-                            if (layer.feature.properties.cadastral_number === cadNumber) {
-                                // Подсвечиваем обертку
-                                layer.setStyle({
-                                    fillOpacity: 0.6,
-                                    weight: 3,
-                                    color: '#ff0000',
-                                    opacity: 0.9
-                                });
-                                layer.openPopup();
-                                if (layer.getBounds && layer.getBounds().isValid()) {
-                                    mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-                                }
-                            }
-                        }
-                    });
+            // Если есть геометрия для обертки, можно центрировать карту
+            // Для уровня округа (level 0) — центрируем на ЯНАО
+            if (mapInstance) {
+                const okrugFeature = mapData.features.find(f => f.properties.level === 0);
+                if (okrugFeature && okrugFeature.geometry) {
+                    // Переходим на уровень округа и центрируем
+                    renderMapLevel(0);
+                    updateBreadcrumb('okrug');
+                    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+                        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                    }
                 }
-            }, 300);
+            }
             return;
         }
         
@@ -2219,7 +2146,6 @@ function searchQuarterByCadNumber(cadNumber) {
         }
     }, 300);
 }
-
 
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
