@@ -466,7 +466,6 @@ function updateMapStatsFromDeals(level, parentId) {
         // ✅ УРОВЕНЬ ОКРУГА - ВСЕ КВАРТАЛЫ ИЗ GEOJSON + ВСЕ ОБЕРТКИ ИЗ CSV
         allQuarters = [...allObjects];
         
-        // Добавляем ВСЕ обертки из CSV
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -485,7 +484,6 @@ function updateMapStatsFromDeals(level, parentId) {
         // ✅ УРОВЕНЬ РАЙОНОВ - ВСЕ КВАРТАЛЫ ИЗ GEOJSON + ВСЕ ОБЕРТКИ ИЗ CSV
         allQuarters = [...allObjects];
         
-        // Добавляем ВСЕ обертки из CSV (ТАК ЖЕ, КАК ДЛЯ ОКРУГА!)
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -507,7 +505,6 @@ function updateMapStatsFromDeals(level, parentId) {
             return String(fParentId) === String(parentId);
         });
         
-        // Добавляем обертки ТОЛЬКО для этого района
         const prefix = String(parentId).substring(0, 5);
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
@@ -585,7 +582,6 @@ function updateMapStatsFromDeals(level, parentId) {
     let maxPrice = 0;
     
     if (quarterStats.length > 0) {
-        // Взвешенная медиана по цене
         const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
         const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
         let cumsum = 0;
@@ -597,7 +593,6 @@ function updateMapStatsFromDeals(level, parentId) {
             }
         }
         
-        // Взвешенная медиана по УПРС
         const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
         cumsum = 0;
         for (const q of sortedByUprs) {
@@ -644,7 +639,6 @@ function updateMapStatsFromDeals(level, parentId) {
         if (quarterStats.length === 0) {
             quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
         } else {
-            // Собираем кварталы с их кадастровыми номерами
             const sortedQuarters = allQuarters.filter(f => {
                 const cadNum = f.properties?.cadastral_number;
                 if (!cadNum) return false;
