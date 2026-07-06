@@ -427,9 +427,11 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     
     console.log(`📊 updateMapStatsWithDealFilter: level=${level}, parentId=${parentId}, targetObjects=${targetObjects.length}`);
     
-    // ✅ ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ (level === 2) - БЕРЕМ ТОЛЬКО КВАРТАЛЫ В ЭТОМ РАЙОНЕ
+    // ✅ СОБИРАЕМ ТОЛЬКО ТЕ ОБЪЕКТЫ, У КОТОРЫХ ЕСТЬ СДЕЛКИ ПОСЛЕ ФИЛЬТРАЦИИ
+    let objectsWithFilteredDeals = [];
+    
     if (level === 2 && parentId) {
-        // Проходим по targetObjects (кварталы в этом районе)
+        // На уровне кварталов - проходим по targetObjects
         targetObjects.forEach(f => {
             const cadNum = f.properties.cadastral_number;
             if (!cadNum) return;
@@ -441,11 +443,15 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
                 }
                 return true;
             });
-            allDeals = allDeals.concat(filteredDeals);
+            
+            if (filteredDeals.length > 0) {
+                allDeals = allDeals.concat(filteredDeals);
+                objectsWithFilteredDeals.push(f);
+            }
         });
-        console.log(`📊 Кварталы в районе: ${targetObjects.length}, сделок: ${allDeals.length}`);
+        console.log(`📊 Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}`);
     } else {
-        // ✅ НА УРОВНЕ ОКРУГА ИЛИ РАЙОНОВ - БЕРЕМ ВСЕ СДЕЛКИ
+        // На уровне округа или районов - берем все сделки
         Object.keys(dealsData).forEach(cadNum => {
             const deals = dealsData[cadNum] || [];
             const filteredDeals = deals.filter(deal => {
@@ -456,7 +462,9 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
             });
             allDeals = allDeals.concat(filteredDeals);
         });
-        console.log(`📊 Все сделки: ${allDeals.length}`);
+        // Для уровня округа/районов используем все объекты
+        objectsWithFilteredDeals = targetObjects;
+        console.log(`📊 Все сделки с фильтром: ${allDeals.length}`);
     }
     
     if (allDeals.length === 0) {
@@ -466,6 +474,8 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
         statTotalDeals.textContent = '0';
         if (statObjects) statObjects.textContent = targetObjects.length;
         if (statWithDeals) statWithDeals.textContent = '0';
+        // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ - ПОКАЗЫВАЕМ "Нет сделок"
+        updateQuartersListWithFilteredObjects([]);
         return;
     }
     
@@ -509,22 +519,60 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     statUprs.textContent = formatUprs(medianUprs);
     statTotalDeals.textContent = allDeals.length.toLocaleString();
     
-    // ✅ Обновляем количество объектов и сделками
     if (statObjects) statObjects.textContent = targetObjects.length;
-    const objectsWithDeals = targetObjects.filter(f => {
-        const cadNum = f.properties.cadastral_number;
-        if (!cadNum) return false;
-        const deals = dealsData[cadNum] || [];
-        const filtered = deals.filter(d => {
-            if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-            return true;
-        });
-        return filtered.length > 0;
-    });
-    if (statWithDeals) statWithDeals.textContent = objectsWithDeals.length;
+    if (statWithDeals) statWithDeals.textContent = objectsWithFilteredDeals.length;
     
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
-    updateQuartersListWithDealFilter(targetObjects);
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ - ПЕРЕДАЕМ ТОЛЬКО ТЕ, У КОТОРЫХ ЕСТЬ СДЕЛКИ
+    updateQuartersListWithFilteredObjects(objectsWithFilteredDeals);
+}
+function updateQuartersListWithFilteredObjects(objectsWithDeals) {
+    const quartersList = document.getElementById('quarters-list');
+    if (!quartersList) return;
+    
+    if (!objectsWithDeals || objectsWithDeals.length === 0) {
+        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
+        return;
+    }
+    
+    // Сортируем по количеству сделок (по убыванию)
+    const sorted = objectsWithDeals.slice().sort((a, b) => {
+        const countA = getDealsCountForObject(a);
+        const countB = getDealsCountForObject(b);
+        return countB - countA;
+    });
+    
+    let html = '';
+    sorted.forEach(f => {
+        const cadNum = f.properties.cadastral_number || '—';
+        const count = getDealsCountForObject(f);
+        
+        html += `
+            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
+                 onclick="window.searchQuarterByCadNumber('${cadNum}')"
+                 onmouseover="this.style.background='#f1f5f9'"
+                 onmouseout="this.style.background='transparent'">
+                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
+            </div>
+        `;
+    });
+    quartersList.innerHTML = html;
+}
+
+// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПОДСЧЕТА СДЕЛОК В ОБЪЕКТЕ
+function getDealsCountForObject(feature) {
+    const cadNum = feature.properties?.cadastral_number;
+    if (!cadNum) return 0;
+    
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        return true;
+    });
+    
+    return filteredDeals.length;
 }
 
 function updateQuartersListWithDealFilter(targetObjects) {
