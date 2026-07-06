@@ -968,43 +968,73 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     });
     quartersList.innerHTML = html;
 }
-function updateQuartersStyle(targetObjects) {
-    if (!window.mapLayer) return;
+function updateQuartersListWithFilteredObjects(objectsWithDeals) {
+    const quartersList = document.getElementById('quarters-list');
+    if (!quartersList) return;
     
-    console.log(`🎨 Обновление стилей кварталов с фильтром: ${currentDealTypeFilter}`);
+    // ✅ Если переданы объекты - используем их
+    let itemsToShow = objectsWithDeals;
     
-    window.mapLayer.eachLayer(function(layer) {
-        if (layer.feature && layer.feature.properties) {
-            const props = layer.feature.properties;
-            const cadNum = props.cadastral_number;
-            
-            if (!cadNum) return;
-            
-            // Получаем сделки для этого квартала с учетом фильтра
-            const deals = dealsData[cadNum] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
+    // ✅ Если ничего не передано - берем все кварталы из mapData
+    if (!itemsToShow || itemsToShow.length === 0) {
+        const allObjects = mapData.features.filter(f => f.properties.level === 2);
+        const prefix = currentParentId ? String(currentParentId).substring(0, 5) : '89';
+        const allCadNumbers = Object.keys(dealsData);
+        const wrapperQuarters = allCadNumbers.filter(cad => {
+            if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+            return String(cad).startsWith(prefix);
+        });
+        
+        itemsToShow = [...allObjects];
+        wrapperQuarters.forEach(cad => {
+            itemsToShow.push({
+                properties: { 
+                    cadastral_number: cad,
+                    level: 2
                 }
-                return true;
             });
-            
-            const dealsCount = filteredDeals.length;
-            
-            // Применяем стиль в зависимости от количества сделок
-            const hasDeals = dealsCount > 0;
-            const fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
-            
-            layer.setStyle({
-                fillColor: fillColor,
-                fillOpacity: 0.2,
-                color: '#3b82f6',
-                weight: 2.5,
-                opacity: 0.6,
-                dashArray: null
-            });
-        }
+        });
+    }
+    
+    // Фильтруем по наличию сделок
+    const withDeals = itemsToShow.filter(f => {
+        const cadNum = f.properties?.cadastral_number;
+        if (!cadNum) return false;
+        const deals = dealsData[cadNum] || [];
+        const filtered = deals.filter(d => {
+            if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
+            return true;
+        });
+        return filtered.length > 0;
     });
+    
+    if (withDeals.length === 0) {
+        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
+        return;
+    }
+    
+    // Сортируем по количеству сделок
+    const sorted = withDeals.sort((a, b) => {
+        const countA = getDealsCountForObject(a);
+        const countB = getDealsCountForObject(b);
+        return countB - countA;
+    });
+    
+    let html = '';
+    sorted.forEach(f => {
+        const cadNum = f.properties.cadastral_number || '—';
+        const count = getDealsCountForObject(f);
+        html += `
+            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
+                 onclick="window.searchQuarterByCadNumber('${cadNum}')"
+                 onmouseover="this.style.background='#f1f5f9'"
+                 onmouseout="this.style.background='transparent'">
+                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
+            </div>
+        `;
+    });
+    quartersList.innerHTML = html;
 }
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
