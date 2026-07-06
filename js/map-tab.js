@@ -939,39 +939,6 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     const quartersList = document.getElementById('quarters-list');
     if (!quartersList) return;
     
-    if (!objectsWithDeals || objectsWithDeals.length === 0) {
-        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        return;
-    }
-    
-    // Сортируем по количеству сделок (по убыванию)
-    const sorted = objectsWithDeals.slice().sort((a, b) => {
-        const countA = getDealsCountForObject(a);
-        const countB = getDealsCountForObject(b);
-        return countB - countA;
-    });
-    
-    let html = '';
-    sorted.forEach(f => {
-        const cadNum = f.properties.cadastral_number || '—';
-        const count = getDealsCountForObject(f);
-        
-        html += `
-            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                 onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                 onmouseover="this.style.background='#f1f5f9'"
-                 onmouseout="this.style.background='transparent'">
-                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-            </div>
-        `;
-    });
-    quartersList.innerHTML = html;
-}
-function updateQuartersListWithFilteredObjects(objectsWithDeals) {
-    const quartersList = document.getElementById('quarters-list');
-    if (!quartersList) return;
-    
     // ✅ Если переданы объекты - используем их
     let itemsToShow = objectsWithDeals;
     
