@@ -1015,7 +1015,44 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     });
     quartersList.innerHTML = html;
 }
-
+function updateQuartersStyle(targetObjects) {
+    if (!window.mapLayer) return;
+    
+    console.log(`🎨 Обновление стилей кварталов с фильтром: ${currentDealTypeFilter}`);
+    
+    window.mapLayer.eachLayer(function(layer) {
+        if (layer.feature && layer.feature.properties) {
+            const props = layer.feature.properties;
+            const cadNum = props.cadastral_number;
+            
+            if (!cadNum) return;
+            
+            // Получаем сделки для этого квартала с учетом фильтра
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            
+            const dealsCount = filteredDeals.length;
+            
+            // Применяем стиль в зависимости от количества сделок
+            const hasDeals = dealsCount > 0;
+            const fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
+            
+            layer.setStyle({
+                fillColor: fillColor,
+                fillOpacity: 0.2,
+                color: '#3b82f6',
+                weight: 2.5,
+                opacity: 0.6,
+                dashArray: null
+            });
+        }
+    });
+}
 
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
