@@ -173,7 +173,6 @@ function applyDealTypeFilter(kind) {
     currentDealTypeFilter = currentDealTypeFilter === kind ? null : kind;
     renderDealTypeFilters();
     
-    // ✅ СОХРАНЯЕМ ТЕКУЩИЙ УРОВЕНЬ
     const level = currentLevel;
     const parentId = currentParentId;
     
@@ -195,9 +194,7 @@ function applyDealTypeFilter(kind) {
     console.log(`📊 targetObjects: ${targetObjects.length} объектов`);
     
     // ✅ ЕСЛИ ФИЛЬТР ВЫКЛЮЧЕН (null) И МЫ НА УРОВНЕ РАЙОНОВ (level === 1)
-    // ИСПОЛЬЗУЕМ updateMapStats С ДАННЫМИ ИЗ GEOJSON
     if (currentDealTypeFilter === null && level === 1) {
-        // Получаем нормальные кварталы для этого уровня
         const filtered = mapData.features.filter(f => {
             const props = f.properties;
             if (props.level !== 2) return false;
@@ -211,13 +208,10 @@ function applyDealTypeFilter(kind) {
         });
         
         updateMapStats(normalQuarters, level, parentId);
-        
-        // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
         updateQuartersStyle(targetObjects);
     } 
     // ✅ ЕСЛИ ФИЛЬТР ВЫКЛЮЧЕН (null) И МЫ НА УРОВНЕ КВАРТАЛОВ (level === 2)
     else if (currentDealTypeFilter === null && level === 2) {
-        // Получаем нормальные кварталы для этого района
         const filtered = mapData.features.filter(f => {
             const props = f.properties;
             if (props.level !== 2) return false;
@@ -235,31 +229,27 @@ function applyDealTypeFilter(kind) {
         });
         
         updateMapStats(normalQuarters, level, parentId);
-        
-        // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
         updateQuartersStyle(targetObjects);
     }
-    // ✅ ЕСЛИ ФИЛЬТР АКТИВЕН - ИСПОЛЬЗУЕМ updateMapStatsWithDealFilter
+    // ✅ ЕСЛИ ФИЛЬТР АКТИВЕН
     else {
         updateMapStatsWithDealFilter(targetObjects, level, parentId);
-        
-        // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
         updateQuartersStyle(targetObjects);
     }
     
-    // ✅ ОБНОВЛЯЕМ ТУЛТИПЫ И ПОПАПЫ
+    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ ДЛЯ ВСЕХ УРОВНЕЙ
     if (window.mapLayer) {
         window.mapLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
                 const props = layer.feature.properties;
                 const levelName = props.level_name || 'unknown';
                 
-                // ✅ ДЛЯ РАЙОНОВ (level === 1) - обновляем тултипы
+                // ✅ ДЛЯ РАЙОНОВ - обновляем тултипы
                 if (levelName === 'district') {
                     updateDistrictTooltip(layer, props);
                 }
                 
-                // ✅ ДЛЯ КВАРТАЛОВ (level === 2) - обновляем попапы
+                // ✅ ДЛЯ КВАРТАЛОВ - обновляем попапы
                 if (levelName === 'quarter') {
                     const newPopupContent = buildPopupContent(layer.feature);
                     layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
@@ -268,7 +258,7 @@ function applyDealTypeFilter(kind) {
         });
     }
     
-    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ (wrapperLayer)
+    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
@@ -311,20 +301,6 @@ function applyDealTypeFilter(kind) {
                     ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
                 `;
                 layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
-            }
-        });
-    }
-    
-    // ✅ ОСОБЫЙ СЛУЧАЙ: ЕСЛИ МЫ НА УРОВНЕ РАЙОНОВ (level === 1)
-    // Нужно обновить тултипы для ВСЕХ районов
-    if (level === 1 && window.mapLayer) {
-        window.mapLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const props = layer.feature.properties;
-                const levelName = props.level_name || 'unknown';
-                if (levelName === 'district') {
-                    updateDistrictTooltip(layer, props);
-                }
             }
         });
     }
@@ -639,9 +615,6 @@ function updateQuartersStyle(targetObjects) {
             });
         }
     });
-    
-    // ✅ ОБНОВЛЯЕМ ЛЕГЕНДУ
-    updateLegend(dealsData);
 }
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
@@ -936,46 +909,33 @@ function renderMapLevel(level, parentId = null) {
     // ============================================================
     // ✅ ПРИМЕНЯЕМ ФИЛЬТР К ТУЛТИПАМ РАЙОНОВ (ЕСЛИ МЫ НА УРОВНЕ РАЙОНОВ)
     // ============================================================
-    if (level === 1 && window.mapLayer) {
-        // Обновляем тултипы для ВСЕХ районов (с фильтром или без)
-        window.mapLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const props = layer.feature.properties;
-                const levelName = props.level_name || 'unknown';
-                if (levelName === 'district') {
-                    updateDistrictTooltip(layer, props);
-                }
+if (level === 1 && window.mapLayer) {
+    window.mapLayer.eachLayer(function(layer) {
+        if (layer.feature && layer.feature.properties) {
+            const props = layer.feature.properties;
+            const levelName = props.level_name || 'unknown';
+            if (levelName === 'district') {
+                updateDistrictTooltip(layer, props);
             }
-        });
-    }
-    
-    // ============================================================
-    // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ (ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ)
-    // ============================================================
-    if (level === 2 && window.mapLayer) {
-        // Если есть фильтр - применяем его к стилям
-        if (currentDealTypeFilter) {
-            updateQuartersStyle(targetObjects);
-        } else {
-            // Если фильтра нет - возвращаем исходные стили из GeoJSON
-            window.mapLayer.eachLayer(function(layer) {
-                if (layer.feature && layer.feature.properties) {
-                    const props = layer.feature.properties;
-                    const deals = props.deals_count || 0;
-                    const hasDeals = deals > 0;
-                    
-                    layer.setStyle({
-                        fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
-                        fillOpacity: 0.2,
-                        color: '#3b82f6',
-                        weight: 2.5,
-                        opacity: 0.6,
-                        dashArray: null
-                    });
-                }
-            });
         }
-    }
+    });
+}
+
+// ============================================================
+// ✅ ОБНОВЛЯЕМ ПОПАПЫ КВАРТАЛОВ (ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ)
+// ============================================================
+if (level === 2 && window.mapLayer) {
+    window.mapLayer.eachLayer(function(layer) {
+        if (layer.feature && layer.feature.properties) {
+            const props = layer.feature.properties;
+            const levelName = props.level_name || 'unknown';
+            if (levelName === 'quarter') {
+                const newPopupContent = buildPopupContent(layer.feature);
+                layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
+            }
+        }
+    });
+}
     
     // ============================================================
     // ✅ ДОБАВЛЯЕМ ПОДПИСИ НА ПОЛИГОНЫ (ЗДЕСЬ!)
