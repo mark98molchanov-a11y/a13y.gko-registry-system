@@ -717,64 +717,82 @@ function updateMapStatsFromDeals(level, parentId) {
         }
     }
 }
-function updateQuartersListWithFilteredObjects(objectsWithDeals) {
-    const quartersList = document.getElementById('quarters-list');
-    if (!quartersList) return;
+function updateMapStatsFromDeals(level, parentId) {
+    const statMedian = document.getElementById('stat-median');
+    const statMinMax = document.getElementById('stat-minmax');
+    const statUprs = document.getElementById('stat-uprs');
+    const statTotalDeals = document.getElementById('stat-total-deals');
+    const statObjects = document.getElementById('stat-objects');
+    const statWithDeals = document.getElementById('stat-with-deals');
     
-    if (!objectsWithDeals || objectsWithDeals.length === 0) {
-        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        return;
+    if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
+    
+    // Получаем кварталы для текущего уровня
+    let targetObjects = [];
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
     }
     
-    // Сортируем по количеству сделок (по убыванию)
-    const sorted = objectsWithDeals.slice().sort((a, b) => {
-        const countA = getDealsCountForObject(a);
-        const countB = getDealsCountForObject(b);
-        return countB - countA;
-    });
+    // ✅ ДОБАВЛЯЕМ ОБЕРТКИ ИЗ CSV
+    let allQuarters = [...targetObjects];
     
-    let html = '';
-    sorted.forEach(f => {
-        const cadNum = f.properties.cadastral_number || '—';
-        const count = getDealsCountForObject(f);
-        
-        html += `
-            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                 onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                 onmouseover="this.style.background='#f1f5f9'"
-                 onmouseout="this.style.background='transparent'">
-                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-            </div>
-        `;
-    });
-    quartersList.innerHTML = html;
-}
-
-// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПОДСЧЕТА СДЕЛОК В ОБЪЕКТЕ
-function getDealsCountForObject(feature) {
-    const cadNum = feature.properties?.cadastral_number;
-    if (!cadNum) return 0;
-    
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
+    if (level === 1 || level === 2) {
+        // Определяем префикс района
+        let prefix = '';
+        if (level === 1) {
+            // Для уровня районов - используем parentId '89' и берем все обертки
+            // Но на уровне районов (level 1) мы не знаем конкретный район
+            // Поэтому добавляем все обертки
+            const allCadNumbers = Object.keys(dealsData);
+            const wrapperQuarters = allCadNumbers.filter(cad => {
+                return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
+            });
+            wrapperQuarters.forEach(cad => {
+                // Проверяем, что обертка уже не добавлена
+                if (!allQuarters.some(f => f.properties.cadastral_number === cad)) {
+                    allQuarters.push({
+                        properties: { 
+                            cadastral_number: cad,
+                            level: 2
+                        }
+                    });
+                }
+            });
+        } else if (level === 2 && parentId) {
+            // Для уровня кварталов - добавляем обертки только для этого района
+            const prefix = String(parentId).substring(0, 5);
+            const allCadNumbers = Object.keys(dealsData);
+            const wrapperQuarters = allCadNumbers.filter(cad => {
+                if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+                return String(cad).startsWith(prefix);
+            });
+            wrapperQuarters.forEach(cad => {
+                if (!allQuarters.some(f => f.properties.cadastral_number === cad)) {
+                    allQuarters.push({
+                        properties: { 
+                            cadastral_number: cad,
+                            level: 2
+                        }
+                    });
+                }
+            });
         }
-        return true;
-    });
+    }
     
-    return filteredDeals.length;
-}
-
-function updateQuartersListWithDealFilter(targetObjects) {
-    const quartersList = document.getElementById('quarters-list');
-    if (!quartersList) return;
-    
-    // Собираем кварталы с фильтром
+    // СЧИТАЕМ СТАТИСТИКУ ИЗ dealsData
     const quarterStats = [];
+    let totalDeals = 0;
+    let allMins = [];
+    let allMaxs = [];
     
-    targetObjects.forEach(f => {
+    allQuarters.forEach(f => {
         const cadNum = f.properties.cadastral_number;
         if (!cadNum) return;
         
@@ -786,36 +804,116 @@ function updateQuartersListWithDealFilter(targetObjects) {
             return true;
         });
         
-        // ✅ ДОБАВЛЯЕМ ТОЛЬКО ЕСЛИ ЕСТЬ СДЕЛКИ ПОСЛЕ ФИЛЬТРАЦИИ
         if (filteredDeals.length > 0) {
-            quarterStats.push({
-                cadastral_number: cadNum,
-                count: filteredDeals.length
-            });
+            totalDeals += filteredDeals.length;
+            
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            if (prices.length > 0) {
+                quarterStats.push({
+                    count: filteredDeals.length,
+                    medianPrice: getMedian(prices),
+                    medianUprs: getMedian(uprs),
+                    min: Math.min(...prices),
+                    max: Math.max(...prices)
+                });
+                allMins.push(Math.min(...prices));
+                allMaxs.push(Math.max(...prices));
+            }
         }
     });
     
-    // ✅ ЕСЛИ НЕТ КВАРТАЛОВ С ФИЛЬТРОМ - ПОКАЗЫВАЕМ "Нет сделок"
-    if (quarterStats.length === 0) {
-        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        return;
+    function getMedian(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
     }
     
-    quarterStats.sort((a, b) => b.count - a.count);
+    // ВЗВЕШЕННАЯ МЕДИАНА
+    let weightedMedianPrice = 0;
+    let weightedMedianUprs = 0;
+    let minPrice = 0;
+    let maxPrice = 0;
     
-    let html = '';
-    quarterStats.forEach(q => {
-        html += `
-            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                 onclick="window.searchQuarterByCadNumber('${q.cadastral_number}')"
-                 onmouseover="this.style.background='#f1f5f9'"
-                 onmouseout="this.style.background='transparent'">
-                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${q.cadastral_number}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${q.count.toLocaleString('ru-RU')} сделок</div>
-            </div>
-        `;
-    });
-    quartersList.innerHTML = html;
+    if (quarterStats.length > 0) {
+        const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
+        const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
+        let cumsum = 0;
+        for (const q of sortedByPrice) {
+            cumsum += q.count;
+            if (cumsum >= totalWeight / 2) {
+                weightedMedianPrice = q.medianPrice;
+                break;
+            }
+        }
+        
+        const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
+        cumsum = 0;
+        for (const q of sortedByUprs) {
+            cumsum += q.count;
+            if (cumsum >= totalWeight / 2) {
+                weightedMedianUprs = q.medianUprs;
+                break;
+            }
+        }
+        
+        minPrice = Math.min(...allMins);
+        maxPrice = Math.max(...allMaxs);
+    }
+    
+    const formatPrice = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toLocaleString('ru-RU') + ' ₽';
+    };
+    
+    const formatNumber = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toLocaleString('ru-RU');
+    };
+    
+    const formatUprs = (num) => {
+        if (num === 0 || isNaN(num)) return '—';
+        return num.toFixed(2) + ' ₽/м²';
+    };
+    
+    statMedian.textContent = formatPrice(weightedMedianPrice);
+    statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
+        ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
+        : '—';
+    statUprs.textContent = formatUprs(weightedMedianUprs);
+    statTotalDeals.textContent = totalDeals.toLocaleString();
+    
+    if (statObjects) statObjects.textContent = allQuarters.length;
+    if (statWithDeals) statWithDeals.textContent = quarterStats.length;
+    
+    // СПИСОК КВАРТАЛОВ
+    const quartersList = document.getElementById('quarters-list');
+    if (quartersList) {
+        if (quarterStats.length === 0) {
+            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
+        } else {
+            const sorted = quarterStats.slice().sort((a, b) => b.count - a.count);
+            let html = '';
+            sorted.forEach(q => {
+                const cadNum = q.quarter || '—';
+                html += `
+                    <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
+                         onclick="window.searchQuarterByCadNumber('${cadNum}')"
+                         onmouseover="this.style.background='#f1f5f9'"
+                         onmouseout="this.style.background='transparent'">
+                        <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${q.count.toLocaleString('ru-RU')} сделок</div>
+                    </div>
+                `;
+            });
+            quartersList.innerHTML = html;
+        }
+    }
 }
 
 
