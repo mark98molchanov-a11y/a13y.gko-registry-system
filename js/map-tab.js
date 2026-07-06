@@ -936,7 +936,8 @@ function renderMapLevel(level, parentId = null) {
     // ============================================================
     // ✅ ПРИМЕНЯЕМ ФИЛЬТР К ТУЛТИПАМ РАЙОНОВ (ЕСЛИ МЫ НА УРОВНЕ РАЙОНОВ)
     // ============================================================
-    if (level === 1 && window.mapLayer && currentDealTypeFilter) {
+    if (level === 1 && window.mapLayer) {
+        // Обновляем тултипы для ВСЕХ районов (с фильтром или без)
         window.mapLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
                 const props = layer.feature.properties;
@@ -1595,7 +1596,6 @@ function addMapLegend() {
     legend.innerHTML = `
         <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
             📊 Сделки в квартале
-            ${currentDealTypeFilter ? `<span style="color:#0ea5e9; font-weight:400; font-size:10px;"> (фильтр: ${currentDealTypeFilter})</span>` : ''}
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
