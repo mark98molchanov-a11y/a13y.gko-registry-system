@@ -463,9 +463,7 @@ function updateMapStatsFromDeals(level, parentId) {
     let allQuarters = [];
     
     if (level === 0) {
-        // ✅ УРОВЕНЬ ОКРУГА - ВСЕ КВАРТАЛЫ ИЗ GEOJSON + ВСЕ ОБЕРТКИ ИЗ CSV
         allQuarters = [...allObjects];
-        
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -481,9 +479,7 @@ function updateMapStatsFromDeals(level, parentId) {
             }
         });
     } else if (level === 1) {
-        // ✅ УРОВЕНЬ РАЙОНОВ - ВСЕ КВАРТАЛЫ ИЗ GEOJSON + ВСЕ ОБЕРТКИ ИЗ CSV
         allQuarters = [...allObjects];
-        
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -499,12 +495,10 @@ function updateMapStatsFromDeals(level, parentId) {
             }
         });
     } else if (level === 2 && parentId) {
-        // ✅ УРОВЕНЬ КВАРТАЛОВ (КОНКРЕТНЫЙ РАЙОН)
         allQuarters = allObjects.filter(f => {
             const fParentId = f.properties.parent_id || f.properties.district_id;
             return String(fParentId) === String(parentId);
         });
-        
         const prefix = String(parentId).substring(0, 5);
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
@@ -575,7 +569,6 @@ function updateMapStatsFromDeals(level, parentId) {
         return sorted[mid];
     }
     
-    // ✅ ВЫЧИСЛЯЕМ ВЗВЕШЕННУЮ МЕДИАНУ
     let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
     let minPrice = 0;
@@ -622,7 +615,6 @@ function updateMapStatsFromDeals(level, parentId) {
         return num.toFixed(2) + ' ₽/м²';
     };
     
-    // ✅ ВЫВОДИМ СТАТИСТИКУ
     statMedian.textContent = formatPrice(weightedMedianPrice);
     statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
         ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
@@ -633,7 +625,6 @@ function updateMapStatsFromDeals(level, parentId) {
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
     
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     const quartersList = document.getElementById('quarters-list');
     if (quartersList) {
         if (quarterStats.length === 0) {
@@ -670,13 +661,10 @@ function updateMapStatsFromDeals(level, parentId) {
             });
             quartersList.innerHTML = html;
         }
-    
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
+    }
     updatePopupsAndTooltips(level);
 }
 
-
-    // ✅ СЧИТАЕМ СТАТИСТИКУ ПО КВАРТАЛАМ (ОДИНАКОВО ДЛЯ ВСЕХ УРОВНЕЙ)
     const quarterStats = [];
     let totalDeals = 0;
     let allMins = [];
