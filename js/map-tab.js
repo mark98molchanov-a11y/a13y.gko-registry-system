@@ -850,10 +850,15 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
         });
     }
     
-    // ✅ Фильтруем по наличию сделок с учетом фильтра
+    // ✅ ФИЛЬТРУЕМ ПО НАЛИЧИЮ СДЕЛОК С УЧЕТОМ ФИЛЬТРА
+    // ❗ ИСКЛЮЧАЕМ ОБЕРТКУ 89:00:000000 ИЗ СПИСКА
     const withDeals = allQuarters.filter(f => {
         const cadNum = f.properties?.cadastral_number;
         if (!cadNum) return false;
+        
+        // ❗ ПРОПУСКАЕМ ОБЕРТКУ 89:00:000000
+        if (cadNum === '89:00:000000') return false;
+        
         const deals = dealsData[cadNum] || [];
         const filtered = deals.filter(d => {
             if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
@@ -867,7 +872,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
         return;
     }
     
-    // ✅ Сортируем по количеству сделок
+    // ✅ СОРТИРУЕМ ПО КОЛИЧЕСТВУ СДЕЛОК
     const sorted = withDeals.sort((a, b) => {
         const countA = getDealsCountForObject(a);
         const countB = getDealsCountForObject(b);
@@ -1145,11 +1150,47 @@ if (wrapperQuarters.length > 0) {
                     opacity: 0.4
                 });
             });
+            
+          try {
+                const bounds = layer.getBounds();
+                if (bounds && bounds.isValid()) {
+                    const center = bounds.getCenter();
+                    const label = L.marker(center, {
+                        icon: L.divIcon({
+                            className: 'wrapper-label',
+                            html: `<div style="
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: #dc2626;
+                                text-shadow: 0 0 10px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.9);
+                                white-space: nowrap;
+                                pointer-events: none;
+                                user-select: none;
+                                letter-spacing: 0.3px;
+                                background: rgba(255,255,255,0.85);
+                                padding: 2px 10px;
+                                border-radius: 4px;
+                                border: 1.5px solid #dc2626;
+                            ">${cadNum}</div>`,
+                            iconSize: [0, 0],
+                            iconAnchor: [0, 0]
+                        }),
+                        interactive: false,
+                        zIndexOffset: 1000
+                    }).addTo(mapInstance);
+                    
+                    if (!window.wrapperLabels) window.wrapperLabels = [];
+                    window.wrapperLabels.push(label);
+                }
+            } catch(e) {
+                console.warn('⚠️ Не удалось добавить подпись для обертки:', e);
+            }
         }
     }).addTo(mapInstance);
     
     console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
 }
+
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
