@@ -311,23 +311,45 @@ function updateDistrictTooltip(layer, props) {
     const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
     const districtId = props.district_id || cadNum;
     
-    // ✅ ЕДИНАЯ ЛОГИКА ПОИСКА КВАРТАЛОВ (как в renderMapLevel)
-const districtObjects = mapData.features.filter(f => {
-    if (f.properties.level !== 2) return false;
-    const fParentId = f.properties.parent_id || f.properties.district_id;
-    return String(fParentId) === String(districtId) ||   // ← С String()
-           String(f.properties.district_id) === String(districtId);  // ← С String()
-});
+    // ✅ 1. Берем кварталы из GeoJSON
+    const districtObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return String(fParentId) === String(districtId) || 
+               String(f.properties.district_id) === String(districtId);
+    });
     
-    console.log(`🔄 updateDistrictTooltip: район ${districtId}, кварталов: ${districtObjects.length}`);
+    // ✅ 2. ДОБАВЛЯЕМ ОБЕРТКИ ИЗ CSV, КОТОРЫХ НЕТ В GEOJSON
+    const prefix = String(districtId).substring(0, 5);
+    const allCadNumbers = Object.keys(dealsData);
+    const wrapperQuarters = allCadNumbers.filter(cad => {
+        // Проверяем, что это обертка (заканчивается на 000000)
+        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+        // Проверяем, что обертка принадлежит этому району
+        return String(cad).startsWith(prefix);
+    });
     
-    // ✅ ДАЛЬШЕ ТОТ ЖЕ КОД ДЛЯ РАСЧЕТА СТАТИСТИКИ
+    // ✅ 3. Объединяем
+    const allQuarters = [...districtObjects];
+    wrapperQuarters.forEach(cad => {
+        allQuarters.push({
+            properties: { 
+                cadastral_number: cad,
+                level: 2,
+                district_id: districtId
+            }
+        });
+    });
+    
+    console.log(`🔄 Район ${districtId}: GeoJSON=${districtObjects.length}, оберток=${wrapperQuarters.length}, всего=${allQuarters.length}`);
+    
+    // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
     const quarterStats = [];
     let totalDeals = 0;
     let allMins = [];
     let allMaxs = [];
     
-    districtObjects.forEach(f => {
+    allQuarters.forEach(f => {
         const cadNumFeature = f.properties.cadastral_number;
         if (!cadNumFeature) return;
         
@@ -429,6 +451,7 @@ const districtObjects = mapData.features.filter(f => {
         interactive: false
     });
 }
+
 function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
@@ -1199,143 +1222,153 @@ function onMapFeatureClick(feature, layer) {
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
     
-    if (levelName === 'district') {
-        const cadNum = props.cadastral_number || props.district_id || '—';
-        const districtName = props.district_name || cadNum;
-        const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
-        const districtId = props.district_id || cadNum;
-        
-        // ✅ Получаем все кварталы в районе
-const districtObjects = mapData.features.filter(f => {
-    if (f.properties.level !== 2) return false;
-    const fParentId = f.properties.parent_id || f.properties.district_id;
-    return String(fParentId) === String(districtId) ||   // ← ДОБАВИЛИ String()
-           String(f.properties.district_id) === String(districtId);  // ← ДОБАВИЛИ String()
-});
-        
-        // ✅ Собираем статистику по кварталам ДЛЯ ВЗВЕШЕННОЙ МЕДИАНЫ
-        const quarterStats = [];
-        let totalDeals = 0;
-        let allMins = [];
-        let allMaxs = [];
-        let allPrices = [];
-        let allUprs = [];
-        
-        districtObjects.forEach(f => {
-            const cadNumFeature = f.properties.cadastral_number;
-            if (!cadNumFeature) return;
-            
-            const deals = dealsData[cadNumFeature] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                return true;
-            });
-            
-            if (filteredDeals.length > 0) {
-                totalDeals += filteredDeals.length;
-                
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                
-                // ✅ Сохраняем все цены и УПРС для общей статистики
-                allPrices = allPrices.concat(prices);
-                allUprs = allUprs.concat(uprs);
-                
-                if (prices.length > 0) {
-                    // ✅ Для каждого квартала сохраняем:
-                    // - медианную цену (для взвешенной медианы)
-                    // - медианный УПРС (для взвешенной медианы)
-                    // - мин/макс (для общей статистики)
-                    const medianPrice = getMedian(prices);
-                    const medianUprs = getMedian(uprs);
-                    
-                    quarterStats.push({
-                        count: filteredDeals.length,
-                        medianPrice: medianPrice,
-                        medianUprs: medianUprs,
-                        min: Math.min(...prices),
-                        max: Math.max(...prices)
-                    });
-                    
-                    allMins.push(Math.min(...prices));
-                    allMaxs.push(Math.max(...prices));
-                }
+if (levelName === 'district') {
+    const cadNum = props.cadastral_number || props.district_id || '—';
+    const districtName = props.district_name || cadNum;
+    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+    const districtId = props.district_id || cadNum;
+    
+    // ✅ 1. Берем кварталы из GeoJSON
+    const districtObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return String(fParentId) === String(districtId) || 
+               String(f.properties.district_id) === String(districtId);
+    });
+    
+    // ✅ 2. ДОБАВЛЯЕМ ОБЕРТКИ ИЗ CSV
+    const prefix = String(districtId).substring(0, 5);
+    const allCadNumbers = Object.keys(dealsData);
+    const wrapperQuarters = allCadNumbers.filter(cad => {
+        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+        return String(cad).startsWith(prefix);
+    });
+    
+    // ✅ 3. Объединяем
+    const allQuarters = [...districtObjects];
+    wrapperQuarters.forEach(cad => {
+        allQuarters.push({
+            properties: { 
+                cadastral_number: cad,
+                level: 2,
+                district_id: districtId
             }
         });
+    });
+    
+    // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
+    const quarterStats = [];
+    let totalDeals = 0;
+    let allMins = [];
+    let allMaxs = [];
+    let allPrices = [];
+    let allUprs = [];
+    
+    allQuarters.forEach(f => {
+        const cadNumFeature = f.properties.cadastral_number;
+        if (!cadNumFeature) return;
         
-        // ✅ Функция для расчета обычной медианы
-        function getMedian(arr) {
-            if (arr.length === 0) return 0;
-            const sorted = arr.slice().sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            if (sorted.length % 2 === 0) {
-                return (sorted[mid - 1] + sorted[mid]) / 2;
+        const deals = dealsData[cadNumFeature] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                return false;
             }
-            return sorted[mid];
-        }
-        
-        // ✅ РАСЧЕТ ВЗВЕШЕННОЙ МЕДИАНЫ (как на сайте)
-        let weightedMedianPrice = 0;
-        let weightedMedianUprs = 0;
-        let minPrice = 0;
-        let maxPrice = 0;
-        
-        if (quarterStats.length > 0) {
-            // 1. Взвешенная медиана для ЦЕНЫ
-            const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-            const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-            let cumsum = 0;
-            for (const q of sortedByPrice) {
-                cumsum += q.count;
-                if (cumsum >= totalWeight / 2) {
-                    weightedMedianPrice = q.medianPrice;
-                    break;
-                }
-            }
-            
-            // 2. Взвешенная медиана для УПРС
-            const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-            cumsum = 0;
-            for (const q of sortedByUprs) {
-                cumsum += q.count;
-                if (cumsum >= totalWeight / 2) {
-                    weightedMedianUprs = q.medianUprs;
-                    break;
-                }
-            }
-            
-            // 3. Мин и Макс из всех сделок
-            minPrice = Math.min(...allMins);
-            maxPrice = Math.max(...allMaxs);
-        }
-        
-        const formatNum = (num) => num.toLocaleString();
-        const formatPrice = (num) => num.toLocaleString() + ' ₽';
-        const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
-        
-        const tooltipContent = `
-            <div class="popup-title">📋 ${districtName}</div>
-            <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-            ${totalDeals > 0 ? `
-            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
-            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
-            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
-            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
-            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-        `;
-        
-        layer.bindTooltip(tooltipContent, {
-            className: 'custom-popup',
-            permanent: false,
-            direction: 'top',
-            offset: [0, -10],
-            opacity: 0.95,
-            sticky: true,
-            interactive: false
+            return true;
         });
+        
+        if (filteredDeals.length > 0) {
+            totalDeals += filteredDeals.length;
+            
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            allPrices = allPrices.concat(prices);
+            allUprs = allUprs.concat(uprs);
+            
+            if (prices.length > 0) {
+                const medianPrice = getMedian(prices);
+                const medianUprs = getMedian(uprs);
+                
+                quarterStats.push({
+                    count: filteredDeals.length,
+                    medianPrice: medianPrice,
+                    medianUprs: medianUprs,
+                    min: Math.min(...prices),
+                    max: Math.max(...prices)
+                });
+                
+                allMins.push(Math.min(...prices));
+                allMaxs.push(Math.max(...prices));
+            }
+        }
+    });
+    
+    function getMedian(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
     }
+    
+    let weightedMedianPrice = 0;
+    let weightedMedianUprs = 0;
+    let minPrice = 0;
+    let maxPrice = 0;
+    
+    if (quarterStats.length > 0) {
+        const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
+        const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
+        let cumsum = 0;
+        for (const q of sortedByPrice) {
+            cumsum += q.count;
+            if (cumsum >= totalWeight / 2) {
+                weightedMedianPrice = q.medianPrice;
+                break;
+            }
+        }
+        
+        const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
+        cumsum = 0;
+        for (const q of sortedByUprs) {
+            cumsum += q.count;
+            if (cumsum >= totalWeight / 2) {
+                weightedMedianUprs = q.medianUprs;
+                break;
+            }
+        }
+        
+        minPrice = Math.min(...allMins);
+        maxPrice = Math.max(...allMaxs);
+    }
+    
+    const formatNum = (num) => num.toLocaleString();
+    const formatPrice = (num) => num.toLocaleString() + ' ₽';
+    const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
+    
+    const tooltipContent = `
+        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+        ${totalDeals > 0 ? `
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+    
+    layer.bindTooltip(tooltipContent, {
+        className: 'custom-popup',
+        permanent: false,
+        direction: 'top',
+        offset: [0, -10],
+        opacity: 0.95,
+        sticky: true,
+        interactive: false
+    });
+}
 
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
@@ -1477,118 +1510,134 @@ function buildPopupContent(feature) {
         `;
     }
     
-    if (levelName === 'district') {
-        const cadNum = props.cadastral_number || props.district_id || '—';
-        const districtName = props.district_name || cadNum;
-        const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
-        const districtId = props.district_id || cadNum;
-        
-        // ✅ Получаем все кварталы в районе
-        const districtObjects = mapData.features.filter(f => {
-            if (f.properties.level !== 2) return false;
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === districtId || f.properties.district_id === districtId;
-        });
-        
-        // ✅ Собираем статистику по кварталам для взвешенной медианы
-        const quarterStats = [];
-        let totalDeals = 0;
-        let allMins = [];
-        let allMaxs = [];
-        
-        districtObjects.forEach(f => {
-            const cadNumFeature = f.properties.cadastral_number;
-            if (!cadNumFeature) return;
-            
-            const deals = dealsData[cadNumFeature] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                return true;
-            });
-            
-            if (filteredDeals.length > 0) {
-                totalDeals += filteredDeals.length;
-                
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                
-                if (prices.length > 0) {
-                    const medianPrice = getMedian(prices);
-                    const medianUprs = getMedian(uprs);
-                    
-                    quarterStats.push({
-                        count: filteredDeals.length,
-                        medianPrice: medianPrice,
-                        medianUprs: medianUprs,
-                        min: Math.min(...prices),
-                        max: Math.max(...prices)
-                    });
-                    
-                    allMins.push(Math.min(...prices));
-                    allMaxs.push(Math.max(...prices));
-                }
+ if (levelName === 'district') {
+    const cadNum = props.cadastral_number || props.district_id || '—';
+    const districtName = props.district_name || cadNum;
+    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+    const districtId = props.district_id || cadNum;
+    
+    // ✅ 1. Берем кварталы из GeoJSON
+    const districtObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return String(fParentId) === String(districtId) || 
+               String(f.properties.district_id) === String(districtId);
+    });
+    
+    // ✅ 2. ДОБАВЛЯЕМ ОБЕРТКИ ИЗ CSV
+    const prefix = String(districtId).substring(0, 5);
+    const allCadNumbers = Object.keys(dealsData);
+    const wrapperQuarters = allCadNumbers.filter(cad => {
+        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+        return String(cad).startsWith(prefix);
+    });
+    
+    // ✅ 3. Объединяем
+    const allQuarters = [...districtObjects];
+    wrapperQuarters.forEach(cad => {
+        allQuarters.push({
+            properties: { 
+                cadastral_number: cad,
+                level: 2,
+                district_id: districtId
             }
         });
+    });
+    
+    // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
+    const quarterStats = [];
+    let totalDeals = 0;
+    let allMins = [];
+    let allMaxs = [];
+    
+    allQuarters.forEach(f => {
+        const cadNumFeature = f.properties.cadastral_number;
+        if (!cadNumFeature) return;
         
-        // ✅ Функция для расчета обычной медианы
-        function getMedian(arr) {
-            if (arr.length === 0) return 0;
-            const sorted = arr.slice().sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            if (sorted.length % 2 === 0) {
-                return (sorted[mid - 1] + sorted[mid]) / 2;
+        const deals = dealsData[cadNumFeature] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                return false;
             }
-            return sorted[mid];
-        }
+            return true;
+        });
         
-        // ✅ РАСЧЕТ ВЗВЕШЕННОЙ МЕДИАНЫ (как на сайте)
-        let weightedMedianPrice = 0;
-        let weightedMedianUprs = 0;
-        let minPrice = 0;
-        let maxPrice = 0;
-        
-        if (quarterStats.length > 0) {
-            // 1. Взвешенная медиана для ЦЕНЫ
-            const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-            const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-            let cumsum = 0;
-            for (const q of sortedByPrice) {
-                cumsum += q.count;
-                if (cumsum >= totalWeight / 2) {
-                    weightedMedianPrice = q.medianPrice;
-                    break;
-                }
-            }
+        if (filteredDeals.length > 0) {
+            totalDeals += filteredDeals.length;
             
-            // 2. Взвешенная медиана для УПРС
-            const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-            cumsum = 0;
-            for (const q of sortedByUprs) {
-                cumsum += q.count;
-                if (cumsum >= totalWeight / 2) {
-                    weightedMedianUprs = q.medianUprs;
-                    break;
-                }
-            }
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
             
-            // 3. Мин и Макс из всех сделок
-            minPrice = Math.min(...allMins);
-            maxPrice = Math.max(...allMaxs);
+            if (prices.length > 0) {
+                const medianPrice = getMedian(prices);
+                const medianUprs = getMedian(uprs);
+                
+                quarterStats.push({
+                    count: filteredDeals.length,
+                    medianPrice: medianPrice,
+                    medianUprs: medianUprs,
+                    min: Math.min(...prices),
+                    max: Math.max(...prices)
+                });
+                
+                allMins.push(Math.min(...prices));
+                allMaxs.push(Math.max(...prices));
+            }
         }
-        
-        return `
-            <div class="popup-title">📋 ${districtName}</div>
-            <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-            ${totalDeals > 0 ? `
-            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${totalDeals.toLocaleString()}</span></div>
-            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${weightedMedianPrice.toLocaleString()} ₽</span></div>
-            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${weightedMedianUprs.toFixed(2)} ₽/м²</span></div>
-            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-        `;
+    });
+    
+    function getMedian(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
     }
+    
+    let weightedMedianPrice = 0;
+    let weightedMedianUprs = 0;
+    let minPrice = 0;
+    let maxPrice = 0;
+    
+    if (quarterStats.length > 0) {
+        const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
+        const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
+        let cumsum = 0;
+        for (const q of sortedByPrice) {
+            cumsum += q.count;
+            if (cumsum >= totalWeight / 2) {
+                weightedMedianPrice = q.medianPrice;
+                break;
+            }
+        }
+        
+        const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
+        cumsum = 0;
+        for (const q of sortedByUprs) {
+            cumsum += q.count;
+            if (cumsum >= totalWeight / 2) {
+                weightedMedianUprs = q.medianUprs;
+                break;
+            }
+        }
+        
+        minPrice = Math.min(...allMins);
+        maxPrice = Math.max(...allMaxs);
+    }
+    
+    return `
+        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+        ${totalDeals > 0 ? `
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${totalDeals.toLocaleString()}</span></div>
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${weightedMedianPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${weightedMedianUprs.toFixed(2)} ₽/м²</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+}
     
     if (levelName === 'quarter') {
         const cadNum = props.cadastral_number || '—';
