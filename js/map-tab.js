@@ -144,33 +144,43 @@ function renderDealTypeFilters() {
         </table>
     `;
     
-    // Кнопка "Сбросить фильтр"
-    if (currentDealTypeFilter) {
-        html += `
-            <div onclick="applyDealTypeFilter(null)" 
-                 style="
-                     text-align: center;
-                     padding: 8px;
-                     margin-top: 10px;
-                     border-top: 1px solid #e2e8f0;
-                     font-size: 11px;
-                     color: #ef4444;
-                     cursor: pointer;
-                     font-weight: 500;
-                     border-radius: 6px;
-                 "
+    // ✅ КНОПКА СБРОСА ВСЕГДА ВИДНА
+    html += `
+        <div onclick="applyDealTypeFilter(null)" 
+             style="
+                 text-align: center;
+                 padding: 8px;
+                 margin-top: 10px;
+                 border-top: 1px solid #e2e8f0;
+                 font-size: 11px;
+                 color: ${currentDealTypeFilter ? '#ef4444' : '#94a3b8'};
+                 cursor: ${currentDealTypeFilter ? 'pointer' : 'default'};
+                 font-weight: ${currentDealTypeFilter ? '500' : '400'};
+                 border-radius: 6px;
+                 transition: all 0.15s;
+                 opacity: ${currentDealTypeFilter ? '1' : '0.5'};
+             "
+             ${currentDealTypeFilter ? `
                  onmouseover="this.style.background='#fef2f2'"
-                 onmouseout="this.style.background='transparent'">
-                ✕ Сбросить фильтр
-            </div>
-        `;
-    }
+                 onmouseout="this.style.background='transparent'"
+             ` : ''}
+             >
+            ✕ Сбросить фильтр ${currentDealTypeFilter ? `(${currentDealTypeFilter})` : ''}
+        </div>
+    `;
     
     container.innerHTML = html;
 }
 
 function applyDealTypeFilter(kind) {
-    currentDealTypeFilter = currentDealTypeFilter === kind ? null : kind;
+    // Если кликнули на тот же тип - сбрасываем фильтр
+    if (currentDealTypeFilter === kind) {
+        currentDealTypeFilter = null;
+    } else {
+        currentDealTypeFilter = kind;
+    }
+    
+    // ✅ ВСЕГДА ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
     renderDealTypeFilters();
     
     const level = currentLevel;
@@ -178,81 +188,75 @@ function applyDealTypeFilter(kind) {
     
     console.log(`🔍 applyDealTypeFilter: level=${level}, parentId=${parentId}, filter=${currentDealTypeFilter}`);
     
-    // Получаем объекты для текущего уровня
-    let targetObjects = [];
+    // ✅ ВСЕГДА ОБНОВЛЯЕМ СТАТИСТИКУ И КВАРТАЛЫ
+    updateMapStatsFromDeals(level, parentId);
+    
+    // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
     
     if (level === 0 || level === 1) {
         targetObjects = allObjects;
     } else if (level === 2) {
         targetObjects = allObjects.filter(f => {
             const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === parentId;
+            return String(fParentId) === String(parentId);
         });
     }
     
-    console.log(`📊 targetObjects: ${targetObjects.length} объектов`);
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
     
-    // ✅ ЕСЛИ ФИЛЬТР ВЫКЛЮЧЕН (null)
-    if (currentDealTypeFilter === null) {
-        if (level === 1) {
-            const filtered = mapData.features.filter(f => {
-                const props = f.properties;
-                if (props.level !== 2) return false;
-                if (level === 1) return props.parent_id === '89';
-                return false;
-            });
-            
-            const normalQuarters = filtered.filter(f => {
-                const cadNum = f.properties?.cadastral_number || '';
-                return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
-            });
-            
-            updateMapStatsFromDeals(level, parentId);
-            updateQuartersStyle(targetObjects);
-        } else if (level === 2) {
-            const filtered = mapData.features.filter(f => {
-                const props = f.properties;
-                if (props.level !== 2) return false;
-                if (parentId) {
-                    const belongs = String(props.parent_id) === String(parentId) || 
-                                   String(props.district_id) === String(parentId);
-                    return belongs;
-                }
-                return false;
-            });
-            
-            const normalQuarters = filtered.filter(f => {
-                const cadNum = f.properties?.cadastral_number || '';
-                return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
-            });
-            
-           updateMapStatsFromDeals(level, parentId);
-            updateQuartersStyle(targetObjects);
-            updateQuartersListWithFilteredObjects(null);
-        }
-    } 
-    // ✅ ЕСЛИ ФИЛЬТР АКТИВЕН
-    else {
-        updateMapStatsWithDealFilter(targetObjects, level, parentId);
-        updateQuartersStyle(targetObjects);
-    }
+    // ✅ ВСЕГДА ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
+    updatePopupsAndTooltips(level);
     
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ ДЛЯ ВСЕХ УРОВНЕЙ
-    if (window.mapLayer) {
-        window.mapLayer.eachLayer(function(layer) {
+    
+    // ✅ ВСЕГДА ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
+    updateQuartersListWithFilteredObjects(null);
+    
+    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
                 const props = layer.feature.properties;
-                const levelName = props.level_name || 'unknown';
+                const cadNum = props.cadastral_number || '—';
+                const deals = dealsData[cadNum] || [];
+                const filteredDeals = deals.filter(deal => {
+                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                        return false;
+                    }
+                    return true;
+                });
                 
-                if (levelName === 'district') {
-                    updateDistrictTooltip(layer, props);
+                const dealsCount = filteredDeals.length;
+                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+                
+                function getMedian(arr) {
+                    if (arr.length === 0) return 0;
+                    const sorted = arr.slice().sort((a, b) => a - b);
+                    const mid = Math.floor(sorted.length / 2);
+                    if (sorted.length % 2 === 0) {
+                        return (sorted[mid - 1] + sorted[mid]) / 2;
+                    }
+                    return sorted[mid];
                 }
                 
-                if (levelName === 'quarter') {
-                    const newPopupContent = buildPopupContent(layer.feature);
-                    layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
-                }
+                const medianPrice = getMedian(prices);
+                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+                const uprsMedian = getMedian(uprsValues);
+                
+                const popupContent = `
+                    <div class="popup-title">${cadNum}</div>
+                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                    ${dealsCount > 0 ? `
+                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+                `;
+                layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
             }
         });
     }
@@ -937,46 +941,67 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     const quartersList = document.getElementById('quarters-list');
     if (!quartersList) return;
     
-    // ✅ ВСЕГДА начинаем с пустого массива
-    let itemsToShow = [];
+    const level = currentLevel;
+    const parentId = currentParentId;
     
-    // ✅ Если переданы объекты - добавляем их
-    if (objectsWithDeals && objectsWithDeals.length > 0) {
-        itemsToShow = [...objectsWithDeals];
+    // ✅ Собираем ВСЕ кварталы для текущего уровня
+    let allQuarters = [];
+    
+    if (level === 0 || level === 1) {
+        // Для округа или района - все кварталы
+        allQuarters = mapData.features.filter(f => f.properties.level === 2);
+        
+        // Добавляем обертки из CSV
+        const prefix = level === 1 && parentId ? String(parentId).substring(0, 5) : '89';
+        const allCadNumbers = Object.keys(dealsData);
+        const wrapperQuarters = allCadNumbers.filter(cad => {
+            if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+            if (level === 1 && parentId) {
+                return String(cad).startsWith(prefix);
+            }
+            return true;
+        });
+        
+        wrapperQuarters.forEach(cad => {
+            if (!allQuarters.some(f => f.properties?.cadastral_number === cad)) {
+                allQuarters.push({
+                    properties: { 
+                        cadastral_number: cad,
+                        level: 2
+                    }
+                });
+            }
+        });
+    } else if (level === 2 && parentId) {
+        // Для конкретного района - только кварталы этого района
+        allQuarters = mapData.features.filter(f => {
+            if (f.properties.level !== 2) return false;
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+        
+        // Добавляем обертки для этого района
+        const prefix = String(parentId).substring(0, 5);
+        const allCadNumbers = Object.keys(dealsData);
+        const wrapperQuarters = allCadNumbers.filter(cad => {
+            if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+            return String(cad).startsWith(prefix);
+        });
+        
+        wrapperQuarters.forEach(cad => {
+            if (!allQuarters.some(f => f.properties?.cadastral_number === cad)) {
+                allQuarters.push({
+                    properties: { 
+                        cadastral_number: cad,
+                        level: 2
+                    }
+                });
+            }
+        });
     }
     
-    // ✅ ВСЕГДА добавляем ВСЕ кварталы из GeoJSON (не только обертки!)
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    
-    // Добавляем все кварталы из GeoJSON
-    allObjects.forEach(f => {
-        const cadNum = f.properties.cadastral_number;
-        if (cadNum && !itemsToShow.some(item => item.properties?.cadastral_number === cadNum)) {
-            itemsToShow.push(f);
-        }
-    });
-    
-    // ✅ Добавляем обертки из CSV
-    const prefix = currentParentId ? String(currentParentId).substring(0, 5) : '89';
-    const allCadNumbers = Object.keys(dealsData);
-    const wrapperQuarters = allCadNumbers.filter(cad => {
-        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
-        return String(cad).startsWith(prefix);
-    });
-    
-    wrapperQuarters.forEach(cad => {
-        if (!itemsToShow.some(f => f.properties?.cadastral_number === cad)) {
-            itemsToShow.push({
-                properties: { 
-                    cadastral_number: cad,
-                    level: 2
-                }
-            });
-        }
-    });
-    
     // ✅ Фильтруем по наличию сделок с учетом фильтра
-    const withDeals = itemsToShow.filter(f => {
+    const withDeals = allQuarters.filter(f => {
         const cadNum = f.properties?.cadastral_number;
         if (!cadNum) return false;
         const deals = dealsData[cadNum] || [];
@@ -1015,6 +1040,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     });
     quartersList.innerHTML = html;
 }
+
 function updateQuartersStyle(targetObjects) {
     if (!window.mapLayer) return;
     
