@@ -448,6 +448,7 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
     updateQuartersListWithFilteredObjects(null);
 }
+
 function updateMapStatsFromDeals(level, parentId) {
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
@@ -458,7 +459,6 @@ function updateMapStatsFromDeals(level, parentId) {
     
     if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
-    // ✅ ПОЛУЧАЕМ ВСЕ КВАРТАЛЫ ИЗ GEOJSON
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     let allQuarters = [];
     
@@ -519,7 +519,6 @@ function updateMapStatsFromDeals(level, parentId) {
     
     console.log(`📊 Уровень ${level}, всего кварталов: ${allQuarters.length}`);
     
-    // ✅ СЧИТАЕМ СТАТИСТИКУ ПО КВАРТАЛАМ
     const quarterStats = [];
     let totalDeals = 0;
     let allMins = [];
@@ -661,169 +660,9 @@ function updateMapStatsFromDeals(level, parentId) {
             });
             quartersList.innerHTML = html;
         }
-    }
+    }   
     updatePopupsAndTooltips(level);
 }
-
-    const quarterStats = [];
-    let totalDeals = 0;
-    let allMins = [];
-    let allMaxs = [];
-    let allPrices = [];
-    let allUprs = [];
-    let quartersWithDeals = [];
-    
-    allQuarters.forEach(f => {
-        const cadNum = f.properties.cadastral_number;
-        if (!cadNum) return;
-        
-        const deals = dealsData[cadNum] || [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
-        });
-        
-        if (filteredDeals.length > 0) {
-            totalDeals += filteredDeals.length;
-            quartersWithDeals.push(cadNum);
-            
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-            
-            allPrices = allPrices.concat(prices);
-            allUprs = allUprs.concat(uprs);
-            
-            if (prices.length > 0) {
-                quarterStats.push({
-                    count: filteredDeals.length,
-                    medianPrice: getMedian(prices),
-                    medianUprs: getMedian(uprs),
-                    min: Math.min(...prices),
-                    max: Math.max(...prices)
-                });
-                allMins.push(Math.min(...prices));
-                allMaxs.push(Math.max(...prices));
-            }
-        }
-    });
-    
-    function getMedian(arr) {
-        if (arr.length === 0) return 0;
-        const sorted = arr.slice().sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 0) {
-            return (sorted[mid - 1] + sorted[mid]) / 2;
-        }
-        return sorted[mid];
-    }
-    
-    // ✅ ВЫЧИСЛЯЕМ ВЗВЕШЕННУЮ МЕДИАНУ (ОДИНАКОВО ДЛЯ ВСЕХ УРОВНЕЙ)
-    let weightedMedianPrice = 0;
-    let weightedMedianUprs = 0;
-    let minPrice = 0;
-    let maxPrice = 0;
-    
-    if (quarterStats.length > 0) {
-        // Взвешенная медиана по цене
-        const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-        const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-        let cumsum = 0;
-        for (const q of sortedByPrice) {
-            cumsum += q.count;
-            if (cumsum >= totalWeight / 2) {
-                weightedMedianPrice = q.medianPrice;
-                break;
-            }
-        }
-        
-        // Взвешенная медиана по УПРС
-        const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-        cumsum = 0;
-        for (const q of sortedByUprs) {
-            cumsum += q.count;
-            if (cumsum >= totalWeight / 2) {
-                weightedMedianUprs = q.medianUprs;
-                break;
-            }
-        }
-        
-        minPrice = Math.min(...allMins);
-        maxPrice = Math.max(...allMaxs);
-    }
-    
-    const formatPrice = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toLocaleString('ru-RU') + ' ₽';
-    };
-    
-    const formatNumber = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toLocaleString('ru-RU');
-    };
-    
-    const formatUprs = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toFixed(2) + ' ₽/м²';
-    };
-    
-    // ✅ ВЫВОДИМ СТАТИСТИКУ
-    statMedian.textContent = formatPrice(weightedMedianPrice);
-    statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
-        ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
-        : '—';
-    statUprs.textContent = formatUprs(weightedMedianUprs);
-    statTotalDeals.textContent = totalDeals.toLocaleString();
-    
-    if (statObjects) statObjects.textContent = allQuarters.length;
-    if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
-    
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
-    const quartersList = document.getElementById('quarters-list');
-    if (quartersList) {
-        if (quarterStats.length === 0) {
-            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        } else {
-            // Собираем кварталы с их кадастровыми номерами
-            const sortedQuarters = allQuarters.filter(f => {
-                const cadNum = f.properties?.cadastral_number;
-                if (!cadNum) return false;
-                const deals = dealsData[cadNum] || [];
-                const filtered = deals.filter(d => {
-                    if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-                    return true;
-                });
-                return filtered.length > 0;
-            }).sort((a, b) => {
-                const countA = getDealsCountForObject(a);
-                const countB = getDealsCountForObject(b);
-                return countB - countA;
-            });
-            
-            let html = '';
-            sortedQuarters.forEach(f => {
-                const cadNum = f.properties?.cadastral_number || '—';
-                const count = getDealsCountForObject(f);
-                html += `
-                    <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                         onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                         onmouseover="this.style.background='#f1f5f9'"
-                         onmouseout="this.style.background='transparent'">
-                        <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-                    </div>
-                `;
-            });
-            quartersList.innerHTML = html;
-        }
-    }
-    
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-}
-
 
 function updatePopupsAndTooltips(level) {
     if (!window.mapLayer) return;
