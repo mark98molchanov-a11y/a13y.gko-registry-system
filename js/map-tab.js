@@ -193,15 +193,135 @@ function applyDealTypeFilter(kind) {
     // Обновляем статистику с фильтром
     updateMapStatsWithDealFilter(targetObjects, level, parentId);
     
-    // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ТУЛТИПЫ (перерисовка карты)
+    // ✅ ОБНОВЛЯЕМ ТУЛТИПЫ И ПОПАПЫ БЕЗ ПЕРЕРИСОВКИ КАРТЫ
     if (window.mapLayer) {
-        // Пересоздаем слой с новыми данными
-        const currentLevelState = level;
-        const currentParentIdState = parentId;
-        
-        // Перерисовываем текущий уровень
-        renderMapLevel(currentLevelState, currentParentIdState);
+        // Обновляем тултипы для районов (level 1) и кварталов (level 2)
+        window.mapLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.properties) {
+                const props = layer.feature.properties;
+                const levelName = props.level_name || 'unknown';
+                
+                // Пересоздаем тултип для районов
+                if (levelName === 'district') {
+                    // Пересоздаем тултип с новыми данными
+                    updateDistrictTooltip(layer, props);
+                }
+                
+                // Пересоздаем попап для кварталов (уже обновляется через buildPopupContent)
+                if (levelName === 'quarter') {
+                    // Обновляем попап
+                    const newPopupContent = buildPopupContent(layer.feature);
+                    layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
+                }
+            }
+        });
     }
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ТУЛТИПА ДЛЯ РАЙОНА
+function updateDistrictTooltip(layer, props) {
+    const cadNum = props.cadastral_number || props.district_id || '—';
+    const districtName = props.district_name || cadNum;
+    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+    const districtId = props.district_id || cadNum;
+    
+    const districtObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return fParentId === districtId || f.properties.district_id === districtId;
+    });
+    
+    let totalDeals = 0;
+    let allPrices = [];
+    let allMins = [];
+    let allMaxs = [];
+    let allUprs = [];
+    
+    districtObjects.forEach(f => {
+        const cadNumFeature = f.properties.cadastral_number;
+        if (!cadNumFeature) return;
+        
+        const deals = dealsData[cadNumFeature] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                return false;
+            }
+            return true;
+        });
+        
+        if (filteredDeals.length > 0) {
+            totalDeals += filteredDeals.length;
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            if (prices.length > 0) {
+                const median = getWeightedMedianByDeals(prices);
+                allPrices.push({ value: median, weight: filteredDeals.length });
+                allMins.push(Math.min(...prices));
+                allMaxs.push(Math.max(...prices));
+            }
+            if (uprs.length > 0) {
+                allUprs.push({ value: getWeightedMedianByDeals(uprs), weight: filteredDeals.length });
+            }
+        }
+    });
+    
+    function getWeightedMedianByDeals(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
+    }
+    
+    function getWeightedMedian(arr, totalWeight) {
+        if (arr.length === 0 || totalWeight === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a.value - b.value);
+        let cumulative = 0;
+        const halfWeight = totalWeight / 2;
+        for (let i = 0; i < sorted.length; i++) {
+            cumulative += sorted[i].weight;
+            if (cumulative >= halfWeight) {
+                return sorted[i].value;
+            }
+        }
+        return sorted[sorted.length - 1].value;
+    }
+    
+    const totalPriceWeight = allPrices.reduce((sum, p) => sum + p.weight, 0);
+    const totalUprsWeight = allUprs.reduce((sum, p) => sum + p.weight, 0);
+    
+    const medianPrice = getWeightedMedian(allPrices, totalPriceWeight);
+    const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
+    const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
+    const uprsMedian = getWeightedMedian(allUprs, totalUprsWeight);
+    
+    const formatNum = (num) => num.toLocaleString();
+    const formatPrice = (num) => num.toLocaleString() + ' ₽';
+    const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
+    
+    const tooltipContent = `
+        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+        ${totalDeals > 0 ? `
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(medianPrice)}</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(uprsMedian)}</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+    
+    layer.bindTooltip(tooltipContent, {
+        className: 'custom-popup',
+        permanent: false,
+        direction: 'top',
+        offset: [0, -10],
+        opacity: 0.95,
+        sticky: true,
+        interactive: false
+    });
 }
 function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     const statMedian = document.getElementById('stat-median');
