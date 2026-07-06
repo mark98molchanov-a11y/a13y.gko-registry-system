@@ -1095,15 +1095,6 @@ if (wrapperQuarters.length > 0) {
         onEachFeature: function(feature, layer) {
             const cadNum = feature.properties.cadastral_number || '—';
             
-            // ✅ ДОБАВЛЯЕМ КЛИК ДЛЯ ПЕРЕХОДА НА РАЙОНЫ
-   layer.on('click', function(e) {
-    renderMapLevel(0);
-    updateBreadcrumb('okrug');
-    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-    }
-});
-
             
             // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
             const deals = dealsData[cadNum] || [];
@@ -1152,39 +1143,38 @@ if (wrapperQuarters.length > 0) {
             });
             
           try {
-                const bounds = layer.getBounds();
-                if (bounds && bounds.isValid()) {
-                    const center = bounds.getCenter();
-                    const label = L.marker(center, {
-                        icon: L.divIcon({
-                            className: 'wrapper-label',
-                            html: `<div style="
-                                font-size: 12px;
-                                font-weight: 700;
-                                color: #dc2626;
-                                text-shadow: 0 0 10px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.9);
-                                white-space: nowrap;
-                                pointer-events: none;
-                                user-select: none;
-                                letter-spacing: 0.3px;
-                                background: rgba(255,255,255,0.85);
-                                padding: 2px 10px;
-                                border-radius: 4px;
-                                border: 1.5px solid #dc2626;
-                            ">${cadNum}</div>`,
-                            iconSize: [0, 0],
-                            iconAnchor: [0, 0]
-                        }),
-                        interactive: false,
-                        zIndexOffset: 1000
-                    }).addTo(mapInstance);
-                    
-                    if (!window.wrapperLabels) window.wrapperLabels = [];
-                    window.wrapperLabels.push(label);
-                }
-            } catch(e) {
-                console.warn('⚠️ Не удалось добавить подпись для обертки:', e);
-            }
+    const bounds = layer.getBounds();
+    if (bounds && bounds.isValid()) {
+        const center = bounds.getCenter();
+        const label = L.marker(center, {
+            icon: L.divIcon({
+                className: 'wrapper-label',
+                html: `<div style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #1e293b;
+                    text-shadow: 0 0 8px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.9);
+                    white-space: nowrap;
+                    pointer-events: none;
+                    user-select: none;
+                    letter-spacing: 0.3px;
+                    background: none;
+                    padding: 0;
+                    border: none;
+                ">89:00</div>`,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0]
+            }),
+            interactive: false,
+            zIndexOffset: 1000
+        }).addTo(mapInstance);
+        
+        if (!window.wrapperLabels) window.wrapperLabels = [];
+        window.wrapperLabels.push(label);
+    }
+} catch(e) {
+    console.warn('⚠️ Не удалось добавить подпись для обертки:', e);
+}
         }
     }).addTo(mapInstance);
     
@@ -2025,7 +2015,12 @@ function clearAllLabels() {
         });
         window.districtLabels = [];
     }
-    
+        if (window.wrapperLabels) {
+        window.wrapperLabels.forEach(label => {
+            if (mapInstance) mapInstance.removeLayer(label);
+        });
+        window.wrapperLabels = [];
+    }
     // Очищаем подписи кварталов
     if (window.quarterLabels) {
         window.quarterLabels.forEach(label => {
