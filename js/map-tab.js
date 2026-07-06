@@ -259,7 +259,6 @@ function applyDealTypeFilter(kind) {
             }
         });
     }
-}
     updatePopupsAndTooltips(level);
     // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
     if (window.wrapperLayer) {
