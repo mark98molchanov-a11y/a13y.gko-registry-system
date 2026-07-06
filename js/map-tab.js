@@ -194,8 +194,49 @@ function applyDealTypeFilter(kind) {
     
     console.log(`📊 targetObjects: ${targetObjects.length} объектов`);
     
-    // Обновляем статистику с фильтром
-    updateMapStatsWithDealFilter(targetObjects, level, parentId);
+    // ✅ ЕСЛИ ФИЛЬТР ВЫКЛЮЧЕН (null) И МЫ НА УРОВНЕ РАЙОНОВ (level === 1)
+    // ИСПОЛЬЗУЕМ updateMapStats С ДАННЫМИ ИЗ GEOJSON
+    if (currentDealTypeFilter === null && level === 1) {
+        // Получаем нормальные кварталы для этого уровня
+        const filtered = mapData.features.filter(f => {
+            const props = f.properties;
+            if (props.level !== 2) return false;
+            if (level === 1) return props.parent_id === '89';
+            return false;
+        });
+        
+        const normalQuarters = filtered.filter(f => {
+            const cadNum = f.properties?.cadastral_number || '';
+            return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+        });
+        
+        updateMapStats(normalQuarters, level, parentId);
+    } 
+    // ✅ ЕСЛИ ФИЛЬТР ВЫКЛЮЧЕН (null) И МЫ НА УРОВНЕ КВАРТАЛОВ (level === 2)
+    else if (currentDealTypeFilter === null && level === 2) {
+        // Получаем нормальные кварталы для этого района
+        const filtered = mapData.features.filter(f => {
+            const props = f.properties;
+            if (props.level !== 2) return false;
+            if (parentId) {
+                const belongs = String(props.parent_id) === String(parentId) || 
+                               String(props.district_id) === String(parentId);
+                return belongs;
+            }
+            return false;
+        });
+        
+        const normalQuarters = filtered.filter(f => {
+            const cadNum = f.properties?.cadastral_number || '';
+            return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+        });
+        
+        updateMapStats(normalQuarters, level, parentId);
+    }
+    // ✅ ЕСЛИ ФИЛЬТР АКТИВЕН - ИСПОЛЬЗУЕМ updateMapStatsWithDealFilter
+    else {
+        updateMapStatsWithDealFilter(targetObjects, level, parentId);
+    }
     
     // ✅ ОБНОВЛЯЕМ ТУЛТИПЫ И ПОПАПЫ
     if (window.mapLayer) {
