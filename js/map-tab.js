@@ -2094,26 +2094,40 @@ function searchQuarterByCadNumber(cadNumber) {
         // Проверяем, есть ли такой кадастровый номер в dealsData
         const isWrapper = Object.keys(dealsData).includes(cadNumber);
         if (isWrapper) {
-            console.log(`✅ Найдена обертка: ${cadNumber}`);
+            console.log(`✅ Найдена обертка: ${cadNumber}, переходим на уровень округа с фильтром`);
             
-            // Для обертки — просто показываем уведомление
-            // или можно попытаться найти геометрию обертки
-            // Показываем алерт с информацией
-            alert(`📋 Обертка ${cadNumber}\nСделок: ${dealsData[cadNumber]?.length || 0}`);
+            // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ ОКРУГА (level 0) — ТАМ ВИДНА ОБЕРТКА
+            renderMapLevel(0);
+            updateBreadcrumb('okrug');
             
-            // Если есть геометрия для обертки, можно центрировать карту
-            // Для уровня округа (level 0) — центрируем на ЯНАО
-            if (mapInstance) {
-                const okrugFeature = mapData.features.find(f => f.properties.level === 0);
-                if (okrugFeature && okrugFeature.geometry) {
-                    // Переходим на уровень округа и центрируем
-                    renderMapLevel(0);
-                    updateBreadcrumb('okrug');
-                    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-                    }
-                }
+            // ✅ ПРИМЕНЯЕМ ФИЛЬТР (если активен)
+            if (currentDealTypeFilter) {
+                updateMapStatsFromDeals(0, null);
+                updateQuartersListWithFilteredObjects(null);
             }
+            
+            // ✅ ПОДСВЕЧИВАЕМ ОБЕРТКУ НА КАРТЕ
+            setTimeout(() => {
+                if (window.wrapperLayer) {
+                    window.wrapperLayer.eachLayer(function(layer) {
+                        if (layer.feature && layer.feature.properties) {
+                            if (layer.feature.properties.cadastral_number === cadNumber) {
+                                // Подсвечиваем обертку
+                                layer.setStyle({
+                                    fillOpacity: 0.6,
+                                    weight: 3,
+                                    color: '#ff0000',
+                                    opacity: 0.9
+                                });
+                                layer.openPopup();
+                                if (layer.getBounds && layer.getBounds().isValid()) {
+                                    mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+                                }
+                            }
+                        }
+                    });
+                }
+            }, 300);
             return;
         }
         
@@ -2147,6 +2161,7 @@ function searchQuarterByCadNumber(cadNumber) {
         }
     }, 300);
 }
+
 
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
