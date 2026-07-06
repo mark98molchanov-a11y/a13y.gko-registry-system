@@ -321,6 +321,20 @@ function updateDistrictTooltip(layer, props) {
         });
     }
 }
+function getDealsCountForObject(feature) {
+    const cadNum = feature.properties?.cadastral_number;
+    if (!cadNum) return 0;
+    
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        return true;
+    });
+    
+    return filteredDeals.length;
+}
 function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
@@ -745,34 +759,43 @@ function updateMapStatsFromDeals(level, parentId) {
 function updatePopupsAndTooltips(level) {
     if (!window.mapLayer) return;
     
+    console.log(`🔄 updatePopupsAndTooltips: level=${level}, filter=${currentDealTypeFilter}`);
+    
     window.mapLayer.eachLayer(function(layer) {
-        if (layer.feature && layer.feature.properties) {
-            const props = layer.feature.properties;
-            const levelName = props.level_name || 'unknown';
-            
-            if (levelName === 'district') {
-                // ✅ ПЕРЕСОЗДАЕМ ТУЛТИП
-                const tooltipContent = buildDistrictTooltipContent(layer);
-                if (tooltipContent) {
-                    layer.unbindTooltip();
-                    layer.bindTooltip(tooltipContent, {
-                        className: 'custom-popup',
-                        permanent: false,
-                        direction: 'top',
-                        offset: [0, -10],
-                        opacity: 0.95,
-                        sticky: true,
-                        interactive: false
-                    });
-                }
+        if (!layer.feature || !layer.feature.properties) return;
+        
+        const props = layer.feature.properties;
+        const levelName = props.level_name || 'unknown';
+        
+        if (levelName === 'district') {
+            // ✅ ПЕРЕСОЗДАЕМ ТУЛТИП
+            const tooltipContent = buildDistrictTooltipContent(layer);
+            if (tooltipContent) {
+                // Удаляем старый тултип
+                layer.unbindTooltip();
+                // Привязываем новый
+                layer.bindTooltip(tooltipContent, {
+                    className: 'custom-popup',
+                    permanent: false,
+                    direction: 'top',
+                    offset: [0, -10],
+                    opacity: 0.95,
+                    sticky: true,
+                    interactive: false
+                });
+                console.log(`✅ Тултип обновлен для: ${props.district_name}`);
             }
-            
-            if (levelName === 'quarter') {
-                // ✅ ПЕРЕСОЗДАЕМ ПОПАП
-                const newPopupContent = buildPopupContent(layer.feature);
-                layer.unbindPopup();
-                layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
-            }
+        }
+        
+        if (levelName === 'quarter') {
+            // ✅ ПЕРЕСОЗДАЕМ ПОПАП
+            const newPopupContent = buildPopupContent(layer.feature);
+            layer.unbindPopup();
+            layer.bindPopup(newPopupContent, { 
+                className: 'custom-popup', 
+                maxWidth: 300,
+                closeButton: true
+            });
         }
     });
 }
