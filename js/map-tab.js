@@ -229,6 +229,7 @@ function applyDealTypeFilter(kind) {
             
            updateMapStatsFromDeals(level, parentId);
             updateQuartersStyle(targetObjects);
+            updateQuartersListWithFilteredObjects(null);
         }
     } 
     // ✅ ЕСЛИ ФИЛЬТР АКТИВЕН
@@ -562,7 +563,7 @@ function updateMapStatsFromDeals(level, parentId) {
         
         // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ ПОСЛЕ ОБНОВЛЕНИЯ СТАТИСТИКИ
         updatePopupsAndTooltips(level);
-        
+        updateQuartersListWithFilteredObjects(null);
         return;
     }
     
@@ -1315,6 +1316,7 @@ layer.bindPopup(`
     // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
     updatePopupsAndTooltips(level);
     
+    updateQuartersListWithFilteredObjects(null);
     // ============================================================
     // ✅ ДОБАВЛЯЕМ ПОДПИСИ НА ПОЛИГОНЫ (ЗДЕСЬ!)
     // ============================================================
