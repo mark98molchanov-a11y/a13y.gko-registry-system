@@ -1510,7 +1510,7 @@ function buildPopupContent(feature) {
         `;
     }
     
- if (levelName === 'district') {
+if (levelName === 'district') {
     const cadNum = props.cadastral_number || props.district_id || '—';
     const districtName = props.district_name || cadNum;
     const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
@@ -1638,7 +1638,6 @@ function buildPopupContent(feature) {
         ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
     `;
 }
-    
     if (levelName === 'quarter') {
         const cadNum = props.cadastral_number || '—';
         
