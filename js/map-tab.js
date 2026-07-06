@@ -353,7 +353,6 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     let objectsWithFilteredDeals = [];
     
     if (level === 2 && parentId) {
-        // На уровне кварталов - проходим по targetObjects
         targetObjects.forEach(f => {
             const cadNum = f.properties.cadastral_number;
             if (!cadNum) return;
@@ -373,7 +372,6 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
         });
         console.log(`📊 Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}`);
     } else {
-        // На уровне округа или районов - берем все сделки
         Object.keys(dealsData).forEach(cadNum => {
             const deals = dealsData[cadNum] || [];
             const filteredDeals = deals.filter(deal => {
@@ -384,7 +382,6 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
             });
             allDeals = allDeals.concat(filteredDeals);
         });
-        // Для уровня округа/районов используем все объекты
         objectsWithFilteredDeals = targetObjects;
         console.log(`📊 Все сделки с фильтром: ${allDeals.length}`);
     }
@@ -396,8 +393,8 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
         statTotalDeals.textContent = '0';
         if (statObjects) statObjects.textContent = targetObjects.length;
         if (statWithDeals) statWithDeals.textContent = '0';
-        // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ - ПОКАЗЫВАЕМ "Нет сделок"
-        updateQuartersListWithFilteredObjects([]);
+        // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
+        updateQuartersListWithFilteredObjects(null);
         return;
     }
     
@@ -444,8 +441,8 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     if (statObjects) statObjects.textContent = targetObjects.length;
     if (statWithDeals) statWithDeals.textContent = objectsWithFilteredDeals.length;
     
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ - ПЕРЕДАЕМ ТОЛЬКО ТЕ, У КОТОРЫХ ЕСТЬ СДЕЛКИ
-    updateQuartersListWithFilteredObjects(objectsWithFilteredDeals);
+    // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
+    updateQuartersListWithFilteredObjects(null);
 }
 function updateMapStatsFromDeals(level, parentId) {
     const statMedian = document.getElementById('stat-median');
@@ -939,31 +936,35 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     const quartersList = document.getElementById('quarters-list');
     if (!quartersList) return;
     
-    // ✅ Если переданы объекты - используем их
-    let itemsToShow = objectsWithDeals;
+    // ✅ Если переданы объекты - используем их, но ДОБАВЛЯЕМ обертки
+    let itemsToShow = [];
     
-    // ✅ Если ничего не передано - берем все кварталы из mapData
-    if (!itemsToShow || itemsToShow.length === 0) {
-        const allObjects = mapData.features.filter(f => f.properties.level === 2);
-        const prefix = currentParentId ? String(currentParentId).substring(0, 5) : '89';
-        const allCadNumbers = Object.keys(dealsData);
-        const wrapperQuarters = allCadNumbers.filter(cad => {
-            if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
-            return String(cad).startsWith(prefix);
-        });
-        
-        itemsToShow = [...allObjects];
-        wrapperQuarters.forEach(cad => {
+    if (objectsWithDeals && objectsWithDeals.length > 0) {
+        // Используем переданные объекты
+        itemsToShow = [...objectsWithDeals];
+    }
+    
+    // ✅ ВСЕГДА добавляем обертки (даже если objectsWithDeals пустой)
+    const prefix = currentParentId ? String(currentParentId).substring(0, 5) : '89';
+    const allCadNumbers = Object.keys(dealsData);
+    const wrapperQuarters = allCadNumbers.filter(cad => {
+        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+        return String(cad).startsWith(prefix);
+    });
+    
+    // Добавляем обертки, которых еще нет в списке
+    wrapperQuarters.forEach(cad => {
+        if (!itemsToShow.some(f => f.properties?.cadastral_number === cad)) {
             itemsToShow.push({
                 properties: { 
                     cadastral_number: cad,
                     level: 2
                 }
             });
-        });
-    }
+        }
+    });
     
-    // Фильтруем по наличию сделок
+    // Фильтруем по наличию сделок с учетом фильтра
     const withDeals = itemsToShow.filter(f => {
         const cadNum = f.properties?.cadastral_number;
         if (!cadNum) return false;
@@ -989,7 +990,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     
     let html = '';
     sorted.forEach(f => {
-        const cadNum = f.properties.cadastral_number || '—';
+        const cadNum = f.properties?.cadastral_number || '—';
         const count = getDealsCountForObject(f);
         html += `
             <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
@@ -1003,6 +1004,7 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     });
     quartersList.innerHTML = html;
 }
+
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
 // ============================================================
