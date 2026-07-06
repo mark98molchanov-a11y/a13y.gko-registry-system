@@ -259,55 +259,7 @@ function applyDealTypeFilter(kind) {
             }
         });
     }
-    updatePopupsAndTooltips(level);
-    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const props = layer.feature.properties;
-                const cadNum = props.cadastral_number || '—';
-                const deals = dealsData[cadNum] || [];
-                const filteredDeals = deals.filter(deal => {
-                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                        return false;
-                    }
-                    return true;
-                });
-                
-                const dealsCount = filteredDeals.length;
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                
-                function getMedian(arr) {
-                    if (arr.length === 0) return 0;
-                    const sorted = arr.slice().sort((a, b) => a - b);
-                    const mid = Math.floor(sorted.length / 2);
-                    if (sorted.length % 2 === 0) {
-                        return (sorted[mid - 1] + sorted[mid]) / 2;
-                    }
-                    return sorted[mid];
-                }
-                
-                const medianPrice = getMedian(prices);
-                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                const uprsMedian = getMedian(uprsValues);
-                
-                const popupContent = `
-                    <div class="popup-title">${cadNum}</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                `;
-                layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
-            }
-        });
-    }
-}
-
+}  
 
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
@@ -1108,16 +1060,18 @@ function renderMapLevel(level, parentId = null) {
     clearAllLabels();
 
     // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
+    // ✅ ПРАВИЛЬНОЕ ОПРЕДЕЛЕНИЕ ОБЕРТОК
     const wrapperQuarters = filtered.filter(f => {
         const cadNum = f.properties?.cadastral_number || '';
-        return cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+        // Обертка — это когда кадастровый номер заканчивается на 6 нулей (000000)
+        // или имеет формат 89:00:000000
+        return cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     });
     
     const normalQuarters = filtered.filter(f => {
         const cadNum = f.properties?.cadastral_number || '';
-        return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
+        return !cadNum.endsWith('000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
     });
-
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
@@ -1511,13 +1465,14 @@ if (levelName === 'district') {
 }
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
-        if (levelName === 'okrug') {
-            renderMapLevel(1);
-            updateBreadcrumb('okrug');
-            if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-            }
-       }  else if (levelName === 'district') {
+       if (levelName === 'okrug') {
+    renderMapLevel(1);
+    updateBreadcrumb('okrug');
+    // ✅ ПОДПИСЫВАЕМСЯ НА КЛИК ПО ОКРУГУ ДЛЯ ВОЗВРАТА
+    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
+} else if (levelName === 'district') {
     // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
     // Сбрасываем стиль текущего слоя (района)
     if (layer && layer.setStyle) {
@@ -1822,15 +1777,12 @@ if (levelName === 'district') {
     return `<div>Неизвестный уровень</div>`;
 }
 // ============================================================
-// ============================================================
 function updateBreadcrumb(level, id, name, isSearch = false) {
     const breadcrumb = document.getElementById('map-breadcrumb');
     if (!breadcrumb) return;
     
-    // Получаем название района для кварталов
     let districtName = name || id || 'Район';
     if (level === 'quarter' && id) {
-        // Пытаемся найти название района
         if (mapData && mapData.features) {
             const district = mapData.features.find(f => 
                 f.properties.level === 1 && 
@@ -1842,8 +1794,11 @@ function updateBreadcrumb(level, id, name, isSearch = false) {
         }
     }
     
+    // ✅ ВСЕГДА ПОКАЗЫВАЕМ КЛИКАБЕЛЬНЫЙ ЯНАО
     if (level === 'okrug') {
-        breadcrumb.innerHTML = '<span style="font-weight:600; font-size:0.95rem;">🏛️ ЯНАО</span>';
+        breadcrumb.innerHTML = `
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:600; font-size:0.95rem;">🏛️ ЯНАО</span>
+        `;
     } else if (level === 'district') {
         breadcrumb.innerHTML = `
             <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
@@ -1851,7 +1806,6 @@ function updateBreadcrumb(level, id, name, isSearch = false) {
             <span style="font-weight:600; font-size:0.95rem;">${name || id}</span>
         `;
     } else if (level === 'quarter') {
-        // ✅ ЕСЛИ ЭТО ПОИСК - НЕ ПОКАЗЫВАЕМ "Кварталы"
         if (isSearch) {
             breadcrumb.innerHTML = `
                 <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
