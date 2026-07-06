@@ -1173,138 +1173,6 @@ if (wrapperQuarters.length > 0) {
         window.mapLayer = normalLayer;
         window.mapLayer.addTo(mapInstance);
     }
-       if (dealsData['89:00:000000']) {
-        const okrugFeature = mapData.features.find(f => f.properties.level === 0);
-        if (okrugFeature) {
-            // Проверяем, не добавлена ли уже обертка
-            let alreadyAdded = false;
-            if (window.wrapperLayer) {
-                window.wrapperLayer.eachLayer(function(layer) {
-                    if (layer.feature?.properties?.cadastral_number === '89:00:000000') {
-                        alreadyAdded = true;
-                    }
-                });
-            }
-            
-            if (!alreadyAdded) {
-                const wrapperFeature = {
-                    type: 'Feature',
-                    properties: {
-                        cadastral_number: '89:00:000000',
-                        level: 2,
-                        level_name: 'quarter'
-                    },
-                    geometry: okrugFeature.geometry
-                };
-                
-                const wrapperLayer = L.geoJSON(wrapperFeature, {
-                    style: function() {
-                        const cadNum = '89:00:000000';
-                        const deals = dealsData[cadNum] || [];
-                        const filteredDeals = deals.filter(deal => {
-                            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                                return false;
-                            }
-                            return true;
-                        });
-                        const dealsCount = filteredDeals.length;
-                        const hasDeals = dealsCount > 0;
-                        
-                        return {
-                            fillColor: hasDeals ? '#ff0000' : '#94a3b8',
-                            fillOpacity: 0.1,
-                            color: hasDeals ? '#ff0000' : '#94a3b8',
-                            weight: 2,
-                            opacity: 0.5,
-                            dashArray: hasDeals ? null : '4 4',
-                            interactive: true
-                        };
-                    },
-                    onEachFeature: function(feature, layer) {
-                        const cadNum = '89:00:000000';
-                        
-                        function updatePopup() {
-                            const deals = dealsData[cadNum] || [];
-                            const filteredDeals = deals.filter(deal => {
-                                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                                    return false;
-                                }
-                                return true;
-                            });
-                            
-                            const dealsCount = filteredDeals.length;
-                            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                            const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                            
-                            function getMedian(arr) {
-                                if (arr.length === 0) return 0;
-                                const sorted = arr.slice().sort((a, b) => a - b);
-                                const mid = Math.floor(sorted.length / 2);
-                                if (sorted.length % 2 === 0) {
-                                    return (sorted[mid - 1] + sorted[mid]) / 2;
-                                }
-                                return sorted[mid];
-                            }
-                            
-                            const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
-                            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                            const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                            const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
-                            
-                            layer.bindPopup(`
-                                <div class="popup-title">${cadNum}</div>
-                                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                                ${dealsCount > 0 ? `
-                                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                                <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                                <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                                ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                            `, { className: 'custom-popup', maxWidth: 300 });
-                        }
-                        
-                        updatePopup();
-                        
-                        // При клике — просто открываем попап, НЕ переходим на уровень округа
-                        layer.on('click', function(e) {
-                            updatePopup();
-                            layer.openPopup();
-                            if (layer.getBounds && layer.getBounds().isValid()) {
-                                mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-                            }
-                        });
-                        
-                        layer.on('mouseover', function() {
-                            this.setStyle({
-                                fillOpacity: 0.3,
-                                weight: 3,
-                                opacity: 0.9
-                            });
-                            updatePopup();
-                            layer.openPopup();
-                        });
-                        
-                        layer.on('mouseout', function() {
-                            this.setStyle({
-                                fillOpacity: 0.1,
-                                weight: 2,
-                                opacity: 0.5
-                            });
-                            layer.closePopup();
-                        });
-                    }
-                }).addTo(mapInstance);
-                
-                // Помещаем обертку СНИЗУ (под округ)
-                wrapperLayer.setZIndex(0);
-                if (window.mapLayer) {
-                    window.mapLayer.setZIndex(10);
-                }
-                
-                window.wrapperLayer = wrapperLayer;
-                console.log('✅ Обертка 89:00:000000 добавлена на карту');
-            }
-        }
-    }
     // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
     // Подгоняем границы
@@ -2215,121 +2083,28 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     
-    // ✅ СНАЧАЛА ИЩЕМ В mapData (обычные кварталы)
-    let found = mapData.features.find(f => {
+    // Ищем квартал по точному кадастровому номеру
+    const found = mapData.features.find(f => {
         if (f.properties.level !== 2) return false;
         return f.properties.cadastral_number === cadNumber;
     });
     
-    // ✅ ЕСЛИ НЕ НАШЛИ — ПРОВЕРЯЕМ, НЕ ОБЕРТКА ЛИ ЭТО
     if (!found) {
-        const isWrapper = Object.keys(dealsData).includes(cadNumber);
-        if (isWrapper) {
-            console.log(`✅ Найдена обертка: ${cadNumber}`);
-            
-            // ✅ ПРИМЕНЯЕМ ФИЛЬТР (если активен) — НО НЕ ПЕРЕХОДИМ НА УРОВЕНЬ ОКРУГА!
-            if (currentDealTypeFilter) {
-                // Обновляем статистику и список кварталов с фильтром
-                updateMapStatsFromDeals(currentLevel, currentParentId);
-                updateQuartersListWithFilteredObjects(null);
-                
-                // Обновляем обертку на карте
-                if (window.wrapperLayer) {
-                    window.wrapperLayer.eachLayer(function(layer) {
-                        if (layer.feature && layer.feature.properties) {
-                            if (layer.feature.properties.cadastral_number === cadNumber) {
-                                // Обновляем попап обертки с учётом фильтра
-                                const deals = dealsData[cadNumber] || [];
-                                const filteredDeals = deals.filter(deal => {
-                                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                                        return false;
-                                    }
-                                    return true;
-                                });
-                                
-                                const dealsCount = filteredDeals.length;
-                                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                                
-                                function getMedian(arr) {
-                                    if (arr.length === 0) return 0;
-                                    const sorted = arr.slice().sort((a, b) => a - b);
-                                    const mid = Math.floor(sorted.length / 2);
-                                    if (sorted.length % 2 === 0) {
-                                        return (sorted[mid - 1] + sorted[mid]) / 2;
-                                    }
-                                    return sorted[mid];
-                                }
-                                
-                                const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
-                                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                                const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
-                                
-                                layer.bindPopup(`
-                                    <div class="popup-title">${cadNumber}</div>
-                                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                                    ${dealsCount > 0 ? `
-                                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                                `, { className: 'custom-popup', maxWidth: 300 });
-                                
-                                // Подсвечиваем обертку
-                                layer.setStyle({
-                                    fillOpacity: 0.6,
-                                    weight: 3,
-                                    color: '#ff0000',
-                                    opacity: 0.9
-                                });
-                                
-                                // Открываем попап
-                                layer.openPopup();
-                                
-                                // Центрируем на обертке
-                                if (layer.getBounds && layer.getBounds().isValid()) {
-                                    mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-                                }
-                            }
-                        }
-                    });
-                }
-            } else {
-                // Если фильтр не активен — просто показываем обертку
-                console.log('ℹ️ Фильтр не активен, обновляем обертку');
-                if (window.wrapperLayer) {
-                    window.wrapperLayer.eachLayer(function(layer) {
-                        if (layer.feature && layer.feature.properties) {
-                            if (layer.feature.properties.cadastral_number === cadNumber) {
-                                layer.setStyle({
-                                    fillOpacity: 0.6,
-                                    weight: 3,
-                                    color: '#ff0000',
-                                    opacity: 0.9
-                                });
-                                layer.openPopup();
-                                if (layer.getBounds && layer.getBounds().isValid()) {
-                                    mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-            return;
-        }
-        
         console.log(`❌ Квартал "${cadNumber}" не найден`);
         return;
     }
     
-    // Обычный квартал — переходим на уровень кварталов
     console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
+    
+    // Определяем район (parent_id)
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
+    
+    // Переходим на уровень кварталов с этим районом
     renderMapLevel(2, districtId);
     updateBreadcrumb('quarter', districtId, districtName, true);
+    
+    // Показываем попап и центрируем на квартале
     setTimeout(() => {
         if (window.mapLayer) {
             window.mapLayer.eachLayer(function(layer) {
