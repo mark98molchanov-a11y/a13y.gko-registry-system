@@ -195,24 +195,67 @@ function applyDealTypeFilter(kind) {
     
     // ✅ ОБНОВЛЯЕМ ТУЛТИПЫ И ПОПАПЫ БЕЗ ПЕРЕРИСОВКИ КАРТЫ
     if (window.mapLayer) {
-        // Обновляем тултипы для районов (level 1) и кварталов (level 2)
         window.mapLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
                 const props = layer.feature.properties;
                 const levelName = props.level_name || 'unknown';
                 
-                // Пересоздаем тултип для районов
                 if (levelName === 'district') {
-                    // Пересоздаем тултип с новыми данными
                     updateDistrictTooltip(layer, props);
                 }
                 
-                // Пересоздаем попап для кварталов (уже обновляется через buildPopupContent)
                 if (levelName === 'quarter') {
-                    // Обновляем попап
                     const newPopupContent = buildPopupContent(layer.feature);
                     layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
                 }
+            }
+        });
+    }
+    
+    // ✅ ДОБАВЛЯЕМ ОБНОВЛЕНИЕ ДЛЯ ОБЕРТОК (wrapperLayer)
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.properties) {
+                const props = layer.feature.properties;
+                // Обновляем попап для оберток с учетом фильтра
+                const cadNum = props.cadastral_number || '—';
+                const deals = dealsData[cadNum] || [];
+                const filteredDeals = deals.filter(deal => {
+                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                        return false;
+                    }
+                    return true;
+                });
+                
+                const dealsCount = filteredDeals.length;
+                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+                
+                function getMedian(arr) {
+                    if (arr.length === 0) return 0;
+                    const sorted = arr.slice().sort((a, b) => a - b);
+                    const mid = Math.floor(sorted.length / 2);
+                    if (sorted.length % 2 === 0) {
+                        return (sorted[mid - 1] + sorted[mid]) / 2;
+                    }
+                    return sorted[mid];
+                }
+                
+                const medianPrice = getMedian(prices);
+                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+                const uprsMedian = getMedian(uprsValues);
+                
+                const popupContent = `
+                    <div class="popup-title">${cadNum}</div>
+                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                    ${dealsCount > 0 ? `
+                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+                `;
+                layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
             }
         });
     }
@@ -336,25 +379,39 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     
     if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
-    // ✅ БЕРЕМ ВСЕ СДЕЛКИ ИЗ dealsData (ВКЛЮЧАЯ ОБЕРТКИ)
     let allDeals = [];
     
-    // ✅ ПРОХОДИМ ПО ВСЕМ КВАРТАЛАМ В DEALSDATA
-    Object.keys(dealsData).forEach(cadNum => {
-        const deals = dealsData[cadNum] || [];
-        
-        // Применяем фильтр по типу сделки
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
+    // ✅ ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ (level === 2) - БЕРЕМ ТОЛЬКО КВАРТАЛЫ В ЭТОМ РАЙОНЕ
+    if (level === 2 && parentId) {
+        // Проходим по targetObjects (кварталы в этом районе)
+        targetObjects.forEach(f => {
+            const cadNum = f.properties.cadastral_number;
+            if (!cadNum) return;
+            
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            allDeals = allDeals.concat(filteredDeals);
         });
-        
-        allDeals = allDeals.concat(filteredDeals);
-    });
+    } else {
+        // ✅ НА УРОВНЕ ОКРУГА ИЛИ РАЙОНОВ - БЕРЕМ ВСЕ СДЕЛКИ
+        Object.keys(dealsData).forEach(cadNum => {
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            allDeals = allDeals.concat(filteredDeals);
+        });
+    }
     
-    console.log(`📊 updateMapStatsWithDealFilter: найдено ${allDeals.length} сделок`);
+    console.log(`📊 updateMapStatsWithDealFilter: найдено ${allDeals.length} сделок (level=${level}, parentId=${parentId})`);
     console.log(`📊 Фильтр: "${currentDealTypeFilter}"`);
     
     if (allDeals.length === 0) {
@@ -407,7 +464,7 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     statUprs.textContent = formatUprs(medianUprs);
     statTotalDeals.textContent = allDeals.length.toLocaleString();
     
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ (ТОЛЬКО ТЕ, ЧТО ЕСТЬ В GEOJSON)
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithDealFilter(targetObjects);
 }
 
