@@ -1061,48 +1061,18 @@ function renderMapLevel(level, parentId = null) {
 
     // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
     // ✅ ПРАВИЛЬНОЕ ОПРЕДЕЛЕНИЕ ОБЕРТОК
-     let wrapperQuarters = filtered.filter(f => {
+    const wrapperQuarters = filtered.filter(f => {
         const cadNum = f.properties?.cadastral_number || '';
         // Обертка — это когда кадастровый номер заканчивается на 6 нулей (000000)
         // или имеет формат 89:00:000000
         return cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     });
     
-    // ✅ НА УРОВНЕ РАЙОНОВ (level 1) — ДОБАВЛЯЕМ ОБЕРТКУ 89:00:000000 ПРИНУДИТЕЛЬНО
-    if (level === 1) {
-        const hasWrapper = wrapperQuarters.some(f => 
-            f.properties?.cadastral_number === '89:00:000000'
-        );
-        
-        if (!hasWrapper) {
-            // Находим геометрию округа (level 0)
-            const okrugFeature = mapData.features.find(f => f.properties.level === 0);
-            
-            if (okrugFeature) {
-                const wrapperFeature = {
-                    type: 'Feature',
-                    properties: {
-                        cadastral_number: '89:00:000000',
-                        level: 2,
-                        level_name: 'quarter'
-                    },
-                    geometry: okrugFeature.geometry
-                };
-                
-                wrapperQuarters.push(wrapperFeature);
-                console.log('✅ Добавлена обертка 89:00:000000 принудительно на уровень районов');
-            } else {
-                console.warn('⚠️ Не удалось добавить обертку 89:00:000000 — нет геометрии округа');
-            }
-        }
-    }
-    
     const normalQuarters = filtered.filter(f => {
         const cadNum = f.properties?.cadastral_number || '';
         return !cadNum.endsWith('000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
     });
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
-
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
 if (wrapperQuarters.length > 0) {
@@ -1122,13 +1092,13 @@ if (wrapperQuarters.length > 0) {
             const cadNum = feature.properties.cadastral_number || '—';
             
             // ✅ ДОБАВЛЯЕМ КЛИК ДЛЯ ПЕРЕХОДА НА РАЙОНЫ
-layer.on('click', function(e) {
-    renderMapLevel(0);
-    updateBreadcrumb('okrug');
-    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-    }
-});
+            layer.on('click', function(e) {
+                renderMapLevel(1);
+                updateBreadcrumb('okrug');
+                if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+                    mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                }
+            });
             
             // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
             const deals = dealsData[cadNum] || [];
@@ -1826,7 +1796,7 @@ function updateBreadcrumb(level, id, name, isSearch = false) {
         }
     }
     
-    // ✅ КЛИК НА ЯНАО → ПЕРЕХОД НА УРОВЕНЬ ОКРУГА (level 0)
+    // ✅ ВСЕГДА ПОКАЗЫВАЕМ КЛИКАБЕЛЬНЫЙ ЯНАО
     if (level === 'okrug') {
         breadcrumb.innerHTML = `
             <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:600; font-size:0.95rem;">🏛️ ЯНАО</span>
