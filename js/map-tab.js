@@ -1,4 +1,3 @@
-let mapInstance = null;
 let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
@@ -1061,34 +1060,12 @@ function renderMapLevel(level, parentId = null) {
 
     // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
     // ✅ ПРАВИЛЬНОЕ ОПРЕДЕЛЕНИЕ ОБЕРТОК
-    let wrapperQuarters = filtered.filter(f => {
+    const wrapperQuarters = filtered.filter(f => {
         const cadNum = f.properties?.cadastral_number || '';
+        // Обертка — это когда кадастровый номер заканчивается на 6 нулей (000000)
+        // или имеет формат 89:00:000000
         return cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     });
-    
-    // ✅ НА УРОВНЕ РАЙОНОВ (level 1) — ДОБАВЛЯЕМ ОБЕРТКУ 89:00:000000 ПРИНУДИТЕЛЬНО
-    if (level === 1) {
-        const hasWrapper = wrapperQuarters.some(f => 
-            f.properties?.cadastral_number === '89:00:000000'
-        );
-        
-        if (!hasWrapper) {
-            const okrugFeature = mapData.features.find(f => f.properties.level === 0);
-            if (okrugFeature) {
-                const wrapperFeature = {
-                    type: 'Feature',
-                    properties: {
-                        cadastral_number: '89:00:000000',
-                        level: 2,
-                        level_name: 'quarter'
-                    },
-                    geometry: okrugFeature.geometry
-                };
-                wrapperQuarters.push(wrapperFeature);
-                console.log('✅ Добавлена обертка 89:00:000000 принудительно на уровень районов');
-            }
-        }
-    }
     
     const normalQuarters = filtered.filter(f => {
         const cadNum = f.properties?.cadastral_number || '';
@@ -1491,12 +1468,14 @@ if (levelName === 'district') {
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
 if (levelName === 'okrug') {
+    // Переход на уровень районов
     renderMapLevel(1);
     updateBreadcrumb('okrug');
+    // Центрируем карту на районах
     if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-    } 
-} else if (levelName === 'district') {
+    }
+}else if (levelName === 'district') {
     // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
     // Сбрасываем стиль текущего слоя (района)
     if (layer && layer.setStyle) {
