@@ -644,7 +644,7 @@ function onMapFeatureClick(feature, layer) {
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
     
- if (levelName === 'district') {
+if (levelName === 'district') {
     const cadNum = props.cadastral_number || props.district_id || '—';
     const districtName = props.district_name || cadNum;
     const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
@@ -663,20 +663,44 @@ function onMapFeatureClick(feature, layer) {
     let allUprs = [];
     
     districtObjects.forEach(f => {
-        const count = f.properties.deals_count || 0;
-        const median = f.properties.deals_median || 0;
-        const min = f.properties.deals_min || 0;
-        const max = f.properties.deals_max || 0;
-        const uprs = f.properties.uprs_median || 0;
+        const cadNumFeature = f.properties.cadastral_number;
+        if (!cadNumFeature) return;
         
-        if (count > 0 && median > 0) {
-            totalDeals += count;
-            allPrices.push({ value: median, weight: count });
-            allMins.push(min);
-            allMaxs.push(max);
-            allUprs.push({ value: uprs, weight: count });
+        // ✅ БЕРЕМ СДЕЛКИ ИЗ dealsData (С УЧЕТОМ ФИЛЬТРА)
+        const deals = dealsData[cadNumFeature] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                return false;
+            }
+            return true;
+        });
+        
+        if (filteredDeals.length > 0) {
+            totalDeals += filteredDeals.length;
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            if (prices.length > 0) {
+                const median = getWeightedMedianByDeals(prices);
+                allPrices.push({ value: median, weight: filteredDeals.length });
+                allMins.push(Math.min(...prices));
+                allMaxs.push(Math.max(...prices));
+            }
+            if (uprs.length > 0) {
+                allUprs.push({ value: getWeightedMedianByDeals(uprs), weight: filteredDeals.length });
+            }
         }
     });
+    
+    function getWeightedMedianByDeals(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
+    }
     
     function getWeightedMedian(arr, totalWeight) {
         if (arr.length === 0 || totalWeight === 0) return 0;
@@ -915,50 +939,34 @@ if (levelName === 'district') {
     
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
-    const dealsCount = props.deals_count || 0;
     
-    // ✅ Пересчитываем взвешенную медиану для квартала
-    let allPrices = [];
-    let allMins = [];
-    let allMaxs = [];
-    let allUprs = [];
-    
-    if (dealsCount > 0) {
-        const median = props.deals_median || 0;
-        const min = props.deals_min || 0;
-        const max = props.deals_max || 0;
-        const uprs = props.uprs_median || 0;
-        
-        if (median > 0) {
-            // Добавляем с весом = количество сделок
-            allPrices.push({ value: median, weight: dealsCount });
-            allMins.push(min);
-            allMaxs.push(max);
-            allUprs.push({ value: uprs, weight: dealsCount });
+    // ✅ БЕРЕМ СДЕЛКИ ИЗ dealsData (С УЧЕТОМ ФИЛЬТРА)
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
         }
+        return true;
+    });
+    
+    const dealsCount = filteredDeals.length;
+    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+    
+    function getMedian(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
     }
     
-    function getWeightedMedian(arr, totalWeight) {
-        if (arr.length === 0 || totalWeight === 0) return 0;
-        const sorted = arr.slice().sort((a, b) => a.value - b.value);
-        let cumulative = 0;
-        const halfWeight = totalWeight / 2;
-        for (let i = 0; i < sorted.length; i++) {
-            cumulative += sorted[i].weight;
-            if (cumulative >= halfWeight) {
-                return sorted[i].value;
-            }
-        }
-        return sorted[sorted.length - 1].value;
-    }
-    
-    const totalPriceWeight = allPrices.reduce((sum, p) => sum + p.weight, 0);
-    const totalUprsWeight = allUprs.reduce((sum, p) => sum + p.weight, 0);
-    
-    const medianPrice = getWeightedMedian(allPrices, totalPriceWeight);
-    const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-    const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
-    const uprsMedian = getWeightedMedian(allUprs, totalUprsWeight);
+    const medianPrice = getMedian(prices);
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const uprsMedian = getMedian(uprsValues);
     
     return `
         <div class="popup-title">${cadNum}</div>
