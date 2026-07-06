@@ -2083,13 +2083,40 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     
-    // Ищем квартал по точному кадастровому номеру
-    const found = mapData.features.find(f => {
+    // ✅ СНАЧАЛА ИЩЕМ В mapData (обычные кварталы)
+    let found = mapData.features.find(f => {
         if (f.properties.level !== 2) return false;
         return f.properties.cadastral_number === cadNumber;
     });
     
+    // ✅ ЕСЛИ НЕ НАШЛИ — ПРОВЕРЯЕМ, НЕ ОБЕРТКА ЛИ ЭТО
     if (!found) {
+        // Проверяем, есть ли такой кадастровый номер в dealsData
+        const isWrapper = Object.keys(dealsData).includes(cadNumber);
+        if (isWrapper) {
+            console.log(`✅ Найдена обертка: ${cadNumber}`);
+            
+            // Для обертки — просто показываем уведомление
+            // или можно попытаться найти геометрию обертки
+            // Показываем алерт с информацией
+            alert(`📋 Обертка ${cadNumber}\nСделок: ${dealsData[cadNumber]?.length || 0}`);
+            
+            // Если есть геометрия для обертки, можно центрировать карту
+            // Для уровня округа (level 0) — центрируем на ЯНАО
+            if (mapInstance) {
+                const okrugFeature = mapData.features.find(f => f.properties.level === 0);
+                if (okrugFeature && okrugFeature.geometry) {
+                    // Переходим на уровень округа и центрируем
+                    renderMapLevel(0);
+                    updateBreadcrumb('okrug');
+                    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+                        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                    }
+                }
+            }
+            return;
+        }
+        
         console.log(`❌ Квартал "${cadNumber}" не найден`);
         return;
     }
@@ -2120,6 +2147,7 @@ function searchQuarterByCadNumber(cadNumber) {
         }
     }, 300);
 }
+
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
