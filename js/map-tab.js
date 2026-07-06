@@ -173,7 +173,7 @@ function applyDealTypeFilter(kind) {
     currentDealTypeFilter = currentDealTypeFilter === kind ? null : kind;
     renderDealTypeFilters();
     
-    // ✅ ПЕРЕСЧИТЫВАЕМ СТАТИСТИКУ С ФИЛЬТРОМ (ВСЕГДА)
+    // ✅ ПЕРЕСЧИТЫВАЕМ СТАТИСТИКУ С ФИЛЬТРОМ
     const level = currentLevel;
     const parentId = currentParentId;
     
@@ -192,6 +192,16 @@ function applyDealTypeFilter(kind) {
     
     // Обновляем статистику с фильтром
     updateMapStatsWithDealFilter(targetObjects, level, parentId);
+    
+    // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ТУЛТИПЫ (перерисовка карты)
+    if (window.mapLayer) {
+        // Пересоздаем слой с новыми данными
+        const currentLevelState = level;
+        const currentParentIdState = parentId;
+        
+        // Перерисовываем текущий уровень
+        renderMapLevel(currentLevelState, currentParentIdState);
+    }
 }
 function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     const statMedian = document.getElementById('stat-median');
