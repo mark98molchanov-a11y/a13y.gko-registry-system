@@ -165,9 +165,10 @@ function renderDealTypeFilters() {
                  onmouseout="this.style.background='transparent'"
              ` : ''}
              >
-            ✕ Сбросить фильтр ${currentDealTypeFilter ? `(${currentDealTypeFilter})` : ''}
+            ✕ Сбросить фильтр
         </div>
     `;
+
     
     container.innerHTML = html;
 }
@@ -188,9 +189,6 @@ function applyDealTypeFilter(kind) {
     
     console.log(`🔍 applyDealTypeFilter: level=${level}, parentId=${parentId}, filter=${currentDealTypeFilter}`);
     
-    // ✅ ВСЕГДА ОБНОВЛЯЕМ СТАТИСТИКУ И КВАРТАЛЫ
-    updateMapStatsFromDeals(level, parentId);
-    
     // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     let targetObjects = [];
@@ -205,16 +203,17 @@ function applyDealTypeFilter(kind) {
     }
     
     updateQuartersStyle(targetObjects);
+    
+    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ С УЧЕТОМ ФИЛЬТРА
     updateMapStatsFromDeals(level, parentId);
     
     // ✅ ВСЕГДА ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
     updatePopupsAndTooltips(level);
     
-    
     // ✅ ВСЕГДА ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
     
-    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
+    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ (ТОЛЬКО ОДИН РАЗ!)
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
@@ -260,6 +259,7 @@ function applyDealTypeFilter(kind) {
             }
         });
     }
+}
     updatePopupsAndTooltips(level);
     // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
     if (window.wrapperLayer) {
@@ -459,122 +459,9 @@ function updateMapStatsFromDeals(level, parentId) {
     
     if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
-    // ✅ ДЛЯ УРОВНЯ ОКРУГА (level === 0) - БЕРЕМ ВСЕ ДАННЫЕ ИЗ CSV
-    if (level === 0) {
-        // Собираем ВСЕ сделки из dealsData С УЧЕТОМ ФИЛЬТРА
-        let allPrices = [];
-        let allUprs = [];
-        let allMins = [];
-        let allMaxs = [];
-        let totalDeals = 0;
-        let quartersWithDeals = [];
-        
-        Object.keys(dealsData).forEach(cadNum => {
-            const deals = dealsData[cadNum] || [];
-            // ✅ ПРИМЕНЯЕМ ФИЛЬТР
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                return true;
-            });
-            
-            if (filteredDeals.length > 0) {
-                totalDeals += filteredDeals.length;
-                quartersWithDeals.push(cadNum);
-                
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                allPrices = allPrices.concat(prices);
-                allUprs = allUprs.concat(uprs);
-                if (prices.length > 0) {
-                    allMins.push(Math.min(...prices));
-                    allMaxs.push(Math.max(...prices));
-                }
-            }
-        });
-        
-        function getMedian(arr) {
-            if (arr.length === 0) return 0;
-            const sorted = arr.slice().sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            if (sorted.length % 2 === 0) {
-                return (sorted[mid - 1] + sorted[mid]) / 2;
-            }
-            return sorted[mid];
-        }
-        
-        const medianPrice = getMedian(allPrices);
-        const medianUprs = getMedian(allUprs);
-        const minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-        const maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
-        
-        const formatPrice = (num) => {
-            if (num === 0 || isNaN(num)) return '—';
-            return num.toLocaleString('ru-RU') + ' ₽';
-        };
-        
-        const formatNumber = (num) => {
-            if (num === 0 || isNaN(num)) return '—';
-            return num.toLocaleString('ru-RU');
-        };
-        
-        const formatUprs = (num) => {
-            if (num === 0 || isNaN(num)) return '—';
-            return num.toFixed(2) + ' ₽/м²';
-        };
-        
-        statMedian.textContent = formatPrice(medianPrice);
-        statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
-            ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
-            : '—';
-        statUprs.textContent = formatUprs(medianUprs);
-        statTotalDeals.textContent = totalDeals.toLocaleString();
-        
-        if (statObjects) statObjects.textContent = Object.keys(dealsData).length;
-        if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
-        
-        // СПИСОК КВАРТАЛОВ С УЧЕТОМ ФИЛЬТРА
-        const quartersList = document.getElementById('quarters-list');
-        if (quartersList) {
-            if (quartersWithDeals.length === 0) {
-                quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-            } else {
-                const sorted = quartersWithDeals.map(cad => {
-                    const deals = dealsData[cad] || [];
-                    const filtered = deals.filter(d => {
-                        if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-                        return true;
-                    });
-                    return { cadastral_number: cad, count: filtered.length };
-                }).sort((a, b) => b.count - a.count);
-                
-                let html = '';
-                sorted.forEach(q => {
-                    html += `
-                        <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                             onclick="window.searchQuarterByCadNumber('${q.cadastral_number}')"
-                             onmouseover="this.style.background='#f1f5f9'"
-                             onmouseout="this.style.background='transparent'">
-                            <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${q.cadastral_number}</div>
-                            <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${q.count.toLocaleString('ru-RU')} сделок</div>
-                        </div>
-                    `;
-                });
-                quartersList.innerHTML = html;
-            }
-        }
-        
-        // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ ПОСЛЕ ОБНОВЛЕНИЯ СТАТИСТИКИ
-        updatePopupsAndTooltips(level);
-        updateQuartersListWithFilteredObjects(null);
-        return;
-    }
-    
-    // ✅ ДЛЯ УРОВНЕЙ 1 И 2 - ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩУЮ ЛОГИКУ
-    // Получаем кварталы для текущего уровня
-    let targetObjects = [];
+    // Получаем все кварталы из GeoJSON
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
     
     if (level === 0 || level === 1) {
         targetObjects = allObjects;
@@ -626,11 +513,14 @@ function updateMapStatsFromDeals(level, parentId) {
         }
     }
 
-    // СЧИТАЕМ СТАТИСТИКУ
+    // ✅ СЧИТАЕМ СТАТИСТИКУ ПО КВАРТАЛАМ (ОДИНАКОВО ДЛЯ ВСЕХ УРОВНЕЙ)
     const quarterStats = [];
     let totalDeals = 0;
     let allMins = [];
     let allMaxs = [];
+    let allPrices = [];
+    let allUprs = [];
+    let quartersWithDeals = [];
     
     allQuarters.forEach(f => {
         const cadNum = f.properties.cadastral_number;
@@ -646,9 +536,13 @@ function updateMapStatsFromDeals(level, parentId) {
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
+            quartersWithDeals.push(cadNum);
             
             const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
             const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            allPrices = allPrices.concat(prices);
+            allUprs = allUprs.concat(uprs);
             
             if (prices.length > 0) {
                 quarterStats.push({
@@ -674,12 +568,14 @@ function updateMapStatsFromDeals(level, parentId) {
         return sorted[mid];
     }
     
+    // ✅ ВЫЧИСЛЯЕМ ВЗВЕШЕННУЮ МЕДИАНУ (ОДИНАКОВО ДЛЯ ВСЕХ УРОВНЕЙ)
     let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
     let minPrice = 0;
     let maxPrice = 0;
     
     if (quarterStats.length > 0) {
+        // Взвешенная медиана по цене
         const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
         const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
         let cumsum = 0;
@@ -691,6 +587,7 @@ function updateMapStatsFromDeals(level, parentId) {
             }
         }
         
+        // Взвешенная медиана по УПРС
         const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
         cumsum = 0;
         for (const q of sortedByUprs) {
@@ -720,6 +617,7 @@ function updateMapStatsFromDeals(level, parentId) {
         return num.toFixed(2) + ' ₽/м²';
     };
     
+    // ✅ ВЫВОДИМ СТАТИСТИКУ
     statMedian.textContent = formatPrice(weightedMedianPrice);
     statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
         ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
@@ -728,24 +626,41 @@ function updateMapStatsFromDeals(level, parentId) {
     statTotalDeals.textContent = totalDeals.toLocaleString();
     
     if (statObjects) statObjects.textContent = allQuarters.length;
-    if (statWithDeals) statWithDeals.textContent = quarterStats.length;
+    if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
     
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     const quartersList = document.getElementById('quarters-list');
     if (quartersList) {
         if (quarterStats.length === 0) {
             quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
         } else {
-            const sorted = quarterStats.slice().sort((a, b) => b.count - a.count);
+            // Собираем кварталы с их кадастровыми номерами
+            const sortedQuarters = allQuarters.filter(f => {
+                const cadNum = f.properties?.cadastral_number;
+                if (!cadNum) return false;
+                const deals = dealsData[cadNum] || [];
+                const filtered = deals.filter(d => {
+                    if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
+                    return true;
+                });
+                return filtered.length > 0;
+            }).sort((a, b) => {
+                const countA = getDealsCountForObject(a);
+                const countB = getDealsCountForObject(b);
+                return countB - countA;
+            });
+            
             let html = '';
-            sorted.forEach(q => {
-                const cadNum = q.quarter || '—';
+            sortedQuarters.forEach(f => {
+                const cadNum = f.properties?.cadastral_number || '—';
+                const count = getDealsCountForObject(f);
                 html += `
                     <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
                          onclick="window.searchQuarterByCadNumber('${cadNum}')"
                          onmouseover="this.style.background='#f1f5f9'"
                          onmouseout="this.style.background='transparent'">
                         <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${q.count.toLocaleString('ru-RU')} сделок</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
                     </div>
                 `;
             });
@@ -753,8 +668,9 @@ function updateMapStatsFromDeals(level, parentId) {
         }
     }
     
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ ПОСЛЕ ОБНОВЛЕНИЯ СТАТИСТИКИ
+    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
     updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
 }
 
 
