@@ -1042,28 +1042,7 @@ function renderMapLevel(level, parentId = null) {
         
         return false;
     });
-    if (level === 0) {
-        const hasWrapper = filtered.some(f => 
-            f.properties?.cadastral_number === '89:00:000000'
-        );
-        
-        if (!hasWrapper) {
-            const okrugFeature = mapData.features.find(f => f.properties.level === 0);
-            if (okrugFeature) {
-                const wrapperFeature = {
-                    type: 'Feature',
-                    properties: {
-                        cadastral_number: '89:00:000000',
-                        level: 2,
-                        level_name: 'quarter'
-                    },
-                    geometry: okrugFeature.geometry
-                };
-                filtered.push(wrapperFeature);
-                console.log('✅ Добавлена обертка 89:00:000000 принудительно на уровень округа');
-            }
-        }
-    }
+
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
     if (filtered.length === 0) {
@@ -1113,97 +1092,69 @@ if (wrapperQuarters.length > 0) {
                 dashArray: '4 4'
             };
         },
- onEachFeature: function(feature, layer) {
-    const cadNum = feature.properties.cadastral_number || '—';
-    
-    // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        return true;
-    });
-    
-    const dealsCount = filteredDeals.length;
-    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-    
-    const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
-    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-    const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
-
-    layer.bindPopup(`
-        <div class="popup-title">${cadNum}</div>
-        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-        ${dealsCount > 0 ? `
-        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-    `, { className: 'custom-popup', maxWidth: 300 });
-    
-    layer.on('mouseover', function() {
-        this.setStyle({
-            fillOpacity: 0.5,
-            weight: 2,
-            color: '#ff0000',
-            opacity: 0.7
-        });
-    });
-    
-    layer.on('mouseout', function() {
-        this.setStyle({
-            fillOpacity: 0.25,
-            weight: 1,
-            color: '#ff0000',
-            opacity: 0.4
-        });
-    });
-    
-    // ✅ ПОДПИСЬ ТОЛЬКО НА УРОВНЕ ОБЕРТКИ (level === 0)
-    if (level === 0) {
-        try {
-            const bounds = layer.getBounds();
-            if (bounds && bounds.isValid()) {
-                const center = bounds.getCenter();
-                const label = L.marker(center, {
-                    icon: L.divIcon({
-                        className: 'wrapper-label',
-                        html: `<div style="
-                            font-size: 13px;
-                            font-weight: 700;
-                            color: #1e293b;
-                            text-shadow: 0 0 8px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.9);
-                            white-space: nowrap;
-                            pointer-events: none;
-                            user-select: none;
-                            letter-spacing: 0.3px;
-                            background: none;
-                            padding: 0;
-                            border: none;
-                        ">89:00</div>`,
-                        iconSize: [0, 0],
-                        iconAnchor: [0, 0]
-                    }),
-                    interactive: false,
-                    zIndexOffset: 1000
-                }).addTo(mapInstance);
-                
-                if (!window.wrapperLabels) window.wrapperLabels = [];
-                window.wrapperLabels.push(label);
-            }
-        } catch(e) {
-            console.warn('⚠️ Не удалось добавить подпись для обертки:', e);
-        }
+        onEachFeature: function(feature, layer) {
+            const cadNum = feature.properties.cadastral_number || '—';
+            
+            // ✅ ДОБАВЛЯЕМ КЛИК ДЛЯ ПЕРЕХОДА НА РАЙОНЫ
+   layer.on('click', function(e) {
+    renderMapLevel(0);
+    updateBreadcrumb('okrug');
+    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
     }
-}
+});
+
+            
+            // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            
+            const dealsCount = filteredDeals.length;
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            
+            const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
+            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+            const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+            const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
+
+            layer.bindPopup(`
+                <div class="popup-title">${cadNum}</div>
+                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                ${dealsCount > 0 ? `
+                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+            `, { className: 'custom-popup', maxWidth: 300 });
+            
+            layer.on('mouseover', function() {
+                this.setStyle({
+                    fillOpacity: 0.5,
+                    weight: 2,
+                    color: '#ff0000',
+                    opacity: 0.7
+                });
+            });
+            
+            layer.on('mouseout', function() {
+                this.setStyle({
+                    fillOpacity: 0.25,
+                    weight: 1,
+                    color: '#ff0000',
+                    opacity: 0.4
+                });
+            });
+        }
     }).addTo(mapInstance);
     
     console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
 }
-
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
@@ -2038,12 +1989,7 @@ function clearAllLabels() {
         });
         window.districtLabels = [];
     }
-        if (window.wrapperLabels) {
-        window.wrapperLabels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
-        });
-        window.wrapperLabels = [];
-    }
+    
     // Очищаем подписи кварталов
     if (window.quarterLabels) {
         window.quarterLabels.forEach(label => {
