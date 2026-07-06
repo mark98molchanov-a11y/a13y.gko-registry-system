@@ -529,6 +529,7 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     updateQuartersListWithDealFilter(targetObjects);
 }
 
+
 function updateQuartersListWithDealFilter(targetObjects) {
     const quartersList = document.getElementById('quarters-list');
     if (!quartersList) return;
@@ -556,6 +557,7 @@ function updateQuartersListWithDealFilter(targetObjects) {
         }
     });
     
+    // ✅ ЕСЛИ НЕТ КВАРТАЛОВ С ФИЛЬТРОМ - ПОКАЗЫВАЕМ "Нет сделок"
     if (quarterStats.length === 0) {
         quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
         return;
@@ -577,6 +579,7 @@ function updateQuartersListWithDealFilter(targetObjects) {
     });
     quartersList.innerHTML = html;
 }
+
 
 function updateQuartersStyle(targetObjects) {
     if (!window.mapLayer) return;
