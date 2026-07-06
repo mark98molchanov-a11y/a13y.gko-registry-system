@@ -1108,6 +1108,9 @@ onEachFeature: function(feature, layer) {
         });
     }
     
+    // ✅ СОХРАНЯЕМ ССЫЛКУ НА ФУНКЦИЮ (ЭТО ВАЖНО!)
+    layer._updateTooltip = updateTooltip;
+    
     // ✅ ПЕРВОНАЧАЛЬНОЕ СОЗДАНИЕ ТУЛТИПА
     updateTooltip();
     
