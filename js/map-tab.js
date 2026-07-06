@@ -108,7 +108,7 @@ function renderDealTypeFilters() {
     const types = Object.keys(dealTypes).sort((a, b) => dealTypes[b] - dealTypes[a]);
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет данных о сделках</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о сделках</div>';
         return;
     }
     
@@ -116,8 +116,6 @@ function renderDealTypeFilters() {
     types.forEach(kind => {
         const count = dealTypes[kind];
         const isActive = currentDealTypeFilter === kind;
-        const totalDeals = Object.values(dealsData).reduce((sum, deals) => sum + deals.length, 0);
-        const percentage = totalDeals > 0 ? Math.round((count / totalDeals) * 100) : 0;
         
         html += `
             <div onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
@@ -128,7 +126,7 @@ function renderDealTypeFilters() {
                      padding: 6px 10px;
                      border-radius: 6px;
                      cursor: pointer;
-                     transition: all 0.2s;
+                     transition: all 0.15s;
                      background: ${isActive ? '#e0f2fe' : 'transparent'};
                      border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
                      font-size: 12px;
@@ -138,24 +136,25 @@ function renderDealTypeFilters() {
                  onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                  onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
                 <span>${kind}</span>
-                <span style="background: #f1f5f9; padding: 1px 8px; border-radius: 12px; font-size: 11px; color: #64748b;">${count} (${percentage}%)</span>
+                <span style="background: #f1f5f9; padding: 1px 8px; border-radius: 12px; font-size: 11px; color: #64748b; font-weight: 500;">${count.toLocaleString('ru-RU')}</span>
             </div>
         `;
     });
     
-    // Добавляем кнопку "Сбросить фильтр"
+    // Кнопка "Сбросить фильтр"
     if (currentDealTypeFilter) {
         html += `
             <div onclick="applyDealTypeFilter(null)" 
                  style="
                      text-align: center;
-                     padding: 6px;
+                     padding: 8px;
                      margin-top: 8px;
                      border-top: 1px solid #e2e8f0;
                      font-size: 11px;
                      color: #ef4444;
                      cursor: pointer;
                      font-weight: 500;
+                     border-radius: 6px;
                  "
                  onmouseover="this.style.background='#fef2f2'"
                  onmouseout="this.style.background='transparent'">
