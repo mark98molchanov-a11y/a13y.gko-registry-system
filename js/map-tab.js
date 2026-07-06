@@ -1042,7 +1042,28 @@ function renderMapLevel(level, parentId = null) {
         
         return false;
     });
-
+    if (level === 0) {
+        const hasWrapper = filtered.some(f => 
+            f.properties?.cadastral_number === '89:00:000000'
+        );
+        
+        if (!hasWrapper) {
+            const okrugFeature = mapData.features.find(f => f.properties.level === 0);
+            if (okrugFeature) {
+                const wrapperFeature = {
+                    type: 'Feature',
+                    properties: {
+                        cadastral_number: '89:00:000000',
+                        level: 2,
+                        level_name: 'quarter'
+                    },
+                    geometry: okrugFeature.geometry
+                };
+                filtered.push(wrapperFeature);
+                console.log('✅ Добавлена обертка 89:00:000000 принудительно на уровень округа');
+            }
+        }
+    }
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
     if (filtered.length === 0) {
