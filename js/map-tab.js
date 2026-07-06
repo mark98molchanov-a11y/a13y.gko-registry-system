@@ -212,53 +212,15 @@ function applyDealTypeFilter(kind) {
     // ✅ ВСЕГДА ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
     
-    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ (ТОЛЬКО ОДИН РАЗ!)
+    // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ ПРИ СМЕНЕ ФИЛЬТРА
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const props = layer.feature.properties;
-                const cadNum = props.cadastral_number || '—';
-                const deals = dealsData[cadNum] || [];
-                const filteredDeals = deals.filter(deal => {
-                    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                        return false;
-                    }
-                    return true;
-                });
-                
-                const dealsCount = filteredDeals.length;
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                
-                function getMedian(arr) {
-                    if (arr.length === 0) return 0;
-                    const sorted = arr.slice().sort((a, b) => a - b);
-                    const mid = Math.floor(sorted.length / 2);
-                    if (sorted.length % 2 === 0) {
-                        return (sorted[mid - 1] + sorted[mid]) / 2;
-                    }
-                    return sorted[mid];
-                }
-                
-                const medianPrice = getMedian(prices);
-                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                const uprsMedian = getMedian(uprsValues);
-                
-                const popupContent = `
-                    <div class="popup-title">${cadNum}</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                `;
-                layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
             }
         });
     }
-}  
+}
 
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
@@ -1134,6 +1096,7 @@ onEachFeature: function(feature, layer) {
             ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         `;
         
+        // ✅ ТОЛЬКО ТУЛТИП, БЕЗ ПОПАПА
         layer.bindTooltip(tooltipContent, {
             className: 'custom-popup',
             permanent: false,
@@ -1170,7 +1133,7 @@ onEachFeature: function(feature, layer) {
         this.closeTooltip();
     });
     
-    // ✅ ПРИ КЛИКЕ — НИЧЕГО НЕ ДЕЛАЕМ (НЕ ПЕРЕХОДИМ НА ОКРУГ)
+    // ✅ ПРИ КЛИКЕ — ПОКАЗЫВАЕМ ТУЛТИП И ЦЕНТРИРУЕМ
     layer.on('click', function(e) {
         updateTooltip();
         this.openTooltip();
