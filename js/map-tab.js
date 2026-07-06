@@ -1019,7 +1019,7 @@ function renderMapLevel(level, parentId = null) {
     }
 
     // Фильтруем объекты
-    let filtered = mapData.features.filter(f => {
+   let filtered = mapData.features.filter(f => {
         const props = f.properties;
         if (props.level !== level) return false;
         
@@ -1037,6 +1037,33 @@ function renderMapLevel(level, parentId = null) {
         
         return false;
     });
+
+    // ✅ НА УРОВНЕ ОКРУГА (level 0) ДОБАВЛЯЕМ ОБЕРТКУ ПРИНУДИТЕЛЬНО
+    if (level === 0) {
+        const hasWrapper = filtered.some(f => 
+            f.properties?.cadastral_number === '89:00:000000'
+        );
+        
+        if (!hasWrapper) {
+            const okrugFeature = mapData.features.find(f => f.properties.level === 0);
+            
+            if (okrugFeature) {
+                const wrapperFeature = {
+                    type: 'Feature',
+                    properties: {
+                        cadastral_number: '89:00:000000',
+                        level: 2,
+                        level_name: 'quarter',
+                        district_name: 'ЯНАО'
+                    },
+                    geometry: okrugFeature.geometry
+                };
+                
+                filtered.push(wrapperFeature);
+                console.log('✅ Добавлена обертка 89:00:000000 принудительно на уровень округа');
+            }
+        }
+    }
 
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
