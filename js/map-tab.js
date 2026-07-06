@@ -112,34 +112,43 @@ function renderDealTypeFilters() {
         return;
     }
     
-    let html = '';
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0;">
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;">Тип сделки</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;">Кол-во</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
     types.forEach(kind => {
         const count = dealTypes[kind];
         const isActive = currentDealTypeFilter === kind;
         
         html += `
-            <div onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
-                 style="
-                     display: flex;
-                     justify-content: space-between;
-                     align-items: center;
-                     padding: 6px 10px;
-                     border-radius: 6px;
-                     cursor: pointer;
-                     transition: all 0.15s;
-                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                     border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
-                     font-size: 12px;
-                     color: ${isActive ? '#0284c7' : '#1e293b'};
-                     font-weight: ${isActive ? '600' : '400'};
-                 "
-                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
-                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <span>${kind}</span>
-                <span style="background: #f1f5f9; padding: 1px 8px; border-radius: 12px; font-size: 11px; color: #64748b; font-weight: 500;">${count.toLocaleString('ru-RU')}</span>
-            </div>
+            <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${kind}</td>
+                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
         `;
     });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
     
     // Кнопка "Сбросить фильтр"
     if (currentDealTypeFilter) {
@@ -148,7 +157,7 @@ function renderDealTypeFilters() {
                  style="
                      text-align: center;
                      padding: 8px;
-                     margin-top: 8px;
+                     margin-top: 10px;
                      border-top: 1px solid #e2e8f0;
                      font-size: 11px;
                      color: #ef4444;
