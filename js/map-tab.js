@@ -211,6 +211,9 @@ function applyDealTypeFilter(kind) {
         });
         
         updateMapStats(normalQuarters, level, parentId);
+        
+        // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
+        updateQuartersStyle(targetObjects);
     } 
     // ✅ ЕСЛИ ФИЛЬТР ВЫКЛЮЧЕН (null) И МЫ НА УРОВНЕ КВАРТАЛОВ (level === 2)
     else if (currentDealTypeFilter === null && level === 2) {
@@ -232,10 +235,16 @@ function applyDealTypeFilter(kind) {
         });
         
         updateMapStats(normalQuarters, level, parentId);
+        
+        // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
+        updateQuartersStyle(targetObjects);
     }
     // ✅ ЕСЛИ ФИЛЬТР АКТИВЕН - ИСПОЛЬЗУЕМ updateMapStatsWithDealFilter
     else {
         updateMapStatsWithDealFilter(targetObjects, level, parentId);
+        
+        // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
+        updateQuartersStyle(targetObjects);
     }
     
     // ✅ ОБНОВЛЯЕМ ТУЛТИПЫ И ПОПАПЫ
@@ -593,7 +602,47 @@ function updateQuartersListWithDealFilter(targetObjects) {
     quartersList.innerHTML = html;
 }
 
-
+function updateQuartersStyle(targetObjects) {
+    if (!window.mapLayer) return;
+    
+    console.log(`🎨 Обновление стилей кварталов с фильтром: ${currentDealTypeFilter}`);
+    
+    window.mapLayer.eachLayer(function(layer) {
+        if (layer.feature && layer.feature.properties) {
+            const props = layer.feature.properties;
+            const cadNum = props.cadastral_number;
+            
+            if (!cadNum) return;
+            
+            // Получаем сделки для этого квартала с учетом фильтра
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            
+            const dealsCount = filteredDeals.length;
+            
+            // Применяем стиль в зависимости от количества сделок
+            const hasDeals = dealsCount > 0;
+            const fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
+            
+            layer.setStyle({
+                fillColor: fillColor,
+                fillOpacity: 0.2,
+                color: '#3b82f6',
+                weight: 2.5,
+                opacity: 0.6,
+                dashArray: null
+            });
+        }
+    });
+    
+    // ✅ ОБНОВЛЯЕМ ЛЕГЕНДУ
+    updateLegend(dealsData);
+}
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ КАРТЫ
 // ============================================================
@@ -897,6 +946,34 @@ function renderMapLevel(level, parentId = null) {
                 }
             }
         });
+    }
+    
+    // ============================================================
+    // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ (ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ)
+    // ============================================================
+    if (level === 2 && window.mapLayer) {
+        // Если есть фильтр - применяем его к стилям
+        if (currentDealTypeFilter) {
+            updateQuartersStyle(targetObjects);
+        } else {
+            // Если фильтра нет - возвращаем исходные стили из GeoJSON
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    const props = layer.feature.properties;
+                    const deals = props.deals_count || 0;
+                    const hasDeals = deals > 0;
+                    
+                    layer.setStyle({
+                        fillColor: hasDeals ? getMapColor(deals) : '#f1f5f9',
+                        fillOpacity: 0.2,
+                        color: '#3b82f6',
+                        weight: 2.5,
+                        opacity: 0.6,
+                        dashArray: null
+                    });
+                }
+            });
+        }
     }
     
     // ============================================================
@@ -1518,6 +1595,7 @@ function addMapLegend() {
     legend.innerHTML = `
         <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
             📊 Сделки в квартале
+            ${currentDealTypeFilter ? `<span style="color:#0ea5e9; font-weight:400; font-size:10px;"> (фильтр: ${currentDealTypeFilter})</span>` : ''}
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
