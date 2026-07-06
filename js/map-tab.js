@@ -1055,7 +1055,13 @@ if (wrapperQuarters.length > 0) {
             };
         },
 onEachFeature: function(feature, layer) {
-    const cadNum = feature.properties.cadastral_number || '—';
+    // ✅ НОРМАЛИЗУЕМ КАДАСТРОВЫЙ НОМЕР
+    let cadNum = feature.properties.cadastral_number || '—';
+    
+    // Если это обертка с 7 нулями, исправляем на 6 нулей
+    if (cadNum.endsWith('0000000')) {
+        cadNum = '89:00:000000';
+    }
     
     // ✅ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ТУЛТИПА
     function updateTooltip() {
@@ -1096,7 +1102,6 @@ onEachFeature: function(feature, layer) {
             ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         `;
         
-        // ✅ ТОЛЬКО ТУЛТИП, БЕЗ ПОПАПА
         layer.bindTooltip(tooltipContent, {
             className: 'custom-popup',
             permanent: false,
@@ -1108,7 +1113,7 @@ onEachFeature: function(feature, layer) {
         });
     }
     
-    // ✅ СОХРАНЯЕМ ССЫЛКУ НА ФУНКЦИЮ (ЭТО ВАЖНО!)
+    // ✅ СОХРАНЯЕМ ССЫЛКУ НА ФУНКЦИЮ
     layer._updateTooltip = updateTooltip;
     
     // ✅ ПЕРВОНАЧАЛЬНОЕ СОЗДАНИЕ ТУЛТИПА
