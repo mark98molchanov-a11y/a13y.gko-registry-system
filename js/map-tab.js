@@ -311,22 +311,22 @@ function updateDistrictTooltip(layer, props) {
     const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
     const districtId = props.district_id || cadNum;
     
-    // ✅ Получаем все кварталы в районе
+    // ✅ ЕДИНАЯ ЛОГИКА ПОИСКА КВАРТАЛОВ (как в renderMapLevel)
     const districtObjects = mapData.features.filter(f => {
         if (f.properties.level !== 2) return false;
+        // ✅ ТОЧНО ТАК ЖЕ, КАК В renderMapLevel
         const fParentId = f.properties.parent_id || f.properties.district_id;
-        return fParentId === districtId || f.properties.district_id === districtId;
+        return String(fParentId) === String(districtId) || 
+               String(f.properties.district_id) === String(districtId);
     });
     
-    console.log(`🔄 updateDistrictTooltip: район ${districtId}, кварталов: ${districtObjects.length}, фильтр: ${currentDealTypeFilter}`);
+    console.log(`🔄 updateDistrictTooltip: район ${districtId}, кварталов: ${districtObjects.length}`);
     
-    // ✅ Собираем статистику по кварталам для взвешенной медианы
+    // ✅ ДАЛЬШЕ ТОТ ЖЕ КОД ДЛЯ РАСЧЕТА СТАТИСТИКИ
     const quarterStats = [];
     let totalDeals = 0;
     let allMins = [];
     let allMaxs = [];
-    let allPrices = [];
-    let allUprs = [];
     
     districtObjects.forEach(f => {
         const cadNumFeature = f.properties.cadastral_number;
@@ -346,12 +346,7 @@ function updateDistrictTooltip(layer, props) {
             const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
             const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
             
-            // ✅ Сохраняем все цены и УПРС для общей статистики
-            allPrices = allPrices.concat(prices);
-            allUprs = allUprs.concat(uprs);
-            
             if (prices.length > 0) {
-                // ✅ Для каждого квартала сохраняем медиану и мин/макс
                 const medianPrice = getMedian(prices);
                 const medianUprs = getMedian(uprs);
                 
@@ -369,7 +364,6 @@ function updateDistrictTooltip(layer, props) {
         }
     });
     
-    // ✅ Функция для расчета обычной медианы
     function getMedian(arr) {
         if (arr.length === 0) return 0;
         const sorted = arr.slice().sort((a, b) => a - b);
@@ -380,14 +374,12 @@ function updateDistrictTooltip(layer, props) {
         return sorted[mid];
     }
     
-    // ✅ РАСЧЕТ ВЗВЕШЕННОЙ МЕДИАНЫ (как на сайте)
     let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
     let minPrice = 0;
     let maxPrice = 0;
     
     if (quarterStats.length > 0) {
-        // 1. Взвешенная медиана для ЦЕНЫ
         const sortedByPrice = quarterStats.slice().sort((a, b) => a.medianPrice - b.medianPrice);
         const totalWeight = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
         let cumsum = 0;
@@ -399,7 +391,6 @@ function updateDistrictTooltip(layer, props) {
             }
         }
         
-        // 2. Взвешенная медиана для УПРС
         const sortedByUprs = quarterStats.slice().sort((a, b) => a.medianUprs - b.medianUprs);
         cumsum = 0;
         for (const q of sortedByUprs) {
@@ -410,7 +401,6 @@ function updateDistrictTooltip(layer, props) {
             }
         }
         
-        // 3. Мин и Макс из всех сделок
         minPrice = Math.min(...allMins);
         maxPrice = Math.max(...allMaxs);
     }
@@ -1058,11 +1048,12 @@ function onMapFeatureClick(feature, layer) {
         const districtId = props.district_id || cadNum;
         
         // ✅ Получаем все кварталы в районе
-        const districtObjects = mapData.features.filter(f => {
-            if (f.properties.level !== 2) return false;
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === districtId || f.properties.district_id === districtId;
-        });
+    const districtObjects = mapData.features.filter(f => {
+    if (f.properties.level !== 2) return false;
+    const fParentId = f.properties.parent_id || f.properties.district_id;
+    return String(fParentId) === String(districtId) || 
+           String(f.properties.district_id) === String(districtId);
+});
         
         // ✅ Собираем статистику по кварталам ДЛЯ ВЗВЕШЕННОЙ МЕДИАНЫ
         const quarterStats = [];
