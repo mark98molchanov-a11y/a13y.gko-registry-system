@@ -1092,13 +1092,14 @@ if (wrapperQuarters.length > 0) {
             const cadNum = feature.properties.cadastral_number || '—';
             
             // ✅ ДОБАВЛЯЕМ КЛИК ДЛЯ ПЕРЕХОДА НА РАЙОНЫ
-            layer.on('click', function(e) {
-                renderMapLevel(1);
-                updateBreadcrumb('okrug');
-                if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-                }
-            });
+   layer.on('click', function(e) {
+    renderMapLevel(0);
+    updateBreadcrumb('okrug');
+    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
+});
+
             
             // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV С УЧЕТОМ ФИЛЬТРА
             const deals = dealsData[cadNum] || [];
@@ -1467,13 +1468,13 @@ if (levelName === 'district') {
 }
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
-       if (levelName === 'okrug') {
+if (levelName === 'okrug') {
     renderMapLevel(1);
     updateBreadcrumb('okrug');
-    // ✅ ПОДПИСЫВАЕМСЯ НА КЛИК ПО ОКРУГУ ДЛЯ ВОЗВРАТА
     if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
     }
+}  }
 } else if (levelName === 'district') {
     // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
     // Сбрасываем стиль текущего слоя (района)
@@ -1796,7 +1797,7 @@ function updateBreadcrumb(level, id, name, isSearch = false) {
         }
     }
     
-    // ✅ ВСЕГДА ПОКАЗЫВАЕМ КЛИКАБЕЛЬНЫЙ ЯНАО
+    // ✅ КЛИК НА ЯНАО → ПЕРЕХОД НА УРОВЕНЬ ОКРУГА (level 0)
     if (level === 'okrug') {
         breadcrumb.innerHTML = `
             <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:600; font-size:0.95rem;">🏛️ ЯНАО</span>
@@ -1825,7 +1826,6 @@ function updateBreadcrumb(level, id, name, isSearch = false) {
         }
     }
 }
-
 
 // ============================================================
 // ОШИБКИ
