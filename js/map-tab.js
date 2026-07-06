@@ -204,10 +204,12 @@ function applyDealTypeFilter(kind) {
                 const props = layer.feature.properties;
                 const levelName = props.level_name || 'unknown';
                 
+                // ✅ ДЛЯ РАЙОНОВ (level === 1) - обновляем тултипы
                 if (levelName === 'district') {
                     updateDistrictTooltip(layer, props);
                 }
                 
+                // ✅ ДЛЯ КВАРТАЛОВ (level === 2) - обновляем попапы
                 if (levelName === 'quarter') {
                     const newPopupContent = buildPopupContent(layer.feature);
                     layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
@@ -216,7 +218,7 @@ function applyDealTypeFilter(kind) {
         });
     }
     
-    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ
+    // ✅ ОБНОВЛЯЕМ ОБЕРТКИ (wrapperLayer)
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
@@ -262,7 +264,22 @@ function applyDealTypeFilter(kind) {
             }
         });
     }
+    
+    // ✅ ОСОБЫЙ СЛУЧАЙ: ЕСЛИ МЫ НА УРОВНЕ РАЙОНОВ (level === 1)
+    // Нужно обновить тултипы для ВСЕХ районов
+    if (level === 1 && window.mapLayer) {
+        window.mapLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.properties) {
+                const props = layer.feature.properties;
+                const levelName = props.level_name || 'unknown';
+                if (levelName === 'district') {
+                    updateDistrictTooltip(layer, props);
+                }
+            }
+        });
+    }
 }
+
 
 function updateDistrictTooltip(layer, props) {
     const cadNum = props.cadastral_number || props.district_id || '—';
@@ -282,6 +299,8 @@ function updateDistrictTooltip(layer, props) {
         const fParentId = f.properties.parent_id || f.properties.district_id;
         return fParentId === districtId || f.properties.district_id === districtId;
     });
+    
+    console.log(`🔄 updateDistrictTooltip: район ${districtId}, кварталов: ${districtObjects.length}, фильтр: ${currentDealTypeFilter}`);
     
     districtObjects.forEach(f => {
         const cadNumFeature = f.properties.cadastral_number;
@@ -311,6 +330,7 @@ function updateDistrictTooltip(layer, props) {
             }
         }
     });
+
     
     function getWeightedMedianByDeals(arr) {
         if (arr.length === 0) return 0;
