@@ -208,7 +208,7 @@ function applyDealTypeFilter(kind) {
                 return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
             });
             
-            updateMapStats(normalQuarters, level, parentId);
+            updateMapStatsFromDeals(level, parentId);
             updateQuartersStyle(targetObjects);
         } else if (level === 2) {
             const filtered = mapData.features.filter(f => {
@@ -227,7 +227,7 @@ function applyDealTypeFilter(kind) {
                 return !cadNum.endsWith('0000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
             });
             
-            updateMapStats(normalQuarters, level, parentId);
+           updateMapStatsFromDeals(level, parentId);
             updateQuartersStyle(targetObjects);
         }
     } 
@@ -312,13 +312,12 @@ function updateDistrictTooltip(layer, props) {
     const districtId = props.district_id || cadNum;
     
     // ✅ ЕДИНАЯ ЛОГИКА ПОИСКА КВАРТАЛОВ (как в renderMapLevel)
-    const districtObjects = mapData.features.filter(f => {
-        if (f.properties.level !== 2) return false;
-        // ✅ ТОЧНО ТАК ЖЕ, КАК В renderMapLevel
-        const fParentId = f.properties.parent_id || f.properties.district_id;
-        return String(fParentId) === String(districtId) || 
-               String(f.properties.district_id) === String(districtId);
-    });
+const districtObjects = mapData.features.filter(f => {
+    if (f.properties.level !== 2) return false;
+    const fParentId = f.properties.parent_id || f.properties.district_id;
+    return String(fParentId) === String(districtId) ||   // ← С String()
+           String(f.properties.district_id) === String(districtId);  // ← С String()
+});
     
     console.log(`🔄 updateDistrictTooltip: район ${districtId}, кварталов: ${districtObjects.length}`);
     
@@ -991,21 +990,19 @@ function renderMapLevel(level, parentId = null) {
                     dashArray: '4 4'
                 };
             },
-            onEachFeature: function(feature, layer) {
-                const props = feature.properties;
-                const cadNum = props.cadastral_number || '—';
-                const dealsCount = props.deals_count || 0;
-                const medianPrice = props.deals_median || 0;
-                
-                const deals = dealsData[cadNum] || [];
-const dealsCount = deals.length;
-const prices = deals.map(d => d.price).filter(p => p > 0);
-const uprsValues = deals.map(d => d.uprs).filter(u => u > 0);
-
-const medianPrice = getMedian(prices);
-const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-const uprsMedian = getMedian(uprsValues);
+onEachFeature: function(feature, layer) {
+    const cadNum = feature.properties.cadastral_number || '—';
+    
+    // ✅ БЕРЕМ ДАННЫЕ ТОЛЬКО ИЗ CSV
+    const deals = dealsData[cadNum] || [];
+    const dealsCount = deals.length;
+    const prices = deals.map(d => d.price).filter(p => p > 0);
+    const uprsValues = deals.map(d => d.uprs).filter(u => u > 0);
+    
+    const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
 
 layer.bindPopup(`
     <div class="popup-title">${cadNum}</div>
@@ -1057,7 +1054,7 @@ layer.bindPopup(`
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
         const normalLayer = L.geoJSON(normalQuarters, {
-       style: function(feature) {
+   style: function(feature) {
     const cadNum = feature.properties?.cadastral_number;
     const deals = dealsData[cadNum] || [];
     const dealsCount = deals.length;
@@ -1212,8 +1209,8 @@ function onMapFeatureClick(feature, layer) {
 const districtObjects = mapData.features.filter(f => {
     if (f.properties.level !== 2) return false;
     const fParentId = f.properties.parent_id || f.properties.district_id;
-    return String(fParentId) === String(districtId) || 
-           String(f.properties.district_id) === String(districtId);
+    return String(fParentId) === String(districtId) ||   // ← ДОБАВИЛИ String()
+           String(f.properties.district_id) === String(districtId);  // ← ДОБАВИЛИ String()
 });
         
         // ✅ Собираем статистику по кварталам ДЛЯ ВЗВЕШЕННОЙ МЕДИАНЫ
@@ -1638,148 +1635,6 @@ function buildPopupContent(feature) {
     return `<div>Неизвестный уровень</div>`;
 }
 // ============================================================
-// ПОСТРОЕНИЕ ПОПАПА
-// ============================================================
-function updateMapStats(features, level, parentId) {
-    const statMedian = document.getElementById('stat-median');
-    const statMinMax = document.getElementById('stat-minmax');
-    const statUprs = document.getElementById('stat-uprs');
-    const statTotalDeals = document.getElementById('stat-total-deals');
-    
-    if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
-    
-    let totalDeals = 0;
-    let medianPrice = 0;
-    let minPrice = 0;
-    let maxPrice = 0;
-    let uprsMedian = 0;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === parentId;
-        });
-    }
-    
-    const objectsWithDeals = targetObjects.filter(f => (f.properties.deals_count || 0) > 0);
-    
-    if (objectsWithDeals.length > 0) {
-        totalDeals = objectsWithDeals.reduce((sum, f) => sum + (f.properties.deals_count || 0), 0);
-        
-        // ✅ Оптимизированный расчет истинной медианы (без раздувания массива)
-        let allPrices = [];
-        let allMins = [];
-        let allMaxs = [];
-        let allUprs = [];
-        
-        objectsWithDeals.forEach(f => {
-            const count = f.properties.deals_count || 0;
-            const median = f.properties.deals_median || 0;
-            const min = f.properties.deals_min || 0;
-            const max = f.properties.deals_max || 0;
-            const uprs = f.properties.uprs_median || 0;
-            
-            if (count > 0 && median > 0) {
-                // ✅ Добавляем только медиану (по 1 разу на объект) + вес = количество сделок
-                allPrices.push({ value: median, weight: count });
-                allMins.push(min);
-                allMaxs.push(max);
-                allUprs.push({ value: uprs, weight: count });
-            }
-        });
-        
-        // ✅ Функция для вычисления взвешенной медианы
-        function getWeightedMedian(arr, totalWeight) {
-            if (arr.length === 0 || totalWeight === 0) return 0;
-            const sorted = arr.slice().sort((a, b) => a.value - b.value);
-            let cumulative = 0;
-            const halfWeight = totalWeight / 2;
-            for (let i = 0; i < sorted.length; i++) {
-                cumulative += sorted[i].weight;
-                if (cumulative >= halfWeight) {
-                    return sorted[i].value;
-                }
-            }
-            return sorted[sorted.length - 1].value;
-        }
-        
-        const totalPriceWeight = allPrices.reduce((sum, p) => sum + p.weight, 0);
-        const totalUprsWeight = allUprs.reduce((sum, p) => sum + p.weight, 0);
-        
-        medianPrice = getWeightedMedian(allPrices, totalPriceWeight);
-        minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-        maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
-        uprsMedian = getWeightedMedian(allUprs, totalUprsWeight);
-    }
-    
-    const formatPrice = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        if (Number.isInteger(num)) {
-            return num.toLocaleString('ru-RU') + ' ₽';
-        }
-        return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
-    };
-
-    const formatNumber = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        if (Number.isInteger(num)) {
-            return num.toLocaleString('ru-RU');
-        }
-        return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
-
-    const formatUprs = (num) => {
-        if (num === 0 || isNaN(num)) return '—';
-        return num.toFixed(2) + ' ₽/м²';
-    };
-    
-    statMedian.textContent = formatPrice(medianPrice);
-    statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
-        ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
-        : '—';
-    statUprs.textContent = formatUprs(uprsMedian);
-    statTotalDeals.textContent = totalDeals.toLocaleString();
-    
-    // ============================================================
-    // ✅ ДОБАВЛЯЕМ СПИСОК КВАРТАЛОВ СО СДЕЛКАМИ
-    // ============================================================
-    const quartersList = document.getElementById('quarters-list');
-    if (quartersList) {
-        if (objectsWithDeals.length === 0) {
-            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        } else {
-            // Сортируем кварталы по количеству сделок (по убыванию)
-            const sorted = objectsWithDeals.slice().sort((a, b) => 
-                (b.properties.deals_count || 0) - (a.properties.deals_count || 0)
-            );
-            
-            let html = '';
-            sorted.forEach(f => {
-                const cadNum = f.properties.cadastral_number || '—';
-                const count = f.properties.deals_count || 0;
-                
-                html += `
-                    <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                         onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                         onmouseover="this.style.background='#f1f5f9'"
-                         onmouseout="this.style.background='transparent'">
-                        <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-                    </div>
-                `;
-            });
-            quartersList.innerHTML = html;
-        }
-    }
-    }
-// ============================================================
-// ХЛЕБНЫЕ КРОШКИ
 // ============================================================
 function updateBreadcrumb(level, id, name, isSearch = false) {
     const breadcrumb = document.getElementById('map-breadcrumb');
