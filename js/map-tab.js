@@ -173,28 +173,25 @@ function applyDealTypeFilter(kind) {
     currentDealTypeFilter = currentDealTypeFilter === kind ? null : kind;
     renderDealTypeFilters();
     
-    // Пересчитываем статистику с фильтром
-    if (window.mapLayer && window.mapLayer.feature) {
-        // Получаем текущий уровень и parentId
-        const level = currentLevel;
-        const parentId = currentParentId;
-        
-        // Получаем объекты для текущего уровня
-        let targetObjects = [];
-        const allObjects = mapData.features.filter(f => f.properties.level === 2);
-        
-        if (level === 0 || level === 1) {
-            targetObjects = allObjects;
-        } else if (level === 2) {
-            targetObjects = allObjects.filter(f => {
-                const fParentId = f.properties.parent_id || f.properties.district_id;
-                return fParentId === parentId;
-            });
-        }
-        
-        // Обновляем статистику с фильтром
-        updateMapStatsWithDealFilter(targetObjects, level, parentId);
+    // ✅ ПЕРЕСЧИТЫВАЕМ СТАТИСТИКУ С ФИЛЬТРОМ (ВСЕГДА)
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    // Получаем объекты для текущего уровня
+    let targetObjects = [];
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return fParentId === parentId;
+        });
     }
+    
+    // Обновляем статистику с фильтром
+    updateMapStatsWithDealFilter(targetObjects, level, parentId);
 }
 function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     const statMedian = document.getElementById('stat-median');
