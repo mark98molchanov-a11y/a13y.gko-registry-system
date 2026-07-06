@@ -217,29 +217,33 @@ function applyDealTypeFilter(kind) {
         });
     }
 }
-
-// ✅ НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ТУЛТИПА ДЛЯ РАЙОНА
+// ✅ ФУНКЦИЯ: ОБНОВЛЕНИЕ ТУЛТИПА ДЛЯ РАЙОНА
 function updateDistrictTooltip(layer, props) {
     const cadNum = props.cadastral_number || props.district_id || '—';
     const districtName = props.district_name || cadNum;
     const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
     const districtId = props.district_id || cadNum;
     
-    const districtObjects = mapData.features.filter(f => {
-        if (f.properties.level !== 2) return false;
-        const fParentId = f.properties.parent_id || f.properties.district_id;
-        return fParentId === districtId || f.properties.district_id === districtId;
-    });
-    
+    // ✅ БЕРЕМ ВСЕ КВАРТАЛЫ ИЗ DEALSDATA
     let totalDeals = 0;
     let allPrices = [];
     let allMins = [];
     let allMaxs = [];
     let allUprs = [];
     
-    districtObjects.forEach(f => {
-        const cadNumFeature = f.properties.cadastral_number;
-        if (!cadNumFeature) return;
+    // ✅ ПРОХОДИМ ПО ВСЕМ КВАРТАЛАМ В DEALSDATA
+    Object.keys(dealsData).forEach(cadNumFeature => {
+        // Проверяем, принадлежит ли квартал этому району
+        // Ищем в GeoJSON, чтобы определить принадлежность
+        const geoFeature = mapData.features.find(f => 
+            f.properties.level === 2 && 
+            f.properties.cadastral_number === cadNumFeature
+        );
+        
+        if (!geoFeature) return;
+        
+        const fParentId = geoFeature.properties.parent_id || geoFeature.properties.district_id;
+        if (fParentId !== districtId && geoFeature.properties.district_id !== districtId) return;
         
         const deals = dealsData[cadNumFeature] || [];
         const filteredDeals = deals.filter(deal => {
@@ -323,6 +327,7 @@ function updateDistrictTooltip(layer, props) {
         interactive: false
     });
 }
+// ✅ НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ТУЛТИПА ДЛЯ РАЙОНА
 function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
@@ -331,12 +336,11 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     
     if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
+    // ✅ БЕРЕМ ВСЕ СДЕЛКИ ИЗ dealsData (ВКЛЮЧАЯ ОБЕРТКИ)
     let allDeals = [];
     
-    targetObjects.forEach(f => {
-        const cadNum = f.properties.cadastral_number;
-        if (!cadNum) return;
-        
+    // ✅ ПРОХОДИМ ПО ВСЕМ КВАРТАЛАМ В DEALSDATA
+    Object.keys(dealsData).forEach(cadNum => {
         const deals = dealsData[cadNum] || [];
         
         // Применяем фильтр по типу сделки
@@ -350,6 +354,9 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
         allDeals = allDeals.concat(filteredDeals);
     });
     
+    console.log(`📊 updateMapStatsWithDealFilter: найдено ${allDeals.length} сделок`);
+    console.log(`📊 Фильтр: "${currentDealTypeFilter}"`);
+    
     if (allDeals.length === 0) {
         statMedian.textContent = '—';
         statMinMax.textContent = '—';
@@ -358,7 +365,8 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
         return;
     }
     
-    const prices = allDeals.map(d => d.price).sort((a, b) => a - b);
+    // ✅ ВЫЧИСЛЯЕМ СТАТИСТИКУ
+    const prices = allDeals.map(d => d.price).filter(p => p > 0).sort((a, b) => a - b);
     const uprsValues = allDeals.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a - b);
     
     function getMedian(arr) {
@@ -371,9 +379,11 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     }
     
     const medianPrice = getMedian(prices);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
     const medianUprs = getMedian(uprsValues);
+    
+    console.log(`📊 Медианная цена: ${medianPrice}, Мин: ${minPrice}, Макс: ${maxPrice}`);
     
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
@@ -397,7 +407,7 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     statUprs.textContent = formatUprs(medianUprs);
     statTotalDeals.textContent = allDeals.length.toLocaleString();
     
-    // Обновляем список кварталов
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ (ТОЛЬКО ТЕ, ЧТО ЕСТЬ В GEOJSON)
     updateQuartersListWithDealFilter(targetObjects);
 }
 
