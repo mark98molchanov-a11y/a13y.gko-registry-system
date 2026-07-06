@@ -1473,8 +1473,7 @@ if (levelName === 'okrug') {
     updateBreadcrumb('okrug');
     if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-    }
-}  }
+    } 
 } else if (levelName === 'district') {
     // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
     // Сбрасываем стиль текущего слоя (района)
