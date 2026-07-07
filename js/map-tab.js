@@ -91,7 +91,6 @@ async function loadDealsCSV() {
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
-            const city = values[cityIndex] || 'Неизвестно';
 citiesCount[city] = (citiesCount[city] || 0) + 1;
         }
         
