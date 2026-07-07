@@ -1644,41 +1644,46 @@
         </div>
     </div>
 
-    <!-- ✅ ТАБЛИЦА ФИЛЬТРОВ (ШИРОКАЯ, КЛАССИЧЕСКАЯ) -->
-<div id="reset-filters-container" style="display: flex; justify-content: flex-end; margin-bottom: 6px;">
-    <button onclick="resetAllFiltersMap()" 
-            style="
-                font-size: 10px; 
-                color: #ef4444; 
-                background: #fef2f2; 
-                border: 1px solid #fecaca; 
-                border-radius: 6px; 
-                padding: 3px 10px; 
-                cursor: pointer; 
-                font-weight: 500;
-                transition: all 0.2s;
-                font-family: 'Inter', sans-serif;
-                white-space: nowrap;
-            "
-            onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#fca5a5';"
-            onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#fecaca';">
-        ✕ Сбросить
-    </button>
-</div>
+  <div style="display: flex; flex-direction: column; gap: 6px; min-width: 260px; max-width: 320px; flex-shrink: 0;">
+        
+        <!-- КНОПКА СБРОСА — СВЕРХУ -->
+        <div style="display: flex; justify-content: flex-end;">
+            <button onclick="resetAllFiltersMap()" 
+                    style="
+                        font-size: 10px; 
+                        color: #ef4444; 
+                        background: #fef2f2; 
+                        border: 1px solid #fecaca; 
+                        border-radius: 6px; 
+                        padding: 3px 10px; 
+                        cursor: pointer; 
+                        font-weight: 500;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#fca5a5';"
+                    onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#fecaca';">
+                ✕ Сбросить
+            </button>
+        </div>
 
-<!-- ✅ ТАБЛИЦА ФИЛЬТРОВ (ШИРОКАЯ, КЛАССИЧЕСКАЯ) -->
-<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="min-width: 260px; max-width: 320px; max-height: 500px; overflow-y: auto; flex-shrink: 0;">
-    <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">📋 Типы сделок</div>
-    <div id="deal-type-filters" style="font-size: 12px; color: #1e293b; max-height: 500px; overflow-y: auto;">
-        <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
+        <!-- ТИПЫ СДЕЛОК -->
+        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-height: 500px; overflow-y: auto;">
+            <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">📋 Типы сделок</div>
+            <div id="deal-type-filters" style="font-size: 12px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- ГОРОДА -->
+        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-height: 500px; overflow-y: auto;">
+            <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">🏙️ Города</div>
+            <div id="city-filters" style="font-size: 12px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
+            </div>
+        </div>
     </div>
-</div>
-<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="min-width: 260px; max-width: 320px; max-height: 500px; overflow-y: auto; flex-shrink: 0;">
-    <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">🏙️ Города</div>
-    <div id="city-filters" style="font-size: 12px; color: #1e293b; max-height: 500px; overflow-y: auto;">
-        <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-    </div>
-</div>
     </div>
 </div>
 </div>
