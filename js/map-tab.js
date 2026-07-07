@@ -1391,15 +1391,15 @@ function updateTooltip() {
     });
     
     // ✅ ПРИ КЛИКЕ — ПОКАЗЫВАЕМ ТУЛТИП И ЦЕНТРИРУЕМ
-    layer.on('click', function(e) {
-        updateTooltip();
-        this.openTooltip();
-        if (this.getBounds && this.getBounds().isValid()) {
-            mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
-        }
-    });
+   ayer.on('click', function(e) {
+    updateTooltip();
+    this.openTooltip();
+    if (this.getBounds && this.getBounds().isValid()) {
+        mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
+    }
+});  // ← ИЗМЕНИТЕ }; на });
 }
-    }).addTo(mapInstance);
+}).addTo(mapInstance);
     
     console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
 }
