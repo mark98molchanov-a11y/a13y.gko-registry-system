@@ -2125,6 +2125,48 @@ function searchQuarter() {
         }
     }, 300);
 }
+function searchQuarterByCadNumber(cadNumber) {
+    if (!cadNumber) return;
+    
+    console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
+    
+    // Ищем квартал по точному кадастровому номеру
+    const found = mapData.features.find(f => {
+        if (f.properties.level !== 2) return false;
+        return f.properties.cadastral_number === cadNumber;
+    });
+    
+    if (!found) {
+        console.log(`❌ Квартал "${cadNumber}" не найден`);
+        return;
+    }
+    
+    console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
+    
+    // Определяем район (parent_id)
+    const districtId = found.properties.parent_id || found.properties.district_id;
+    const districtName = found.properties.district_name || districtId || 'Район';
+    
+    // Переходим на уровень кварталов с этим районом
+    renderMapLevel(2, districtId);
+    updateBreadcrumb('quarter', districtId, districtName, true);
+    
+    // Показываем попап и центрируем на квартале
+    setTimeout(() => {
+        if (window.mapLayer) {
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    if (layer.feature.properties.cadastral_number === cadNumber) {
+                        layer.openPopup();
+                        if (layer.getBounds && layer.getBounds().isValid()) {
+                            mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+                        }
+                    }
+                }
+            });
+        }
+    }, 300);
+}
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
