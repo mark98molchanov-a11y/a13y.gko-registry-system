@@ -986,32 +986,38 @@ function renderMapLevel(level, parentId = null) {
     }
 
     // Фильтруем объекты
-    let filtered = mapData.features.filter(f => {
-        const props = f.properties;
-        if (props.level !== level) return false;
-        
-        if (level === 0) return true;
-        
-        if (level === 1) {
-            // ✅ ПОКАЗЫВАЕМ РАЙОНЫ + ВСЕ ОБЕРТКИ (89:XX:000000)
-            const cadNum = props.cadastral_number || '';
-            const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000');
-            // Районы: parent_id === '89'
-            // Обертки: любые, заканчивающиеся на 000000
-            return props.parent_id === '89' || isWrapper;
-        }
-        
-        if (level === 2) {
-            if (parentId) {
-                const belongs = String(props.parent_id) === String(parentId) || 
-                               String(props.district_id) === String(parentId);
-                if (!belongs) return false;
-            }
-            return true;
-        }
-        
+let filtered = mapData.features.filter(f => {
+    const props = f.properties;
+    const cadNum = props.cadastral_number || '';
+    const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000');
+    
+    // Уровень 0: только округ (level: 0)
+    if (level === 0) {
+        return props.level === 0;
+    }
+    
+    // Уровень 1: районы (level: 1) + обертки (level: 2 с 000000)
+    if (level === 1) {
+        // Районы: level === 1
+        if (props.level === 1) return true;
+        // Обертки: level === 2 и заканчиваются на 000000
+        if (props.level === 2 && isWrapper) return true;
         return false;
-    });
+    }
+    
+    // Уровень 2: кварталы (level: 2) в конкретном районе
+    if (level === 2) {
+        if (props.level !== 2) return false;
+        if (parentId) {
+            const belongs = String(props.parent_id) === String(parentId) || 
+                           String(props.district_id) === String(parentId);
+            if (!belongs) return false;
+        }
+        return true;
+    }
+    
+    return false;
+});
 
     console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
     
