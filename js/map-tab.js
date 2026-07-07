@@ -399,12 +399,16 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
             if (!cadNum) return;
             
             const deals = dealsData[cadNum] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                return true;
-            });
+const filteredDeals = deals.filter(deal => {
+    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+        return false;
+    }
+    // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter && deal.city !== currentCityFilter) {
+        return false;
+    }
+    return true;
+});
             
             if (filteredDeals.length > 0) {
                 allDeals = allDeals.concat(filteredDeals);
@@ -808,17 +812,21 @@ console.log(`📊 Тултип: всего кварталов для район�
     let allMins = [];
     let allMaxs = [];
     
-    allQuarters.forEach(f => {
-        const cadNumFeature = f.properties.cadastral_number;
-        if (!cadNumFeature) return;
-        
-        const deals = dealsData[cadNumFeature] || [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
-        });
+  allQuarters.forEach(f => {
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return;
+    
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && deal.city !== currentCityFilter) {
+            return false;
+        }
+        return true;
+    });
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
@@ -958,13 +966,15 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     
     // ✅ ФИЛЬТРУЕМ ПО НАЛИЧИЮ СДЕЛОК С УЧЕТОМ ФИЛЬТРА
     // ❗ ИСКЛЮЧАЕМ ОБЕРТКУ 89:00:000000 ИЗ СПИСКА
-    const withDeals = allQuarters.filter(f => {
+const withDeals = allQuarters.filter(f => {
     const cadNum = f.properties?.cadastral_number;
     if (!cadNum) return false;
     
     const deals = dealsData[cadNum] || [];
     const filtered = deals.filter(d => {
         if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && d.city !== currentCityFilter) return false;
         return true;
     });
     return filtered.length > 0;
@@ -1013,13 +1023,16 @@ function updateQuartersStyle(targetObjects) {
             
             // Получаем сделки для этого квартала с учетом фильтра
             const deals = dealsData[cadNum] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                return true;
-            });
-            
+const filteredDeals = deals.filter(deal => {
+    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+        return false;
+    }
+    // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter && deal.city !== currentCityFilter) {
+        return false;
+    }
+    return true;
+});
             const dealsCount = filteredDeals.length;
             
             // Применяем стиль в зависимости от количества сделок
@@ -1826,17 +1839,21 @@ if (levelName === 'district') {
     let allMins = [];
     let allMaxs = [];
     
-    allQuarters.forEach(f => {
-        const cadNumFeature = f.properties.cadastral_number;
-        if (!cadNumFeature) return;
-        
-        const deals = dealsData[cadNumFeature] || [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
-        });
+ allQuarters.forEach(f => {
+    const cadNumFeature = f.properties.cadastral_number;
+    if (!cadNumFeature) return;
+    
+    const deals = dealsData[cadNumFeature] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && deal.city !== currentCityFilter) {
+            return false;
+        }
+        return true;
+    });
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
