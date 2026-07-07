@@ -72,7 +72,8 @@ async function loadDealsCSV() {
             if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
             
             const cadNum = values[cadIndex] || '';
-            const kind = values[kindIndex] || 'nan';  // ← ДОБАВЛЯЕМ 'nan' ДЛЯ ПУСТЫХ
+            const kind = values[kindIndex] || 'nan';
+            const city = values[cityIndex] || 'nan';   // ← ДОБАВЛЯЕМ 'nan' ДЛЯ ПУСТЫХ
             
             if (!cadNum) continue;
             
@@ -85,7 +86,8 @@ async function loadDealsCSV() {
                 kind: kind,
                 price: price,
                 uprs: uprs,
-                area: area
+                area: area,
+                city: city 
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
