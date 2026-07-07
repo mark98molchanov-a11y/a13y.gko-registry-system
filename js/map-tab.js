@@ -2062,23 +2062,29 @@ function searchQuarter() {
         input.style.background = '#f8fafc';
     }, 1500);
     
-    // ✅ НОВАЯ ЛОГИКА: ПРОВЕРЯЕМ, ОБЕРТКА ЛИ ЭТО
+    // ✅ ПРОВЕРЯЕМ, ОБЕРТКА ЛИ ЭТО
     const cadNum = found.properties.cadastral_number || '';
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
     if (isWrapper) {
-        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ КРАСНУЮ ОБЕРТКУ НА УРОВНЕ ОКРУГА
-        console.log(`🔴 Найдена обертка: ${cadNum}, показываем как обертку`);
+        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ КАК СТАТИЧНЫЙ ОБЪЕКТ
+        console.log(`🔴 Найдена обертка: ${cadNum}, показываем как статичный объект`);
         
-        // Показываем уровень округа (level=0)
-        renderMapLevel(0);
-        updateBreadcrumb('okrug');
+        // ✅ УБЕЖДАЕМСЯ, ЧТО МЫ НА УРОВНЕ, ГДЕ ВИДНА ОБЕРТКА
+        // Если мы на уровне 2 (кварталы) - переключаемся на уровень 1 (районы)
+        if (currentLevel === 2) {
+            renderMapLevel(1);
+        }
+        // Если мы на уровне 0 (округ) - показываем уровень 1 (районы)
+        else if (currentLevel === 0) {
+            renderMapLevel(1);
+        }
         
-        // Подсвечиваем найденную обертку и центрируем
+        // Находим и подсвечиваем обертку
         setTimeout(() => {
             let foundLayer = null;
             
-            // Ищем обертку в wrapperLayer
+            // Ищем в wrapperLayer
             if (window.wrapperLayer) {
                 window.wrapperLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
@@ -2090,27 +2096,30 @@ function searchQuarter() {
                 });
             }
             
-            // Если не нашли в wrapperLayer, ищем в mapLayer (обычные кварталы)
-            if (!foundLayer && window.mapLayer) {
-                window.mapLayer.eachLayer(function(layer) {
-                    if (layer.feature && layer.feature.properties) {
-                        const layerCadNum = layer.feature.properties.cadastral_number || '';
-                        if (layerCadNum === cadNum) {
-                            foundLayer = layer;
-                        }
-                    }
-                });
-            }
-            
             if (foundLayer) {
-                // Открываем тултип
+                // ✅ Открываем тултип
                 if (foundLayer.openTooltip) {
                     foundLayer.openTooltip();
                 }
-                // Центрируем на обертке
+                
+                // ✅ Центрируем на обертке
                 if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
                     mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
                 }
+                
+                // ❗ ОТКЛЮЧАЕМ ВСЕ СОБЫТИЯ КЛИКА
+                foundLayer.off('click');
+                foundLayer.off('dblclick');
+                
+                // ✅ Делаем обертку более заметной
+                foundLayer.setStyle({
+                    fillOpacity: 0.4,
+                    weight: 3,
+                    color: '#ff0000',
+                    opacity: 0.8
+                });
+            } else {
+                console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях`);
             }
         }, 400);
         
