@@ -289,6 +289,7 @@ function applyDealTypeFilter(kind) {
     
     // ✅ ВСЕГДА ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
     
     // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ ПРИ СМЕНЕ ФИЛЬТРА
     if (window.wrapperLayer) {
@@ -332,6 +333,7 @@ function applyCityFilter(city) {
     updateMapStatsFromDeals(level, parentId);
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
     
     // Обновляем тултипы оберток
     if (window.wrapperLayer) {
@@ -1385,7 +1387,6 @@ if (normalQuarters.length > 0) {
         console.warn('⚠️ Не удалось подогнать границы:', e);
     }
     
-    addMapLegend();
 
     // Сбрасываем выделение при переходе
     if (window.wrapperLayer) {
@@ -1422,6 +1423,7 @@ if (normalQuarters.length > 0) {
     updatePopupsAndTooltips(level);
     
     updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
     // ============================================================
     // ✅ ДОБАВЛЯЕМ ПОДПИСИ НА ПОЛИГОНЫ (ЗДЕСЬ!)
     // ============================================================
@@ -2100,6 +2102,25 @@ function addMapLegend() {
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
             <span style="color:#475569;">нет сделок</span>
         </div>
+        ${currentDealTypeFilter || currentCityFilter ? `
+        <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; text-align:center;">
+            <button onclick="resetAllFiltersMap()" style="
+                font-size:10px; 
+                color:#ef4444; 
+                background:none; 
+                border:1px solid #fecaca; 
+                border-radius:6px; 
+                padding:4px 12px; 
+                cursor:pointer; 
+                font-weight:500;
+                transition: all 0.15s;
+            "
+            onmouseover="this.style.background='#fef2f2'"
+            onmouseout="this.style.background='transparent'">
+                ✕ Сбросить все фильтры
+            </button>
+        </div>
+        ` : ''}
     `;
     
     const mapContainer = document.getElementById('map-container');
@@ -2107,6 +2128,25 @@ function addMapLegend() {
         mapContainer.style.position = 'relative';
         mapContainer.appendChild(legend);
     }
+}
+function resetAllFiltersMap() {
+    console.log('🔄 Сброс всех фильтров карты');
+    
+    // Сбрасываем фильтры
+    currentDealTypeFilter = null;
+    currentCityFilter = null;
+    
+    // Перерисовываем фильтры в UI
+    renderDealTypeFilters();
+    renderCityFilters();
+    
+    // Перерисовываем карту с текущим уровнем
+    renderMapLevel(currentLevel, currentParentId);
+    
+    // Обновляем легенду
+    addMapLegend();
+    
+    console.log('✅ Все фильтры сброшены');
 }
 function addLabelsToPolygons(layer, features, level) {
     if (!layer || !features) return;
