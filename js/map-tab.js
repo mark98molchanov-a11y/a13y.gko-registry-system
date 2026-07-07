@@ -151,30 +151,7 @@ function renderDealTypeFilters() {
         </table>
     `;
     
-    // ✅ КНОПКА СБРОСА ВСЕГДА ВИДНА
-    html += `
-        <div onclick="applyDealTypeFilter(null)" 
-             style="
-                 text-align: center;
-                 padding: 8px;
-                 margin-top: 10px;
-                 border-top: 1px solid #e2e8f0;
-                 font-size: 11px;
-                 color: ${currentDealTypeFilter ? '#ef4444' : '#94a3b8'};
-                 cursor: ${currentDealTypeFilter ? 'pointer' : 'default'};
-                 font-weight: ${currentDealTypeFilter ? '500' : '400'};
-                 border-radius: 6px;
-                 transition: all 0.15s;
-                 opacity: ${currentDealTypeFilter ? '1' : '0.5'};
-             "
-             ${currentDealTypeFilter ? `
-                 onmouseover="this.style.background='#fef2f2'"
-                 onmouseout="this.style.background='transparent'"
-             ` : ''}
-             >
-            ✕ Сбросить фильтр
-        </div>
-    `;
+
 
     
     container.innerHTML = html;
@@ -222,30 +199,6 @@ function renderCityFilters() {
         </table>
     `;
     
-    // КНОПКА СБРОСА
-    html += `
-        <div onclick="applyCityFilter(null)" 
-             style="
-                 text-align: center;
-                 padding: 8px;
-                 margin-top: 10px;
-                 border-top: 1px solid #e2e8f0;
-                 font-size: 11px;
-                 color: ${currentCityFilter ? '#ef4444' : '#94a3b8'};
-                 cursor: ${currentCityFilter ? 'pointer' : 'default'};
-                 font-weight: ${currentCityFilter ? '500' : '400'};
-                 border-radius: 6px;
-                 transition: all 0.15s;
-                 opacity: ${currentCityFilter ? '1' : '0.5'};
-             "
-             ${currentCityFilter ? `
-                 onmouseover="this.style.background='#fef2f2'"
-                 onmouseout="this.style.background='transparent'"
-             ` : ''}
-             >
-            ✕ Сбросить фильтр
-        </div>
-    `;
     
     container.innerHTML = html;
 }
@@ -2132,25 +2085,6 @@ function addMapLegend() {
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
             <span style="color:#475569;">нет сделок</span>
         </div>
-        ${currentDealTypeFilter || currentCityFilter ? `
-        <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; text-align:center;">
-            <button onclick="resetAllFiltersMap()" style="
-                font-size:10px; 
-                color:#ef4444; 
-                background:none; 
-                border:1px solid #fecaca; 
-                border-radius:6px; 
-                padding:4px 12px; 
-                cursor:pointer; 
-                font-weight:500;
-                transition: all 0.15s;
-            "
-            onmouseover="this.style.background='#fef2f2'"
-            onmouseout="this.style.background='transparent'">
-                ✕ Сбросить все фильтры
-            </button>
-        </div>
-        ` : ''}
     `;
     
     const mapContainer = document.getElementById('map-container');
