@@ -1331,9 +1331,20 @@ if (normalQuarters.length > 0) {
             const props = feature.properties;
             const levelName = props.level_name || 'unknown';
             const cadNum = props.cadastral_number;
+            
+            // ✅ ИСПОЛЬЗУЕМ ФИЛЬТРЫ ДЛЯ ПОДСЧЕТА СДЕЛОК
             const deals = dealsData[cadNum] || [];
-            const dealsCount = deals.length;
-            const hasDeals = dealsCount > 0;
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+                    return false;
+                }
+                if (currentCityFilter && deal.city !== currentCityFilter) {
+                    return false;
+                }
+                return true;
+            });
+            const filteredCount = filteredDeals.length;
+            const hasDeals = filteredCount > 0;
             
             // ✅ ДЛЯ РАЙОНОВ (level: 1) — ПОЛУПРОЗРАЧНЫЙ СТИЛЬ
             if (levelName === 'district') {
@@ -1347,9 +1358,9 @@ if (normalQuarters.length > 0) {
                 };
             }
             
-            // ✅ ДЛЯ КВАРТАЛОВ (level: 2) — ЦВЕТ В ЗАВИСИМОСТИ ОТ СДЕЛОК
+            // ✅ ДЛЯ КВАРТАЛОВ (level: 2) — ЦВЕТ В ЗАВИСИМОСТИ ОТ ФИЛЬТРОВАННЫХ СДЕЛОК
             return {
-                fillColor: hasDeals ? getMapColor(dealsCount) : '#f1f5f9',
+                fillColor: hasDeals ? getMapColor(filteredCount) : '#f1f5f9',
                 fillOpacity: 0.2,
                 color: '#3b82f6',
                 weight: 2.5,
@@ -1727,31 +1738,43 @@ if (levelName === 'district') {
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
-    layer.on('mouseover', function(e) {
-        if (!this || !this.setStyle) return;
+ layer.on('mouseover', function(e) {
+    if (!this || !this.setStyle) return;
+    
+    const lvl = feature?.properties?.level || 0;
+    
+    if (lvl === 2) {
+        // ✅ СОХРАНЯЕМ ЦВЕТ, МЕНЯЕМ ТОЛЬКО ОБВОДКУ
+        const cadNum = feature?.properties?.cadastral_number;
+        const deals = cadNum ? (dealsData[cadNum] || []) : [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
+            if (currentCityFilter && deal.city !== currentCityFilter) return false;
+            return true;
+        });
+        const count = filteredDeals.length;
+        const fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
         
-        const lvl = feature?.properties?.level || 0;
-        
-        if (lvl === 2) {
-            this.setStyle({
-                fillOpacity: 0.2,
-                weight: 2,
-                color: '#60a5fa',
-                opacity: 0.8
-            });
-        } else {
-            this.setStyle({
-                weight: 2.5,
-                color: '#60a5fa',
-                opacity: 0.9
-            });
-        }
-        
-        this.bringToFront();
-        if (this._container) {
-            this._container.style.cursor = 'pointer';
-        }
-    });
+        this.setStyle({
+            fillColor: fillColor,
+            fillOpacity: 0.2,
+            weight: 2,
+            color: '#60a5fa',
+            opacity: 0.8
+        });
+    } else {
+        this.setStyle({
+            weight: 2.5,
+            color: '#60a5fa',
+            opacity: 0.9
+        });
+    }
+    
+    this.bringToFront();
+    if (this._container) {
+        this._container.style.cursor = 'pointer';
+    }
+});
 
     // ===== 🖱️ УХОД МЫШИ =====
   // ===== 🖱️ УХОД МЫШИ =====
@@ -1760,20 +1783,27 @@ layer.on('mouseout', function(e) {
     
     const level = feature.properties?.level || 0;
     const cadNum = feature.properties?.cadastral_number;
-    const deals = cadNum ? (dealsData[cadNum] || []).length : 0;
+    
+    // ✅ ИСПОЛЬЗУЕМ ФИЛЬТРЫ ДЛЯ ПОДСЧЕТА
+    const deals = cadNum ? (dealsData[cadNum] || []) : [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
+        if (currentCityFilter && deal.city !== currentCityFilter) return false;
+        return true;
+    });
+    const filteredCount = filteredDeals.length;
     
     let style = {};
     
     if (level === 2) {
         style = {
-            fillColor: deals > 0 ? getMapColor(deals) : '#f1f5f9',
+            fillColor: filteredCount > 0 ? getMapColor(filteredCount) : '#f1f5f9',
             fillOpacity: 0.2,
             color: '#3b82f6',
             weight: 2.5,
             opacity: 0.4
         };
     } else if (level === 1) {
-        // ✅ ФИКСИРОВАННЫЙ СТИЛЬ ДЛЯ РАЙОНОВ (БЕЗ ЦВЕТА ОТ КОЛИЧЕСТВА СДЕЛОК)
         style = {
             fillColor: '#e2e8f0',
             fillOpacity: 0.3,
