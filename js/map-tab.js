@@ -815,19 +815,16 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     // ✅ ФИЛЬТРУЕМ ПО НАЛИЧИЮ СДЕЛОК С УЧЕТОМ ФИЛЬТРА
     // ❗ ИСКЛЮЧАЕМ ОБЕРТКУ 89:00:000000 ИЗ СПИСКА
     const withDeals = allQuarters.filter(f => {
-        const cadNum = f.properties?.cadastral_number;
-        if (!cadNum) return false;
-        
-        // ❗ ПРОПУСКАЕМ ОБЕРТКУ 89:00:000000
-        if (cadNum === '89:00:000000') return false;
-        
-        const deals = dealsData[cadNum] || [];
-        const filtered = deals.filter(d => {
-            if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-            return true;
-        });
-        return filtered.length > 0;
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return false;
+    
+    const deals = dealsData[cadNum] || [];
+    const filtered = deals.filter(d => {
+        if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
+        return true;
     });
+    return filtered.length > 0;
+});
     
     if (withDeals.length === 0) {
         quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
