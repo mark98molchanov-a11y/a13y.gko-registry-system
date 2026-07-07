@@ -65,7 +65,7 @@ async function loadDealsCSV() {
         
         const dealsByCad = {};
         const typesCount = {};
-        const typesCount = {};
+        const citiesCount = {}; 
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
