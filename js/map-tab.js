@@ -5,7 +5,9 @@ let currentParentId = null;
 const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/yanao_hierarchical_web.geojson';
 let dealsData = {};
 let dealTypes = {};
+let cityTypes = {};
 let currentDealTypeFilter = null;
+let currentCityFilter = null;  
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
@@ -51,6 +53,7 @@ async function loadDealsCSV() {
         const headers = parseCSVLine(lines[0]);
         const cadIndex = headers.indexOf('cad_number');
         const kindIndex = headers.indexOf('deal_kind_text');
+        const cityIndex = headers.indexOf('city');
         const priceIndex = headers.indexOf('deal_price_rub');
         const uprsIndex = headers.indexOf('uprs_rub');
         const areaIndex = headers.indexOf('area');
@@ -61,6 +64,7 @@ async function loadDealsCSV() {
         }
         
         const dealsByCad = {};
+        const typesCount = {};
         const typesCount = {};
         
         for (let i = 1; i < lines.length; i++) {
@@ -85,15 +89,18 @@ async function loadDealsCSV() {
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
+            const city = values[cityIndex] || 'Неизвестно';
+citiesCount[city] = (citiesCount[city] || 0) + 1;
         }
         
         dealsData = dealsByCad;
         dealTypes = typesCount;
-        
+        cityTypes = citiesCount; 
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Типы сделок:', dealTypes);
         
         renderDealTypeFilters();
+        renderCityFilters();
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -171,6 +178,76 @@ function renderDealTypeFilters() {
     
     container.innerHTML = html;
 }
+function renderCityFilters() {
+    const container = document.getElementById('city-filters');
+    if (!container) return;
+    
+    const cities = Object.keys(cityTypes).sort((a, b) => cityTypes[b] - cityTypes[a]);
+    
+    if (cities.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о городах</div>';
+        return;
+    }
+    
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tbody>
+    `;
+    
+    cities.forEach(city => {
+        const count = cityTypes[city];
+        const isActive = currentCityFilter === city;
+        
+        html += `
+            <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${city}</td>
+                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    // КНОПКА СБРОСА
+    html += `
+        <div onclick="applyCityFilter(null)" 
+             style="
+                 text-align: center;
+                 padding: 8px;
+                 margin-top: 10px;
+                 border-top: 1px solid #e2e8f0;
+                 font-size: 11px;
+                 color: ${currentCityFilter ? '#ef4444' : '#94a3b8'};
+                 cursor: ${currentCityFilter ? 'pointer' : 'default'};
+                 font-weight: ${currentCityFilter ? '500' : '400'};
+                 border-radius: 6px;
+                 transition: all 0.15s;
+                 opacity: ${currentCityFilter ? '1' : '0.5'};
+             "
+             ${currentCityFilter ? `
+                 onmouseover="this.style.background='#fef2f2'"
+                 onmouseout="this.style.background='transparent'"
+             ` : ''}
+             >
+            ✕ Сбросить фильтр
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
 
 function applyDealTypeFilter(kind) {
     // Если кликнули на тот же тип - сбрасываем фильтр
@@ -221,7 +298,49 @@ function applyDealTypeFilter(kind) {
         });
     }
 }
-
+function applyCityFilter(city) {
+    // Если кликнули на тот же город - сбрасываем фильтр
+    if (currentCityFilter === city) {
+        currentCityFilter = null;
+    } else {
+        currentCityFilter = city;
+    }
+    
+    // Перерисовываем фильтры
+    renderCityFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    console.log(`🔍 applyCityFilter: level=${level}, parentId=${parentId}, filter=${currentCityFilter}`);
+    
+    // Обновляем стили кварталов
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    
+    // Обновляем тултипы оберток
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
     const tooltipContent = buildDistrictTooltipContent(layer);
@@ -244,7 +363,12 @@ function getDealsCountForObject(feature) {
     
     const deals = dealsData[cadNum] || [];
     const filteredDeals = deals.filter(deal => {
+        // Фильтр по типу сделки
         if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        // ✅ Фильтр по городу
+        if (currentCityFilter && deal.city !== currentCityFilter) {
             return false;
         }
         return true;
