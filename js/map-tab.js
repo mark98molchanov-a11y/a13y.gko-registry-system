@@ -409,33 +409,40 @@ function updateMapStatsFromDeals(level, parentId) {
         });
   
 } else if (level === 2 && parentId) {
-    // Берем кварталы из GeoJSON
-    allQuarters = allObjects.filter(f => {
+    const prefix = String(parentId).substring(0, 5);
+    const allCadNumbers = Object.keys(dealsData);
+    
+    // ✅ 1. Берем ВСЕ кварталы из dealsData для этого района
+    const allQuartersFromDeals = allCadNumbers
+        .filter(cad => cad.startsWith(prefix))
+        .map(cad => ({
+            properties: { 
+                cadastral_number: cad,
+                level: 2,
+                district_id: parentId
+            }
+        }));
+    
+    // ✅ 2. Берем кварталы из GeoJSON (на случай, если есть без сделок)
+    const allObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
         const fParentId = f.properties.parent_id || f.properties.district_id;
         return String(fParentId) === String(parentId);
     });
     
-    // ✅ ДОБАВЛЯЕМ ОБЕРТКИ ДЛЯ ЭТОГО РАЙОНА
-    const prefix = String(parentId).substring(0, 5);
-    const allCadNumbers = Object.keys(dealsData);
-    const wrapperQuarters = allCadNumbers.filter(cad => {
-        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
-        // Проверяем, что обертка принадлежит этому району
-        const cadPrefix = cad.substring(0, 5);
-        return cadPrefix === prefix;
-    });
+    // ✅ 3. Объединяем: сначала все из dealsData, потом добавляем недостающие из GeoJSON
+    allQuarters = [...allQuartersFromDeals];
     
-    wrapperQuarters.forEach(cad => {
-        if (!allQuarters.some(f => f.properties?.cadastral_number === cad)) {
-            allQuarters.push({
-                properties: { 
-                    cadastral_number: cad,
-                    level: 2,
-                    district_id: parentId
-                }
-            });
+    allObjects.forEach(f => {
+        const cadNum = f.properties.cadastral_number;
+        if (cadNum && !allQuarters.some(q => q.properties.cadastral_number === cadNum)) {
+            allQuarters.push(f);
         }
     });
+    
+    console.log(`📊 Всего кварталов для района ${parentId}: ${allQuarters.length}`);
+    console.log(`   Из dealsData: ${allQuartersFromDeals.length}`);
+    console.log(`   Дополнительно из GeoJSON: ${allQuarters.length - allQuartersFromDeals.length}`);
 }
     
     console.log(`📊 Уровень ${level}, всего кварталов: ${allQuarters.length}`);
@@ -639,32 +646,37 @@ function buildDistrictTooltipContent(layer) {
     const districtId = props.district_id || cadNum;
     
     // ✅ Берем кварталы из GeoJSON
-    const districtObjects = mapData.features.filter(f => {
-        if (f.properties.level !== 2) return false;
-        const fParentId = f.properties.parent_id || f.properties.district_id;
-        return String(fParentId) === String(districtId) || 
-               String(f.properties.district_id) === String(districtId);
-    });
-    
-    // ✅ ДОБАВЛЯЕМ ОБЕРТКИ ИЗ CSV
-    const prefix = String(districtId).substring(0, 5);
-    const allCadNumbers = Object.keys(dealsData);
-    const wrapperQuarters = allCadNumbers.filter(cad => {
-        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
-        return String(cad).startsWith(prefix);
-    });
-    
-    // ✅ Объединяем
-    const allQuarters = [...districtObjects];
-    wrapperQuarters.forEach(cad => {
-        allQuarters.push({
-            properties: { 
-                cadastral_number: cad,
-                level: 2,
-                district_id: districtId
-            }
-        });
-    });
+ const prefix = String(districtId).substring(0, 5);
+const allCadNumbers = Object.keys(dealsData);
+const allQuartersFromDeals = allCadNumbers
+    .filter(cad => cad.startsWith(prefix))
+    .map(cad => ({
+        properties: { 
+            cadastral_number: cad,
+            level: 2,
+            district_id: districtId
+        }
+    }));
+
+// ✅ Берем кварталы из GeoJSON (на случай, если есть без сделок)
+const districtObjects = mapData.features.filter(f => {
+    if (f.properties.level !== 2) return false;
+    const fParentId = f.properties.parent_id || f.properties.district_id;
+    return String(fParentId) === String(districtId) || 
+           String(f.properties.district_id) === String(districtId);
+});
+
+// ✅ Объединяем: сначала все из dealsData, потом добавляем недостающие из GeoJSON
+const allQuarters = [...allQuartersFromDeals];
+
+districtObjects.forEach(f => {
+    const cadNum = f.properties.cadastral_number;
+    if (cadNum && !allQuarters.some(q => q.properties.cadastral_number === cadNum)) {
+        allQuarters.push(f);
+    }
+});
+
+console.log(`📊 Тултип: всего кварталов для района ${districtId}: ${allQuarters.length}`);
     
     // ✅ РАСЧЕТ СТАТИСТИКИ
     const quarterStats = [];
@@ -1329,39 +1341,44 @@ function onMapFeatureClick(feature, layer) {
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
     
-    if (levelName === 'district') {
-        const cadNum = props.cadastral_number || props.district_id || '—';
-        const districtName = props.district_name || cadNum;
-        const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
-        const districtId = props.district_id || cadNum;
-        
-        // ✅ 1. Берем кварталы из GeoJSON
-        const districtObjects = mapData.features.filter(f => {
-            if (f.properties.level !== 2) return false;
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(districtId) || 
-                   String(f.properties.district_id) === String(districtId);
-        });
-        
-        // ✅ 2. ДОБАВЛЯЕМ ОБЕРТКИ ИЗ CSV
-        const prefix = String(districtId).substring(0, 5);
-        const allCadNumbers = Object.keys(dealsData);
-        const wrapperQuarters = allCadNumbers.filter(cad => {
-            if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
-            return String(cad).startsWith(prefix);
-        });
-        
-        // ✅ 3. Объединяем
-        const allQuarters = [...districtObjects];
-        wrapperQuarters.forEach(cad => {
-            allQuarters.push({
-                properties: { 
-                    cadastral_number: cad,
-                    level: 2,
-                    district_id: districtId
-                }
-            });
-        });
+if (levelName === 'district') {
+    const cadNum = props.cadastral_number || props.district_id || '—';
+    const districtName = props.district_name || cadNum;
+    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+    const districtId = props.district_id || cadNum;
+    
+    // ✅ 1. Берем ВСЕ кварталы из dealsData для этого района
+    const prefix = String(districtId).substring(0, 5);
+    const allCadNumbers = Object.keys(dealsData);
+    const allQuartersFromDeals = allCadNumbers
+        .filter(cad => cad.startsWith(prefix))
+        .map(cad => ({
+            properties: { 
+                cadastral_number: cad,
+                level: 2,
+                district_id: districtId
+            }
+        }));
+
+    // ✅ 2. Берем кварталы из GeoJSON (на случай, если есть без сделок)
+    const districtObjects = mapData.features.filter(f => {
+        if (f.properties.level !== 2) return false;
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return String(fParentId) === String(districtId) || 
+               String(f.properties.district_id) === String(districtId);
+    });
+
+    // ✅ 3. Объединяем: сначала все из dealsData, потом добавляем недостающие из GeoJSON
+    const allQuarters = [...allQuartersFromDeals];
+
+    districtObjects.forEach(f => {
+        const cadNumFeature = f.properties.cadastral_number;
+        if (cadNumFeature && !allQuarters.some(q => q.properties.cadastral_number === cadNumFeature)) {
+            allQuarters.push(f);
+        }
+    });
+
+    console.log(`📊 Попап: всего кварталов для района ${districtId}: ${allQuarters.length}`);
         
         // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
         const quarterStats = [];
