@@ -1056,17 +1056,17 @@ let filtered = mapData.features.filter(f => {
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
 if (wrapperQuarters.length > 0) {
-    window.wrapperLayer = L.geoJSON(wrapperQuarters, {
-   style: function(feature) {
-    return {
-        fillColor: '#ff6b6b',
-        fillOpacity: 0.25,
-        color: '#ff0000',
-        weight: 1,
-        opacity: 0.4,
-        dashArray: '4 4'
-    };
-},
+window.wrapperLayer = L.geoJSON(wrapperQuarters, {
+    style: function(feature) {
+        return {
+            fillColor: 'transparent',  // НЕТ ЗАЛИВКИ
+            fillOpacity: 0,
+            color: '#dc2626',          // ЯРКО-КРАСНАЯ ГРАНИЦА
+            weight: 2.5,               // ТОЛСТАЯ
+            opacity: 0.8,              // НАСЫЩЕННАЯ
+            dashArray: '6 4'           // ПУНКТИР
+        };
+    },
 onEachFeature: function(feature, layer) {
     // ✅ КАДАСТРОВЫЙ НОМЕР УЖЕ НОРМАЛИЗОВАН В GEOJSON
     const cadNum = feature.properties.cadastral_number || '—';
