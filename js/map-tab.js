@@ -2073,18 +2073,18 @@ function searchQuarter() {
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
 if (isWrapper) {
-    // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ ОКРУГА (level=0)
-    console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне округа`);
+    // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (level=1)
+    console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов`);
     
-    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ ОКРУГА
-    renderMapLevel(0);
+    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ РАЙОНОВ (где видны все обертки)
+    renderMapLevel(1);
     updateBreadcrumb('okrug');
     
     // Находим и подсвечиваем обертку
     setTimeout(() => {
         let foundLayer = null;
         
-        // Ищем в wrapperLayer (на уровне 0 обертки должны быть)
+        // Ищем в wrapperLayer (на уровне 1 обертки должны быть)
         if (window.wrapperLayer) {
             window.wrapperLayer.eachLayer(function(layer) {
                 if (layer.feature && layer.feature.properties) {
@@ -2133,16 +2133,7 @@ if (isWrapper) {
                 opacity: 0.8
             });
         } else {
-            console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях после renderMapLevel(0)`);
-            
-            // 🔍 ДИАГНОСТИКА: показываем все обертки в слоях
-            if (window.wrapperLayer) {
-                console.log('📦 Обертки в wrapperLayer:');
-                window.wrapperLayer.eachLayer(function(layer) {
-                    const lc = layer.feature?.properties?.cadastral_number || '';
-                    console.log('   ', lc);
-                });
-            }
+            console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях после renderMapLevel(1)`);
         }
     }, 500);
     
