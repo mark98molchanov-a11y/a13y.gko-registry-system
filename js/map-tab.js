@@ -2211,29 +2211,11 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     
-    // ✅ 1. Сначала ищем в mapData (GeoJSON)
-    let found = mapData.features.find(f => {
+    // Ищем квартал по точному кадастровому номеру
+    const found = mapData.features.find(f => {
         if (f.properties.level !== 2) return false;
         return f.properties.cadastral_number === cadNumber;
     });
-    
-    // ✅ 2. Если не нашли в mapData, проверяем, есть ли в dealsData
-    if (!found) {
-        const deals = dealsData[cadNumber] || [];
-        if (deals.length > 0 || cadNumber.endsWith('000000')) {
-            // Это обертка или квартал из CSV
-            found = {
-                properties: {
-                    cadastral_number: cadNumber,
-                    level: 2,
-                    // Извлекаем district_id из cadastral_number
-                    district_id: cadNumber.substring(0, 5),
-                    parent_id: cadNumber.substring(0, 5)
-                }
-            };
-            console.log(`✅ Найден в dealsData/обертка: ${cadNumber}`);
-        }
-    }
     
     if (!found) {
         console.log(`❌ Квартал "${cadNumber}" не найден`);
@@ -2242,71 +2224,15 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
     
-    // ✅ ПРОВЕРЯЕМ, ОБЕРТКА ЛИ ЭТО
-    const cadNum = found.properties.cadastral_number || '';
-    const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
-    
-    if (isWrapper) {
-        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (level=1)
-        console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов`);
-        
-        // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ РАЙОНОВ (где видны все обертки)
-        renderMapLevel(1);
-        updateBreadcrumb('okrug');
-        
-        // Находим и подсвечиваем обертку
-        setTimeout(() => {
-            let foundLayer = null;
-            
-            // Ищем в wrapperLayer (на уровне 1 обертки должны быть)
-            if (window.wrapperLayer) {
-                window.wrapperLayer.eachLayer(function(layer) {
-                    if (layer.feature && layer.feature.properties) {
-                        const layerCadNum = layer.feature.properties.cadastral_number || '';
-                        if (layerCadNum === cadNum) {
-                            foundLayer = layer;
-                        }
-                    }
-                });
-            }
-            
-            if (foundLayer) {
-                console.log(`✅ Обертка ${cadNum} найдена в слоях`);
-                
-                if (foundLayer.openTooltip) {
-                    foundLayer.openTooltip();
-                }
-                
-                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
-                }
-                
-                foundLayer.off('click');
-                foundLayer.off('dblclick');
-                
-                foundLayer.setStyle({
-                    fillOpacity: 0.4,
-                    weight: 3,
-                    color: '#ff0000',
-                    opacity: 0.8
-                });
-            } else {
-                console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях после renderMapLevel(1)`);
-            }
-        }, 500);
-        
-        return;
-    }
-    
-    // ✅ ЭТО ОБЫЧНЫЙ КВАРТАЛ — ПОКАЗЫВАЕМ РАЗБИЕНИЕ НА КВАРТАЛЫ
-    console.log(`🏘️ Обычный квартал: ${cadNum}, показываем разбиение`);
-    
+    // Определяем район (parent_id)
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
+    // Переходим на уровень кварталов с этим районом
     renderMapLevel(2, districtId);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
+    // Показываем попап и центрируем на квартале
     setTimeout(() => {
         if (window.mapLayer) {
             window.mapLayer.eachLayer(function(layer) {
@@ -2322,7 +2248,6 @@ function searchQuarterByCadNumber(cadNumber) {
         }
     }, 300);
 }
-
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
