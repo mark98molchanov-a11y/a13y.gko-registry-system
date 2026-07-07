@@ -92,7 +92,8 @@ async function loadDealsCSV() {
                 price: price,
                 uprs: uprs,
                 area: area,
-                city: city 
+                city: city,
+                obj_kind: objKind 
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
