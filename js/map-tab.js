@@ -2067,32 +2067,52 @@ function searchQuarter() {
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
     if (isWrapper) {
-        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ КРАСНУЮ ОБЕРТКУ
+        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ КРАСНУЮ ОБЕРТКУ НА УРОВНЕ ОКРУГА
         console.log(`🔴 Найдена обертка: ${cadNum}, показываем как обертку`);
         
-        // Находим район (parent_id) для этой обертки
-        const districtId = found.properties.parent_id || found.properties.district_id || '89';
-        
-        // Показываем обертку на уровне районов (level=1)
-        renderMapLevel(1);
+        // Показываем уровень округа (level=0)
+        renderMapLevel(0);
         updateBreadcrumb('okrug');
         
-        // Подсвечиваем найденную обертку
+        // Подсвечиваем найденную обертку и центрируем
         setTimeout(() => {
+            let foundLayer = null;
+            
+            // Ищем обертку в wrapperLayer
             if (window.wrapperLayer) {
                 window.wrapperLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
                         const layerCadNum = layer.feature.properties.cadastral_number || '';
                         if (layerCadNum === cadNum) {
-                            layer.openTooltip();
-                            if (layer.getBounds && layer.getBounds().isValid()) {
-                                mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-                            }
+                            foundLayer = layer;
                         }
                     }
                 });
             }
-        }, 300);
+            
+            // Если не нашли в wrapperLayer, ищем в mapLayer (обычные кварталы)
+            if (!foundLayer && window.mapLayer) {
+                window.mapLayer.eachLayer(function(layer) {
+                    if (layer.feature && layer.feature.properties) {
+                        const layerCadNum = layer.feature.properties.cadastral_number || '';
+                        if (layerCadNum === cadNum) {
+                            foundLayer = layer;
+                        }
+                    }
+                });
+            }
+            
+            if (foundLayer) {
+                // Открываем тултип
+                if (foundLayer.openTooltip) {
+                    foundLayer.openTooltip();
+                }
+                // Центрируем на обертке
+                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                }
+            }
+        }, 400);
         
         return;
     }
