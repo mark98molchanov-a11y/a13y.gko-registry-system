@@ -407,28 +407,36 @@ function updateMapStatsFromDeals(level, parentId) {
                 });
             }
         });
-    } else if (level === 2 && parentId) {
-        allQuarters = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-        const prefix = String(parentId).substring(0, 5);
-        const allCadNumbers = Object.keys(dealsData);
-        const wrapperQuarters = allCadNumbers.filter(cad => {
-            if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
-            return String(cad).startsWith(prefix);
-        });
-        wrapperQuarters.forEach(cad => {
-            if (!allQuarters.some(f => f.properties?.cadastral_number === cad)) {
-                allQuarters.push({
-                    properties: { 
-                        cadastral_number: cad,
-                        level: 2
-                    }
-                });
-            }
-        });
-    }
+  
+} else if (level === 2 && parentId) {
+    // Берем кварталы из GeoJSON
+    allQuarters = allObjects.filter(f => {
+        const fParentId = f.properties.parent_id || f.properties.district_id;
+        return String(fParentId) === String(parentId);
+    });
+    
+    // ✅ ДОБАВЛЯЕМ ОБЕРТКИ ДЛЯ ЭТОГО РАЙОНА
+    const prefix = String(parentId).substring(0, 5);
+    const allCadNumbers = Object.keys(dealsData);
+    const wrapperQuarters = allCadNumbers.filter(cad => {
+        if (!cad.endsWith('000000') && !cad.match(/^\d{2}:\d{2}:000000$/)) return false;
+        // Проверяем, что обертка принадлежит этому району
+        const cadPrefix = cad.substring(0, 5);
+        return cadPrefix === prefix;
+    });
+    
+    wrapperQuarters.forEach(cad => {
+        if (!allQuarters.some(f => f.properties?.cadastral_number === cad)) {
+            allQuarters.push({
+                properties: { 
+                    cadastral_number: cad,
+                    level: 2,
+                    district_id: parentId
+                }
+            });
+        }
+    });
+}
     
     console.log(`📊 Уровень ${level}, всего кварталов: ${allQuarters.length}`);
     
