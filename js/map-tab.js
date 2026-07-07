@@ -1305,14 +1305,22 @@ onEachFeature: function(feature, layer) {
     const cadNum = feature.properties.cadastral_number || '—';
     
     // ✅ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ТУЛТИПА
-    function updateTooltip() {
-        const deals = dealsData[cadNum] || [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
-        });
+function updateTooltip() {
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && deal.city !== currentCityFilter) {
+            return false;
+        }
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+            return false;
+        }
+        return true;
+    });
         
         const dealsCount = filteredDeals.length;
         const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
