@@ -582,17 +582,21 @@ function updateMapStatsFromDeals(level, parentId) {
     let allMaxs = [];
     let quartersWithDeals = [];
     
-    allQuarters.forEach(f => {
-        const cadNum = f.properties?.cadastral_number;
-        if (!cadNum) return;
-        
-        const deals = dealsData[cadNum] || [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
-        });
+allQuarters.forEach(f => {
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return;
+    
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && deal.city !== currentCityFilter) {
+            return false;
+        }
+        return true;
+    });
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
