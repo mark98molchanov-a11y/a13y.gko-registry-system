@@ -2211,11 +2211,27 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     
-    // Ищем квартал по точному кадастровому номеру
-    const found = mapData.features.find(f => {
+    // 1. Ищем в mapData
+    let found = mapData.features.find(f => {
         if (f.properties.level !== 2) return false;
         return f.properties.cadastral_number === cadNumber;
     });
+    
+    // 2. Если не нашли, проверяем dealsData
+    if (!found) {
+        const deals = dealsData[cadNumber] || [];
+        if (deals.length > 0 || cadNumber.endsWith('000000')) {
+            found = {
+                properties: {
+                    cadastral_number: cadNumber,
+                    level: 2,
+                    district_id: cadNumber.substring(0, 5),
+                    parent_id: cadNumber.substring(0, 5)
+                }
+            };
+            console.log(`   Найдено в dealsData: ${cadNumber}`);
+        }
+    }
     
     if (!found) {
         console.log(`❌ Квартал "${cadNumber}" не найден`);
@@ -2224,15 +2240,60 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
     
-    // Определяем район (parent_id)
+    // 3. Проверяем, обертка ли это
+    const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
+    
+    if (isWrapper) {
+        console.log(`🔴 Найдена обертка: ${cadNumber}, показываем на уровне районов`);
+        
+        // Переходим на уровень районов
+        renderMapLevel(1);
+        updateBreadcrumb('okrug');
+        
+        // Находим и подсвечиваем обертку
+        setTimeout(() => {
+            let foundLayer = null;
+            
+            if (window.wrapperLayer) {
+                window.wrapperLayer.eachLayer(function(layer) {
+                    if (layer.feature && layer.feature.properties) {
+                        const layerCadNum = layer.feature.properties.cadastral_number || '';
+                        if (layerCadNum === cadNumber) {
+                            foundLayer = layer;
+                        }
+                    }
+                });
+            }
+            
+            if (foundLayer) {
+                console.log(`✅ Обертка ${cadNumber} найдена в слоях`);
+                foundLayer.openTooltip();
+                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                }
+                foundLayer.setStyle({
+                    fillOpacity: 0.4,
+                    weight: 3,
+                    color: '#ff0000',
+                    opacity: 0.8
+                });
+            } else {
+                console.warn(`⚠️ Обертка ${cadNumber} не найдена в слоях`);
+            }
+        }, 500);
+        
+        return;
+    }
+    
+    // 4. Обычный квартал
+    console.log(`🏘️ Обычный квартал: ${cadNumber}, показываем разбиение`);
+    
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
-    // Переходим на уровень кварталов с этим районом
     renderMapLevel(2, districtId);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
-    // Показываем попап и центрируем на квартале
     setTimeout(() => {
         if (window.mapLayer) {
             window.mapLayer.eachLayer(function(layer) {
