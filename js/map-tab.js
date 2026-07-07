@@ -1054,13 +1054,8 @@ if (wrapperQuarters.length > 0) {
     };
 },
 onEachFeature: function(feature, layer) {
-    // ✅ НОРМАЛИЗУЕМ КАДАСТРОВЫЙ НОМЕР
-    let cadNum = feature.properties.cadastral_number || '—';
-    
-    // Если это обертка с 7 нулями, исправляем на 6 нулей
-    if (cadNum.endsWith('0000000')) {
-        cadNum = '89:00:000000';
-    }
+    // ✅ КАДАСТРОВЫЙ НОМЕР УЖЕ НОРМАЛИЗОВАН В GEOJSON
+    const cadNum = feature.properties.cadastral_number || '—';
     
     // ✅ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ТУЛТИПА
     function updateTooltip() {
