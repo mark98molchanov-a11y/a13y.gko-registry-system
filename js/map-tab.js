@@ -2066,65 +2066,82 @@ function searchQuarter() {
     const cadNum = found.properties.cadastral_number || '';
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
-    if (isWrapper) {
-        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ КАК СТАТИЧНЫЙ ОБЪЕКТ
-        console.log(`🔴 Найдена обертка: ${cadNum}, показываем как статичный объект`);
+if (isWrapper) {
+    // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ ОКРУГА (level=0)
+    console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне округа`);
+    
+    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ ОКРУГА
+    renderMapLevel(0);
+    updateBreadcrumb('okrug');
+    
+    // Находим и подсвечиваем обертку
+    setTimeout(() => {
+        let foundLayer = null;
         
-        // ✅ УБЕЖДАЕМСЯ, ЧТО МЫ НА УРОВНЕ, ГДЕ ВИДНА ОБЕРТКА
-        // Если мы на уровне 2 (кварталы) - переключаемся на уровень 1 (районы)
-        if (currentLevel === 2) {
-            renderMapLevel(1);
-        }
-        // Если мы на уровне 0 (округ) - показываем уровень 1 (районы)
-        else if (currentLevel === 0) {
-            renderMapLevel(1);
-        }
-        
-        // Находим и подсвечиваем обертку
-        setTimeout(() => {
-            let foundLayer = null;
-            
-            // Ищем в wrapperLayer
-            if (window.wrapperLayer) {
-                window.wrapperLayer.eachLayer(function(layer) {
-                    if (layer.feature && layer.feature.properties) {
-                        const layerCadNum = layer.feature.properties.cadastral_number || '';
-                        if (layerCadNum === cadNum) {
-                            foundLayer = layer;
-                        }
+        // Ищем в wrapperLayer (на уровне 0 обертки должны быть)
+        if (window.wrapperLayer) {
+            window.wrapperLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    const layerCadNum = layer.feature.properties.cadastral_number || '';
+                    if (layerCadNum === cadNum) {
+                        foundLayer = layer;
                     }
-                });
+                }
+            });
+        }
+        
+        // Если не нашли в wrapperLayer, ищем в mapLayer
+        if (!foundLayer && window.mapLayer) {
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    const layerCadNum = layer.feature.properties.cadastral_number || '';
+                    if (layerCadNum === cadNum) {
+                        foundLayer = layer;
+                    }
+                }
+            });
+        }
+        
+        if (foundLayer) {
+            console.log(`✅ Обертка ${cadNum} найдена в слоях`);
+            
+            // ✅ Открываем тултип
+            if (foundLayer.openTooltip) {
+                foundLayer.openTooltip();
             }
             
-            if (foundLayer) {
-                // ✅ Открываем тултип
-                if (foundLayer.openTooltip) {
-                    foundLayer.openTooltip();
-                }
-                
-                // ✅ Центрируем на обертке
-                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
-                }
-                
-                // ❗ ОТКЛЮЧАЕМ ВСЕ СОБЫТИЯ КЛИКА
-                foundLayer.off('click');
-                foundLayer.off('dblclick');
-                
-                // ✅ Делаем обертку более заметной
-                foundLayer.setStyle({
-                    fillOpacity: 0.4,
-                    weight: 3,
-                    color: '#ff0000',
-                    opacity: 0.8
-                });
-            } else {
-                console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях`);
+            // ✅ Центрируем на обертке
+            if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
             }
-        }, 400);
-        
-        return;
-    }
+            
+            // ❗ ОТКЛЮЧАЕМ КЛИК
+            foundLayer.off('click');
+            foundLayer.off('dblclick');
+            
+            // ✅ Делаем обертку более заметной
+            foundLayer.setStyle({
+                fillOpacity: 0.4,
+                weight: 3,
+                color: '#ff0000',
+                opacity: 0.8
+            });
+        } else {
+            console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях после renderMapLevel(0)`);
+            
+            // 🔍 ДИАГНОСТИКА: показываем все обертки в слоях
+            if (window.wrapperLayer) {
+                console.log('📦 Обертки в wrapperLayer:');
+                window.wrapperLayer.eachLayer(function(layer) {
+                    const lc = layer.feature?.properties?.cadastral_number || '';
+                    console.log('   ', lc);
+                });
+            }
+        }
+    }, 500);
+    
+    return;
+}
     
     // ✅ ЭТО ОБЫЧНЫЙ КВАРТАЛ — ПОКАЗЫВАЕМ РАЗБИЕНИЕ НА КВАРТАЛЫ
     console.log(`🏘️ Обычный квартал: ${cadNum}, показываем разбиение`);
