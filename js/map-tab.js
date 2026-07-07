@@ -1391,7 +1391,7 @@ function updateTooltip() {
     });
     
     // ✅ ПРИ КЛИКЕ — ПОКАЗЫВАЕМ ТУЛТИП И ЦЕНТРИРУЕМ
-   ayer.on('click', function(e) {
+   layer.on('click', function(e) {
     updateTooltip();
     this.openTooltip();
     if (this.getBounds && this.getBounds().isValid()) {
