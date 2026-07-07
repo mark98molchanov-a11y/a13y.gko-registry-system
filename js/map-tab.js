@@ -1164,27 +1164,43 @@ onEachFeature: function(feature, layer) {
 }
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
-    if (normalQuarters.length > 0) {
-        const normalLayer = L.geoJSON(normalQuarters, {
-   style: function(feature) {
-    const cadNum = feature.properties?.cadastral_number;
-    const deals = dealsData[cadNum] || [];
-    const dealsCount = deals.length;
-    const hasDeals = dealsCount > 0;
-    return {
-        fillColor: hasDeals ? getMapColor(dealsCount) : '#f1f5f9',
-        fillOpacity: 0.2,
-        color: '#3b82f6',
-        weight: 2.5,
-        opacity: 0.6,
-        dashArray: null
-    };
-},
-            onEachFeature: onMapFeatureClick
-        });
-        window.mapLayer = normalLayer;
-        window.mapLayer.addTo(mapInstance);
-    }
+if (normalQuarters.length > 0) {
+    const normalLayer = L.geoJSON(normalQuarters, {
+        style: function(feature) {
+            const props = feature.properties;
+            const levelName = props.level_name || 'unknown';
+            const cadNum = props.cadastral_number;
+            const deals = dealsData[cadNum] || [];
+            const dealsCount = deals.length;
+            const hasDeals = dealsCount > 0;
+            
+            // ✅ ДЛЯ РАЙОНОВ (level: 1) — ПОЛУПРОЗРАЧНЫЙ СТИЛЬ
+            if (levelName === 'district') {
+                return {
+                    fillColor: '#e2e8f0',
+                    fillOpacity: 0.3,
+                    color: '#2563eb',
+                    weight: 2.5,
+                    opacity: 0.7,
+                    dashArray: null
+                };
+            }
+            
+            // ✅ ДЛЯ КВАРТАЛОВ (level: 2) — ЦВЕТ В ЗАВИСИМОСТИ ОТ СДЕЛОК
+            return {
+                fillColor: hasDeals ? getMapColor(dealsCount) : '#f1f5f9',
+                fillOpacity: 0.2,
+                color: '#3b82f6',
+                weight: 2.5,
+                opacity: 0.6,
+                dashArray: null
+            };
+        },
+        onEachFeature: onMapFeatureClick
+    });
+    window.mapLayer = normalLayer;
+    window.mapLayer.addTo(mapInstance);
+}
     // 🔥 НЕ ПОДНИМАЕМ ОБЕРТКУ — ОНА ДОЛЖНА БЫТЬ СНИЗУ!
 
     // Подгоняем границы
