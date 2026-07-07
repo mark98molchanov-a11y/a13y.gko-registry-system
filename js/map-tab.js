@@ -6,8 +6,10 @@ const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system
 let dealsData = {};
 let dealTypes = {};
 let cityTypes = {};
+let objectTypes = {};
 let currentDealTypeFilter = null;
 let currentCityFilter = null;  
+let currentObjectTypeFilter = null;
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
@@ -57,6 +59,7 @@ async function loadDealsCSV() {
         const priceIndex = headers.indexOf('deal_price_rub');
         const uprsIndex = headers.indexOf('uprs_rub');
         const areaIndex = headers.indexOf('area');
+        const objKindIndex = headers.indexOf('obj_kind_text');
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -66,6 +69,7 @@ async function loadDealsCSV() {
         const dealsByCad = {};
         const typesCount = {};
         const citiesCount = {}; 
+        const objectTypesCount = {};
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
@@ -73,7 +77,8 @@ async function loadDealsCSV() {
             
             const cadNum = values[cadIndex] || '';
             const kind = values[kindIndex] || 'nan';
-            const city = values[cityIndex] || 'nan';   // ← ДОБАВЛЯЕМ 'nan' ДЛЯ ПУСТЫХ
+            const city = values[cityIndex] || 'nan'; 
+            const objKind = values[objKindIndex] || 'nan';  // ← ДОБАВЛЯЕМ 'nan' ДЛЯ ПУСТЫХ
             
             if (!cadNum) continue;
             
@@ -92,16 +97,19 @@ async function loadDealsCSV() {
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
 citiesCount[city] = (citiesCount[city] || 0) + 1;
+objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
         }
         
         dealsData = dealsByCad;
         dealTypes = typesCount;
         cityTypes = citiesCount; 
+        objectTypes = objectTypesCount;
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Типы сделок:', dealTypes);
         
         renderDealTypeFilters();
         renderCityFilters();
+        renderObjectTypeFilters();
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -202,7 +210,51 @@ function renderCityFilters() {
     
     container.innerHTML = html;
 }
-
+function renderObjectTypeFilters() {
+    const container = document.getElementById('object-type-filters');
+    if (!container) return;
+    
+    const types = Object.keys(objectTypes).sort((a, b) => objectTypes[b] - objectTypes[a]);
+    
+    if (types.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о типах объектов</div>';
+        return;
+    }
+    
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tbody>
+    `;
+    
+    types.forEach(type => {
+        const count = objectTypes[type];
+        const isActive = currentObjectTypeFilter === type;
+        
+        html += `
+            <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
+                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
 function applyDealTypeFilter(kind) {
     // Если кликнули на тот же тип - сбрасываем фильтр
     if (currentDealTypeFilter === kind) {
@@ -297,6 +349,44 @@ function applyCityFilter(city) {
         });
     }
 }
+function applyObjectTypeFilter(type) {
+    if (currentObjectTypeFilter === type) {
+        currentObjectTypeFilter = null;
+    } else {
+        currentObjectTypeFilter = type;
+    }
+    
+    renderObjectTypeFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
     const tooltipContent = buildDistrictTooltipContent(layer);
@@ -317,7 +407,7 @@ function getDealsCountForObject(feature) {
     const cadNum = feature.properties?.cadastral_number;
     if (!cadNum) return 0;
     
-    const deals = dealsData[cadNum] || [];
+const deals = dealsData[cadNum] || [];
     const filteredDeals = deals.filter(deal => {
         // Фильтр по типу сделки
         if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
@@ -325,6 +415,10 @@ function getDealsCountForObject(feature) {
         }
         // ✅ Фильтр по городу
         if (currentCityFilter && deal.city !== currentCityFilter) {
+            return false;
+        }
+        // ✅ Фильтр по типу объекта
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
             return false;
         }
         return true;
@@ -363,6 +457,9 @@ const filteredDeals = deals.filter(deal => {
     if (currentCityFilter && deal.city !== currentCityFilter) {
         return false;
     }
+    if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
     return true;
 });
             
@@ -379,6 +476,12 @@ const filteredDeals = deals.filter(deal => {
                 if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
                     return false;
                 }
+                    if (currentCityFilter && deal.city !== currentCityFilter) {
+        return false;
+    }
+    if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
                 return true;
             });
             allDeals = allDeals.concat(filteredDeals);
@@ -550,6 +653,9 @@ allQuarters.forEach(f => {
         if (currentCityFilter && deal.city !== currentCityFilter) {
             return false;
         }
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
         return true;
     });
         
@@ -645,20 +751,24 @@ allQuarters.forEach(f => {
         if (quarterStats.length === 0) {
             quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
         } else {
-            const sortedQuarters = allQuarters.filter(f => {
-                const cadNum = f.properties?.cadastral_number;
-                if (!cadNum) return false;
-                const deals = dealsData[cadNum] || [];
-                const filtered = deals.filter(d => {
-                    if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-                    return true;
-                });
-                return filtered.length > 0;
-            }).sort((a, b) => {
-                const countA = getDealsCountForObject(a);
-                const countB = getDealsCountForObject(b);
-                return countB - countA;
-            });
+ const sortedQuarters = allQuarters.filter(f => {
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return false;
+    const deals = dealsData[cadNum] || [];
+    const filtered = deals.filter(d => {
+        if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && d.city !== currentCityFilter) return false;
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+        if (currentObjectTypeFilter && d.obj_kind !== currentObjectTypeFilter) return false;
+        return true;
+    });
+    return filtered.length > 0;
+}).sort((a, b) => {
+    const countA = getDealsCountForObject(a);
+    const countB = getDealsCountForObject(b);
+    return countB - countA;
+});
             
             let html = '';
             sortedQuarters.forEach(f => {
@@ -785,6 +895,9 @@ console.log(`📊 Тултип: всего кварталов для район�
         if (currentCityFilter && deal.city !== currentCityFilter) {
             return false;
         }
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
         return true;
     });
         
@@ -935,6 +1048,7 @@ const withDeals = allQuarters.filter(f => {
         if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
         // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
         if (currentCityFilter && d.city !== currentCityFilter) return false;
+        if (currentObjectTypeFilter && d.obj_kind !== currentObjectTypeFilter) return false;
         return true;
     });
     return filtered.length > 0;
@@ -989,6 +1103,10 @@ const filteredDeals = deals.filter(deal => {
     }
     // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
     if (currentCityFilter && deal.city !== currentCityFilter) {
+        return false;
+    }
+    // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
         return false;
     }
     return true;
@@ -1294,6 +1412,9 @@ if (normalQuarters.length > 0) {
                 if (currentCityFilter && deal.city !== currentCityFilter) {
                     return false;
                 }
+                if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
                 return true;
             });
             const filteredCount = filteredDeals.length;
@@ -1703,6 +1824,7 @@ if (levelName === 'district') {
         const filteredDeals = deals.filter(deal => {
             if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
             if (currentCityFilter && deal.city !== currentCityFilter) return false;
+            if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
             return true;
         });
         const count = filteredDeals.length;
@@ -1742,6 +1864,7 @@ layer.on('mouseout', function(e) {
     const filteredDeals = deals.filter(deal => {
         if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
         if (currentCityFilter && deal.city !== currentCityFilter) return false;
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
         return true;
     });
     const filteredCount = filteredDeals.length;
@@ -1842,6 +1965,9 @@ if (levelName === 'district') {
         if (currentCityFilter && deal.city !== currentCityFilter) {
             return false;
         }
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
         return true;
     });
         
@@ -1933,6 +2059,9 @@ if (levelName === 'quarter') {
         if (currentCityFilter && deal.city !== currentCityFilter) {
             return false;
         }
+        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    return false;
+}
         return true;
     });
         const dealsCount = filteredDeals.length;
@@ -2099,10 +2228,12 @@ function resetAllFiltersMap() {
     // Сбрасываем фильтры
     currentDealTypeFilter = null;
     currentCityFilter = null;
+    currentObjectTypeFilter = null;
     
     // Перерисовываем фильтры в UI
     renderDealTypeFilters();
     renderCityFilters();
+    renderObjectTypeFilters();
     
     // Перерисовываем карту с текущим уровнем
     renderMapLevel(currentLevel, currentParentId);
