@@ -991,7 +991,15 @@ function renderMapLevel(level, parentId = null) {
         if (props.level !== level) return false;
         
         if (level === 0) return true;
-        if (level === 1) return props.parent_id === '89';
+        
+        if (level === 1) {
+            // ✅ ПОКАЗЫВАЕМ РАЙОНЫ + ВСЕ ОБЕРТКИ (89:XX:000000)
+            const cadNum = props.cadastral_number || '';
+            const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000');
+            // Районы: parent_id === '89'
+            // Обертки: любые, заканчивающиеся на 000000
+            return props.parent_id === '89' || isWrapper;
+        }
         
         if (level === 2) {
             if (parentId) {
