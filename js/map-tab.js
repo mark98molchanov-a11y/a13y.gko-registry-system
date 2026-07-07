@@ -1936,18 +1936,20 @@ if (levelName === 'district') {
         ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
     `;
 }
-    if (levelName === 'quarter') {
-        const cadNum = props.cadastral_number || '—';
-        
-        // ✅ БЕРЕМ СДЕЛКИ ИЗ dealsData (С УЧЕТОМ ФИЛЬТРА)
-        const deals = dealsData[cadNum] || [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                return false;
-            }
-            return true;
-        });
-        
+if (levelName === 'quarter') {
+    const cadNum = props.cadastral_number || '—';
+    
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+            return false;
+        }
+        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
+        if (currentCityFilter && deal.city !== currentCityFilter) {
+            return false;
+        }
+        return true;
+    });
         const dealsCount = filteredDeals.length;
         const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
         const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
