@@ -1644,11 +1644,13 @@
         </div>
     </div>
 
-    <!-- ✅ ТАБЛИЦЫ ФИЛЬТРОВ С КНОПКОЙ СБРОСА СВЕРХУ -->
+   <!-- ✅ ТАБЛИЦЫ ФИЛЬТРОВ С КНОПКОЙ СБРОСА И АКТИВНЫМИ ФИЛЬТРАМИ -->
 <div style="display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;">
     
-    <!-- КНОПКА СБРОСА — СЛЕВА СВЕРХУ -->
-    <div style="display: flex; justify-content: flex-start;">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ: КНОПКА СБРОСА + АКТИВНЫЕ ФИЛЬТРЫ -->
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        
+        <!-- КНОПКА СБРОСА -->
         <button onclick="resetAllFiltersMap()" 
                 style="
                     font-size: 10px; 
@@ -1656,7 +1658,7 @@
                     background: #fef2f2; 
                     border: 1px solid #fecaca; 
                     border-radius: 6px; 
-                    padding: 3px 10px; 
+                    padding: 4px 12px; 
                     cursor: pointer; 
                     font-weight: 500;
                     transition: all 0.2s;
@@ -1667,6 +1669,21 @@
                 onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#fecaca';">
             ✕ Сбросить фильтры
         </button>
+        
+        <!-- КОНТЕЙНЕР АКТИВНЫХ ФИЛЬТРОВ -->
+        <div id="active-filters-display" style="
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 10px;
+            color: #475569;
+            flex: 1;
+        ">
+            <!-- Сюда будут вставляться активные фильтры через JavaScript -->
+            <span style="color: #94a3b8; font-size: 9px;">Активные фильтры:</span>
+            <span id="active-filters-list" style="color: #94a3b8; font-size: 9px;">—</span>
+        </div>
     </div>
 
     <!-- ПЕРВЫЙ РЯД: ГОРОДА + ТИПЫ ОБЪЕКТОВ + ТИПЫ СДЕЛОК -->
