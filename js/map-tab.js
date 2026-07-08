@@ -16,6 +16,7 @@ let currentObjectTypeFilter = null;
 let currentWallMaterialFilter = null; 
 let currentQuarterFilter = null;
 let currentYearBuildFilter = null;
+let allDealsFlat = []; 
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
@@ -64,11 +65,15 @@ async function loadDealsCSV() {
         const cityIndex = headers.indexOf('city');
         const priceIndex = headers.indexOf('deal_price_rub');
         const uprsIndex = headers.indexOf('uprs_rub');
+        const upksIndex = headers.indexOf('upks'); 
         const areaIndex = headers.indexOf('area');
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
         const quarterIndex = headers.indexOf('Квартал сделки');
         const yearBuildIndex = headers.indexOf('year_build');  
+        const purposeIndex = headers.indexOf('purpose_text'); 
+const vriIndex = headers.indexOf('vri');  
+const cadCostIndex = headers.indexOf('cad_cost'); 
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -90,13 +95,35 @@ async function loadDealsCSV() {
             const objKind = values[objKindIndex] || 'nan';
             const wallMaterial = values[wallMaterialIndex] || 'nan';
             const quarter = values[quarterIndex] || 'nan'; 
-            const yearBuild = values[yearBuildIndex] || 'nan';    
+            const yearBuild = values[yearBuildIndex] || 'nan';  
+            const purposeText = values[purposeIndex] || 'nan';   // ✅ ДОБАВИТЬ
+    const vri = values[vriIndex] || 'nan';       
             
             if (!cadNum) continue;
             
             const price = parseFloat(values[priceIndex]) || 0;
             const uprs = parseFloat(values[uprsIndex]) || 0;
+            const upks = parseFloat(values[upksIndex]) || 0;  
             const area = parseFloat(values[areaIndex]) || 0;
+            const cadCost = parseFloat(values[cadCostIndex]) || 0;
+              
+     allDealsFlat.push({
+    cad_number: cadNum,
+    area: area,
+    purpose_text: purposeText,
+    cad_cost: cadCost,
+    upks: upks,           // ✅ Теперь это УПКС (из колонки upks)
+    uprs: uprs,           // ✅ Добавляем УПРС отдельно
+    city: city,
+    deal_kind_text: kind,
+    obj_kind_text: objKind,
+    vri: vri,
+    quarter: quarter,
+    year_build: yearBuild,
+    wall_material_name: wallMaterial,
+    deal_price_rub: price,
+    uprs_rub: uprs
+});
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
             dealsByCad[cadNum].push({
@@ -132,6 +159,7 @@ yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1;
         renderWallMaterialFilters();
         renderQuarterFilters();
         renderYearBuildFilters();
+         renderDealsTable(); 
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
@@ -483,6 +511,7 @@ function applyDealTypeFilter(kind) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ ПРИ СМЕНЕ ФИЛЬТРА
     if (window.wrapperLayer) {
@@ -528,6 +557,7 @@ function applyCityFilter(city) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     // Обновляем тултипы оберток
     if (window.wrapperLayer) {
@@ -568,6 +598,7 @@ function applyObjectTypeFilter(type) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -607,6 +638,7 @@ function applyWallMaterialFilter(type) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -646,6 +678,7 @@ function applyQuarterFilter(type) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -685,6 +718,7 @@ function applyYearBuildFilter(type) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -1940,6 +1974,7 @@ if (level === 2 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
     updateActiveFiltersDisplay();
+     renderDealsTable(); 
 }
 
 function getMapColor(dealsCount) {
@@ -2662,6 +2697,7 @@ function resetAllFiltersMap() {
     // Обновляем легенду
     addMapLegend();
     updateActiveFiltersDisplay();
+    renderDealsTable();
     
     console.log('✅ Все фильтры сброшены');
 }
@@ -2696,6 +2732,94 @@ function updateActiveFiltersDisplay() {
         ).join(' ');
         container.style.color = '#1e293b';
     }
+}
+function renderDealsTable() {
+    const container = document.getElementById('deals-table-container');
+    const countElement = document.getElementById('deals-table-count');
+    if (!container) return;
+    
+    // Получаем все сделки с учетом фильтров
+    let filteredDeals = allDealsFlat.filter(deal => {
+        if (currentDealTypeFilter && deal.deal_kind_text !== currentDealTypeFilter) return false;
+        if (currentCityFilter && deal.city !== currentCityFilter) return false;
+        if (currentObjectTypeFilter && deal.obj_kind_text !== currentObjectTypeFilter) return false;
+        if (currentWallMaterialFilter && deal.wall_material_name !== currentWallMaterialFilter) return false;
+        if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
+        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
+        return true;
+    });
+    
+    // Если нет сделок
+    if (filteredDeals.length === 0) {
+        container.innerHTML = `<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 20px 0;">Нет сделок по выбранным фильтрам</div>`;
+        if (countElement) countElement.textContent = '0 записей';
+        return;
+    }
+    
+    // Берем первые 100 сделок
+    const displayDeals = filteredDeals.slice(0, 100);
+    
+    // Обновляем счетчик
+    if (countElement) {
+        if (filteredDeals.length > 100) {
+            countElement.textContent = `${filteredDeals.length.toLocaleString('ru-RU')} записей (показано ${displayDeals.length})`;
+        } else {
+            countElement.textContent = `${filteredDeals.length.toLocaleString('ru-RU')} записей`;
+        }
+    }
+    
+    // Формируем таблицу
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Кад. номер</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Площадь</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Назначение</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Кад. стоимость</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">УПКС</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Город</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Тип сделки</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Тип объекта</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">ВРИ</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Квартал</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Год постр.</th>
+                    <th style="text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Материал стен</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">Цена сделки</th>
+                    <th style="text-align: right; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap;">УПРС</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    displayDeals.forEach((deal, index) => {
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        html += `
+            <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
+                <td style="padding: 5px 8px; font-family: monospace; font-size: 10px; color: #1e293b; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
+                <td style="padding: 5px 8px; text-align: right; color: #1e293b;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
+                <td style="padding: 5px 8px; text-align: right; color: #1e293b;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
+                <td style="padding: 5px 8px; text-align: right; color: #1e293b;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
+                <td style="padding: 5px 8px; text-align: right; color: #1e293b;">${deal.year_build || 'nan'}</td>
+                <td style="padding: 5px 8px; color: #1e293b; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                <td style="padding: 5px 8px; text-align: right; color: #1e293b; font-weight: 500;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
+                <td style="padding: 5px 8px; text-align: right; color: #1e293b; font-weight: 500;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
 }
 function addLabelsToPolygons(layer, features, level) {
     if (!layer || !features) return;
