@@ -1445,6 +1445,7 @@ const withDeals = allQuarters.filter(f => {
         if (currentObjectTypeFilter && d.obj_kind !== currentObjectTypeFilter) return false;
         if (currentWallMaterialFilter && d.wall_material !== currentWallMaterialFilter) return false;
         if (currentQuarterFilter && d.quarter !== currentQuarterFilter) return false;
+        if (currentYearBuildFilter && d.year_build !== currentYearBuildFilter) return false;
         return true;
     });
     return filtered.length > 0;
@@ -2966,11 +2967,39 @@ function searchQuarter() {
     console.log(`🔍 Поиск квартала: ${query}`);
     
     // Ищем квартал по кадастровому номеру (level === 2)
-    const found = mapData.features.find(f => {
-        if (f.properties.level !== 2) return false;
-        const cadNum = f.properties.cadastral_number || '';
+const found = mapData.features.find(f => {
+    const cadNum = f.properties.cadastral_number || '';
+    // Ищем как в обычных кварталах (level === 2), так и в обертках
+    if (f.properties.level === 2) {
         return cadNum.toLowerCase().includes(query.toLowerCase());
-    });
+    }
+    // Также ищем в обертках на уровне 1 (если они там есть)
+    if (f.properties.level === 1 && cadNum.endsWith('000000')) {
+        return cadNum.toLowerCase().includes(query.toLowerCase());
+    }
+    return false;
+});
+
+// Если не нашли в mapData, ищем в dealsData (обертки)
+if (!found) {
+    const allCadNumbers = Object.keys(dealsData);
+    const matchingCad = allCadNumbers.find(cad => 
+        cad.toLowerCase().includes(query.toLowerCase())
+    );
+    if (matchingCad) {
+        // Создаем искусственный объект для обертки
+        found = {
+            properties: {
+                cadastral_number: matchingCad,
+                level: 2,
+                district_id: matchingCad.substring(0, 5),
+                parent_id: matchingCad.substring(0, 5),
+                isWrapper: matchingCad.endsWith('000000') || matchingCad.match(/^\d{2}:\d{2}:000000$/)
+            }
+        };
+        console.log(`   Найдено в dealsData: ${matchingCad}`);
+    }
+}
     
     if (!found) {
         console.log(`❌ Квартал "${query}" не найден`);
@@ -3002,6 +3031,13 @@ if (isWrapper) {
     // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ РАЙОНОВ (где видны все обертки)
     renderMapLevel(1);
     updateBreadcrumb('okrug');
+       renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderDealsTable();
     
     // Находим и подсвечиваем обертку
     setTimeout(() => {
@@ -3102,26 +3138,37 @@ function searchQuarterByCadNumber(cadNumber) {
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     
     // 1. Ищем в mapData
-    let found = mapData.features.find(f => {
-        if (f.properties.level !== 2) return false;
-        return f.properties.cadastral_number === cadNumber;
+let found = mapData.features.find(f => {
+    if (f.properties.level !== 2) return false;
+    return f.properties.cadastral_number === cadNumber;
+});
+
+// 2. Если не нашли, ищем в обертках на уровне 1
+if (!found) {
+    found = mapData.features.find(f => {
+        if (f.properties.level !== 1) return false;
+        const cadNum = f.properties.cadastral_number || '';
+        return cadNum === cadNumber && cadNum.endsWith('000000');
     });
-    
-    // 2. Если не нашли, проверяем dealsData
-    if (!found) {
-        const deals = dealsData[cadNumber] || [];
-        if (deals.length > 0 || cadNumber.endsWith('000000')) {
-            found = {
-                properties: {
-                    cadastral_number: cadNumber,
-                    level: 2,
-                    district_id: cadNumber.substring(0, 5),
-                    parent_id: cadNumber.substring(0, 5)
-                }
-            };
-            console.log(`   Найдено в dealsData: ${cadNumber}`);
-        }
+}
+
+// 3. Если не нашли, проверяем dealsData
+if (!found) {
+    const deals = dealsData[cadNumber] || [];
+    const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
+    if (deals.length > 0 || isWrapper) {
+        found = {
+            properties: {
+                cadastral_number: cadNumber,
+                level: 2,
+                district_id: cadNumber.substring(0, 5),
+                parent_id: cadNumber.substring(0, 5),
+                isWrapper: isWrapper
+            }
+        };
+        console.log(`   Найдено в dealsData: ${cadNumber}`);
     }
+}
     
     if (!found) {
         console.log(`❌ Квартал "${cadNumber}" не найден`);
@@ -3139,6 +3186,13 @@ function searchQuarterByCadNumber(cadNumber) {
         // Переходим на уровень районов
         renderMapLevel(1);
         updateBreadcrumb('okrug');
+           renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderDealsTable();
         
         // Находим и подсвечиваем обертку
         setTimeout(() => {
