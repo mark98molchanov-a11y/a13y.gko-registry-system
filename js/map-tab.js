@@ -9,11 +9,13 @@ let cityTypes = {};
 let objectTypes = {};
 let wallMaterialTypes = {}; 
 let quarterTypes = {}; 
+let yearBuildTypes = {};
 let currentDealTypeFilter = null;
 let currentCityFilter = null;  
 let currentObjectTypeFilter = null;
 let currentWallMaterialFilter = null; 
 let currentQuarterFilter = null;
+let currentYearBuildFilter = null;
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
@@ -65,7 +67,8 @@ async function loadDealsCSV() {
         const areaIndex = headers.indexOf('area');
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
-        const quarterIndex = headers.indexOf('Квартал сделки'); 
+        const quarterIndex = headers.indexOf('Квартал сделки');
+        const yearBuildIndex = headers.indexOf('year_build');  
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -86,7 +89,8 @@ async function loadDealsCSV() {
             const city = values[cityIndex] || 'nan'; 
             const objKind = values[objKindIndex] || 'nan';
             const wallMaterial = values[wallMaterialIndex] || 'nan';
-            const quarter = values[quarterIndex] || 'nan';     
+            const quarter = values[quarterIndex] || 'nan'; 
+            const yearBuild = values[yearBuildIndex] || 'nan';    
             
             if (!cadNum) continue;
             
@@ -103,7 +107,8 @@ async function loadDealsCSV() {
                 city: city,
                 obj_kind: objKind,
                 wall_material: wallMaterial,
-                quarter: quarter  
+                quarter: quarter,
+                year_build: yearBuild
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
@@ -111,6 +116,7 @@ citiesCount[city] = (citiesCount[city] || 0) + 1;
 objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
 wallMaterialTypes[wallMaterial] = (wallMaterialTypes[wallMaterial] || 0) + 1;
 quarterTypes[quarter] = (quarterTypes[quarter] || 0) + 1;
+yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1; 
         }
         
         dealsData = dealsByCad;
@@ -125,6 +131,7 @@ quarterTypes[quarter] = (quarterTypes[quarter] || 0) + 1;
         renderObjectTypeFilters();
         renderWallMaterialFilters();
         renderQuarterFilters();
+        renderYearBuildFilters();
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
@@ -381,6 +388,60 @@ function renderQuarterFilters() {
     
     container.innerHTML = html;
 }
+function renderYearBuildFilters() {
+    const container = document.getElementById('year-build-filters');
+    if (!container) return;
+    
+    // Сортировка от новых к старым (по убыванию года)
+    const types = Object.keys(yearBuildTypes).sort((a, b) => {
+        if (a === 'nan') return 1;
+        if (b === 'nan') return -1;
+        const aNum = parseInt(a);
+        const bNum = parseInt(b);
+        if (isNaN(aNum)) return 1;
+        if (isNaN(bNum)) return -1;
+        return bNum - aNum;  // от новых к старым
+    });
+    
+    if (types.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о годе постройки</div>';
+        return;
+    }
+    
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tbody>
+    `;
+    
+    types.forEach(type => {
+        const count = yearBuildTypes[type];
+        const isActive = currentYearBuildFilter === type;
+        
+        html += `
+            <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
+                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
 function applyDealTypeFilter(kind) {
     // Если кликнули на тот же тип - сбрасываем фильтр
     if (currentDealTypeFilter === kind) {
@@ -589,6 +650,44 @@ function applyQuarterFilter(type) {
         });
     }
 }
+function applyYearBuildFilter(type) {
+    if (currentYearBuildFilter === type) {
+        currentYearBuildFilter = null;
+    } else {
+        currentYearBuildFilter = type;
+    }
+    
+    renderYearBuildFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
     const tooltipContent = buildDistrictTooltipContent(layer);
@@ -625,6 +724,9 @@ function getDealsCountForObject(feature) {
             return false;
         }
         if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
+            return false;
+        }
+                if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
             return false;
         }
         return true;
@@ -672,6 +774,9 @@ const filteredDeals = deals.filter(deal => {
     if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
         return false;
     }
+        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
     return true;
 });
             
@@ -698,6 +803,9 @@ const filteredDeals = deals.filter(deal => {
                     return false;
                 }
                     if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
+        return false;
+    }
+        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
         return false;
     }
                 return true;
@@ -880,6 +988,9 @@ allQuarters.forEach(f => {
           if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
         return true;
     });
         if (filteredDeals.length > 0) {
@@ -986,6 +1097,7 @@ allQuarters.forEach(f => {
         if (currentObjectTypeFilter && d.obj_kind !== currentObjectTypeFilter) return false;
          if (currentWallMaterialFilter && d.wall_material !== currentWallMaterialFilter) return false;
          if (currentQuarterFilter && d.quarter !== currentQuarterFilter) return false;
+         if (currentYearBuildFilter && d.year_build !== currentYearBuildFilter) return false;
         return true;
     });
     return filtered.length > 0;
@@ -1137,6 +1249,9 @@ if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilte
       if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
         return true;
     });
         
@@ -1356,6 +1471,9 @@ const filteredDeals = deals.filter(deal => {
       if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
     return true;
 });
             const dealsCount = filteredDeals.length;
@@ -1571,6 +1689,9 @@ function updateTooltip() {
       if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
         return true;
     });
         
@@ -1682,6 +1803,9 @@ if (normalQuarters.length > 0) {
       if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
                 return true;
             });
             const filteredCount = filteredDeals.length;
@@ -1905,6 +2029,9 @@ if (levelName === 'district') {
           if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
         return true;
     });
             
@@ -2106,6 +2233,7 @@ if (levelName === 'district') {
             if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
             if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
             if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
             return true;
         });
         const count = filteredDeals.length;
@@ -2148,6 +2276,7 @@ layer.on('mouseout', function(e) {
         if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
         if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
         if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
+        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
         return true;
     });
     const filteredCount = filteredDeals.length;
@@ -2257,6 +2386,9 @@ if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilte
     if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+          if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
         return true;
     });
         
@@ -2357,6 +2489,9 @@ if (levelName === 'quarter') {
             if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
             return false;
         }
+          if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+        return false;
+    }
         return true;
     });
         const dealsCount = filteredDeals.length;
@@ -2525,6 +2660,8 @@ function resetAllFiltersMap() {
     currentCityFilter = null;
     currentObjectTypeFilter = null;
     currentWallMaterialFilter = null;
+    currentQuarterFilter = null;
+    currentYearBuildFilter = null; 
     
     // Перерисовываем фильтры в UI
     renderDealTypeFilters();
@@ -2532,6 +2669,7 @@ function resetAllFiltersMap() {
     renderObjectTypeFilters();
     renderWallMaterialFilters();
     renderQuarterFilters(); 
+    renderYearBuildFilters();
     
     // Перерисовываем карту с текущим уровнем
     renderMapLevel(currentLevel, currentParentId);
