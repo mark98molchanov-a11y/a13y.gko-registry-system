@@ -318,7 +318,29 @@ function renderQuarterFilters() {
     const container = document.getElementById('quarter-filters');
     if (!container) return;
     
-    const types = Object.keys(quarterTypes).sort((a, b) => quarterTypes[b] - quarterTypes[a]);
+    // Функция для парсинга квартала
+    function parseQuarter(quarter) {
+        if (quarter === 'nan') return { year: 0, q: 0, sortKey: 0 };
+        const parts = quarter.split('/');
+        if (parts.length === 2) {
+            const year = parseInt(parts[0]);
+            const q = parseInt(parts[1].replace('Q', ''));
+            if (!isNaN(year) && !isNaN(q)) {
+                return { year, q, sortKey: year * 10 + q };
+            }
+        }
+        return { year: 0, q: 0, sortKey: 0 };
+    }
+    
+    // ✅ СОРТИРОВКА ОТ НОВЫХ К СТАРЫМ
+    const types = Object.keys(quarterTypes).sort((a, b) => {
+        if (a === 'nan') return 1;
+        if (b === 'nan') return -1;
+        
+        const aParsed = parseQuarter(a);
+        const bParsed = parseQuarter(b);
+        return bParsed.sortKey - aParsed.sortKey;  // от новых к старым
+    });
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о кварталах сделок</div>';
