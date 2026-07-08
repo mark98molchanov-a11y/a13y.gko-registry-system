@@ -65,7 +65,7 @@ async function loadDealsCSV() {
         const areaIndex = headers.indexOf('area');
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
-        const quarterIndex = headers.indexOf('quarter'); 
+        const quarterIndex = headers.indexOf('Квартал сделки'); 
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
