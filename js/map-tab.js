@@ -1818,16 +1818,16 @@ if (normalQuarters.length > 0) {
             const hasDeals = filteredCount > 0;
             
             // ✅ ДЛЯ РАЙОНОВ (level: 1) — ПОЛУПРОЗРАЧНЫЙ СТИЛЬ
-            if (levelName === 'district') {
-                return {
-                    fillColor: '#e2e8f0',
-                    fillOpacity: 0.3,
-                    color: '#2563eb',
-                    weight: 2.5,
-                    opacity: 0.7,
-                    dashArray: null
-                };
-            }
+        if (levelName === 'district') {
+    return {
+        fillColor: '#e2e8f0',
+        fillOpacity: 0.1,       // было 0.3, стало 0.1
+        color: '#2563eb',
+        weight: 2.5,
+        opacity: 0.5,           // было 0.7, стало 0.5
+        dashArray: null
+    };
+}
             
             // ✅ ДЛЯ КВАРТАЛОВ (level: 2) — ЦВЕТ В ЗАВИСИМОСТИ ОТ ФИЛЬТРОВАННЫХ СДЕЛОК
             return {
@@ -2231,7 +2231,7 @@ if (levelName === 'district') {
     const lvl = feature?.properties?.level || 0;
     
     if (lvl === 2) {
-        // ✅ СОХРАНЯЕМ ЦВЕТ, МЕНЯЕМ ТОЛЬКО ОБВОДКУ
+        // ✅ КВАРТАЛЫ — оставляем изменение
         const cadNum = feature?.properties?.cadastral_number;
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
@@ -2254,11 +2254,8 @@ if (levelName === 'district') {
             opacity: 0.8
         });
     } else {
-        this.setStyle({
-            weight: 2.5,
-            color: '#60a5fa',
-            opacity: 0.9
-        });
+        // ✅ РАЙОНЫ И ОКРУГ — НЕ МЕНЯЕМ СТИЛЬ (убираем выделение)
+        // Просто меняем курсор, без изменения цвета
     }
     
     this.bringToFront();
@@ -2275,48 +2272,29 @@ layer.on('mouseout', function(e) {
     const level = feature.properties?.level || 0;
     const cadNum = feature.properties?.cadastral_number;
     
-    // ✅ ИСПОЛЬЗУЕМ ФИЛЬТРЫ ДЛЯ ПОДСЧЕТА
-    const deals = cadNum ? (dealsData[cadNum] || []) : [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
-        if (currentCityFilter && deal.city !== currentCityFilter) return false;
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
-        if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
-        if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
-        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
-        return true;
-    });
-    const filteredCount = filteredDeals.length;
-    
-    let style = {};
-    
+    // ✅ ТОЛЬКО ДЛЯ КВАРТАЛОВ (level === 2) — восстанавливаем стиль
     if (level === 2) {
-        style = {
+        const deals = cadNum ? (dealsData[cadNum] || []) : [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
+            if (currentCityFilter && deal.city !== currentCityFilter) return false;
+            if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
+            if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
+            if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
+            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
+            return true;
+        });
+        const filteredCount = filteredDeals.length;
+        
+        this.setStyle({
             fillColor: filteredCount > 0 ? getMapColor(filteredCount) : '#f1f5f9',
             fillOpacity: 0.2,
             color: '#3b82f6',
             weight: 2.5,
             opacity: 0.4
-        };
-    } else if (level === 1) {
-        style = {
-            fillColor: '#e2e8f0',
-            fillOpacity: 0.3,
-            color: '#2563eb',
-            weight: 2.5,
-            opacity: 0.7
-        };
-    } else {
-        style = {
-            fillColor: '#f1f5f9',
-            fillOpacity: 0.7,
-            color: '#334155',
-            weight: 1,
-            opacity: 0.5
-        };
+        });
     }
-    
-    this.setStyle(style);
+    // ✅ РАЙОНЫ И ОКРУГ — НИЧЕГО НЕ МЕНЯЕМ
 });
 }
 function buildPopupContent(feature) {
