@@ -482,6 +482,7 @@ function applyDealTypeFilter(kind) {
     // ✅ ВСЕГДА ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ ПРИ СМЕНЕ ФИЛЬТРА
     if (window.wrapperLayer) {
@@ -526,6 +527,7 @@ function applyCityFilter(city) {
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     // Обновляем тултипы оберток
     if (window.wrapperLayer) {
@@ -565,6 +567,7 @@ function applyObjectTypeFilter(type) {
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -603,6 +606,7 @@ function applyWallMaterialFilter(type) {
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -641,6 +645,7 @@ function applyQuarterFilter(type) {
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -679,6 +684,7 @@ function applyYearBuildFilter(type) {
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -1933,6 +1939,7 @@ if (level === 2 && window.mapLayer) {
     if (level === 1 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
+    updateActiveFiltersDisplay();
 }
 
 function getMapColor(dealsCount) {
@@ -2676,8 +2683,41 @@ function resetAllFiltersMap() {
     
     // Обновляем легенду
     addMapLegend();
+    updateActiveFiltersDisplay();
     
     console.log('✅ Все фильтры сброшены');
+}
+function updateActiveFiltersDisplay() {
+    const container = document.getElementById('active-filters-list');
+    if (!container) return;
+    
+    const activeFilters = [];
+    
+    if (currentCityFilter) activeFilters.push(`🏙️ ${currentCityFilter}`);
+    if (currentObjectTypeFilter) activeFilters.push(`🏷️ ${currentObjectTypeFilter}`);
+    if (currentDealTypeFilter) activeFilters.push(`📋 ${currentDealTypeFilter}`);
+    if (currentQuarterFilter) activeFilters.push(`📅 ${currentQuarterFilter}`);
+    if (currentWallMaterialFilter) activeFilters.push(`🧱 ${currentWallMaterialFilter}`);
+    if (currentYearBuildFilter) activeFilters.push(`🏗️ ${currentYearBuildFilter}`);
+    
+    if (activeFilters.length === 0) {
+        container.textContent = '—';
+        container.style.color = '#94a3b8';
+    } else {
+        container.innerHTML = activeFilters.map(f => 
+            `<span style="
+                background: #e0f2fe; 
+                color: #0284c7; 
+                padding: 1px 8px; 
+                border-radius: 12px; 
+                font-weight: 500;
+                font-size: 9px;
+                border: 1px solid #bae6fd;
+                white-space: nowrap;
+            ">${f}</span>`
+        ).join(' ');
+        container.style.color = '#1e293b';
+    }
 }
 function addLabelsToPolygons(layer, features, level) {
     if (!layer || !features) return;
