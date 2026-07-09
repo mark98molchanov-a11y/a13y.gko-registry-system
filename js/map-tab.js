@@ -3243,7 +3243,10 @@ if (isWrapper) {
     renderWallMaterialFilters();
     renderQuarterFilters();
     renderYearBuildFilters();
-    renderDealsTable();
+       setTimeout(() => {
+        console.log('🔄 Принудительное обновление таблицы для обертки:', window.selectedQuarterCadNumber);
+        renderDealsTable();
+    }, 100);
         
         // Находим и подсвечиваем обертку
         setTimeout(() => {
