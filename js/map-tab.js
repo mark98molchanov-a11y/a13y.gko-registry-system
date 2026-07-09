@@ -2783,16 +2783,18 @@ function renderDealsTable() {
     // Получаем все сделки с учетом фильтров
     let filteredDeals = allDealsFlat.filter(deal => {
         // ✅ Фильтр по выбранному кварталу (из карты)
-        if (selectedQuarter) {
-            // Если выбрана обертка — показываем все сделки, где cad_number начинается с номера обертки
-            if (isWrapperSelected) {
-                const prefix = selectedQuarter.substring(0, 5);
-                if (!deal.cad_number.startsWith(prefix)) return false;
-            } else {
-                // Обычный квартал — точное совпадение
-                if (deal.cad_number !== selectedQuarter) return false;
-            }
-        }
+    if (selectedQuarter) {
+    if (isWrapperSelected) {
+        // ✅ Для обертки: показываем ВСЕ сделки из этого района
+        const prefix = selectedQuarter.substring(0, 5);
+        // Проверяем: номер начинается с префикса ИЛИ точно совпадает с оберткой
+        const isMatch = deal.cad_number.startsWith(prefix) || 
+                       deal.cad_number === selectedQuarter;
+        if (!isMatch) return false;
+    } else {
+        if (deal.cad_number !== selectedQuarter) return false;
+    }
+}
         
         if (currentDealTypeFilter && deal.deal_kind_text !== currentDealTypeFilter) return false;
         if (currentCityFilter && deal.city !== currentCityFilter) return false;
