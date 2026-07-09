@@ -18,6 +18,9 @@ let currentWallMaterialFilter = null;
 let currentQuarterFilter = null;
 let currentYearBuildFilter = null;
 let allDealsFlat = []; 
+let priceThresholds = {}; 
+let isPriceFilterEnabled = true;
+let originalAllDealsFlat = []; 
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
@@ -73,8 +76,8 @@ async function loadDealsCSV() {
         const quarterIndex = headers.indexOf('Квартал сделки');
         const yearBuildIndex = headers.indexOf('year_build');  
         const purposeIndex = headers.indexOf('purpose_text'); 
-const vriIndex = headers.indexOf('vri');  
-const cadCostIndex = headers.indexOf('cad_cost'); 
+        const vriIndex = headers.indexOf('vri');  
+        const cadCostIndex = headers.indexOf('cad_cost'); 
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -97,8 +100,8 @@ const cadCostIndex = headers.indexOf('cad_cost');
             const wallMaterial = values[wallMaterialIndex] || 'nan';
             const quarter = values[quarterIndex] || 'nan'; 
             const yearBuild = values[yearBuildIndex] || 'nan';  
-            const purposeText = values[purposeIndex] || 'nan';   // ✅ ДОБАВИТЬ
-    const vri = values[vriIndex] || 'nan';       
+            const purposeText = values[purposeIndex] || 'nan';
+            const vri = values[vriIndex] || 'nan';       
             
             if (!cadNum) continue;
             
@@ -108,23 +111,23 @@ const cadCostIndex = headers.indexOf('cad_cost');
             const area = parseFloat(values[areaIndex]) || 0;
             const cadCost = parseFloat(values[cadCostIndex]) || 0;
               
-     allDealsFlat.push({
-    cad_number: cadNum,
-    area: area,
-    purpose_text: purposeText,
-    cad_cost: cadCost,
-    upks: upks,           // ✅ Теперь это УПКС (из колонки upks)
-    uprs: uprs,           // ✅ Добавляем УПРС отдельно
-    city: city,
-    deal_kind_text: kind,
-    obj_kind_text: objKind,
-    vri: vri,
-    quarter: quarter,
-    year_build: yearBuild,
-    wall_material_name: wallMaterial,
-    deal_price_rub: price,
-    uprs_rub: uprs
-});
+            allDealsFlat.push({
+                cad_number: cadNum,
+                area: area,
+                purpose_text: purposeText,
+                cad_cost: cadCost,
+                upks: upks,
+                uprs: uprs,
+                city: city,
+                deal_kind_text: kind,
+                obj_kind_text: objKind,
+                vri: vri,
+                quarter: quarter,
+                year_build: yearBuild,
+                wall_material_name: wallMaterial,
+                deal_price_rub: price,
+                uprs_rub: uprs
+            });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
             dealsByCad[cadNum].push({
@@ -140,17 +143,49 @@ const cadCostIndex = headers.indexOf('cad_cost');
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
-citiesCount[city] = (citiesCount[city] || 0) + 1;
-objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
-wallMaterialTypes[wallMaterial] = (wallMaterialTypes[wallMaterial] || 0) + 1;
-quarterTypes[quarter] = (quarterTypes[quarter] || 0) + 1;
-yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1; 
+            citiesCount[city] = (citiesCount[city] || 0) + 1;
+            objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
+            wallMaterialTypes[wallMaterial] = (wallMaterialTypes[wallMaterial] || 0) + 1;
+            quarterTypes[quarter] = (quarterTypes[quarter] || 0) + 1;
+            yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1; 
         }
         
+        // ============================================================
+        // 🆕 НОВЫЙ КОД: ФИЛЬТРАЦИЯ ПО 5% САМЫХ МАЛЕНЬКИХ ЦЕН
+        // ============================================================
+        
+        console.log('📊 Всего сделок загружено:', allDealsFlat.length);
+        
+        // Сохраняем оригинальные данные (на случай если понадобится)
+        originalAllDealsFlat = [...allDealsFlat];
+        
+        // Рассчитываем пороговые цены для каждого типа сделки
+        priceThresholds = calculatePriceThresholds();
+        console.log('📊 Пороговые цены рассчитаны');
+        
+        // Применяем фильтрацию (по умолчанию включена)
+        if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
+            const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
+            console.log(`📊 После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
+            
+            // Обновляем глобальные данные
+            allDealsFlat = filteredDeals;
+            rebuildDealsData(filteredDeals);
+        } else {
+            rebuildDealsData(allDealsFlat);
+        }
+        
+        // ============================================================
+        // 🆕 КОНЕЦ НОВОГО КОДА
+        // ============================================================
+        
+        // Обновляем dealsData, dealTypes и т.д. с учетом фильтрации
+        // (это уже делает rebuildDealsData, но оставляем для совместимости)
         dealsData = dealsByCad;
         dealTypes = typesCount;
         cityTypes = citiesCount; 
         objectTypes = objectTypesCount;
+        
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Типы сделок:', dealTypes);
         
@@ -160,10 +195,135 @@ yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1;
         renderWallMaterialFilters();
         renderQuarterFilters();
         renderYearBuildFilters();
-         renderDealsTable(); 
+        renderDealsTable(); 
+        
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
+    }
+}
+function calculatePriceThresholds() {
+    console.log('📊 Расчет пороговых цен по типам сделок...');
+    
+    const thresholds = {};
+    
+    // Группируем сделки по типу
+    const dealsByType = {};
+    allDealsFlat.forEach(deal => {
+        const kind = deal.deal_kind_text || 'unknown';
+        if (!dealsByType[kind]) dealsByType[kind] = [];
+        if (deal.deal_price_rub > 0) {
+            dealsByType[kind].push(deal.deal_price_rub);
+        }
+    });
+    
+    // Для каждого типа вычисляем порог (исключаем 5% самых маленьких)
+    Object.keys(dealsByType).forEach(kind => {
+        const prices = dealsByType[kind].sort((a, b) => a - b);
+        if (prices.length === 0) {
+            thresholds[kind] = 0;
+            return;
+        }
+        
+        // Индекс для отсечения 5% самых маленьких
+        const cutoffIndex = Math.floor(prices.length * 0.05);
+        // Минимальная цена, которая попадает в оставшиеся 95%
+        const minPrice = prices[cutoffIndex] || 0;
+        thresholds[kind] = minPrice;
+        
+        console.log(`   ${kind}: ${prices.length} сделок, порог = ${minPrice.toLocaleString()} ₽ (исключено ${cutoffIndex} шт.)`);
+    });
+    
+    console.log('✅ Пороговые цены рассчитаны');
+    return thresholds;
+}
+function filterDealsByPriceThreshold(thresholds) {
+    if (!thresholds || Object.keys(thresholds).length === 0) {
+        console.warn('⚠️ Пороговые цены не рассчитаны');
+        return allDealsFlat;
+    }
+    
+    return allDealsFlat.filter(deal => {
+        const kind = deal.deal_kind_text || 'unknown';
+        const threshold = thresholds[kind] || 0;
+        // Пропускаем сделки, цена которых больше или равна порогу
+        return deal.deal_price_rub >= threshold;
+    });
+}
+
+function rebuildDealsData(filteredDeals) {
+    // Очищаем старые данные
+    dealsData = {};
+    dealTypes = {};
+    cityTypes = {};
+    objectTypes = {};
+    wallMaterialTypes = {};
+    quarterTypes = {};
+    yearBuildTypes = {};
+    
+    // Заполняем новыми данными
+    filteredDeals.forEach(deal => {
+        const cadNum = deal.cad_number;
+        if (!cadNum) return;
+        
+        if (!dealsData[cadNum]) dealsData[cadNum] = [];
+        dealsData[cadNum].push({
+            kind: deal.deal_kind_text,
+            price: deal.deal_price_rub,
+            uprs: deal.uprs_rub,
+            area: deal.area,
+            city: deal.city,
+            obj_kind: deal.obj_kind_text,
+            wall_material: deal.wall_material_name,
+            quarter: deal.quarter,
+            year_build: deal.year_build
+        });
+        
+        // Обновляем счетчики для фильтров
+        dealTypes[deal.deal_kind_text] = (dealTypes[deal.deal_kind_text] || 0) + 1;
+        cityTypes[deal.city] = (cityTypes[deal.city] || 0) + 1;
+        objectTypes[deal.obj_kind_text] = (objectTypes[deal.obj_kind_text] || 0) + 1;
+        wallMaterialTypes[deal.wall_material_name] = (wallMaterialTypes[deal.wall_material_name] || 0) + 1;
+        quarterTypes[deal.quarter] = (quarterTypes[deal.quarter] || 0) + 1;
+        yearBuildTypes[deal.year_build] = (yearBuildTypes[deal.year_build] || 0) + 1;
+    });
+    
+    console.log('✅ Данные перестроены после фильтрации по ценам');
+}
+function togglePriceFilter() {
+    isPriceFilterEnabled = !isPriceFilterEnabled;
+     const btn = document.getElementById('priceFilterToggle');
+    if (btn) {
+        btn.textContent = isPriceFilterEnabled ? '🔽 Фильтр цен ВКЛ' : '🔽 Фильтр цен ВЫКЛ';
+        btn.style.background = isPriceFilterEnabled ? '#e0f2fe' : '#fef2f2';
+        btn.style.color = isPriceFilterEnabled ? '#0284c7' : '#ef4444';
+        btn.style.borderColor = isPriceFilterEnabled ? '#bae6fd' : '#fecaca';
+    }
+    console.log(`🔄 Фильтр по ценам ${isPriceFilterEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`);
+    
+    // Восстанавливаем исходные данные
+    if (!isPriceFilterEnabled) {
+        allDealsFlat = [...originalAllDealsFlat];
+        rebuildDealsData(allDealsFlat);
+    } else {
+        // Применяем фильтр
+        const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
+        allDealsFlat = filteredDeals;
+        rebuildDealsData(filteredDeals);
+    }
+    
+    // Перерисовываем все
+    renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderDealsTable();
+    
+    // Обновляем карту
+    if (mapData) {
+        renderMapLevel(currentLevel, currentParentId);
     }
 }
 function renderDealTypeFilters() {
