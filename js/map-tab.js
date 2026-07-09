@@ -307,13 +307,13 @@ function togglePriceFilter() {
     if (btn) {
         if (isPriceFilterEnabled) {
             // ВКЛЮЧЕН — зеленый
-            btn.innerHTML = '📊 Ценовой фильтр';
+            btn.innerHTML = 'Ценовой фильтр';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
             // ВЫКЛЮЧЕН — синий (как по умолчанию)
-            btn.innerHTML = '📊 Ценовой фильтр';
+            btn.innerHTML = 'Ценовой фильтр';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
             btn.style.borderColor = '#bae6fd';
