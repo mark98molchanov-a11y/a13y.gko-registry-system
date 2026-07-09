@@ -154,26 +154,26 @@ async function loadDealsCSV() {
         // 🆕 НОВЫЙ КОД: ФИЛЬТРАЦИЯ ПО 5% САМЫХ МАЛЕНЬКИХ ЦЕН
         // ============================================================
         
-        console.log('📊 Всего сделок загружено:', allDealsFlat.length);
+console.log('📊 Всего сделок загружено:', allDealsFlat.length);
         
-        // Сохраняем оригинальные данные (на случай если понадобится)
-        originalAllDealsFlat = [...allDealsFlat];
+// Сохраняем оригинальные данные (на случай если понадобится)
+originalAllDealsFlat = [...allDealsFlat];
         
-        // Рассчитываем пороговые цены для каждого типа сделки
-        priceThresholds = calculatePriceThresholds();
-        console.log('📊 Пороговые цены рассчитаны');
+// Рассчитываем пороговые цены для каждого типа сделки
+priceThresholds = calculatePriceThresholds();
+console.log('📊 Пороговые цены рассчитаны');
         
-        // Применяем фильтрацию (по умолчанию включена)
-        if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
-            const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
-            console.log(`📊 После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
+// Применяем фильтрацию (по умолчанию включена)
+if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
+    const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
+    console.log(`📊 После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
             
-            // Обновляем глобальные данные
-            allDealsFlat = filteredDeals;
-            rebuildDealsData(filteredDeals);
-        } else {
-            rebuildDealsData(allDealsFlat);
-        }
+    // Обновляем глобальные данные
+    allDealsFlat = filteredDeals;
+    rebuildDealsData(filteredDeals);
+} else {
+    rebuildDealsData(allDealsFlat);
+}
         
         // ============================================================
         // 🆕 КОНЕЦ НОВОГО КОДА
@@ -203,7 +203,7 @@ async function loadDealsCSV() {
     }
 }
 function calculatePriceThresholds() {
-    console.log('📊 Расчет пороговых цен по типам сделок...');
+    console.log('📊 Расчет пороговых цен по типам сделок (10% нижних и верхних)...');
     
     const thresholds = {};
     
@@ -217,26 +217,33 @@ function calculatePriceThresholds() {
         }
     });
     
-    // Для каждого типа вычисляем порог (исключаем 5% самых маленьких)
+    // Для каждого типа вычисляем пороги (исключаем 10% нижних и 10% верхних)
     Object.keys(dealsByType).forEach(kind => {
         const prices = dealsByType[kind].sort((a, b) => a - b);
         if (prices.length === 0) {
-            thresholds[kind] = 0;
+            thresholds[kind] = { min: 0, max: Infinity };
             return;
         }
         
-        // Индекс для отсечения 5% самых маленьких
-        const cutoffIndex = Math.floor(prices.length * 0.05);
-        // Минимальная цена, которая попадает в оставшиеся 95%
-        const minPrice = prices[cutoffIndex] || 0;
-        thresholds[kind] = minPrice;
+        // Индекс для отсечения 10% самых маленьких
+        const lowerIndex = Math.floor(prices.length * 0.10);
+        // Индекс для отсечения 10% самых больших
+        const upperIndex = Math.ceil(prices.length * 0.90) - 1;
         
-        console.log(`   ${kind}: ${prices.length} сделок, порог = ${minPrice.toLocaleString()} ₽ (исключено ${cutoffIndex} шт.)`);
+        // Минимальная цена, которая попадает в оставшиеся 80%
+        const minPrice = prices[lowerIndex] || 0;
+        // Максимальная цена, которая попадает в оставшиеся 80%
+        const maxPrice = prices[upperIndex] || prices[prices.length - 1];
+        
+        thresholds[kind] = { min: minPrice, max: maxPrice };
+        
+        console.log(`   ${kind}: ${prices.length} сделок, диапазон = ${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()} ₽ (исключено ${lowerIndex} нижних, ${prices.length - upperIndex - 1} верхних)`);
     });
     
     console.log('✅ Пороговые цены рассчитаны');
     return thresholds;
 }
+
 function filterDealsByPriceThreshold(thresholds) {
     if (!thresholds || Object.keys(thresholds).length === 0) {
         console.warn('⚠️ Пороговые цены не рассчитаны');
@@ -245,9 +252,12 @@ function filterDealsByPriceThreshold(thresholds) {
     
     return allDealsFlat.filter(deal => {
         const kind = deal.deal_kind_text || 'unknown';
-        const threshold = thresholds[kind] || 0;
-        // Пропускаем сделки, цена которых больше или равна порогу
-        return deal.deal_price_rub >= threshold;
+        const threshold = thresholds[kind];
+        if (!threshold) return true;
+        
+        const price = deal.deal_price_rub;
+        // Пропускаем сделки, цена которых в диапазоне [min, max]
+        return price >= threshold.min && price <= threshold.max;
     });
 }
 
@@ -292,13 +302,22 @@ function rebuildDealsData(filteredDeals) {
 }
 function togglePriceFilter() {
     isPriceFilterEnabled = !isPriceFilterEnabled;
-     const btn = document.getElementById('priceFilterToggle');
+    
+    const btn = document.getElementById('priceFilterToggle');
     if (btn) {
-        btn.textContent = isPriceFilterEnabled ? '🔽 Фильтр цен ВКЛ' : '🔽 Фильтр цен ВЫКЛ';
-        btn.style.background = isPriceFilterEnabled ? '#e0f2fe' : '#fef2f2';
-        btn.style.color = isPriceFilterEnabled ? '#0284c7' : '#ef4444';
-        btn.style.borderColor = isPriceFilterEnabled ? '#bae6fd' : '#fecaca';
+        if (isPriceFilterEnabled) {
+            btn.innerHTML = '📊 10% процентили ✅';
+            btn.style.background = '#dcfce7';
+            btn.style.color = '#166534';
+            btn.style.borderColor = '#86efac';
+        } else {
+            btn.innerHTML = '📊 10% процентили ❌';
+            btn.style.background = '#fef2f2';
+            btn.style.color = '#dc2626';
+            btn.style.borderColor = '#fca5a5';
+        }
     }
+    
     console.log(`🔄 Фильтр по ценам ${isPriceFilterEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`);
     
     // Восстанавливаем исходные данные
