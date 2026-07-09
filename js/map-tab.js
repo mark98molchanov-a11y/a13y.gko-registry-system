@@ -479,6 +479,18 @@ function applyDealTypeFilter(kind) {
         currentDealTypeFilter = kind;
     }
     
+    // ============================================================
+    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ (ПОСЛЕ if/else, ПЕРЕД renderDealTypeFilters)
+    // ============================================================
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра');
+            window.selectedQuarterCadNumber = null;
+        }
+    }
+    
     // ✅ ВСЕГДА ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
     renderDealTypeFilters();
     
@@ -531,6 +543,18 @@ function applyCityFilter(city) {
         currentCityFilter = city;
     }
     
+    // ============================================================
+    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
+    // ============================================================
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра города');
+            window.selectedQuarterCadNumber = null;
+        }
+    }
+    
     // Перерисовываем фильтры
     renderCityFilters();
     
@@ -570,10 +594,22 @@ function applyCityFilter(city) {
     }
 }
 function applyObjectTypeFilter(type) {
-    if (currentObjectTypeFilter === type) {
+         if (currentObjectTypeFilter === type) {
         currentObjectTypeFilter = null;
     } else {
         currentObjectTypeFilter = type;
+    }
+    
+    // ============================================================
+    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
+    // ============================================================
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра типа объекта');
+            window.selectedQuarterCadNumber = null;
+        }
     }
     
     renderObjectTypeFilters();
@@ -616,6 +652,18 @@ function applyWallMaterialFilter(type) {
         currentWallMaterialFilter = type;
     }
     
+    // ============================================================
+    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
+    // ============================================================
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра материала стен');
+            window.selectedQuarterCadNumber = null;
+        }
+    }
+    
     renderWallMaterialFilters();
     
     const level = currentLevel;
@@ -656,6 +704,18 @@ function applyQuarterFilter(type) {
         currentQuarterFilter = type;
     }
     
+    // ============================================================
+    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
+    // ============================================================
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра квартала сделки');
+            window.selectedQuarterCadNumber = null;
+        }
+    }
+    
     renderQuarterFilters();
     
     const level = currentLevel;
@@ -694,6 +754,18 @@ function applyYearBuildFilter(type) {
         currentYearBuildFilter = null;
     } else {
         currentYearBuildFilter = type;
+    }
+    
+    // ============================================================
+    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
+    // ============================================================
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра года постройки');
+            window.selectedQuarterCadNumber = null;
+        }
     }
     
     renderYearBuildFilters();
@@ -1599,9 +1671,23 @@ async function loadMapData() {
 // ============================================================
 function renderMapLevel(level, parentId = null) {
     // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ТОЛЬКО ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ КВАРТАЛОВ
-    if (level === 2 && parentId === null) {  // ✅ НОВЫЙ КОД!
-        window.selectedQuarterCadNumber = null;
+    if (level === 2 && parentId) {
+    // Если переходим на район и была выбрана обертка — сбрасываем
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при переходе на район:', parentId);
+            window.selectedQuarterCadNumber = null;
+        }
     }
+}
+
+// ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ ОКРУГА
+if (level === 0) {
+    window.selectedQuarterCadNumber = null;
+    currentDistrictFilter = null;
+}
     
     // ✅ СОХРАНЯЕМ ТЕКУЩИЙ УРОВЕНЬ ДЛЯ ФИЛЬТРА
     currentLevel = level;
@@ -2758,13 +2844,30 @@ function renderDealsTable() {
     const selectedQuarter = window.selectedQuarterCadNumber || null;
     
     // Получаем все сделки с учетом фильтров
-    let filteredDeals = allDealsFlat.filter(deal => {
-        // ✅ Фильтр по выбранному кварталу (из карты)
-        if (selectedQuarter && deal.cad_number !== selectedQuarter) return false;
-                if (currentDistrictFilter) {
-            const prefix = String(currentDistrictFilter).substring(0, 5);
-            if (!deal.cad_number.startsWith(prefix)) return false;
+let filteredDeals = allDealsFlat.filter(deal => {
+    // ✅ ПРИОРИТЕТ ФИЛЬТРОВ:
+    // 1. Если выбран КВАРТАЛ (НЕ обертка) — показываем только его сделки
+    // 2. Если выбран РАЙОН — показываем только сделки района
+    // 3. Если выбрана ОБЕРТКА — показываем только сделки обертки
+    
+    // ✅ Проверяем, обертка ли это
+    const isWrapperSelected = selectedQuarter ? (
+        selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
+    ) : false;
+    
+    if (selectedQuarter) {
+        if (isWrapperSelected) {
+            // ✅ ОБЕРТКА: показываем ТОЛЬКО сделки с точным номером обертки
+            if (deal.cad_number !== selectedQuarter) return false;
+        } else {
+            // ✅ ОБЫЧНЫЙ КВАРТАЛ: показываем ТОЛЬКО сделки этого квартала
+            if (deal.cad_number !== selectedQuarter) return false;
         }
+    } else if (currentDistrictFilter) {
+        // ✅ РАЙОН: показываем ТОЛЬКО сделки района
+        const prefix = String(currentDistrictFilter).substring(0, 5);
+        if (!deal.cad_number.startsWith(prefix)) return false;
+    }
         
         if (currentDealTypeFilter && deal.deal_kind_text !== currentDealTypeFilter) return false;
         if (currentCityFilter && deal.city !== currentCityFilter) return false;
