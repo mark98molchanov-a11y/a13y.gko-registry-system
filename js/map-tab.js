@@ -2275,67 +2275,79 @@ layer.on('click', function(e) {
         // Переход на уровень районов
         renderMapLevel(1);
         updateBreadcrumb('okrug');
-        // Центрируем карту на районах
+        if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+        }
+    } else if (levelName === 'district') {
+        const districtCadNum = props.cadastral_number || '';
+        const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
+        
+        if (isWrapperDistrict) {
+            // ✅ ОБЕРТКА — показываем данные, НЕ переходим на кварталы
+            console.log(`🔴 Клик по обертке: ${districtCadNum}`);
+            window.selectedQuarterCadNumber = districtCadNum;
+            renderDealTypeFilters();
+            renderCityFilters();
+            renderObjectTypeFilters();
+            renderWallMaterialFilters();
+            renderQuarterFilters();
+            renderYearBuildFilters();
+            renderDealsTable();
+            
+            // Подсвечиваем обертку
+            if (window.wrapperLayer) {
+                window.wrapperLayer.setStyle({
+                    fillOpacity: 0.25,
+                    weight: 1,
+                    color: '#ff0000',
+                    opacity: 0.4,
+                    dashArray: '4 4'
+                });
+                window.wrapperLayer.eachLayer(function(wLayer) {
+                    if (wLayer.feature && wLayer.feature.properties) {
+                        const wCadNum = wLayer.feature.properties.cadastral_number || '';
+                        if (wCadNum === districtCadNum) {
+                            wLayer.setStyle({
+                                fillOpacity: 0.4,
+                                weight: 3,
+                                color: '#ff0000',
+                                opacity: 0.8
+                            });
+                            if (wLayer.openTooltip) {
+                                wLayer.openTooltip();
+                            }
+                        }
+                    }
+                });
+            }
+            if (this.getBounds && this.getBounds().isValid()) {
+                mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
+            }
+            return;
+        }
+        
+        // ✅ ОБЫЧНЫЙ РАЙОН — ПЕРЕХОД НА УРОВЕНЬ КВАРТАЛОВ
+        console.log(`🏘️ Переход на кварталы района: ${districtCadNum}`);
+        const districtId = props.district_id || props.cadastral_number;
+        renderMapLevel(2, districtId);
+        updateBreadcrumb('district', districtId, props.district_name);
         if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
             mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
         }
     } else if (levelName === 'quarter') {
-            // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
-            const cadNum = props.cadastral_number;
-            const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
-            console.log('🏘️ Квартал выбран:', cadNum);
-            console.log('📊 Сделок:', dealsCount);
-               window.selectedQuarterCadNumber = cadNum;
-    
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
-    renderDealsTable();
-            
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
-            } else if (layer.getLatLng) {
-                mapInstance.setView(layer.getLatLng(), 15);
-            }
-            layer.openPopup();
+        // ✅ КВАРТАЛ
+        const cadNum = props.cadastral_number;
+        const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
+        console.log('🏘️ Квартал выбран:', cadNum);
+        console.log('📊 Сделок:', dealsCount);
+        window.selectedQuarterCadNumber = cadNum;
+        renderDealsTable();
+        if (layer.getBounds && layer.getBounds().isValid()) {
+            mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
+        } else if (layer.getLatLng) {
+            mapInstance.setView(layer.getLatLng(), 15);
         }
-    });
-
-    // ===== 🖱️ ХОВЕР (наведение) =====
- layer.on('mouseover', function(e) {
-    if (!this || !this.setStyle) return;
-    
-    const lvl = feature?.properties?.level || 0;
-    
-    if (lvl === 2) {
-        // ✅ КВАРТАЛЫ — оставляем изменение
-        const cadNum = feature?.properties?.cadastral_number;
-        const deals = cadNum ? (dealsData[cadNum] || []) : [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
-            if (currentCityFilter && deal.city !== currentCityFilter) return false;
-            if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
-            if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
-            if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
-            return true;
-        });
-        const count = filteredDeals.length;
-        const fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
-        
-        this.setStyle({
-            fillColor: fillColor,
-            fillOpacity: 0.2,
-            weight: 2,
-            color: '#60a5fa',
-            opacity: 0.8
-        });
-    } else {
-        // ✅ РАЙОНЫ И ОКРУГ — НЕ МЕНЯЕМ СТИЛЬ (убираем выделение)
-        // Просто меняем курсор, без изменения цвета
-    }
-    
-    this.bringToFront();
-    if (this._container) {
-        this._container.style.cursor = 'pointer';
+        layer.openPopup();
     }
 });
 
