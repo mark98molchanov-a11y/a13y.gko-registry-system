@@ -1,6 +1,7 @@
  let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
+let currentDistrictFilter = null;
 
 const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/yanao_hierarchical_web.geojson';
 let dealsData = {};
@@ -1605,6 +1606,11 @@ function renderMapLevel(level, parentId = null) {
     // ✅ СОХРАНЯЕМ ТЕКУЩИЙ УРОВЕНЬ ДЛЯ ФИЛЬТРА
     currentLevel = level;
     currentParentId = parentId;
+     if (level === 2 && parentId) {
+        currentDistrictFilter = parentId;
+    } else {
+        currentDistrictFilter = null;  // Сбрасываем на уровне районов
+    }
     
     if (!mapData || !mapInstance) {
         console.warn('⚠️ mapData или mapInstance не инициализированы');
@@ -2755,6 +2761,10 @@ function renderDealsTable() {
     let filteredDeals = allDealsFlat.filter(deal => {
         // ✅ Фильтр по выбранному кварталу (из карты)
         if (selectedQuarter && deal.cad_number !== selectedQuarter) return false;
+                if (currentDistrictFilter) {
+            const prefix = String(currentDistrictFilter).substring(0, 5);
+            if (!deal.cad_number.startsWith(prefix)) return false;
+        }
         
         if (currentDealTypeFilter && deal.deal_kind_text !== currentDealTypeFilter) return false;
         if (currentCityFilter && deal.city !== currentCityFilter) return false;
