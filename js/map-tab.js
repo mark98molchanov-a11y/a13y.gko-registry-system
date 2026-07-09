@@ -2783,19 +2783,17 @@ function renderDealsTable() {
     // Получаем все сделки с учетом фильтров
     let filteredDeals = allDealsFlat.filter(deal => {
         // ✅ Фильтр по выбранному кварталу (из карты)
-    if (selectedQuarter) {
-    if (isWrapperSelected) {
-        // ✅ Для обертки: показываем ВСЕ сделки из этого района
-        const prefix = selectedQuarter.substring(0, 5);
-        // Проверяем: номер начинается с префикса ИЛИ точно совпадает с оберткой
-        const isMatch = deal.cad_number.startsWith(prefix) || 
-                       deal.cad_number === selectedQuarter;
-        if (!isMatch) return false;
-    } else {
-        if (deal.cad_number !== selectedQuarter) return false;
-    }
-}
+        if (selectedQuarter) {
+            if (isWrapperSelected) {
+                // ✅ ВАРИАНТ B: ТОЛЬКО ТОЧНОЕ СОВПАДЕНИЕ С ОБЕРТКОЙ
+                if (deal.cad_number !== selectedQuarter) return false;
+            } else {
+                // Обычный квартал — точное совпадение
+                if (deal.cad_number !== selectedQuarter) return false;
+            }
+        }
         
+        // Остальные фильтры
         if (currentDealTypeFilter && deal.deal_kind_text !== currentDealTypeFilter) return false;
         if (currentCityFilter && deal.city !== currentCityFilter) return false;
         if (currentObjectTypeFilter && deal.obj_kind_text !== currentObjectTypeFilter) return false;
@@ -2809,7 +2807,7 @@ function renderDealsTable() {
     filteredDeals.sort((a, b) => {
         const priceA = a.deal_price_rub || 0;
         const priceB = b.deal_price_rub || 0;
-        return priceB - priceA; // по убыванию
+        return priceB - priceA;
     });
     
     // ✅ ШАПКА ТАБЛИЦЫ ВСЕГДА ВИДНА
