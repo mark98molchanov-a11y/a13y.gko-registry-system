@@ -19,7 +19,7 @@ let currentQuarterFilter = null;
 let currentYearBuildFilter = null;
 let allDealsFlat = []; 
 let priceThresholds = {}; 
-let isPriceFilterEnabled = true;
+let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
 
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
