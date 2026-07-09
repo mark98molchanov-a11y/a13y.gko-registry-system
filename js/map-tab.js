@@ -3372,6 +3372,70 @@ setTimeout(() => {
     renderDealsTable();
 }, 300);
 }
+function exportDealsTableToExcel() {
+    const container = document.getElementById('deals-table-container');
+    if (!container) {
+        console.warn('⚠️ Контейнер таблицы не найден');
+        return;
+    }
+    
+    const table = container.querySelector('table');
+    if (!table) {
+        alert('Нет данных для экспорта');
+        return;
+    }
+    
+    // Собираем данные
+    const rows = table.querySelectorAll('tr');
+    const data = [];
+    
+    // Заголовки
+    const headers = [];
+    const headerCells = rows[0].querySelectorAll('th');
+    headerCells.forEach(th => {
+        headers.push(th.textContent.trim());
+    });
+    data.push(headers);
+    
+    // Данные
+    for (let i = 1; i < rows.length; i++) {
+        const rowData = [];
+        const cells = rows[i].querySelectorAll('td');
+        cells.forEach(td => {
+            rowData.push(td.textContent.trim());
+        });
+        if (rowData.length > 0) {
+            data.push(rowData);
+        }
+    }
+    
+    if (data.length <= 1) {
+        alert('Нет данных для экспорта');
+        return;
+    }
+    
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // Автоширина
+    const colWidths = [];
+    data.forEach(row => {
+        row.forEach((cell, idx) => {
+            const len = String(cell).length;
+            if (!colWidths[idx] || len > colWidths[idx]) {
+                colWidths[idx] = Math.min(len + 2, 30);
+            }
+        });
+    });
+    ws['!cols'] = colWidths.map(w => ({ wch: w }));
+    
+    XLSX.utils.book_append_sheet(wb, ws, "Сделки");
+    
+    const fileName = `Сделки_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    console.log(`📊 Экспортировано ${data.length - 1} строк в ${fileName}`);
+}
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
@@ -3380,4 +3444,5 @@ window.destroyMap = destroyMap;
 window.renderMapLevel = renderMapLevel;
 window.searchQuarter = searchQuarter;
 window.searchQuarterByCadNumber = searchQuarterByCadNumber; 
+window.exportDealsTableToExcel = exportDealsTableToExcel;
 console.log('✅ map-tab.js загружен');
