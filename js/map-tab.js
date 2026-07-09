@@ -2211,56 +2211,62 @@ if (levelName === 'district') {
         sticky: true,
         interactive: false
     });
-        const districtCadNum = props.cadastral_number || '';
-    const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
-    
-    if (isWrapperDistrict) {
-        layer.on('click', function(e) {
-            console.log(`🔴 Клик по обертке: ${districtCadNum}`);
-            window.selectedQuarterCadNumber = districtCadNum;
+       const districtCadNum = props.cadastral_number || '';
+const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
+
+if (isWrapperDistrict) {
+    // ✅ ДЛЯ ОБЕРТКИ — ТОЛЬКО ПОКАЗЫВАЕМ ТУЛТИП, НО НЕ БЛОКИРУЕМ КЛИК
+    // Просто добавляем обработчик, который НЕ блокирует переход на кварталы
+    layer.on('click', function(e) {
+        console.log(`🔴 Клик по обертке: ${districtCadNum}`);
+        window.selectedQuarterCadNumber = districtCadNum;
+        
+        // Обновляем фильтры и таблицу
+        renderDealTypeFilters();
+        renderCityFilters();
+        renderObjectTypeFilters();
+        renderWallMaterialFilters();
+        renderQuarterFilters();
+        renderYearBuildFilters();
+        renderDealsTable();
+        
+        // Подсвечиваем обертку
+        if (window.wrapperLayer) {
+            window.wrapperLayer.setStyle({
+                fillOpacity: 0.25,
+                weight: 1,
+                color: '#ff0000',
+                opacity: 0.4,
+                dashArray: '4 4'
+            });
             
-            renderDealTypeFilters();
-            renderCityFilters();
-            renderObjectTypeFilters();
-            renderWallMaterialFilters();
-            renderQuarterFilters();
-            renderYearBuildFilters();
-            renderDealsTable();
-            
-            if (window.wrapperLayer) {
-                window.wrapperLayer.setStyle({
-                    fillOpacity: 0.25,
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4,
-                    dashArray: '4 4'
-                });
-                
-                window.wrapperLayer.eachLayer(function(wLayer) {
-                    if (wLayer.feature && wLayer.feature.properties) {
-                        const wCadNum = wLayer.feature.properties.cadastral_number || '';
-                        if (wCadNum === districtCadNum) {
-                            wLayer.setStyle({
-                                fillOpacity: 0.4,
-                                weight: 3,
-                                color: '#ff0000',
-                                opacity: 0.8
-                            });
-                            if (wLayer.openTooltip) {
-                                wLayer.openTooltip();
-                            }
+            window.wrapperLayer.eachLayer(function(wLayer) {
+                if (wLayer.feature && wLayer.feature.properties) {
+                    const wCadNum = wLayer.feature.properties.cadastral_number || '';
+                    if (wCadNum === districtCadNum) {
+                        wLayer.setStyle({
+                            fillOpacity: 0.4,
+                            weight: 3,
+                            color: '#ff0000',
+                            opacity: 0.8
+                        });
+                        if (wLayer.openTooltip) {
+                            wLayer.openTooltip();
                         }
                     }
-                });
-            }
-            
-            if (this.getBounds && this.getBounds().isValid()) {
-                mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
-            }
-            
-            e.stopPropagation();
-        });
-    }
+                }
+            });
+        }
+        
+        // Центрируем на обертке
+        if (this.getBounds && this.getBounds().isValid()) {
+            mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
+        }
+        
+        // ✅ НЕ ВЫЗЫВАЕМ e.stopPropagation() — позволяем клику пройти дальше!
+        // e.stopPropagation();  // ❌ УДАЛИТЬ ЭТУ СТРОКУ
+    });
+}
 } 
     
     // ===== 🖱️ КЛИК =====
