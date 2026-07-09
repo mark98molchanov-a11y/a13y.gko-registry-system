@@ -306,15 +306,17 @@ function togglePriceFilter() {
     const btn = document.getElementById('priceFilterToggle');
     if (btn) {
         if (isPriceFilterEnabled) {
-            btn.innerHTML = 'Ценовой фильтр ✅';
+            // ВКЛЮЧЕН — зеленый
+            btn.innerHTML = '📊 Ценовой фильтр';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            btn.innerHTML = 'Ценовой фильтр❌';
-            btn.style.background = '#fef2f2';
-            btn.style.color = '#dc2626';
-            btn.style.borderColor = '#fca5a5';
+            // ВЫКЛЮЧЕН — синий (как по умолчанию)
+            btn.innerHTML = '📊 Ценовой фильтр';
+            btn.style.background = '#e0f2fe';
+            btn.style.color = '#0284c7';
+            btn.style.borderColor = '#bae6fd';
         }
     }
     
