@@ -2197,31 +2197,6 @@ if (levelName === 'district') {
         interactive: false
     });
     
-    // ============================================================
-    // ✅ НОВАЯ ВСТАВКА — ПРОВЕРКА НА ОБЕРТКУ
-    // ============================================================
-    const districtCadNum = props.cadastral_number || '';
-    const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
-    
-    if (isWrapperDistrict) {
-        // ✅ ЭТО ОБЕРТКА — СОХРАНЯЕМ ДЛЯ ТАБЛИЦЫ
-        window.selectedQuarterCadNumber = districtCadNum;
-        
-        // ✅ ОБНОВЛЯЕМ ФИЛЬТРЫ И ТАБЛИЦУ
-        renderDealTypeFilters();
-        renderCityFilters();
-        renderObjectTypeFilters();
-        renderWallMaterialFilters();
-        renderQuarterFilters();
-        renderYearBuildFilters();
-        renderDealsTable();
-        
-        console.log(`🔴 Обертка ${districtCadNum} выбрана на карте, таблица обновлена`);
-    }
-    // ============================================================
-    // КОНЕЦ ВСТАВКИ
-    // ============================================================
-    
 } 
     
     // ===== 🖱️ КЛИК =====
