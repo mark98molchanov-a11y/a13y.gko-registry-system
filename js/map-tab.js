@@ -306,12 +306,12 @@ function togglePriceFilter() {
     const btn = document.getElementById('priceFilterToggle');
     if (btn) {
         if (isPriceFilterEnabled) {
-            btn.innerHTML = '📊 10% процентили ✅';
+            btn.innerHTML = 'Ценовой фильтр ✅';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            btn.innerHTML = '📊 10% процентили ❌';
+            btn.innerHTML = 'Ценовой фильтр❌';
             btn.style.background = '#fef2f2';
             btn.style.color = '#dc2626';
             btn.style.borderColor = '#fca5a5';
