@@ -3025,13 +3025,13 @@ if (!found) {
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
 if (isWrapper) {
-    // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (level=1)
     console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов`);
-     window.selectedQuarterCadNumber = null;
-    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ РАЙОНОВ (где видны все обертки)
+    // ✅ СОХРАНЯЕМ ОБЕРТКУ
+    window.selectedQuarterCadNumber = cadNum;
+    
     renderMapLevel(1);
     updateBreadcrumb('okrug');
-       renderDealTypeFilters();
+    renderDealTypeFilters();
     renderCityFilters();
     renderObjectTypeFilters();
     renderWallMaterialFilters();
@@ -3180,13 +3180,14 @@ if (!found) {
     // 3. Проверяем, обертка ли это
     const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
     
-    if (isWrapper) {
-        console.log(`🔴 Найдена обертка: ${cadNumber}, показываем на уровне районов`);
-        window.selectedQuarterCadNumber = null;
-        // Переходим на уровень районов
-        renderMapLevel(1);
-        updateBreadcrumb('okrug');
-           renderDealTypeFilters();
+  if (isWrapper) {
+    console.log(`🔴 Найдена обертка: ${cadNumber}, показываем на уровне районов`);
+    // ✅ СОХРАНЯЕМ ОБЕРТКУ
+    window.selectedQuarterCadNumber = cadNumber;
+    
+    renderMapLevel(1);
+    updateBreadcrumb('okrug');
+    renderDealTypeFilters();
     renderCityFilters();
     renderObjectTypeFilters();
     renderWallMaterialFilters();
