@@ -2225,28 +2225,37 @@ if (levelName === 'district') {
 } 
     
     // ===== 🖱️ КЛИК =====
-    layer.on('click', function(e) {
-        if (levelName === 'okrug') {
-            // Переход на уровень районов
-            renderMapLevel(1);
-            updateBreadcrumb('okrug');
-            // Центрируем карту на районах
-            if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-            }
-        } else if (levelName === 'district') {
-            // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
-            // Сбрасываем стиль текущего слоя (района)
-            if (layer && layer.setStyle) {
-                layer.setStyle({
-                    weight: 2.5,
-                    color: '#2563eb',
-                    opacity: 0.7,
-                    fillOpacity: 0.3
-                });
-            }
+layer.on('click', function(e) {
+    if (levelName === 'okrug') {
+        // Переход на уровень районов
+        renderMapLevel(1);
+        updateBreadcrumb('okrug');
+        // Центрируем карту на районах
+        if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+        }
+    } else if (levelName === 'district') {
+        // ✅ ПРОВЕРЯЕМ, ЯВЛЯЕТСЯ ЛИ ЭТО ОБЕРТКОЙ
+        const districtCadNum = props.cadastral_number || '';
+        const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
+        
+        if (isWrapperDistrict) {
+            // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (остаемся на уровне 1)
+            console.log(`🔴 Клик по обертке: ${districtCadNum}`);
             
-            // Сбрасываем обертку
+            // ✅ СОХРАНЯЕМ ОБЕРТКУ КАК ВЫБРАННЫЙ КВАРТАЛ (для таблицы)
+            window.selectedQuarterCadNumber = districtCadNum;
+            
+            // ✅ ОБНОВЛЯЕМ ФИЛЬТРЫ И ТАБЛИЦУ
+            renderDealTypeFilters();
+            renderCityFilters();
+            renderObjectTypeFilters();
+            renderWallMaterialFilters();
+            renderQuarterFilters();
+            renderYearBuildFilters();
+            renderDealsTable();
+            
+            // ✅ ПОДСВЕЧИВАЕМ ОБЕРТКУ НА КАРТЕ
             if (window.wrapperLayer) {
                 window.wrapperLayer.setStyle({
                     fillOpacity: 0.25,
@@ -2255,27 +2264,75 @@ if (levelName === 'district') {
                     opacity: 0.4,
                     dashArray: '4 4'
                 });
+                
+                // Находим и подсвечиваем конкретную обертку
+                window.wrapperLayer.eachLayer(function(wLayer) {
+                    if (wLayer.feature && wLayer.feature.properties) {
+                        const wCadNum = wLayer.feature.properties.cadastral_number || '';
+                        if (wCadNum === districtCadNum) {
+                            wLayer.setStyle({
+                                fillOpacity: 0.4,
+                                weight: 3,
+                                color: '#ff0000',
+                                opacity: 0.8
+                            });
+                            if (wLayer.openTooltip) {
+                                wLayer.openTooltip();
+                            }
+                        }
+                    }
+                });
             }
             
-            // Сбрасываем все слои на карте
-            mapInstance.eachLayer(function(layer) {
-                if (layer.setStyle && layer.options && layer.options.weight) {
-                    layer.setStyle({
-                        weight: 1,
-                        color: '#ff0000',
-                        opacity: 0.4,
-                        fillOpacity: 0.25
-                    });
-                }
+            // Центрируем на обертке
+            if (layer.getBounds && layer.getBounds().isValid()) {
+                mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+            }
+            
+            return; // Выходим, чтобы не выполнять остальной код
+        }
+        
+        // ✅ ЭТО ОБЫЧНЫЙ РАЙОН — ПЕРЕХОД НА УРОВЕНЬ КВАРТАЛОВ
+        // Сбрасываем выделение
+        if (layer && layer.setStyle) {
+            layer.setStyle({
+                weight: 2.5,
+                color: '#2563eb',
+                opacity: 0.7,
+                fillOpacity: 0.3
             });
-            
-            const districtId = props.district_id || props.cadastral_number;
-            renderMapLevel(2, districtId);
-            updateBreadcrumb('district', districtId, props.district_name);
-            if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+        }
+        
+        // Сбрасываем обертку
+        if (window.wrapperLayer) {
+            window.wrapperLayer.setStyle({
+                fillOpacity: 0.25,
+                weight: 1,
+                color: '#ff0000',
+                opacity: 0.4,
+                dashArray: '4 4'
+            });
+        }
+        
+        // Сбрасываем все слои на карте
+        mapInstance.eachLayer(function(layer) {
+            if (layer.setStyle && layer.options && layer.options.weight) {
+                layer.setStyle({
+                    weight: 1,
+                    color: '#ff0000',
+                    opacity: 0.4,
+                    fillOpacity: 0.25
+                });
             }
-        } else if (levelName === 'quarter') {
+        });
+        
+        const districtId = props.district_id || props.cadastral_number;
+        renderMapLevel(2, districtId);
+        updateBreadcrumb('district', districtId, props.district_name);
+        if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+        }
+    } else if (levelName === 'quarter') {
             // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
             const cadNum = props.cadastral_number;
             const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
