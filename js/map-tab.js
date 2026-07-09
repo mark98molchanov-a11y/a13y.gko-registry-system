@@ -1597,8 +1597,8 @@ async function loadMapData() {
 // ОТРИСОВКА УРОВНЯ
 // ============================================================
 function renderMapLevel(level, parentId = null) {
-    // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ПРИ ПЕРЕХОДЕ
-    if (level !== 2) {
+    // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ТОЛЬКО ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ КВАРТАЛОВ
+    if (level === 2 && parentId === null) {  // ✅ НОВЫЙ КОД!
         window.selectedQuarterCadNumber = null;
     }
     
