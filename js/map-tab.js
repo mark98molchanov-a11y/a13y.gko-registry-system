@@ -2780,6 +2780,11 @@ function renderDealsTable() {
         selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
     ) : false;
     
+    // ✅ ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+    console.log('📊 renderDealsTable:');
+    console.log('  selectedQuarter:', selectedQuarter);
+    console.log('  isWrapperSelected:', isWrapperSelected);
+    
     // Получаем все сделки с учетом фильтров
     let filteredDeals = allDealsFlat.filter(deal => {
         // ✅ Фильтр по выбранному кварталу (из карты)
@@ -2802,6 +2807,8 @@ function renderDealsTable() {
         if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
         return true;
     });
+    
+    console.log('  filteredDeals.length:', filteredDeals.length);
     
     // ✅ СОРТИРОВКА ПО ЦЕНЕ (от дорогих к дешевым)
     filteredDeals.sort((a, b) => {
