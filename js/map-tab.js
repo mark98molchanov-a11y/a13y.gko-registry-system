@@ -2210,75 +2210,27 @@ layer.on('click', function(e) {
             mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
         }
     } else if (levelName === 'district') {
-        // ✅ ПРОВЕРЯЕМ, ЯВЛЯЕТСЯ ЛИ ЭТО ОБЕРТКОЙ
-        const districtCadNum = props.cadastral_number || '';
-        const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
+    // ✅ ПРОВЕРЯЕМ, ЯВЛЯЕТСЯ ЛИ ЭТО ОБЕРТКОЙ
+    const districtCadNum = props.cadastral_number || '';
+    const isWrapperDistrict = districtCadNum.endsWith('000000') || districtCadNum.match(/^\d{2}:\d{2}:000000$/);
+    
+    if (isWrapperDistrict) {
+        // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (остаемся на уровне 1)
+        console.log(`🔴 Клик по обертке: ${districtCadNum}`);
         
-        if (isWrapperDistrict) {
-            // ✅ ЭТО ОБЕРТКА — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (остаемся на уровне 1)
-            console.log(`🔴 Клик по обертке: ${districtCadNum}`);
-            
-            // ✅ СОХРАНЯЕМ ОБЕРТКУ КАК ВЫБРАННЫЙ КВАРТАЛ (для таблицы)
-            window.selectedQuarterCadNumber = districtCadNum;
-            
-            // ✅ ОБНОВЛЯЕМ ФИЛЬТРЫ И ТАБЛИЦУ
-            renderDealTypeFilters();
-            renderCityFilters();
-            renderObjectTypeFilters();
-            renderWallMaterialFilters();
-            renderQuarterFilters();
-            renderYearBuildFilters();
-            renderDealsTable();
-            
-            // ✅ ПОДСВЕЧИВАЕМ ОБЕРТКУ НА КАРТЕ
-            if (window.wrapperLayer) {
-                window.wrapperLayer.setStyle({
-                    fillOpacity: 0.25,
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4,
-                    dashArray: '4 4'
-                });
-                
-                // Находим и подсвечиваем конкретную обертку
-                window.wrapperLayer.eachLayer(function(wLayer) {
-                    if (wLayer.feature && wLayer.feature.properties) {
-                        const wCadNum = wLayer.feature.properties.cadastral_number || '';
-                        if (wCadNum === districtCadNum) {
-                            wLayer.setStyle({
-                                fillOpacity: 0.4,
-                                weight: 3,
-                                color: '#ff0000',
-                                opacity: 0.8
-                            });
-                            if (wLayer.openTooltip) {
-                                wLayer.openTooltip();
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // Центрируем на обертке
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-            }
-            
-            return; // Выходим, чтобы не выполнять остальной код
-        }
+        // ✅ СОХРАНЯЕМ ОБЕРТКУ КАК ВЫБРАННЫЙ КВАРТАЛ (для таблицы)
+        window.selectedQuarterCadNumber = districtCadNum;
         
-        // ✅ ЭТО ОБЫЧНЫЙ РАЙОН — ПЕРЕХОД НА УРОВЕНЬ КВАРТАЛОВ
-        // Сбрасываем выделение
-        if (layer && layer.setStyle) {
-            layer.setStyle({
-                weight: 2.5,
-                color: '#2563eb',
-                opacity: 0.7,
-                fillOpacity: 0.3
-            });
-        }
+        // ✅ ОБНОВЛЯЕМ ФИЛЬТРЫ И ТАБЛИЦУ
+        renderDealTypeFilters();
+        renderCityFilters();
+        renderObjectTypeFilters();
+        renderWallMaterialFilters();
+        renderQuarterFilters();
+        renderYearBuildFilters();
+        renderDealsTable();
         
-        // Сбрасываем обертку
+        // ✅ ПОДСВЕЧИВАЕМ ОБЕРТКУ НА КАРТЕ
         if (window.wrapperLayer) {
             window.wrapperLayer.setStyle({
                 fillOpacity: 0.25,
@@ -2287,26 +2239,74 @@ layer.on('click', function(e) {
                 opacity: 0.4,
                 dashArray: '4 4'
             });
+            
+            // Находим и подсвечиваем конкретную обертку
+            window.wrapperLayer.eachLayer(function(wLayer) {
+                if (wLayer.feature && wLayer.feature.properties) {
+                    const wCadNum = wLayer.feature.properties.cadastral_number || '';
+                    if (wCadNum === districtCadNum) {
+                        wLayer.setStyle({
+                            fillOpacity: 0.4,
+                            weight: 3,
+                            color: '#ff0000',
+                            opacity: 0.8
+                        });
+                        if (wLayer.openTooltip) {
+                            wLayer.openTooltip();
+                        }
+                    }
+                }
+            });
         }
         
-        // Сбрасываем все слои на карте
-        mapInstance.eachLayer(function(layer) {
-            if (layer.setStyle && layer.options && layer.options.weight) {
-                layer.setStyle({
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4,
-                    fillOpacity: 0.25
-                });
-            }
+        // Центрируем на обертке
+        if (layer.getBounds && layer.getBounds().isValid()) {
+            mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+        }
+        
+        return; // Выходим, чтобы не выполнять остальной код
+    }
+    
+    // ✅ ЭТО ОБЫЧНЫЙ РАЙОН — ПЕРЕХОД НА УРОВЕНЬ КВАРТАЛОВ
+    // Сбрасываем выделение
+    if (layer && layer.setStyle) {
+        layer.setStyle({
+            weight: 2.5,
+            color: '#2563eb',
+            opacity: 0.7,
+            fillOpacity: 0.3
         });
-        
-        const districtId = props.district_id || props.cadastral_number;
-        renderMapLevel(2, districtId);
-        updateBreadcrumb('district', districtId, props.district_name);
-        if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
+    
+    // Сбрасываем обертку
+    if (window.wrapperLayer) {
+        window.wrapperLayer.setStyle({
+            fillOpacity: 0.25,
+            weight: 1,
+            color: '#ff0000',
+            opacity: 0.4,
+            dashArray: '4 4'
+        });
+    }
+    
+    // Сбрасываем все слои на карте
+    mapInstance.eachLayer(function(layer) {
+        if (layer.setStyle && layer.options && layer.options.weight) {
+            layer.setStyle({
+                weight: 1,
+                color: '#ff0000',
+                opacity: 0.4,
+                fillOpacity: 0.25
+            });
         }
+    });
+    
+    const districtId = props.district_id || props.cadastral_number;
+    renderMapLevel(2, districtId);
+    updateBreadcrumb('district', districtId, props.district_name);
+    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+    }
     } else if (levelName === 'quarter') {
             // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
             const cadNum = props.cadastral_number;
