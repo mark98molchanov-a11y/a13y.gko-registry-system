@@ -1617,9 +1617,16 @@
             <!-- КАРТА + ТАБЛИЦА ПОД НЕЙ -->
             <div style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
                 <!-- Карта -->
-                <div id="map-container" style="width: 700px; height: 600px; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; background: #e8ecf0;">
-                    <div id="map" style="width:100%;height:100%;"></div>
-                </div>
+                <div id="map-container" style="width: 700px; height: 600px; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; background: #e8ecf0; position: relative;">
+    <div id="map" style="width:100%;height:100%;"></div>
+    <!-- Источник данных -->
+    <div style="position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: rgba(255,255,255,0.85); padding: 4px 10px; border-radius: 6px; font-size: 9px; color: #64748b; border: 1px solid #e2e8f0; backdrop-filter: blur(4px); box-shadow: 0 1px 4px rgba(0,0,0,0.08); pointer-events: none;">
+        Информация взята с открытых источников Россреестра 
+        <a href="https://rosreestr.gov.ru/data-sets/" target="_blank" style="color: #0ea5e9; text-decoration: none; pointer-events: auto;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+            (открытые данные)
+        </a>
+    </div>
+</div>
 
                 <!-- ТАБЛИЦА ХАРАКТЕРИСТИК СДЕЛОК (ПОД КАРТОЙ) -->
                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" style="width: 700px;">
