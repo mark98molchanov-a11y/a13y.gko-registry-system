@@ -2846,24 +2846,24 @@ function updateBreadcrumb(level, id, name, isSearch = false) {
     // ✅ КЛИК НА ЯНАО → ПЕРЕХОД НА УРОВЕНЬ ОКРУГА (level 0)
     if (level === 'okrug') {
         breadcrumb.innerHTML = `
-            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:600; font-size:0.95rem;">🏛️ ЯНАО</span>
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:600; font-size:0.95rem;">ЯНАО</span>
         `;
     } else if (level === 'district') {
         breadcrumb.innerHTML = `
-            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+            <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">ЯНАО</span>
             <span style="color:#94a3b8; margin:0 4px;">›</span>
             <span style="font-weight:600; font-size:0.95rem;">${name || id}</span>
         `;
     } else if (level === 'quarter') {
         if (isSearch) {
             breadcrumb.innerHTML = `
-                <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+                <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">ЯНАО</span>
                 <span style="color:#94a3b8; margin:0 4px;">›</span>
                 <span style="font-weight:600; font-size:0.95rem;">${districtName}</span>
             `;
         } else {
             breadcrumb.innerHTML = `
-                <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">🏛️ ЯНАО</span>
+                <span onclick="renderMapLevel(0)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">ЯНАО</span>
                 <span style="color:#94a3b8; margin:0 4px;">›</span>
                 <span onclick="renderMapLevel(1)" style="cursor:pointer;color:#0ea5e9; font-weight:500;">${districtName}</span>
                 <span style="color:#94a3b8; margin:0 4px;">›</span>
