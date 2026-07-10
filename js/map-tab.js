@@ -18,7 +18,7 @@ let currentWallMaterialFilter = null;
 let currentQuarterFilter = null;
 let currentYearBuildFilter = null;
 let allDealsFlat = []; 
-let priceThresholds = {}; 
+let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
 
@@ -212,9 +212,9 @@ function calculatePriceThresholds() {
     allDealsFlat.forEach(deal => {
         const kind = deal.deal_kind_text || 'unknown';
         if (!dealsByType[kind]) dealsByType[kind] = [];
-        if (deal.deal_price_rub > 0) {
-            dealsByType[kind].push(deal.deal_price_rub);
-        }
+        if (deal.uprs_rub > 0) {
+    dealsByType[kind].push(deal.uprs_rub);
+}
     });
     
     // Для каждого типа вычисляем пороги (исключаем 10% нижних и 10% верхних)
@@ -231,13 +231,10 @@ function calculatePriceThresholds() {
         const upperIndex = Math.ceil(prices.length * 0.90) - 1;
         
         // Минимальная цена, которая попадает в оставшиеся 80%
-        const minPrice = prices[lowerIndex] || 0;
-        // Максимальная цена, которая попадает в оставшиеся 80%
-        const maxPrice = prices[upperIndex] || prices[prices.length - 1];
-        
-        thresholds[kind] = { min: minPrice, max: maxPrice };
-        
-        console.log(`   ${kind}: ${prices.length} сделок, диапазон = ${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()} ₽ (исключено ${lowerIndex} нижних, ${prices.length - upperIndex - 1} верхних)`);
+        const minUprs = prices[lowerIndex] || 0;
+const maxUprs = prices[upperIndex] || prices[prices.length - 1];
+thresholds[kind] = { min: minUprs, max: maxUprs };
+console.log(`   ${kind}: ${prices.length} сделок, диапазон УПРС = ${minUprs.toFixed(2)} - ${maxUprs.toFixed(2)} ₽/м²`);
     });
     
     console.log('✅ Пороговые цены рассчитаны');
@@ -255,9 +252,8 @@ function filterDealsByPriceThreshold(thresholds) {
         const threshold = thresholds[kind];
         if (!threshold) return true;
         
-        const price = deal.deal_price_rub;
-        // Пропускаем сделки, цена которых в диапазоне [min, max]
-        return price >= threshold.min && price <= threshold.max;
+        const uprs = deal.uprs_rub;
+return uprs >= threshold.min && uprs <= threshold.max;
     });
 }
 
