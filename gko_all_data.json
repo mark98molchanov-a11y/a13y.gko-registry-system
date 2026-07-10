@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-06-30T09:59:07.687Z",
+  "exportDate": "2026-07-10T10:12:35.080Z",
   "npas": [
     {
       "id": 2,
@@ -5255,12 +5255,12 @@
       "k_pdpr": 20,
       "k_reg": 0,
       "k_obsh_reg": 0,
-      "k_vknm_gzn": 252,
-      "k_vknm_mzk": 964,
-      "k_pknm_gzn": 881,
-      "k_pknm_mzk": 0,
+      "k_vknm_gzn": 189,
+      "k_vknm_mzk": 2532,
+      "k_pknm_gzn": 773,
+      "k_pknm_mzk": 4697,
       "k_uknm_gzn": 80,
-      "k_uknm_mzk": 614
+      "k_uknm_mzk": 1323
     },
     "2026_3_kv": {
       "ks_otch": 0,
@@ -5337,6 +5337,6 @@
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1782813547687
+    "exportTimestamp": 1783678355080
   }
 }
