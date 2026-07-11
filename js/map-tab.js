@@ -1,4 +1,4 @@
- let mapData = null;
+let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
 let currentDistrictFilter = null;
@@ -22,7 +22,7 @@ let uprsThresholds = {};
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
 
-const DEALS_CSV_URL = 'https://github.com/mark98molchanov-a11y/a13y.gko-registry-system/releases/download/v1.0/deals_clean.csv';
+const DEALS_CSV_URL = 'https://drive.google.com/file/d/1n3mEB_yM8McoVVEXhCqMEACfvFbaYJGE/view?usp=sharing';
 async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
