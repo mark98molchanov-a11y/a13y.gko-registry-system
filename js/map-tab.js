@@ -22,7 +22,7 @@ let uprsThresholds = {};
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
 
-const DEALS_CSV_URL = 'https://drive.google.com/uc?export=download&id=1n3mEB_yM8McoVVEXhCqMEACfvFbaYJGE';
+const DEALS_CSV_URL = 'https://cdn.jsdelivr.net/gh/mark98molchanov-a11y/a13y.gko-registry-system@main/data/deals_clean.csv';
 async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
