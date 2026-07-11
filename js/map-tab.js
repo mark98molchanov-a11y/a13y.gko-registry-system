@@ -22,7 +22,7 @@ let uprsThresholds = {};
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
 
-const DEALS_CSV_URL = 'https://drive.google.com/file/d/1n3mEB_yM8McoVVEXhCqMEACfvFbaYJGE/view?usp=sharing';
+const DEALS_CSV_URL = 'https://drive.google.com/file/d/1n3mEB_yM8McoVVEXhCqMEACfvFbaYJGE/view?usp=drive_link';
 async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
