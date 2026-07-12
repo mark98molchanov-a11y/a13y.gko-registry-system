@@ -203,44 +203,69 @@ if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
     }
 }
 function calculatePriceThresholds() {
-    console.log('📊 Расчет пороговых цен по типам сделок (10% нижних и верхних)...');
+    console.log('📊 Расчет пороговых цен по типам сделок и муниципалитетам (5% низких и 5% высоких)...');
     
     const thresholds = {};
     
-    // Группируем сделки по типу
-    const dealsByType = {};
+    // Группируем сделки по типу и муниципалитету (городу)
+    const dealsByTypeAndCity = {};
     allDealsFlat.forEach(deal => {
         const kind = deal.deal_kind_text || 'unknown';
-        if (!dealsByType[kind]) dealsByType[kind] = [];
+        const city = deal.city || 'unknown';
+        const key = `${kind}|${city}`;
+        
+        if (!dealsByTypeAndCity[key]) {
+            dealsByTypeAndCity[key] = {
+                kind: kind,
+                city: city,
+                prices: []
+            };
+        }
         if (deal.uprs_rub > 0) {
-    dealsByType[kind].push(deal.uprs_rub);
-}
+            dealsByTypeAndCity[key].prices.push(deal.uprs_rub);
+        }
     });
     
-    // Для каждого типа вычисляем пороги (исключаем 10% нижних и 10% верхних)
-    Object.keys(dealsByType).forEach(kind => {
-        const prices = dealsByType[kind].sort((a, b) => a - b);
+    // Для каждой группы (тип + муниципалитет) вычисляем пороги
+    Object.keys(dealsByTypeAndCity).forEach(key => {
+        const group = dealsByTypeAndCity[key];
+        const prices = group.prices.sort((a, b) => a - b);
+        
         if (prices.length === 0) {
-            thresholds[kind] = { min: 0, max: Infinity };
+            thresholds[key] = { 
+                min: 0, 
+                max: Infinity,
+                kind: group.kind,
+                city: group.city,
+                count: 0
+            };
             return;
         }
         
-        // Индекс для отсечения 10% самых маленьких
-        const lowerIndex = Math.floor(prices.length * 0.10);
-        // Индекс для отсечения 10% самых больших
-        const upperIndex = Math.ceil(prices.length * 0.90) - 1;
+        // 🔥 ИЗМЕНЕНИЕ: 5% вместо 10%
+        const lowerPercent = 0.05;   // ← было 0.10, стало 0.05
+        const upperPercent = 0.95;   // ← было 0.90, стало 0.95
         
-        // Минимальная цена, которая попадает в оставшиеся 80%
+        const lowerIndex = Math.floor(prices.length * lowerPercent);
+        const upperIndex = Math.ceil(prices.length * upperPercent) - 1;
+        
         const minUprs = prices[lowerIndex] || 0;
-const maxUprs = prices[upperIndex] || prices[prices.length - 1];
-thresholds[kind] = { min: minUprs, max: maxUprs };
-console.log(`   ${kind}: ${prices.length} сделок, диапазон УПРС = ${minUprs.toFixed(2)} - ${maxUprs.toFixed(2)} ₽/м²`);
+        const maxUprs = prices[upperIndex] || prices[prices.length - 1];
+        
+        thresholds[key] = { 
+            min: minUprs, 
+            max: maxUprs,
+            kind: group.kind,
+            city: group.city,
+            count: prices.length
+        };
+        
+        console.log(`   ${group.kind} | ${group.city}: ${prices.length} сделок, диапазон УПРС = ${minUprs.toFixed(2)} - ${maxUprs.toFixed(2)} ₽/м²`);
     });
     
-    console.log('✅ Пороговые цены рассчитаны');
+    console.log('✅ Пороговые цены рассчитаны (по типам сделок и муниципалитетам)');
     return thresholds;
 }
-
 function filterDealsByPriceThreshold(thresholds) {
     if (!thresholds || Object.keys(thresholds).length === 0) {
         console.warn('⚠️ Пороговые цены не рассчитаны');
@@ -249,11 +274,14 @@ function filterDealsByPriceThreshold(thresholds) {
     
     return allDealsFlat.filter(deal => {
         const kind = deal.deal_kind_text || 'unknown';
-        const threshold = thresholds[kind];
+        const city = deal.city || 'unknown';
+        const key = `${kind}|${city}`;
+        const threshold = thresholds[key];
+        
         if (!threshold) return true;
         
         const uprs = deal.uprs_rub;
-return uprs >= threshold.min && uprs <= threshold.max;
+        return uprs >= threshold.min && uprs <= threshold.max;
     });
 }
 
