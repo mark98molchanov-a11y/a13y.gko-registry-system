@@ -243,8 +243,8 @@ function calculatePriceThresholds() {
         }
         
         // 🔥 ИЗМЕНЕНИЕ: 5% вместо 10%
-        const lowerPercent = 0.05;   // ← было 0.10, стало 0.05
-        const upperPercent = 0.95;   // ← было 0.90, стало 0.95
+        const lowerPercent = 0.10;   // ← было 0.10, стало 0.05
+        const upperPercent = 0.90;   // ← было 0.90, стало 0.95
         
         const lowerIndex = Math.floor(prices.length * lowerPercent);
         const upperIndex = Math.ceil(prices.length * upperPercent) - 1;
