@@ -11,12 +11,12 @@ let objectTypes = {};
 let wallMaterialTypes = {}; 
 let quarterTypes = {}; 
 let yearBuildTypes = {};
-let currentDealTypeFilter = null;
-let currentCityFilter = null;  
-let currentObjectTypeFilter = null;
-let currentWallMaterialFilter = null; 
-let currentQuarterFilter = null;
-let currentYearBuildFilter = null;
+let currentDealTypeFilter = [];  
+let currentCityFilter = [];  
+let currentObjectTypeFilter = [];
+let currentWallMaterialFilter = []; 
+let currentQuarterFilter = [];
+let currentYearBuildFilter = [];
 let allDealsFlat = []; 
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
@@ -389,7 +389,7 @@ function renderDealTypeFilters() {
     
     types.forEach(kind => {
         const count = dealTypes[kind];
-        const isActive = currentDealTypeFilter === kind;
+        const isActive = currentDealTypeFilter.includes(kind);
         
         html += `
             <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
@@ -437,7 +437,7 @@ function renderCityFilters() {
     
     cities.forEach(city => {
         const count = cityTypes[city];
-        const isActive = currentCityFilter === city;
+        const isActive = currentCityFilter.includes(city);
         
         html += `
             <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}')" 
@@ -483,7 +483,7 @@ function renderObjectTypeFilters() {
     
     types.forEach(type => {
         const count = objectTypes[type];
-        const isActive = currentObjectTypeFilter === type;
+        const isActive = currentObjectTypeFilter.includes(type);
         
         html += `
             <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}')" 
@@ -528,7 +528,7 @@ function renderWallMaterialFilters() {
     
     types.forEach(type => {
         const count = wallMaterialTypes[type];
-        const isActive = currentWallMaterialFilter === type;
+        const isActive = currentWallMaterialFilter.includes(type);
         
         html += `
             <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}')" 
@@ -595,7 +595,7 @@ function renderQuarterFilters() {
     
     types.forEach(type => {
         const count = quarterTypes[type];
-        const isActive = currentQuarterFilter === type;
+        const isActive = currentQuarterFilter.includes(type);
         
         html += `
             <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}')" 
@@ -649,7 +649,7 @@ function renderYearBuildFilters() {
     
     types.forEach(type => {
         const count = yearBuildTypes[type];
-        const isActive = currentYearBuildFilter === type;
+        const isActive = currentYearBuildFilter.includes(type);
         
         html += `
             <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}')" 
@@ -677,15 +677,16 @@ function renderYearBuildFilters() {
     container.innerHTML = html;
 }
 function applyDealTypeFilter(kind) {
-    // Если кликнули на тот же тип - сбрасываем фильтр
-    if (currentDealTypeFilter === kind) {
-        currentDealTypeFilter = null;
+    // ✅ МНОЖЕСТВЕННЫЙ ВЫБОР: добавляем или удаляем значение
+    const index = currentDealTypeFilter.indexOf(kind);
+    if (index === -1) {
+        currentDealTypeFilter.push(kind);
     } else {
-        currentDealTypeFilter = kind;
+        currentDealTypeFilter.splice(index, 1);
     }
     
     // ============================================================
-    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ (ПОСЛЕ if/else, ПЕРЕД renderDealTypeFilters)
+    // СБРОС ОБЕРТКИ ПРИ ПРИМЕНЕНИИ ФИЛЬТРА
     // ============================================================
     if (window.selectedQuarterCadNumber) {
         const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
@@ -696,7 +697,7 @@ function applyDealTypeFilter(kind) {
         }
     }
     
-    // ✅ ВСЕГДА ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
+    // ✅ ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
     renderDealTypeFilters();
     
     const level = currentLevel;
@@ -722,16 +723,16 @@ function applyDealTypeFilter(kind) {
     // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ С УЧЕТОМ ФИЛЬТРА
     updateMapStatsFromDeals(level, parentId);
     
-    // ✅ ВСЕГДА ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
+    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
     updatePopupsAndTooltips(level);
     
-    // ✅ ВСЕГДА ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
     renderDealsTable();
     
-    // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ ПРИ СМЕНЕ ФИЛЬТРА
+    // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
             if (layer._updateTooltip) {
@@ -741,16 +742,13 @@ function applyDealTypeFilter(kind) {
     }
 }
 function applyCityFilter(city) {
-    // Если кликнули на тот же город - сбрасываем фильтр
-    if (currentCityFilter === city) {
-        currentCityFilter = null;
+    const index = currentCityFilter.indexOf(city);
+    if (index === -1) {
+        currentCityFilter.push(city);
     } else {
-        currentCityFilter = city;
+        currentCityFilter.splice(index, 1);
     }
     
-    // ============================================================
-    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
-    // ============================================================
     if (window.selectedQuarterCadNumber) {
         const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
                           window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
@@ -760,15 +758,11 @@ function applyCityFilter(city) {
         }
     }
     
-    // Перерисовываем фильтры
     renderCityFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
     
-    console.log(`🔍 applyCityFilter: level=${level}, parentId=${parentId}, filter=${currentCityFilter}`);
-    
-    // Обновляем стили кварталов
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     let targetObjects = [];
     
@@ -789,7 +783,6 @@ function applyCityFilter(city) {
     updateActiveFiltersDisplay();
     renderDealsTable();
     
-    // Обновляем тултипы оберток
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
             if (layer._updateTooltip) {
@@ -799,15 +792,13 @@ function applyCityFilter(city) {
     }
 }
 function applyObjectTypeFilter(type) {
-         if (currentObjectTypeFilter === type) {
-        currentObjectTypeFilter = null;
+    const index = currentObjectTypeFilter.indexOf(type);
+    if (index === -1) {
+        currentObjectTypeFilter.push(type);
     } else {
-        currentObjectTypeFilter = type;
+        currentObjectTypeFilter.splice(index, 1);
     }
     
-    // ============================================================
-    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
-    // ============================================================
     if (window.selectedQuarterCadNumber) {
         const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
                           window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
@@ -850,16 +841,15 @@ function applyObjectTypeFilter(type) {
         });
     }
 }
+
 function applyWallMaterialFilter(type) {
-    if (currentWallMaterialFilter === type) {
-        currentWallMaterialFilter = null;
+    const index = currentWallMaterialFilter.indexOf(type);
+    if (index === -1) {
+        currentWallMaterialFilter.push(type);
     } else {
-        currentWallMaterialFilter = type;
+        currentWallMaterialFilter.splice(index, 1);
     }
     
-    // ============================================================
-    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
-    // ============================================================
     if (window.selectedQuarterCadNumber) {
         const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
                           window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
@@ -903,15 +893,13 @@ function applyWallMaterialFilter(type) {
     }
 }
 function applyQuarterFilter(type) {
-    if (currentQuarterFilter === type) {
-        currentQuarterFilter = null;
+    const index = currentQuarterFilter.indexOf(type);
+    if (index === -1) {
+        currentQuarterFilter.push(type);
     } else {
-        currentQuarterFilter = type;
+        currentQuarterFilter.splice(index, 1);
     }
     
-    // ============================================================
-    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
-    // ============================================================
     if (window.selectedQuarterCadNumber) {
         const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
                           window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
@@ -955,15 +943,13 @@ function applyQuarterFilter(type) {
     }
 }
 function applyYearBuildFilter(type) {
-    if (currentYearBuildFilter === type) {
-        currentYearBuildFilter = null;
+    const index = currentYearBuildFilter.indexOf(type);
+    if (index === -1) {
+        currentYearBuildFilter.push(type);
     } else {
-        currentYearBuildFilter = type;
+        currentYearBuildFilter.splice(index, 1);
     }
     
-    // ============================================================
-    // ✅ ВСТАВИТЬ ЭТОТ КОД ЗДЕСЬ
-    // ============================================================
     if (window.selectedQuarterCadNumber) {
         const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
                           window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
@@ -1026,29 +1012,34 @@ function getDealsCountForObject(feature) {
     const cadNum = feature.properties?.cadastral_number;
     if (!cadNum) return 0;
     
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-            return false;
-        }
-        // ✅ НОВЫЙ ФИЛЬТР
-        if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-            return false;
-        }
-        if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-                if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
-            return false;
-        }
-        return true;
-    });
+   const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
     
     return filteredDeals.length;
 }
@@ -1074,25 +1065,30 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
             const cadNum = f.properties.cadastral_number;
             if (!cadNum) return;
             
-            const deals = dealsData[cadNum] || [];
+          const deals = dealsData[cadNum] || [];
 const filteredDeals = deals.filter(deal => {
-    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-    // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter && deal.city !== currentCityFilter) {
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
         return false;
     }
-    if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-    return false;
-}
-  if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-                    return false;
-                }
-    if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
         return false;
     }
-        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
     return true;
@@ -1106,28 +1102,34 @@ const filteredDeals = deals.filter(deal => {
         console.log(`📊 Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}`);
     } else {
         Object.keys(dealsData).forEach(cadNum => {
-            const deals = dealsData[cadNum] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                    if (currentCityFilter && deal.city !== currentCityFilter) {
+     const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-    if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-    return false;
-}
-                if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-                    return false;
-                }
-                    if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
         return false;
     }
-        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
         return false;
     }
-                return true;
-            });
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
             allDeals = allDeals.concat(filteredDeals);
         });
         objectsWithFilteredDeals = targetObjects;
@@ -1288,29 +1290,34 @@ allQuarters.forEach(f => {
     const cadNum = f.properties?.cadastral_number;
     if (!cadNum) return;
     
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-            return false;
-        }
-        // ✅ НОВЫЙ ФИЛЬТР
-        if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-            return false;
-        }
-          if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+  const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-        return true;
-    });
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
             quartersWithDeals.push(cadNum);
@@ -1549,29 +1556,34 @@ console.log(`📊 Тултип: всего кварталов для район�
     const cadNum = f.properties?.cadastral_number;
     if (!cadNum) return;
     
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-    return false;
-}
-if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
+const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-      if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
         return false;
     }
-        return true;
-    });
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
@@ -1716,16 +1728,15 @@ const withDeals = allQuarters.filter(f => {
     if (!cadNum) return false;
     
     const deals = dealsData[cadNum] || [];
-    const filtered = deals.filter(d => {
-        if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-        if (currentCityFilter && d.city !== currentCityFilter) return false;
-        if (currentObjectTypeFilter && d.obj_kind !== currentObjectTypeFilter) return false;
-        if (currentWallMaterialFilter && d.wall_material !== currentWallMaterialFilter) return false;
-        if (currentQuarterFilter && d.quarter !== currentQuarterFilter) return false;
-        if (currentYearBuildFilter && d.year_build !== currentYearBuildFilter) return false;
-        return true;
-    });
+const filtered = deals.filter(d => {
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+    return true;
+});
     return filtered.length > 0;
 });
     
@@ -1771,26 +1782,30 @@ function updateQuartersStyle(targetObjects) {
             if (!cadNum) return;
             
             // Получаем сделки для этого квартала с учетом фильтра
-            const deals = dealsData[cadNum] || [];
+const deals = dealsData[cadNum] || [];
 const filteredDeals = deals.filter(deal => {
-    if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-    // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter && deal.city !== currentCityFilter) {
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
         return false;
     }
-    // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
         return false;
     }
-        if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
         return false;
     }
-      if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
     return true;
@@ -2013,30 +2028,34 @@ onEachFeature: function(feature, layer) {
     
     // ✅ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ТУЛТИПА
 function updateTooltip() {
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-            return false;
-        }
-          if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
+const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-      if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
         return false;
     }
-        return true;
-    });
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
         
         const dealsCount = filteredDeals.length;
         const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
@@ -2129,28 +2148,34 @@ if (normalQuarters.length > 0) {
             const cadNum = props.cadastral_number;
             
             // ✅ ИСПОЛЬЗУЕМ ФИЛЬТРЫ ДЛЯ ПОДСЧЕТА СДЕЛОК
-            const deals = dealsData[cadNum] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-                    return false;
-                }
-                if (currentCityFilter && deal.city !== currentCityFilter) {
-                    return false;
-                }
-                if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-    return false;
-}
- if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
+    const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-      if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
         return false;
     }
-                return true;
-            });
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
             const filteredCount = filteredDeals.length;
             const hasDeals = filteredCount > 0;
             
@@ -2357,28 +2382,34 @@ if (levelName === 'district') {
     const cadNumFeature = f.properties.cadastral_number;
     if (!cadNumFeature) return;
     
-    const deals = dealsData[cadNumFeature] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-            return false;
-        }
-        if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-            return false;
-        }
-          if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-        return true;
-    });
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
             
             if (filteredDeals.length > 0) {
                 totalDeals += filteredDeals.length;
@@ -2577,12 +2608,12 @@ if (levelName === 'district') {
         const cadNum = feature?.properties?.cadastral_number;
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
-            if (currentCityFilter && deal.city !== currentCityFilter) return false;
-            if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
-            if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
-            if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             return true;
         });
         const count = filteredDeals.length;
@@ -2618,12 +2649,12 @@ layer.on('mouseout', function(e) {
     if (level === 2) {
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) return false;
-            if (currentCityFilter && deal.city !== currentCityFilter) return false;
-            if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) return false;
-            if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) return false;
-            if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
-            if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             return true;
         });
         const filteredCount = filteredDeals.length;
@@ -2695,29 +2726,34 @@ if (levelName === 'district') {
     const cadNumFeature = f.properties.cadastral_number;
     if (!cadNumFeature) return;
     
-    const deals = dealsData[cadNumFeature] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-    return false;
-}
-if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-    return false;
-}
-    if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-          if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-        return true;
-    });
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
@@ -2798,29 +2834,34 @@ if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilte
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
     
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter && deal.kind !== currentDealTypeFilter) {
-            return false;
-        }
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-        if (currentCityFilter && deal.city !== currentCityFilter) {
-            return false;
-        }
-        if (currentObjectTypeFilter && deal.obj_kind !== currentObjectTypeFilter) {
-    return false;
-}
-   if (currentWallMaterialFilter && deal.wall_material !== currentWallMaterialFilter) {
-            return false;
-        }
-            if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) {
-            return false;
-        }
-          if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) {
+const deals = dealsData[cadNum] || [];
+const filteredDeals = deals.filter(deal => {
+    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
         return false;
     }
-        return true;
-    });
+    // ✅ ФИЛЬТР ПО ГОРОДУ
+    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+        return false;
+    }
+    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+        return false;
+    }
+    return true;
+});
         const dealsCount = filteredDeals.length;
         const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
         const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
@@ -2983,15 +3024,14 @@ function resetAllFiltersMap() {
     console.log('🔄 Сброс всех фильтров карты');
     window.selectedQuarterCadNumber = null;
     
-    // Сбрасываем фильтры
-    currentDealTypeFilter = null;
-    currentCityFilter = null;
-    currentObjectTypeFilter = null;
-    currentWallMaterialFilter = null;
-    currentQuarterFilter = null;
-    currentYearBuildFilter = null; 
+    // ✅ ПРАВИЛЬНО: сбрасываем в пустые массивы
+    currentDealTypeFilter = [];
+    currentCityFilter = [];
+    currentObjectTypeFilter = [];
+    currentWallMaterialFilter = [];
+    currentQuarterFilter = [];
+    currentYearBuildFilter = []; 
     
-    // Перерисовываем фильтры в UI
     renderDealTypeFilters();
     renderCityFilters();
     renderObjectTypeFilters();
@@ -2999,28 +3039,39 @@ function resetAllFiltersMap() {
     renderQuarterFilters(); 
     renderYearBuildFilters();
     
-    // Перерисовываем карту с текущим уровнем
     renderMapLevel(currentLevel, currentParentId);
-    
-    // Обновляем легенду
     addMapLegend();
     updateActiveFiltersDisplay();
     renderDealsTable();
     
     console.log('✅ Все фильтры сброшены');
 }
+
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-list');
     if (!container) return;
     
     const activeFilters = [];
     
-    if (currentCityFilter) activeFilters.push(`🏙️ ${currentCityFilter}`);
-    if (currentObjectTypeFilter) activeFilters.push(`🏷️ ${currentObjectTypeFilter}`);
-    if (currentDealTypeFilter) activeFilters.push(`📋 ${currentDealTypeFilter}`);
-    if (currentQuarterFilter) activeFilters.push(`📅 ${currentQuarterFilter}`);
-    if (currentWallMaterialFilter) activeFilters.push(`🧱 ${currentWallMaterialFilter}`);
-    if (currentYearBuildFilter) activeFilters.push(`🏗️ ${currentYearBuildFilter}`);
+    // ✅ Проверяем, есть ли выбранные значения в каждом фильтре
+    if (currentCityFilter.length > 0) {
+        activeFilters.push('Город');
+    }
+    if (currentObjectTypeFilter.length > 0) {
+        activeFilters.push('Тип объекта');
+    }
+    if (currentDealTypeFilter.length > 0) {
+        activeFilters.push('Тип сделки');
+    }
+    if (currentQuarterFilter.length > 0) {
+        activeFilters.push('Квартал');
+    }
+    if (currentWallMaterialFilter.length > 0) {
+        activeFilters.push('Материал стен');
+    }
+    if (currentYearBuildFilter.length > 0) {
+        activeFilters.push('Год постройки');
+    }
     
     if (activeFilters.length === 0) {
         container.textContent = '—';
@@ -3030,10 +3081,10 @@ function updateActiveFiltersDisplay() {
             `<span style="
                 background: #e0f2fe; 
                 color: #0284c7; 
-                padding: 1px 8px; 
+                padding: 1px 10px; 
                 border-radius: 12px; 
                 font-weight: 500;
-                font-size: 9px;
+                font-size: 10px;
                 border: 1px solid #bae6fd;
                 white-space: nowrap;
             ">${f}</span>`
@@ -3074,12 +3125,12 @@ let filteredDeals = allDealsFlat.filter(deal => {
         if (!deal.cad_number.startsWith(prefix)) return false;
     }
         
-        if (currentDealTypeFilter && deal.deal_kind_text !== currentDealTypeFilter) return false;
-        if (currentCityFilter && deal.city !== currentCityFilter) return false;
-        if (currentObjectTypeFilter && deal.obj_kind_text !== currentObjectTypeFilter) return false;
-        if (currentWallMaterialFilter && deal.wall_material_name !== currentWallMaterialFilter) return false;
-        if (currentQuarterFilter && deal.quarter !== currentQuarterFilter) return false;
-        if (currentYearBuildFilter && deal.year_build !== currentYearBuildFilter) return false;
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
         return true;
     });
     
