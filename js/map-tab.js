@@ -17,6 +17,8 @@ let currentObjectTypeFilter = [];
 let currentWallMaterialFilter = []; 
 let currentQuarterFilter = [];
 let currentYearBuildFilter = [];
+let currentPurposeFilter = [];   
+let currentVriFilter = [];    
 let allDealsFlat = []; 
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
@@ -74,10 +76,9 @@ async function loadDealsCSV() {
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
         const quarterIndex = headers.indexOf('Квартал сделки');
-        const yearBuildIndex = headers.indexOf('year_build');  
-        const purposeIndex = headers.indexOf('purpose_text'); 
-        const vriIndex = headers.indexOf('vri');  
-        const cadCostIndex = headers.indexOf('cad_cost'); 
+       const purposeIndex = headers.indexOf('purpose_text'); 
+const vriIndex = headers.indexOf('vri');  
+const cadCostIndex = headers.indexOf('cad_cost'); 
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -88,6 +89,8 @@ async function loadDealsCSV() {
         const typesCount = {};
         const citiesCount = {}; 
         const objectTypesCount = {};
+        const purposeCount = {};   
+const vriCount = {}; 
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
@@ -101,7 +104,8 @@ async function loadDealsCSV() {
             const quarter = values[quarterIndex] || 'nan'; 
             const yearBuild = values[yearBuildIndex] || 'nan';  
             const purposeText = values[purposeIndex] || 'nan';
-            const vri = values[vriIndex] || 'nan';       
+            const vri = values[vriIndex] || 'nan';  
+            
             
             if (!cadNum) continue;
             
@@ -148,6 +152,8 @@ async function loadDealsCSV() {
             wallMaterialTypes[wallMaterial] = (wallMaterialTypes[wallMaterial] || 0) + 1;
             quarterTypes[quarter] = (quarterTypes[quarter] || 0) + 1;
             yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1; 
+            purposeCount[purposeText] = (purposeCount[purposeText] || 0) + 1;
+vriCount[vri] = (vriCount[vri] || 0) + 1;
         }
         
         // ============================================================
@@ -196,6 +202,8 @@ if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
         renderQuarterFilters();
         renderYearBuildFilters();
         renderDealsTable(); 
+        renderPurposeFilters();
+renderVriFilters();
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -310,7 +318,9 @@ function rebuildDealsData(filteredDeals) {
             obj_kind: deal.obj_kind_text,
             wall_material: deal.wall_material_name,
             quarter: deal.quarter,
-            year_build: deal.year_build
+            year_build: deal.year_build,
+            purpose_text: deal.purpose_text,  
+        vri: deal.vri      
         });
         
         // Обновляем счетчики для фильтров
@@ -320,6 +330,8 @@ function rebuildDealsData(filteredDeals) {
         wallMaterialTypes[deal.wall_material_name] = (wallMaterialTypes[deal.wall_material_name] || 0) + 1;
         quarterTypes[deal.quarter] = (quarterTypes[deal.quarter] || 0) + 1;
         yearBuildTypes[deal.year_build] = (yearBuildTypes[deal.year_build] || 0) + 1;
+         purposeCount[deal.purpose_text] = (purposeCount[deal.purpose_text] || 0) + 1; 
+    vriCount[deal.vri] = (vriCount[deal.vri] || 0) + 1;    
     });
     
     console.log('✅ Данные перестроены после фильтрации по ценам');
@@ -676,6 +688,96 @@ function renderYearBuildFilters() {
     
     container.innerHTML = html;
 }
+function renderPurposeFilters() {
+    const container = document.getElementById('purpose-filters');
+    if (!container) return;
+    
+    const types = Object.keys(purposeCount).sort((a, b) => purposeCount[b] - purposeCount[a]);
+    
+    if (types.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о назначении</div>';
+        return;
+    }
+    
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tbody>
+    `;
+    
+    types.forEach(type => {
+        const count = purposeCount[type];
+        const isActive = currentPurposeFilter.includes(type);
+        
+        html += `
+            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
+                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
+function renderVriFilters() {
+    const container = document.getElementById('vri-filters');
+    if (!container) return;
+    
+    const types = Object.keys(vriCount).sort((a, b) => vriCount[b] - vriCount[a]);
+    
+    if (types.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о ВРИ</div>';
+        return;
+    }
+    
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tbody>
+    `;
+    
+    types.forEach(type => {
+        const count = vriCount[type];
+        const isActive = currentVriFilter.includes(type);
+        
+        html += `
+            <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
+                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
 function applyDealTypeFilter(kind) {
     // ✅ МНОЖЕСТВЕННЫЙ ВЫБОР: добавляем или удаляем значение
     const index = currentDealTypeFilter.indexOf(kind);
@@ -992,6 +1094,107 @@ function applyYearBuildFilter(type) {
         });
     }
 }
+function applyPurposeFilter(type) {
+    const index = currentPurposeFilter.indexOf(type);
+    if (index === -1) {
+        currentPurposeFilter.push(type);
+    } else {
+        currentPurposeFilter.splice(index, 1);
+    }
+    
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра назначения');
+            window.selectedQuarterCadNumber = null;
+        }
+    }
+    
+    renderPurposeFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
+function applyVriFilter(type) {
+    const index = currentVriFilter.indexOf(type);
+    if (index === -1) {
+        currentVriFilter.push(type);
+    } else {
+        currentVriFilter.splice(index, 1);
+    }
+    
+    if (window.selectedQuarterCadNumber) {
+        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (isWrapper) {
+            console.log('🔄 Сброс обертки при применении фильтра ВРИ');
+            window.selectedQuarterCadNumber = null;
+        }
+    }
+    
+    renderVriFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
+
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
     const tooltipContent = buildDistrictTooltipContent(layer);
@@ -1038,6 +1241,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
     
@@ -1091,6 +1300,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
             
@@ -1128,6 +1343,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
             allDeals = allDeals.concat(filteredDeals);
@@ -1316,6 +1537,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
         if (filteredDeals.length > 0) {
@@ -1582,6 +1809,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
         
@@ -1808,6 +2041,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
             const dealsCount = filteredDeals.length;
@@ -2054,6 +2293,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
         
@@ -2174,6 +2419,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
             const filteredCount = filteredDeals.length;
@@ -2408,6 +2659,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
             
@@ -2614,6 +2871,8 @@ if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal
 if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
 if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
 if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             return true;
         });
         const count = filteredDeals.length;
@@ -2655,6 +2914,8 @@ if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal
 if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
 if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
 if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             return true;
         });
         const filteredCount = filteredDeals.length;
@@ -2752,6 +3013,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
         
@@ -2860,6 +3127,12 @@ const filteredDeals = deals.filter(deal => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
         return false;
     }
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+        return false;
+    }
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
     return true;
 });
         const dealsCount = filteredDeals.length;
@@ -3031,6 +3304,8 @@ function resetAllFiltersMap() {
     currentWallMaterialFilter = [];
     currentQuarterFilter = [];
     currentYearBuildFilter = []; 
+    currentPurposeFilter = [];   
+    currentVriFilter = [];   
     
     renderDealTypeFilters();
     renderCityFilters();
@@ -3038,6 +3313,8 @@ function resetAllFiltersMap() {
     renderWallMaterialFilters();
     renderQuarterFilters(); 
     renderYearBuildFilters();
+      renderPurposeFilters();     
+    renderVriFilters();      
     
     renderMapLevel(currentLevel, currentParentId);
     addMapLegend();
@@ -3072,7 +3349,12 @@ function updateActiveFiltersDisplay() {
     if (currentYearBuildFilter.length > 0) {
         activeFilters.push('Год постройки');
     }
-    
+    if (currentPurposeFilter.length > 0) {
+    activeFilters.push('Назначение');
+}
+if (currentVriFilter.length > 0) {
+    activeFilters.push('ВРИ');
+}
     if (activeFilters.length === 0) {
         container.textContent = '—';
         container.style.color = '#94a3b8';
@@ -3131,6 +3413,8 @@ if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal
 if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
 if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
 if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
         return true;
     });
     
@@ -3160,6 +3444,8 @@ if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.y
                     <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Материал стен</th>
                     <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Цена сделки</th>
                     <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">УПРС</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Назначение</th>
+<th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">ВРИ</th>
                 </tr>
             </thead>
             <tbody>
@@ -3196,6 +3482,8 @@ if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.y
                     <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
                     <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
                     <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
+<td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
                 </tr>
             `;
         });
