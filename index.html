@@ -1240,7 +1240,7 @@
 
 /* 1. Ограничиваем родительский контейнер фильтров */
 #mapTab .flex.gap-4 > div:last-child {
-    flex: 0 1 auto !important;
+    flex: 0 0 auto !important;
     max-height: calc(100vh - 220px) !important;
     overflow: hidden !important;
 }
@@ -1255,9 +1255,23 @@
 
 /* 3. Каждый контейнер фильтра */
 #mapTab .grid-cols-4 > div {
-    flex: 0 1 auto !important;
+    flex: 0 0 auto !important;
     max-height: 100% !important;
     overflow: hidden !important;
+}
+
+/* 4. Внутренние контейнеры с данными — НЕ РАСТЯГИВАЮТСЯ */
+#city-filters,
+#object-type-filters,
+#deal-type-filters,
+#purpose-filters,
+#quarter-filters,
+#wall-material-filters,
+#year-build-filters,
+#vri-filters {
+    flex: 0 0 auto !important;   /* ← ГЛАВНОЕ ИЗМЕНЕНИЕ */
+    max-height: 100% !important;
+    overflow-y: auto !important;
 }
     </style>
 </head>
