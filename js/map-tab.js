@@ -393,18 +393,19 @@ function renderDealTypeFilters() {
     const types = Object.keys(dealTypes).sort((a, b) => dealTypes[b] - dealTypes[a]);
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о сделках</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
     types.forEach(kind => {
         const count = dealTypes[kind];
         const isActive = currentDealTypeFilter.includes(kind);
+        const shortName = kind.length > 15 ? kind.substring(0, 14) + '…' : kind;
         
         html += `
             <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
@@ -412,14 +413,14 @@ function renderDealTypeFilters() {
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${kind}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${kind}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
@@ -428,9 +429,6 @@ function renderDealTypeFilters() {
             </tbody>
         </table>
     `;
-    
-
-
     
     container.innerHTML = html;
 }
@@ -441,18 +439,20 @@ function renderCityFilters() {
     const cities = Object.keys(cityTypes).sort((a, b) => cityTypes[b] - cityTypes[a]);
     
     if (cities.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о городах</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
     cities.forEach(city => {
         const count = cityTypes[city];
         const isActive = currentCityFilter.includes(city);
+        // Обрезаем длинные названия
+        const shortName = city.length > 15 ? city.substring(0, 14) + '…' : city;
         
         html += `
             <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}')" 
@@ -460,14 +460,14 @@ function renderCityFilters() {
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${city}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${city}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
@@ -476,7 +476,6 @@ function renderCityFilters() {
             </tbody>
         </table>
     `;
-    
     
     container.innerHTML = html;
 }
@@ -487,18 +486,19 @@ function renderObjectTypeFilters() {
     const types = Object.keys(objectTypes).sort((a, b) => objectTypes[b] - objectTypes[a]);
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о типах объектов</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
     types.forEach(type => {
         const count = objectTypes[type];
         const isActive = currentObjectTypeFilter.includes(type);
+        const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
             <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}')" 
@@ -506,14 +506,14 @@ function renderObjectTypeFilters() {
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${type}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
@@ -532,18 +532,19 @@ function renderWallMaterialFilters() {
     const types = Object.keys(wallMaterialTypes).sort((a, b) => wallMaterialTypes[b] - wallMaterialTypes[a]);
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о материалах стен</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
     types.forEach(type => {
         const count = wallMaterialTypes[type];
         const isActive = currentWallMaterialFilter.includes(type);
+        const shortName = type.length > 12 ? type.substring(0, 11) + '…' : type;
         
         html += `
             <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}')" 
@@ -551,81 +552,14 @@ function renderWallMaterialFilters() {
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
-            </tr>
-        `;
-    });
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = html;
-}
-function renderQuarterFilters() {
-    const container = document.getElementById('quarter-filters');
-    if (!container) return;
-    
-    // Функция для парсинга квартала
-    function parseQuarter(quarter) {
-        if (quarter === 'nan') return { year: 0, q: 0, sortKey: 0 };
-        const parts = quarter.split('/');
-        if (parts.length === 2) {
-            const year = parseInt(parts[0]);
-            const q = parseInt(parts[1].replace('Q', ''));
-            if (!isNaN(year) && !isNaN(q)) {
-                return { year, q, sortKey: year * 10 + q };
-            }
-        }
-        return { year: 0, q: 0, sortKey: 0 };
-    }
-    
-    // ✅ СОРТИРОВКА ОТ НОВЫХ К СТАРЫМ
-    const types = Object.keys(quarterTypes).sort((a, b) => {
-        if (a === 'nan') return 1;
-        if (b === 'nan') return -1;
-        
-        const aParsed = parseQuarter(a);
-        const bParsed = parseQuarter(b);
-        return bParsed.sortKey - aParsed.sortKey;  // от новых к старым
-    });
-    
-    if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о кварталах сделок</div>';
-        return;
-    }
-    
-    let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <tbody>
-    `;
-    
-    types.forEach(type => {
-        const count = quarterTypes[type];
-        const isActive = currentQuarterFilter.includes(type);
-        
-        html += `
-            <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}')" 
-                style="
-                    cursor: pointer;
-                    transition: all 0.15s;
-                    background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
-                    font-weight: ${isActive ? '600' : '400'};
-                    color: ${isActive ? '#0284c7' : '#1e293b'};
-                "
-                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
-                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${type}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
@@ -641,7 +575,6 @@ function renderYearBuildFilters() {
     const container = document.getElementById('year-build-filters');
     if (!container) return;
     
-    // Сортировка от новых к старым (по убыванию года)
     const types = Object.keys(yearBuildTypes).sort((a, b) => {
         if (a === 'nan') return 1;
         if (b === 'nan') return -1;
@@ -649,16 +582,16 @@ function renderYearBuildFilters() {
         const bNum = parseInt(b);
         if (isNaN(aNum)) return 1;
         if (isNaN(bNum)) return -1;
-        return bNum - aNum;  // от новых к старым
+        return bNum - aNum;
     });
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о годе постройки</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
@@ -672,14 +605,14 @@ function renderYearBuildFilters() {
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap;">${type}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
@@ -691,40 +624,60 @@ function renderYearBuildFilters() {
     
     container.innerHTML = html;
 }
-function renderPurposeFilters() {
-    const container = document.getElementById('purpose-filters');
+function renderQuarterFilters() {
+    const container = document.getElementById('quarter-filters');
     if (!container) return;
     
-    const types = Object.keys(purposeCount).sort((a, b) => purposeCount[b] - purposeCount[a]);
+    function parseQuarter(quarter) {
+        if (quarter === 'nan') return { year: 0, q: 0, sortKey: 0 };
+        const parts = quarter.split('/');
+        if (parts.length === 2) {
+            const year = parseInt(parts[0]);
+            const q = parseInt(parts[1].replace('Q', ''));
+            if (!isNaN(year) && !isNaN(q)) {
+                return { year, q, sortKey: year * 10 + q };
+            }
+        }
+        return { year: 0, q: 0, sortKey: 0 };
+    }
+    
+    const types = Object.keys(quarterTypes).sort((a, b) => {
+        if (a === 'nan') return 1;
+        if (b === 'nan') return -1;
+        const aParsed = parseQuarter(a);
+        const bParsed = parseQuarter(b);
+        return bParsed.sortKey - aParsed.sortKey;
+    });
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о назначении</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
     types.forEach(type => {
-        const count = purposeCount[type];
-        const isActive = currentPurposeFilter.includes(type);
+        const count = quarterTypes[type];
+        const isActive = currentQuarterFilter.includes(type);
+        const shortName = type.length > 10 ? type.substring(0, 9) + '…' : type;
         
         html += `
-            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap;" title="${type}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
@@ -743,18 +696,19 @@ function renderVriFilters() {
     const types = Object.keys(vriCount).sort((a, b) => vriCount[b] - vriCount[a]);
     
     if (types.length === 0) {
-        container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Нет данных о ВРИ</div>';
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
     
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
     
     types.forEach(type => {
         const count = vriCount[type];
         const isActive = currentVriFilter.includes(type);
+        const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
             <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}')" 
@@ -762,14 +716,60 @@ function renderVriFilters() {
                     cursor: pointer;
                     transition: all 0.15s;
                     background: ${isActive ? '#e0f2fe' : 'transparent'};
-                    border-left: ${isActive ? '3px solid #0ea5e9' : '3px solid transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
-                <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9;">${type}</td>
-                <td style="padding: 5px 8px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500;">${count.toLocaleString('ru-RU')}</td>
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${type}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
+function renderPurposeFilters() {
+    const container = document.getElementById('purpose-filters');
+    if (!container) return;
+    
+    const types = Object.keys(purposeCount).sort((a, b) => purposeCount[b] - purposeCount[a]);
+    
+    if (types.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
+        return;
+    }
+    
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <tbody>
+    `;
+    
+    types.forEach(type => {
+        const count = purposeCount[type];
+        const isActive = currentPurposeFilter.includes(type);
+        const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
+        
+        html += `
+            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${type}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
             </tr>
         `;
     });
