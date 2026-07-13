@@ -1713,108 +1713,114 @@
             </div>
 
             <!-- ТАБЛИЦЫ ФИЛЬТРОВ -->
-            <div style="display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;">
-                <!-- ВЕРХНЯЯ ПАНЕЛЬ: КНОПКИ + АКТИВНЫЕ ФИЛЬТРЫ -->
-                <!-- ВЕРХНЯЯ ПАНЕЛЬ: КНОПКИ + АКТИВНЫЕ ФИЛЬТРЫ -->
-<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+           <!-- ТАБЛИЦЫ ФИЛЬТРОВ -->
+<div style="display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; min-width: 0; max-width: 100%;">
     
-    <button onclick="resetAllFiltersMap()" 
-            style="
-                font-size: 10px; 
-                color: #ef4444; 
-                background: #fef2f2; 
-                border: 1px solid #fecaca; 
-                border-radius: 6px; 
-                padding: 4px 12px; 
-                cursor: pointer; 
-                font-weight: 500;
-                transition: all 0.2s;
-                font-family: 'Inter', sans-serif;
-                white-space: nowrap;
-            "
-            onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#fca5a5';"
-            onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#fecaca';">
-        ✕ Сбросить фильтры
-    </button>
-    
-    <div id="active-filters-display" style="
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-        font-size: 10px;
-        color: #475569;
-        flex: 1;
-    ">
-        <span style="color: #94a3b8; font-size: 9px;">Активные фильтры:</span>
-        <span id="active-filters-list" style="color: #94a3b8; font-size: 9px;">—</span>
-    </div>
-</div>
-
-                <!-- ПЕРВЫЙ РЯД: ГОРОДА + ТИПЫ ОБЪЕКТОВ + ТИПЫ СДЕЛОК -->
-<div style="display: flex; gap: 8px; margin-bottom: 8px;">
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Районы</div>
-        <div id="city-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ: КНОПКИ + АКТИВНЫЕ ФИЛЬТРЫ -->
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <button onclick="resetAllFiltersMap()" 
+                style="
+                    font-size: 9px; 
+                    color: #ef4444; 
+                    background: #fef2f2; 
+                    border: 1px solid #fecaca; 
+                    border-radius: 4px; 
+                    padding: 3px 10px; 
+                    cursor: pointer; 
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    font-family: 'Inter', sans-serif;
+                    white-space: nowrap;
+                "
+                onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#fca5a5';"
+                onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#fecaca';">
+            ✕ Сбросить фильтры
+        </button>
+        
+        <div id="active-filters-display" style="
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            font-size: 9px;
+            color: #475569;
+            flex: 1;
+        ">
+            <span style="color: #94a3b8;">Фильтры:</span>
+            <span id="active-filters-list" style="color: #94a3b8;">—</span>
         </div>
     </div>
 
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Типы объектов</div>
-        <div id="object-type-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Типы сделок</div>
-        <div id="deal-type-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-
-    <!-- 🆕 НОВЫЙ ФИЛЬТР: НАЗНАЧЕНИЕ -->
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Назначение</div>
-        <div id="purpose-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-</div>
-
-                <!-- ВТОРОЙ РЯД: КВАРТАЛ СДЕЛКИ + МАТЕРИАЛ СТЕН + ГОД ПОСТРОЙКИ -->
-<div style="display: flex; gap: 8px;">
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Квартал сделки</div>
-        <div id="quarter-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Материал стен</div>
-        <div id="wall-material-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">Год постройки</div>
-        <div id="year-build-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-
-    <!-- 🆕 НОВЫЙ ФИЛЬТР: ВРИ -->
-    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="flex: 1; max-height: 450px; overflow-y: auto; min-width: 130px;">
-        <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2 border-b border-slate-100 pb-2">ВРИ</div>
-        <div id="vri-filters" style="font-size: 12px; color: #1e293b;">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px 0;">Загрузка...</div>
-        </div>
-    </div>
-</div>
+    <!-- ПЕРВЫЙ РЯД: 4 колонки -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; min-width: 0;">
+        <!-- Районы -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Районы</div>
+            <div id="city-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
             </div>
+        </div>
+
+        <!-- Типы объектов -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Типы объектов</div>
+            <div id="object-type-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- Типы сделок -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Типы сделок</div>
+            <div id="deal-type-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- Назначение -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Назначение</div>
+            <div id="purpose-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ВТОРОЙ РЯД: 4 колонки -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; min-width: 0;">
+        <!-- Квартал сделки -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Квартал</div>
+            <div id="quarter-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- Материал стен -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Материал стен</div>
+            <div id="wall-material-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- Год постройки -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">Год постройки</div>
+            <div id="year-build-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- ВРИ -->
+        <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm" style="max-height: 350px; overflow-y: auto; min-width: 0;">
+            <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1 border-b border-slate-100 pb-1">ВРИ</div>
+            <div id="vri-filters" style="font-size: 11px; color: #1e293b;">
+                <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px 0;">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+</div>
         </div>
     </div>
 </div>
