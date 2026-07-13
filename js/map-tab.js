@@ -2104,9 +2104,9 @@ mapInstance = L.map(container, {
 mapInstance.attributionControl.remove();
 
 // Базовый слой
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
-    attribution: '© ESRI'
+    attribution: '© OpenStreetMap, © CartoDB'
 }).addTo(mapInstance);
 
 // Загружаем данные
