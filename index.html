@@ -1132,6 +1132,99 @@
 .leaflet-container {
     -webkit-tap-highlight-color: transparent !important;
 }
+      #city-filters table,
+#object-type-filters table,
+#deal-type-filters table,
+#purpose-filters table,
+#quarter-filters table,
+#wall-material-filters table,
+#year-build-filters table,
+#vri-filters table {
+    font-size: 8px !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+}
+
+#city-filters td,
+#object-type-filters td,
+#deal-type-filters td,
+#purpose-filters td,
+#quarter-filters td,
+#wall-material-filters td,
+#year-build-filters td,
+#vri-filters td {
+    padding: 1px 2px !important;
+    font-size: 8px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 65px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+#city-filters td:last-child,
+#object-type-filters td:last-child,
+#deal-type-filters td:last-child,
+#purpose-filters td:last-child,
+#quarter-filters td:last-child,
+#wall-material-filters td:last-child,
+#year-build-filters td:last-child,
+#vri-filters td:last-child {
+    max-width: 22px !important;
+    text-align: right !important;
+    font-weight: 500 !important;
+}
+
+/* ===== ТОНКИЕ СКРОЛЛБАРЫ ===== */
+#city-filters::-webkit-scrollbar,
+#object-type-filters::-webkit-scrollbar,
+#deal-type-filters::-webkit-scrollbar,
+#purpose-filters::-webkit-scrollbar,
+#quarter-filters::-webkit-scrollbar,
+#wall-material-filters::-webkit-scrollbar,
+#year-build-filters::-webkit-scrollbar,
+#vri-filters::-webkit-scrollbar {
+    width: 2px;
+}
+
+#city-filters::-webkit-scrollbar-thumb,
+#object-type-filters::-webkit-scrollbar-thumb,
+#deal-type-filters::-webkit-scrollbar-thumb,
+#purpose-filters::-webkit-scrollbar-thumb,
+#quarter-filters::-webkit-scrollbar-thumb,
+#wall-material-filters::-webkit-scrollbar-thumb,
+#year-build-filters::-webkit-scrollbar-thumb,
+#vri-filters::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+/* ===== УМЕНЬШАЕМ ЗАГОЛОВКИ ===== */
+#city-filters .filter-title,
+#object-type-filters .filter-title,
+#deal-type-filters .filter-title,
+#purpose-filters .filter-title,
+#quarter-filters .filter-title,
+#wall-material-filters .filter-title,
+#year-build-filters .filter-title,
+#vri-filters .filter-title {
+    font-size: 7px !important;
+    padding: 1px 0 !important;
+}
+
+/* ===== КОМПАКТНЫЕ КОНТЕЙНЕРЫ ===== */
+#city-filters,
+#object-type-filters,
+#deal-type-filters,
+#purpose-filters,
+#quarter-filters,
+#wall-material-filters,
+#year-build-filters,
+#vri-filters {
+    font-size: 8px !important;
+}
     </style>
 </head>
 <body class="text-slate-800 antialiased flex flex-col min-h-screen">
@@ -1753,7 +1846,7 @@
         <!-- ПЕРВЫЙ РЯД: 4 колонки -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 1; min-height: 0;">
             <!-- Районы -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Районы</div>
                 <div id="city-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1761,7 +1854,7 @@
             </div>
 
             <!-- Типы объектов -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Типы объектов</div>
                 <div id="object-type-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1769,7 +1862,7 @@
             </div>
 
             <!-- Типы сделок -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Типы сделок</div>
                 <div id="deal-type-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1777,7 +1870,7 @@
             </div>
 
             <!-- Назначение -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Назначение</div>
                 <div id="purpose-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1788,7 +1881,7 @@
         <!-- ВТОРОЙ РЯД: 4 колонки -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 1; min-height: 0;">
             <!-- Квартал сделки -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Квартал</div>
                 <div id="quarter-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1796,7 +1889,7 @@
             </div>
 
             <!-- Материал стен -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Материал стен</div>
                 <div id="wall-material-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1804,7 +1897,7 @@
             </div>
 
             <!-- Год постройки -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Год постройки</div>
                 <div id="year-build-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
@@ -1812,7 +1905,7 @@
             </div>
 
             <!-- ВРИ -->
-            <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">ВРИ</div>
                 <div id="vri-filters" style="font-size: 10px; color: #1e293b; flex: 1; overflow-y: auto; min-height: 0;">
                     <div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 4px 0;">Загрузка...</div>
