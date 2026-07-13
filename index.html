@@ -1143,10 +1143,11 @@
     display: flex !important;
     flex-direction: column !important;
     height: auto !important;
-    max-height: 160px !important;  
-    overflow-y: auto !important; 
+    max-height: 128px !important;  
+    overflow-y: auto !important;   
     flex: 0 0 auto !important;
 }
+
 
 /* Таблицы внутри фильтров */
 #city-filters table,
@@ -1228,6 +1229,38 @@
     text-align: right !important;
     font-weight: 600 !important;
     font-size: 10px !important;
+}
+      #quarters-list {
+    max-height: 100% !important;
+    overflow-y: auto !important;
+}
+
+#stat-card-quarters {
+    max-height: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#stat-card-quarters .text-\\[9px\\] {
+    flex-shrink: 0 !important;
+}
+
+#quarters-list {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    max-height: 100% !important;
+}
+
+/* Также ограничиваем сами элементы списка */
+#quarters-list > div {
+    padding: 3px 0 !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+#quarters-list > div:last-child {
+    border-bottom: none !important;
 }
     </style>
 </head>
