@@ -1655,6 +1655,8 @@ const filteredDeals = deals.filter(deal => {
          if (currentWallMaterialFilter && d.wall_material !== currentWallMaterialFilter) return false;
          if (currentQuarterFilter && d.quarter !== currentQuarterFilter) return false;
          if (currentYearBuildFilter && d.year_build !== currentYearBuildFilter) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
         return true;
     });
     return filtered.length > 0;
@@ -1973,6 +1975,8 @@ const filtered = deals.filter(d => {
     if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
     if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+    if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
     return true;
 });
     return filtered.length > 0;
@@ -2100,10 +2104,9 @@ mapInstance = L.map(container, {
 mapInstance.attributionControl.remove();
 
 // Базовый слой
-L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: '© Google'
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: '© ESRI'
 }).addTo(mapInstance);
 
 // Загружаем данные
