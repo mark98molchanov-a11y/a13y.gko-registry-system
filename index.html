@@ -1140,13 +1140,15 @@
 #wall-material-filters,
 #year-build-filters,
 #vri-filters {
-    font-size: 10px !important;
-    flex: 0 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
     max-height: 100% !important;
-    overflow-y: auto !important;
+    overflow: hidden !important;
+    flex: 0 0 auto !important;
 }
 
-/* ТАБЛИЦЫ */
+/* Таблицы внутри фильтров */
 #city-filters table,
 #object-type-filters table,
 #deal-type-filters table,
@@ -1155,15 +1157,45 @@
 #wall-material-filters table,
 #year-build-filters table,
 #vri-filters table {
-    font-size: 10px !important;
+    display: block !important;
     width: 100% !important;
-    table-layout: fixed !important;
-    border-collapse: collapse !important;
     height: auto !important;
     max-height: 100% !important;
+    overflow-y: auto !important;
+    table-layout: fixed !important;
 }
 
-/* ЯЧЕЙКИ */
+/* Тело таблицы */
+#city-filters tbody,
+#object-type-filters tbody,
+#deal-type-filters tbody,
+#purpose-filters tbody,
+#quarter-filters tbody,
+#wall-material-filters tbody,
+#year-build-filters tbody,
+#vri-filters tbody {
+    display: block !important;
+    max-height: 100% !important;
+    overflow-y: auto !important;
+}
+
+/* Строки */
+#city-filters tr,
+#object-type-filters tr,
+#deal-type-filters tr,
+#purpose-filters tr,
+#quarter-filters tr,
+#wall-material-filters tr,
+#year-build-filters tr,
+#vri-filters tr {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    height: auto !important;
+    max-height: 24px !important;
+}
+
+/* Ячейки */
 #city-filters td,
 #object-type-filters td,
 #deal-type-filters td,
@@ -1172,7 +1204,7 @@
 #wall-material-filters td,
 #year-build-filters td,
 #vri-filters td {
-    padding: 3px 4px !important;
+    padding: 2px 4px !important;
     font-size: 10px !important;
     line-height: 1.3 !important;
     white-space: nowrap !important;
@@ -1180,9 +1212,10 @@
     text-overflow: ellipsis !important;
     max-width: 80px !important;
     border-bottom: 1px solid #f1f5f9 !important;
+    height: auto !important;
 }
 
-/* ЧИСЛА */
+/* Числа */
 #city-filters td:last-child,
 #object-type-filters td:last-child,
 #deal-type-filters td:last-child,
@@ -1195,83 +1228,6 @@
     text-align: right !important;
     font-weight: 600 !important;
     font-size: 10px !important;
-}
-
-/* СКРОЛЛБАРЫ */
-#city-filters::-webkit-scrollbar,
-#object-type-filters::-webkit-scrollbar,
-#deal-type-filters::-webkit-scrollbar,
-#purpose-filters::-webkit-scrollbar,
-#quarter-filters::-webkit-scrollbar,
-#wall-material-filters::-webkit-scrollbar,
-#year-build-filters::-webkit-scrollbar,
-#vri-filters::-webkit-scrollbar {
-    width: 4px;
-}
-
-#city-filters::-webkit-scrollbar-thumb,
-#object-type-filters::-webkit-scrollbar-thumb,
-#deal-type-filters::-webkit-scrollbar-thumb,
-#purpose-filters::-webkit-scrollbar-thumb,
-#quarter-filters::-webkit-scrollbar-thumb,
-#wall-material-filters::-webkit-scrollbar-thumb,
-#year-build-filters::-webkit-scrollbar-thumb,
-#vri-filters::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-/* ЗАГОЛОВКИ */
-#city-filters .filter-title,
-#object-type-filters .filter-title,
-#deal-type-filters .filter-title,
-#purpose-filters .filter-title,
-#quarter-filters .filter-title,
-#wall-material-filters .filter-title,
-#year-build-filters .filter-title,
-#vri-filters .filter-title {
-    font-size: 8px !important;
-    padding: 2px 0 !important;
-}
-
-/* ============================================================
-   ФИКС РАСТЯГИВАНИЯ (ОСНОВНОЙ)
-   ============================================================ */
-
-/* 1. Ограничиваем родительский контейнер фильтров */
-#mapTab .flex.gap-4 > div:last-child {
-    flex: 0 0 auto !important;
-    max-height: calc(100vh - 220px) !important;
-    overflow: hidden !important;
-}
-
-/* 2. Ряды фильтров — не растягиваются */
-#mapTab .grid-cols-4 {
-    flex: 0 0 auto !important;
-    max-height: 48% !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-}
-
-/* 3. Каждый контейнер фильтра */
-#mapTab .grid-cols-4 > div {
-    flex: 0 0 auto !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
-}
-
-/* 4. Внутренние контейнеры с данными — НЕ РАСТЯГИВАЮТСЯ */
-#city-filters,
-#object-type-filters,
-#deal-type-filters,
-#purpose-filters,
-#quarter-filters,
-#wall-material-filters,
-#year-build-filters,
-#vri-filters {
-    flex: 0 0 auto !important;   /* ← ГЛАВНОЕ ИЗМЕНЕНИЕ */
-    max-height: 100% !important;
-    overflow-y: auto !important;
 }
     </style>
 </head>
