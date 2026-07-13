@@ -1132,7 +1132,22 @@
 .leaflet-container {
     -webkit-tap-highlight-color: transparent !important;
 }
-      #city-filters table,
+#city-filters,
+#object-type-filters,
+#deal-type-filters,
+#purpose-filters,
+#quarter-filters,
+#wall-material-filters,
+#year-build-filters,
+#vri-filters {
+    font-size: 10px !important;
+    max-height: 100% !important;
+    overflow-y: auto !important;
+    flex: 0 1 auto !important;
+}
+
+/* ТАБЛИЦЫ */
+#city-filters table,
 #object-type-filters table,
 #deal-type-filters table,
 #purpose-filters table,
@@ -1140,12 +1155,15 @@
 #wall-material-filters table,
 #year-build-filters table,
 #vri-filters table {
-    font-size: 8px !important;
+    font-size: 10px !important;
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
+    height: auto !important;
+    max-height: 100% !important;
 }
 
+/* ЯЧЕЙКИ — увеличенный шрифт */
 #city-filters td,
 #object-type-filters td,
 #deal-type-filters td,
@@ -1154,16 +1172,17 @@
 #wall-material-filters td,
 #year-build-filters td,
 #vri-filters td {
-    padding: 1px 2px !important;
-    font-size: 8px !important;
-    line-height: 1.2 !important;
+    padding: 3px 4px !important;
+    font-size: 10px !important;
+    line-height: 1.3 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    max-width: 65px !important;
+    max-width: 80px !important;
     border-bottom: 1px solid #f1f5f9 !important;
 }
 
+/* ЧИСЛА — увеличенные */
 #city-filters td:last-child,
 #object-type-filters td:last-child,
 #deal-type-filters td:last-child,
@@ -1172,9 +1191,10 @@
 #wall-material-filters td:last-child,
 #year-build-filters td:last-child,
 #vri-filters td:last-child {
-    max-width: 22px !important;
+    max-width: 30px !important;
     text-align: right !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
+    font-size: 10px !important;
 }
 
 /* ===== ТОНКИЕ СКРОЛЛБАРЫ ===== */
@@ -1186,7 +1206,7 @@
 #wall-material-filters::-webkit-scrollbar,
 #year-build-filters::-webkit-scrollbar,
 #vri-filters::-webkit-scrollbar {
-    width: 2px;
+    width: 4px;
 }
 
 #city-filters::-webkit-scrollbar-thumb,
@@ -1198,10 +1218,10 @@
 #year-build-filters::-webkit-scrollbar-thumb,
 #vri-filters::-webkit-scrollbar-thumb {
     background: #cbd5e1;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
-/* ===== УМЕНЬШАЕМ ЗАГОЛОВКИ ===== */
+/* ===== ЗАГОЛОВКИ ===== */
 #city-filters .filter-title,
 #object-type-filters .filter-title,
 #deal-type-filters .filter-title,
@@ -1210,20 +1230,8 @@
 #wall-material-filters .filter-title,
 #year-build-filters .filter-title,
 #vri-filters .filter-title {
-    font-size: 7px !important;
-    padding: 1px 0 !important;
-}
-
-/* ===== КОМПАКТНЫЕ КОНТЕЙНЕРЫ ===== */
-#city-filters,
-#object-type-filters,
-#deal-type-filters,
-#purpose-filters,
-#quarter-filters,
-#wall-material-filters,
-#year-build-filters,
-#vri-filters {
     font-size: 8px !important;
+    padding: 2px 0 !important;
 }
     </style>
 </head>
@@ -1844,7 +1852,7 @@
         </div>
 
         <!-- ПЕРВЫЙ РЯД: 4 колонки -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 1; min-height: 0;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 0 1 auto; min-height: 0; max-height: 48%;">
             <!-- Районы -->
             <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Районы</div>
@@ -1879,7 +1887,7 @@
         </div>
 
         <!-- ВТОРОЙ РЯД: 4 колонки -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 1; min-height: 0;">
+       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 0 1 auto; min-height: 0; max-height: 48%;">
             <!-- Квартал сделки -->
             <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
                 <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mb-0.5 border-b border-slate-100 pb-0.5 flex-shrink-0">Квартал</div>
