@@ -146,7 +146,9 @@ const vriCount = {};
                 obj_kind: objKind,
                 wall_material: wallMaterial,
                 quarter: quarter,
-                year_build: yearBuild
+                year_build: yearBuild,
+                 purpose_text: purposeText,   
+                vri: vri  
             });
             
             typesCount[kind] = (typesCount[kind] || 0) + 1;
