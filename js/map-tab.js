@@ -1601,70 +1601,67 @@ function getMedian(arr) {
     let minPrice = 0;
     let maxPrice = 0;
     
-    if (quarterStats.length > 0) {
-        // 1. Медианная цена (по всем кварталам)
-const priceQuarters = quarterStats.filter(q => q.medianPrice > 0);
-if (priceQuarters.length > 0) {
-    const sortedByPrice = priceQuarters.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-    const totalWeightPrice = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByPrice) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightPrice / 2) {
-            weightedMedianPrice = q.medianPrice;
-            break;
+  if (quarterStats.length > 0) {
+    // ✅ 1. Медианная цена — ОБЫЧНАЯ МЕДИАНА
+    const priceValues = quarterStats
+        .map(q => q.medianPrice)
+        .filter(p => p > 0)
+        .sort((a, b) => a - b);
+    if (priceValues.length > 0) {
+        const mid = Math.floor(priceValues.length / 2);
+        if (priceValues.length % 2 === 0) {
+            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
+        } else {
+            weightedMedianPrice = priceValues[mid];
         }
     }
+
+    // ✅ 2. Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
+    const uprsValues = quarterStats
+        .map(q => q.medianUprs)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (uprsValues.length > 0) {
+        const mid = Math.floor(uprsValues.length / 2);
+        if (uprsValues.length % 2 === 0) {
+            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
+        } else {
+            weightedMedianUprs = uprsValues[mid];
+        }
+    }
+    
+    // ✅ 3. Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
+    const upksValues = quarterStats
+        .map(q => q.medianUpks)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (upksValues.length > 0) {
+        const mid = Math.floor(upksValues.length / 2);
+        if (upksValues.length % 2 === 0) {
+            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
+        } else {
+            weightedMedianUpks = upksValues[mid];
+        }
+    }
+    
+    // ✅ 4. Медианная кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
+    const cadCostValues = quarterStats
+        .map(q => q.medianCadCost)
+        .filter(c => c > 0)
+        .sort((a, b) => a - b);
+    if (cadCostValues.length > 0) {
+        const mid = Math.floor(cadCostValues.length / 2);
+        if (cadCostValues.length % 2 === 0) {
+            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
+        } else {
+            weightedMedianCadCost = cadCostValues[mid];
+        }
+    }
+    
+    minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
+    maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
 }
 
-// ✅ 2. Медианная УПРС (ТОЛЬКО С НЕНУЛЕВЫМИ ЗНАЧЕНИЯМИ)
-const uprsQuarters = quarterStats.filter(q => q.medianUprs > 0);
-if (uprsQuarters.length > 0) {
-    const sortedByUprs = uprsQuarters.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-    const totalWeightUprs = sortedByUprs.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByUprs) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightUprs / 2) {
-            weightedMedianUprs = q.medianUprs;
-            break;
-        }
-    }
-}
-        
-        // ✅ 3. Медианная УПКС (ТОЛЬКО С НЕНУЛЕВЫМИ ЗНАЧЕНИЯМИ)
-        const upksQuarters = quarterStats.filter(q => q.medianUpks > 0);
-        if (upksQuarters.length > 0) {
-            const sortedByUpks = upksQuarters.slice().sort((a, b) => a.medianUpks - b.medianUpks);
-            const totalWeightUpks = sortedByUpks.reduce((sum, q) => sum + q.count, 0);
-            let cumsumUpks = 0;
-            for (const q of sortedByUpks) {
-                cumsumUpks += q.count;
-                if (cumsumUpks >= totalWeightUpks / 2) {
-                    weightedMedianUpks = q.medianUpks;
-                    break;
-                }
-            }
-        }
-        
-        // ✅ 4. Медианная кадастровая стоимость (ТОЛЬКО С НЕНУЛЕВЫМИ ЗНАЧЕНИЯМИ)
-        const cadCostQuarters = quarterStats.filter(q => q.medianCadCost > 0);
-        if (cadCostQuarters.length > 0) {
-            const sortedByCadCost = cadCostQuarters.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
-            const totalWeightCadCost = sortedByCadCost.reduce((sum, q) => sum + q.count, 0);
-            let cumsumCadCost = 0;
-            for (const q of sortedByCadCost) {
-                cumsumCadCost += q.count;
-                if (cumsumCadCost >= totalWeightCadCost / 2) {
-                    weightedMedianCadCost = q.medianCadCost;
-                    break;
-                }
-            }
-        }
-        
-        minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-        maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
-    }
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
         return num.toLocaleString('ru-RU') + ' ₽';
@@ -1898,68 +1895,66 @@ function buildDistrictTooltipContent(layer) {
     let minPrice = 0;
     let maxPrice = 0;
     
-    if (quarterStats.length > 0) {
-const priceQuarters = quarterStats.filter(q => q.medianPrice > 0);
-if (priceQuarters.length > 0) {
-    const sortedByPrice = priceQuarters.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-    const totalWeightPrice = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByPrice) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightPrice / 2) {
-            weightedMedianPrice = q.medianPrice;
-            break;
+ if (quarterStats.length > 0) {
+    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
+    const priceValues = quarterStats
+        .map(q => q.medianPrice)
+        .filter(p => p > 0)
+        .sort((a, b) => a - b);
+    if (priceValues.length > 0) {
+        const mid = Math.floor(priceValues.length / 2);
+        if (priceValues.length % 2 === 0) {
+            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
+        } else {
+            weightedMedianPrice = priceValues[mid];
         }
     }
-}
 
-// ✅ Медианная УПРС — только с ненулевыми значениями
-const uprsQuarters = quarterStats.filter(q => q.medianUprs > 0);
-if (uprsQuarters.length > 0) {
-    const sortedByUprs = uprsQuarters.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-    const totalWeightUprs = sortedByUprs.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByUprs) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightUprs / 2) {
-            weightedMedianUprs = q.medianUprs;
-            break;
+    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
+    const uprsValues = quarterStats
+        .map(q => q.medianUprs)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (uprsValues.length > 0) {
+        const mid = Math.floor(uprsValues.length / 2);
+        if (uprsValues.length % 2 === 0) {
+            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
+        } else {
+            weightedMedianUprs = uprsValues[mid];
         }
     }
-}
-        
-const upksQuarters = quarterStats.filter(q => q.medianUpks > 0);
-if (upksQuarters.length > 0) {
-    const sortedByUpks = upksQuarters.slice().sort((a, b) => a.medianUpks - b.medianUpks);
-    const totalWeightUpks = sortedByUpks.reduce((sum, q) => sum + q.count, 0);
-    let cumsumUpks = 0;
-    for (const q of sortedByUpks) {
-        cumsumUpks += q.count;
-        if (cumsumUpks >= totalWeightUpks / 2) {
-            weightedMedianUpks = q.medianUpks;
-            break;
+    
+    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
+    const upksValues = quarterStats
+        .map(q => q.medianUpks)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (upksValues.length > 0) {
+        const mid = Math.floor(upksValues.length / 2);
+        if (upksValues.length % 2 === 0) {
+            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
+        } else {
+            weightedMedianUpks = upksValues[mid];
         }
     }
-}
-
-// ✅ Кадастровая стоимость — только с ненулевыми значениями
-const cadCostQuarters = quarterStats.filter(q => q.medianCadCost > 0);
-if (cadCostQuarters.length > 0) {
-    const sortedByCadCost = cadCostQuarters.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
-    const totalWeightCadCost = sortedByCadCost.reduce((sum, q) => sum + q.count, 0);
-    let cumsumCadCost = 0;
-    for (const q of sortedByCadCost) {
-        cumsumCadCost += q.count;
-        if (cumsumCadCost >= totalWeightCadCost / 2) {
-            weightedMedianCadCost = q.medianCadCost;
-            break;
+    
+    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
+    const cadCostValues = quarterStats
+        .map(q => q.medianCadCost)
+        .filter(c => c > 0)
+        .sort((a, b) => a - b);
+    if (cadCostValues.length > 0) {
+        const mid = Math.floor(cadCostValues.length / 2);
+        if (cadCostValues.length % 2 === 0) {
+            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
+        } else {
+            weightedMedianCadCost = cadCostValues[mid];
         }
     }
+    
+    minPrice = Math.min(...allMins);
+    maxPrice = Math.max(...allMaxs);
 }
-        
-        minPrice = Math.min(...allMins);
-        maxPrice = Math.max(...allMaxs);
-    }
     
     const formatNum = (num) => num.toLocaleString();
     const formatPrice = (num) => num.toLocaleString() + ' ₽';
@@ -2816,66 +2811,67 @@ const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
         let minPrice = 0;
         let maxPrice = 0;
         
-        if (quarterStats.length > 0) {
-const priceQuarters = quarterStats.filter(q => q.medianPrice > 0);
-if (priceQuarters.length > 0) {
-    const sortedByPrice = priceQuarters.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-    const totalWeightPrice = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByPrice) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightPrice / 2) {
-            weightedMedianPrice = q.medianPrice;
-            break;
+if (quarterStats.length > 0) {
+    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
+    const priceValues = quarterStats
+        .map(q => q.medianPrice)
+        .filter(p => p > 0)
+        .sort((a, b) => a - b);
+    if (priceValues.length > 0) {
+        const mid = Math.floor(priceValues.length / 2);
+        if (priceValues.length % 2 === 0) {
+            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
+        } else {
+            weightedMedianPrice = priceValues[mid];
         }
     }
+
+    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
+    const uprsValues = quarterStats
+        .map(q => q.medianUprs)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (uprsValues.length > 0) {
+        const mid = Math.floor(uprsValues.length / 2);
+        if (uprsValues.length % 2 === 0) {
+            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
+        } else {
+            weightedMedianUprs = uprsValues[mid];
+        }
+    }
+    
+    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
+    const upksValues = quarterStats
+        .map(q => q.medianUpks)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (upksValues.length > 0) {
+        const mid = Math.floor(upksValues.length / 2);
+        if (upksValues.length % 2 === 0) {
+            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
+        } else {
+            weightedMedianUpks = upksValues[mid];
+        }
+    }
+    
+    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
+    const cadCostValues = quarterStats
+        .map(q => q.medianCadCost)
+        .filter(c => c > 0)
+        .sort((a, b) => a - b);
+    if (cadCostValues.length > 0) {
+        const mid = Math.floor(cadCostValues.length / 2);
+        if (cadCostValues.length % 2 === 0) {
+            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
+        } else {
+            weightedMedianCadCost = cadCostValues[mid];
+        }
+    }
+    
+    minPrice = Math.min(...allMins);
+    maxPrice = Math.max(...allMaxs);
 }
 
-// ✅ Медианная УПРС — только с ненулевыми значениями
-const uprsQuarters = quarterStats.filter(q => q.medianUprs > 0);
-if (uprsQuarters.length > 0) {
-    const sortedByUprs = uprsQuarters.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-    const totalWeightUprs = sortedByUprs.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByUprs) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightUprs / 2) {
-            weightedMedianUprs = q.medianUprs;
-            break;
-        }
-    }
-}
-const upksQuarters = quarterStats.filter(q => q.medianUpks > 0);
-if (upksQuarters.length > 0) {
-    const sortedByUpks = upksQuarters.slice().sort((a, b) => a.medianUpks - b.medianUpks);
-    const totalWeightUpks = sortedByUpks.reduce((sum, q) => sum + q.count, 0);
-    let cumsumUpks = 0;
-    for (const q of sortedByUpks) {
-        cumsumUpks += q.count;
-        if (cumsumUpks >= totalWeightUpks / 2) {
-            weightedMedianUpks = q.medianUpks;
-            break;
-        }
-    }
-}
-
-// ✅ Кадастровая стоимость — только с ненулевыми значениями
-const cadCostQuarters = quarterStats.filter(q => q.medianCadCost > 0);
-if (cadCostQuarters.length > 0) {
-    const sortedByCadCost = cadCostQuarters.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
-    const totalWeightCadCost = sortedByCadCost.reduce((sum, q) => sum + q.count, 0);
-    let cumsumCadCost = 0;
-    for (const q of sortedByCadCost) {
-        cumsumCadCost += q.count;
-        if (cumsumCadCost >= totalWeightCadCost / 2) {
-            weightedMedianCadCost = q.medianCadCost;
-            break;
-        }
-    }
-}
-            minPrice = Math.min(...allMins);
-            maxPrice = Math.max(...allMaxs);
-        }
         
         const formatNum = (num) => num.toLocaleString();
         const formatPrice = (num) => num.toLocaleString() + ' ₽';
@@ -3192,69 +3188,66 @@ if (levelName === 'district') {
     let minPrice = 0;
     let maxPrice = 0;
     
-    if (quarterStats.length > 0) {
-const priceQuarters = quarterStats.filter(q => q.medianPrice > 0);
-if (priceQuarters.length > 0) {
-    const sortedByPrice = priceQuarters.slice().sort((a, b) => a.medianPrice - b.medianPrice);
-    const totalWeightPrice = sortedByPrice.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByPrice) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightPrice / 2) {
-            weightedMedianPrice = q.medianPrice;
-            break;
+   if (quarterStats.length > 0) {
+    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
+    const priceValues = quarterStats
+        .map(q => q.medianPrice)
+        .filter(p => p > 0)
+        .sort((a, b) => a - b);
+    if (priceValues.length > 0) {
+        const mid = Math.floor(priceValues.length / 2);
+        if (priceValues.length % 2 === 0) {
+            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
+        } else {
+            weightedMedianPrice = priceValues[mid];
         }
     }
-}
 
-// ✅ Медианная УПРС — только с ненулевыми значениями
-const uprsQuarters = quarterStats.filter(q => q.medianUprs > 0);
-if (uprsQuarters.length > 0) {
-    const sortedByUprs = uprsQuarters.slice().sort((a, b) => a.medianUprs - b.medianUprs);
-    const totalWeightUprs = sortedByUprs.reduce((sum, q) => sum + q.count, 0);
-    let cumsum = 0;
-    for (const q of sortedByUprs) {
-        cumsum += q.count;
-        if (cumsum >= totalWeightUprs / 2) {
-            weightedMedianUprs = q.medianUprs;
-            break;
+    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
+    const uprsValues = quarterStats
+        .map(q => q.medianUprs)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (uprsValues.length > 0) {
+        const mid = Math.floor(uprsValues.length / 2);
+        if (uprsValues.length % 2 === 0) {
+            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
+        } else {
+            weightedMedianUprs = uprsValues[mid];
         }
     }
-}
-
-        // 🆕 УПКС
-    const upksQuarters = quarterStats.filter(q => q.medianUpks > 0);
-if (upksQuarters.length > 0) {
-    const sortedByUpks = upksQuarters.slice().sort((a, b) => a.medianUpks - b.medianUpks);
-    const totalWeightUpks = sortedByUpks.reduce((sum, q) => sum + q.count, 0);
-    let cumsumUpks = 0;
-    for (const q of sortedByUpks) {
-        cumsumUpks += q.count;
-        if (cumsumUpks >= totalWeightUpks / 2) {
-            weightedMedianUpks = q.medianUpks;
-            break;
+    
+    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
+    const upksValues = quarterStats
+        .map(q => q.medianUpks)
+        .filter(u => u > 0)
+        .sort((a, b) => a - b);
+    if (upksValues.length > 0) {
+        const mid = Math.floor(upksValues.length / 2);
+        if (upksValues.length % 2 === 0) {
+            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
+        } else {
+            weightedMedianUpks = upksValues[mid];
         }
     }
-}
-
-// ✅ Кадастровая стоимость — только с ненулевыми значениями
-const cadCostQuarters = quarterStats.filter(q => q.medianCadCost > 0);
-if (cadCostQuarters.length > 0) {
-    const sortedByCadCost = cadCostQuarters.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
-    const totalWeightCadCost = sortedByCadCost.reduce((sum, q) => sum + q.count, 0);
-    let cumsumCadCost = 0;
-    for (const q of sortedByCadCost) {
-        cumsumCadCost += q.count;
-        if (cumsumCadCost >= totalWeightCadCost / 2) {
-            weightedMedianCadCost = q.medianCadCost;
-            break;
+    
+    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
+    const cadCostValues = quarterStats
+        .map(q => q.medianCadCost)
+        .filter(c => c > 0)
+        .sort((a, b) => a - b);
+    if (cadCostValues.length > 0) {
+        const mid = Math.floor(cadCostValues.length / 2);
+        if (cadCostValues.length % 2 === 0) {
+            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
+        } else {
+            weightedMedianCadCost = cadCostValues[mid];
         }
     }
+    
+    minPrice = Math.min(...allMins);
+    maxPrice = Math.max(...allMaxs);
 }
-        
-        minPrice = Math.min(...allMins);
-        maxPrice = Math.max(...allMaxs);
-    }
     
     return `
     <div class="popup-title">📋 ${districtName}</div>
