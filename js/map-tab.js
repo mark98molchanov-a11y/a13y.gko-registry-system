@@ -1401,22 +1401,23 @@ const filteredDeals = deals.filter(deal => {
     }
     
     // ✅ ВЫЧИСЛЯЕМ СТАТИСТИКУ
-    const prices = allDeals.map(d => d.price).filter(p => p > 0).sort((a, b) => a - b);
-    const uprsValues = allDeals.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a - b);
-    
-    function getMedian(arr) {
-        if (arr.length === 0) return 0;
-        const mid = Math.floor(arr.length / 2);
-        if (arr.length % 2 === 0) {
-            return (arr[mid - 1] + arr[mid]) / 2;
-        }
-        return arr[mid];
+const prices = allDeals.map(d => d.price).filter(p => p > 0).sort((a, b) => a - b);
+const uprsValues = allDeals.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a - b);
+
+function getMedian(arr) {
+    if (arr.length === 0) return 0;
+    const mid = Math.floor(arr.length / 2);
+    if (arr.length % 2 === 0) {
+        return (arr[mid - 1] + arr[mid]) / 2;
     }
-    
-    const medianPrice = getMedian(prices);
-    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-    const medianUprs = getMedian(uprsValues);
+    return arr[mid];
+}
+
+// ✅ ПРОВЕРЯЕМ, ЧТО МАССИВ НЕ ПУСТОЙ
+const medianPrice = prices.length > 0 ? getMedian(prices) : 0;
+const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+const medianUprs = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
     
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
