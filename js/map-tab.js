@@ -3520,28 +3520,30 @@ if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return 
     });
     
     // ✅ ШАПКА ТАБЛИЦЫ ВСЕГДА ВИДНА
-let html = `
-    <table style="width: 100%; border-collapse: collapse; font-size: 10px; font-family: 'Inter', sans-serif; table-layout: fixed;">
-        <thead>
-            <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 60px;">Кад. номер</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 40px;">Площадь</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 50px;">Назначение</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 60px;">Кад. стоимость</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 45px;">УПКС</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 50px;">Город</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 50px;">Тип сделки</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 50px;">Тип объекта</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 40px;">ВРИ</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 45px;">Квартал</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 40px;">Год постр.</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 50px;">Материал стен</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 60px;">Цена сделки</th>
-                <th style="text-align: center; padding: 4px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 9px; width: 45px;">УПРС</th>
-            </tr>
-        </thead>
-        <tbody>
-`;
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Кад. номер</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Площадь</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Назначение</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Кад. стоимость</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">УПКС</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Город</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Тип сделки</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Тип объекта</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">ВРИ</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Квартал</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Год постр.</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Материал стен</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Цена сделки</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">УПРС</th>
+                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Назначение</th>
+<th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">ВРИ</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
     
     // Если нет сделок
     if (filteredDeals.length === 0) {
