@@ -3558,17 +3558,24 @@ function renderDealsTable() {
         return true;
     });
     
- filteredDeals.sort((a, b) => {
-    const cadCostA = a.cad_cost || 0;
-    const priceA = a.deal_price_rub || 0;
-    const diffA = priceA - cadCostA;
-    
-    const cadCostB = b.cad_cost || 0;
-    const priceB = b.deal_price_rub || 0;
-    const diffB = priceB - cadCostB;
-    
-    return diffB - diffA; // от самой высокой разницы к самой низкой
-});
+    // ✅ СОРТИРУЕМ ПО РАЗНИЦЕ (кадастр - цена) от самой низкой к самой высокой
+    filteredDeals.sort((a, b) => {
+        const cadCostA = a.cad_cost || 0;
+        const priceA = a.deal_price_rub || 0;
+        const diffA = cadCostA > 0 ? cadCostA - priceA : null;
+        
+        const cadCostB = b.cad_cost || 0;
+        const priceB = b.deal_price_rub || 0;
+        const diffB = cadCostB > 0 ? cadCostB - priceB : null;
+        
+        // Сначала идут сделки с кадастром, потом без кадастра
+        if (diffA === null && diffB === null) return 0;
+        if (diffA === null) return 1;
+        if (diffB === null) return -1;
+        
+        // Сортируем от самой низкой разницы (наибольшее отрицательное) к высокой
+        return diffA - diffB;
+    });
     
     // ✅ ИСПРАВЛЕНО: увеличен шрифт до 11px, колонки адаптивные
     let html = `
@@ -3610,26 +3617,32 @@ function renderDealsTable() {
         displayDeals.forEach((deal, index) => {
             const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
             
-            // ✅ ВЫЧИСЛЯЕМ РАЗНИЦУ
+            // ✅ ВЫЧИСЛЯЕМ РАЗНИЦУ (кадастр - цена)
             const cadCost = deal.cad_cost || 0;
             const price = deal.deal_price_rub || 0;
-            const diffAbs = price - cadCost;
-            const diffPercent = cadCost > 0 ? (diffAbs / cadCost) * 100 : null;
+            const hasCadCost = cadCost > 0;
             
-            // ✅ ЦВЕТ ДЛЯ РАЗНИЦЫ
+            let diffAbs = null;
+            let diffPercent = null;
             let diffColor = '#64748b';
             let diffPercentColor = '#64748b';
-            if (diffAbs > 0) {
-                diffColor = '#22c55e';      // зеленый — цена выше кадастра
-                diffPercentColor = '#22c55e';
-            } else if (diffAbs < 0) {
-                diffColor = '#ef4444';      // красный — цена ниже кадастра
-                diffPercentColor = '#ef4444';
+            
+            if (hasCadCost) {
+                diffAbs = cadCost - price;
+                diffPercent = (diffAbs / cadCost) * 100;
+                
+                if (diffAbs > 0) {
+                    diffColor = '#22c55e';      // зеленый — кадастр выше цены
+                    diffPercentColor = '#22c55e';
+                } else if (diffAbs < 0) {
+                    diffColor = '#ef4444';      // красный — цена выше кадастра
+                    diffPercentColor = '#ef4444';
+                }
             }
             
             // ✅ ФОРМАТИРОВАНИЕ
-            const diffAbsFormatted = diffAbs !== 0 ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
-            const diffPercentFormatted = diffPercent !== null && diffPercent !== 0 
+            const diffAbsFormatted = (hasCadCost && diffAbs !== 0) ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
+            const diffPercentFormatted = (hasCadCost && diffPercent !== null && diffPercent !== 0) 
                 ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%' 
                 : '—';
             
@@ -4121,17 +4134,20 @@ function exportDealsTableToExcel() {
         return true;
     });
     
-    // ✅ СОРТИРУЕМ ПО РАЗНИЦЕ (от самой высокой к самой низкой)
+    // ✅ СОРТИРУЕМ ПО РАЗНИЦЕ (кадастр - цена) от самой низкой к самой высокой
     filteredDeals.sort((a, b) => {
         const cadCostA = a.cad_cost || 0;
         const priceA = a.deal_price_rub || 0;
-        const diffA = priceA - cadCostA;
+        const diffA = cadCostA > 0 ? cadCostA - priceA : null;
         
         const cadCostB = b.cad_cost || 0;
         const priceB = b.deal_price_rub || 0;
-        const diffB = priceB - cadCostB;
+        const diffB = cadCostB > 0 ? cadCostB - priceB : null;
         
-        return diffB - diffA;
+        if (diffA === null && diffB === null) return 0;
+        if (diffA === null) return 1;
+        if (diffB === null) return -1;
+        return diffA - diffB;
     });
     
     if (filteredDeals.length === 0) {
@@ -4140,24 +4156,39 @@ function exportDealsTableToExcel() {
     }
     
     // ✅ ФОРМИРУЕМ ДАННЫЕ ДЛЯ ЭКСПОРТА (ВСЕ СДЕЛКИ)
-    const data = filteredDeals.map(deal => ({
-        'Кад. номер': deal.cad_number || 'nan',
-        'Площадь': deal.area ? deal.area.toFixed(1) : 'nan',
-        'Назначение': deal.purpose_text || 'nan',
-        'Кад. стоимость': deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan',
-        'УПКС': deal.upks ? deal.upks.toFixed(2) : 'nan',
-        'Город': deal.city || 'nan',
-        'Тип сделки': deal.deal_kind_text || 'nan',
-        'Тип объекта': deal.obj_kind_text || 'nan',
-        'ВРИ': deal.vri || 'nan',
-        'Квартал': deal.quarter || 'nan',
-        'Год постройки': deal.year_build || 'nan',
-        'Материал стен': deal.wall_material_name || 'nan',
-        'Цена сделки': deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan',
-        'УПРС': deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan',
-        'Разница (абс.)': (deal.deal_price_rub || 0) - (deal.cad_cost || 0) !== 0 ? ((deal.deal_price_rub || 0) - (deal.cad_cost || 0)).toLocaleString('ru-RU') + ' ₽' : '—',
-        'Разница (%)': (deal.cad_cost || 0) > 0 ? ((((deal.deal_price_rub || 0) - (deal.cad_cost || 0)) / (deal.cad_cost || 0)) * 100).toFixed(1) + '%' : '—'
-    }));
+    const data = filteredDeals.map(deal => {
+        const cadCost = deal.cad_cost || 0;
+        const price = deal.deal_price_rub || 0;
+        const hasCadCost = cadCost > 0;
+        
+        let diffAbs = '—';
+        let diffPercent = '—';
+        
+        if (hasCadCost) {
+            const diff = cadCost - price;
+            diffAbs = diff !== 0 ? diff.toLocaleString('ru-RU') + ' ₽' : '0 ₽';
+            diffPercent = (diff !== 0) ? ((diff / cadCost) * 100).toFixed(1) + '%' : '0%';
+        }
+        
+        return {
+            'Кад. номер': deal.cad_number || 'nan',
+            'Площадь': deal.area ? deal.area.toFixed(1) : 'nan',
+            'Назначение': deal.purpose_text || 'nan',
+            'Кад. стоимость': deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan',
+            'УПКС': deal.upks ? deal.upks.toFixed(2) : 'nan',
+            'Город': deal.city || 'nan',
+            'Тип сделки': deal.deal_kind_text || 'nan',
+            'Тип объекта': deal.obj_kind_text || 'nan',
+            'ВРИ': deal.vri || 'nan',
+            'Квартал': deal.quarter || 'nan',
+            'Год постройки': deal.year_build || 'nan',
+            'Материал стен': deal.wall_material_name || 'nan',
+            'Цена сделки': deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan',
+            'УПРС': deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan',
+            'Разница (абс.)': diffAbs,
+            'Разница (%)': diffPercent
+        };
+    });
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
