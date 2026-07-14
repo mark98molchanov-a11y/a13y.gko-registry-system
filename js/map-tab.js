@@ -3507,25 +3507,25 @@ function renderDealsTable() {
         return priceB - priceA;
     });
     
-    // ✅ ИСПРАВЛЕНО: table-layout: fixed + явные ширины колонок
+    // ✅ ИСПРАВЛЕНО: увеличен шрифт до 11px, колонки адаптивные
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 9px; font-family: 'Inter', sans-serif; table-layout: fixed;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
             <thead>
                 <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 8%;">Кад. номер</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">Площадь</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">Назначение</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Кад. стоимость</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">УПКС</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">Город</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Тип сделки</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Тип объекта</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">ВРИ</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">Квартал</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">Год постр.</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Материал стен</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 10%;">Цена сделки</th>
-                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">УПРС</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%;">Кад. номер</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%;">Площадь</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">Назначение</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Кад. стоимость</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%;">УПКС</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">Город</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Тип сделки</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Тип объекта</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%;">ВРИ</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">Квартал</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%;">Год постр.</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Материал стен</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 10%;">Цена сделки</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">УПРС</th>
                 </tr>
             </thead>
             <tbody>
@@ -3534,7 +3534,7 @@ function renderDealsTable() {
     if (filteredDeals.length === 0) {
         html += `
                 <tr>
-                    <td colspan="14" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 12px;">
+                    <td colspan="14" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
                         Нет данных для отображения
                     </td>
                 </tr>
@@ -3546,20 +3546,20 @@ function renderDealsTable() {
             const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
             html += `
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
-                    <td style="text-align: center; padding: 4px 4px; font-family: monospace; font-size: 8px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.year_build || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
                 </tr>
             `;
         });
