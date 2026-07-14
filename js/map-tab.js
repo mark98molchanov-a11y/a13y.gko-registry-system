@@ -3060,65 +3060,43 @@ if (levelName === 'district') {
     let allMins = [];
     let allMaxs = [];
     
- allQuarters.forEach(f => {
-    const cadNumFeature = f.properties.cadastral_number;
-    if (!cadNumFeature) return;
-    
-const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
-});
+    allQuarters.forEach(f => {
+        const cadNumFeature = f.properties.cadastral_number;
+        if (!cadNumFeature) return;
+        
+        const deals = dealsData[cadNum] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            return true;
+        });
         
         if (filteredDeals.length > 0) {
             totalDeals += filteredDeals.length;
             
             const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
             const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-             const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);      
-        const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+            const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);      
+            const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
             
             if (prices.length > 0) {
                 const medianPrice = getMedian(prices);
                 const medianUprs = getMedian(uprs);
                 const medianUpks = getMedian(upks);        
-            const medianCadCost = getMedian(cadCosts); 
+                const medianCadCost = getMedian(cadCosts); 
                 
                 quarterStats.push({
                     count: filteredDeals.length,
                     medianPrice: medianPrice,
                     medianUprs: medianUprs,
-                   medianUpks: medianUpks,       
-                medianCadCost: medianCadCost, 
+                    medianUpks: medianUpks,       
+                    medianCadCost: medianCadCost, 
                     min: Math.min(...prices),
                     max: Math.max(...prices)
                 });
@@ -3167,7 +3145,9 @@ const filteredDeals = deals.filter(deal => {
                 break;
             }
         }
-                const sortedByUpks = quarterStats.slice().sort((a, b) => a.medianUpks - b.medianUpks);
+        
+        // 🆕 УПКС
+        const sortedByUpks = quarterStats.slice().sort((a, b) => a.medianUpks - b.medianUpks);
         let cumsumUpks = 0;
         for (const q of sortedByUpks) {
             cumsumUpks += q.count;
@@ -3192,18 +3172,18 @@ const filteredDeals = deals.filter(deal => {
         maxPrice = Math.max(...allMaxs);
     }
     
-return `
-    <div class="popup-title">📋 ${districtName}</div>
-    <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-    ${totalDeals > 0 ? `
-    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${totalDeals.toLocaleString()}</span></div>
-    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${weightedMedianPrice.toLocaleString()} ₽</span></div>
-    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${weightedMedianUprs.toFixed(2)} ₽/м²</span></div>
-    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${weightedMedianUpks.toFixed(2)} ₽/м²</span></div>
-    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${weightedMedianCadCost.toLocaleString()} ₽</span></div>
-    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-`;
+    return `
+        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+        ${totalDeals > 0 ? `
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${totalDeals.toLocaleString()}</span></div>
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${weightedMedianPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${weightedMedianUprs.toFixed(2)} ₽/м²</span></div>
+        <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${weightedMedianUpks.toFixed(2)} ₽/м²</span></div>
+        <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${weightedMedianCadCost.toLocaleString()} ₽</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
 }
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
