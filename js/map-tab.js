@@ -2728,11 +2728,15 @@ const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
                 if (prices.length > 0) {
                     const medianPrice = getMedian(prices);
                     const medianUprs = getMedian(uprs);
+                     const medianUpks = getMedian(upks);
+            const medianCadCost = getMedian(cadCosts);
                     
                     quarterStats.push({
                         count: filteredDeals.length,
                         medianPrice: medianPrice,
                         medianUprs: medianUprs,
+                        medianUpks: medianUpks,
+                medianCadCost: medianCadCost,
                         min: Math.min(...prices),
                         max: Math.max(...prices)
                     });
@@ -3168,16 +3172,18 @@ const filteredDeals = deals.filter(deal => {
         maxPrice = Math.max(...allMaxs);
     }
     
-    return `
-        <div class="popup-title">📋 ${districtName}</div>
-        <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-        ${totalDeals > 0 ? `
-        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${totalDeals.toLocaleString()}</span></div>
-        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${weightedMedianPrice.toLocaleString()} ₽</span></div>
-        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${weightedMedianUprs.toFixed(2)} ₽/м²</span></div>
-        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-    `;
+return `
+    <div class="popup-title">📋 ${districtName}</div>
+    <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+    ${totalDeals > 0 ? `
+    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${totalDeals.toLocaleString()}</span></div>
+    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${weightedMedianPrice.toLocaleString()} ₽</span></div>
+    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${weightedMedianUprs.toFixed(2)} ₽/м²</span></div>
+    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${weightedMedianUpks.toFixed(2)} ₽/м²</span></div>
+    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${weightedMedianCadCost.toLocaleString()} ₽</span></div>
+    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+`;
 }
 if (levelName === 'quarter') {
     const cadNum = props.cadastral_number || '—';
