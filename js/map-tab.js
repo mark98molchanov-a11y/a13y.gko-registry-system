@@ -3558,11 +3558,17 @@ function renderDealsTable() {
         return true;
     });
     
-    filteredDeals.sort((a, b) => {
-        const priceA = a.deal_price_rub || 0;
-        const priceB = b.deal_price_rub || 0;
-        return priceB - priceA;
-    });
+ filteredDeals.sort((a, b) => {
+    const cadCostA = a.cad_cost || 0;
+    const priceA = a.deal_price_rub || 0;
+    const diffA = priceA - cadCostA;
+    
+    const cadCostB = b.cad_cost || 0;
+    const priceB = b.deal_price_rub || 0;
+    const diffB = priceB - cadCostB;
+    
+    return diffB - diffA; // от самой высокой разницы к самой низкой
+});
     
     // ✅ ИСПРАВЛЕНО: увеличен шрифт до 11px, колонки адаптивные
     let html = `
@@ -4115,11 +4121,17 @@ function exportDealsTableToExcel() {
         return true;
     });
     
-    // ✅ СОРТИРУЕМ ПО ЦЕНЕ (от дорогих к дешевым)
+    // ✅ СОРТИРУЕМ ПО РАЗНИЦЕ (от самой высокой к самой низкой)
     filteredDeals.sort((a, b) => {
+        const cadCostA = a.cad_cost || 0;
         const priceA = a.deal_price_rub || 0;
+        const diffA = priceA - cadCostA;
+        
+        const cadCostB = b.cad_cost || 0;
         const priceB = b.deal_price_rub || 0;
-        return priceB - priceA;
+        const diffB = priceB - cadCostB;
+        
+        return diffB - diffA;
     });
     
     if (filteredDeals.length === 0) {
@@ -4142,7 +4154,9 @@ function exportDealsTableToExcel() {
         'Год постройки': deal.year_build || 'nan',
         'Материал стен': deal.wall_material_name || 'nan',
         'Цена сделки': deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan',
-        'УПРС': deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'
+        'УПРС': deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan',
+        'Разница (абс.)': (deal.deal_price_rub || 0) - (deal.cad_cost || 0) !== 0 ? ((deal.deal_price_rub || 0) - (deal.cad_cost || 0)).toLocaleString('ru-RU') + ' ₽' : '—',
+        'Разница (%)': (deal.cad_cost || 0) > 0 ? ((((deal.deal_price_rub || 0) - (deal.cad_cost || 0)) / (deal.cad_cost || 0)) * 100).toFixed(1) + '%' : '—'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
