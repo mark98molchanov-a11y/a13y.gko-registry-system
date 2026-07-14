@@ -1422,6 +1422,8 @@ const filteredDeals = deals.filter(deal => {
 }
 
 function updateMapStatsFromDeals(level, parentId) {
+    const statUpks = document.getElementById('stat-upks');
+const statCadCost = document.getElementById('stat-cadcost');
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
     const statUprs = document.getElementById('stat-uprs');
@@ -1556,12 +1558,16 @@ const filteredDeals = deals.filter(deal => {
             
             const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
             const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+            const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
+const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
             
             if (prices.length > 0) {
                 quarterStats.push({
                     count: filteredDeals.length,
                     medianPrice: getMedian(prices),
                     medianUprs: getMedian(uprs),
+                    medianUpks: getMedian(upks),
+    medianCadCost: getMedian(cadCosts),
                     min: Math.min(...prices),
                     max: Math.max(...prices)
                 });
@@ -1633,6 +1639,8 @@ const filteredDeals = deals.filter(deal => {
         : '—';
     statUprs.textContent = formatUprs(weightedMedianUprs);
     statTotalDeals.textContent = totalDeals.toLocaleString();
+    if (statUpks) statUpks.textContent = formatUprs(weightedMedianUpks);
+if (statCadCost) statCadCost.textContent = formatPrice(weightedMedianCadCost);
     
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
@@ -1902,6 +1910,8 @@ const filteredDeals = deals.filter(deal => {
         <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
         <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
         <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
+        <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
+<div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
         ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
     `;
 }
@@ -2313,6 +2323,8 @@ const filteredDeals = deals.filter(deal => {
         const dealsCount = filteredDeals.length;
         const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
         const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
+const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
         
         function getMedian(arr) {
             if (arr.length === 0) return 0;
@@ -2328,6 +2340,8 @@ const filteredDeals = deals.filter(deal => {
         const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
         const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
         const uprsMedian = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
+    const upksMedian = upksValues.length > 0 ? getMedian(upksValues) : 0;
+const cadCostMedian = cadCostValues.length > 0 ? getMedian(cadCostValues) : 0;
         
         const tooltipContent = `
             <div class="popup-title">${cadNum}</div>
@@ -2336,6 +2350,8 @@ const filteredDeals = deals.filter(deal => {
             <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
             <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
             <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+            <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+<div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
             ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         `;
         
@@ -2681,6 +2697,8 @@ const filteredDeals = deals.filter(deal => {
                 
                 const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
                 const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+                const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
+const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
                 
                 allPrices = allPrices.concat(prices);
                 allUprs = allUprs.concat(uprs);
@@ -2739,7 +2757,26 @@ const filteredDeals = deals.filter(deal => {
                     break;
                 }
             }
-            
+        const sortedByUpks = quarterStats.slice().sort((a, b) => a.medianUpks - b.medianUpks);
+let cumsumUpks = 0;
+for (const q of sortedByUpks) {
+    cumsumUpks += q.count;
+    if (cumsumUpks >= totalWeight / 2) {
+        weightedMedianUpks = q.medianUpks;
+        break;
+    }
+}
+
+// 🆕 Медианная кадастровая стоимость
+const sortedByCadCost = quarterStats.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
+let cumsumCadCost = 0;
+for (const q of sortedByCadCost) {
+    cumsumCadCost += q.count;
+    if (cumsumCadCost >= totalWeight / 2) {
+        weightedMedianCadCost = q.medianCadCost;
+        break;
+    }
+}
             minPrice = Math.min(...allMins);
             maxPrice = Math.max(...allMaxs);
         }
@@ -2757,6 +2794,8 @@ const filteredDeals = deals.filter(deal => {
             <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
             <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
             <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
+            <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
+<div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
             ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         `;
         
@@ -2776,6 +2815,8 @@ const filteredDeals = deals.filter(deal => {
             <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
             <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
             <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
+            <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
+<div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
             ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         `;
         
@@ -3044,6 +3085,8 @@ const filteredDeals = deals.filter(deal => {
                     count: filteredDeals.length,
                     medianPrice: medianPrice,
                     medianUprs: medianUprs,
+                    medianUpks: getMedian(upks),
+    medianCadCost: getMedian(cadCosts),
                     min: Math.min(...prices),
                     max: Math.max(...prices)
                 });
@@ -3146,6 +3189,8 @@ const filteredDeals = deals.filter(deal => {
         const dealsCount = filteredDeals.length;
         const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
         const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
+const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
         
         function getMedian(arr) {
             if (arr.length === 0) return 0;
@@ -3161,6 +3206,8 @@ const filteredDeals = deals.filter(deal => {
         const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
         const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
         const uprsMedian = getMedian(uprsValues);
+    const upksMedian = getMedian(upksValues);
+const cadCostMedian = getMedian(cadCostValues);
         
         return `
             <div class="popup-title">${cadNum}</div>
@@ -3169,6 +3216,8 @@ const filteredDeals = deals.filter(deal => {
             <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
             <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
             <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+            <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+<div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
             ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         `;
     }
