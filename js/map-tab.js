@@ -218,7 +218,7 @@ renderVriFilters();
     }
 }
 function calculatePriceThresholds() {
-    console.log('📊 Расчет пороговых цен по типам сделок и муниципалитетам (5% низких и 5% высоких)...');
+    console.log('📊 Расчет пороговых цен по типам сделок и муниципалитетам (10% низких и 10% высоких)...');
     
     const thresholds = {};
     
@@ -233,49 +233,59 @@ function calculatePriceThresholds() {
             dealsByTypeAndCity[key] = {
                 kind: kind,
                 city: city,
-                prices: []
+                uprsPrices: [],
+                upksPrices: []
             };
         }
         if (deal.uprs_rub > 0) {
-            dealsByTypeAndCity[key].prices.push(deal.uprs_rub);
+            dealsByTypeAndCity[key].uprsPrices.push(deal.uprs_rub);
+        }
+        if (deal.upks > 0) {
+            dealsByTypeAndCity[key].upksPrices.push(deal.upks);
         }
     });
     
-    // Для каждой группы (тип + муниципалитет) вычисляем пороги
+    // Для каждой группы (тип + муниципалитет) вычисляем пороги для УПРС и УПКС
     Object.keys(dealsByTypeAndCity).forEach(key => {
         const group = dealsByTypeAndCity[key];
-        const prices = group.prices.sort((a, b) => a - b);
         
-        if (prices.length === 0) {
-            thresholds[key] = { 
-                min: 0, 
-                max: Infinity,
-                kind: group.kind,
-                city: group.city,
-                count: 0
-            };
-            return;
+        // ✅ Пороги для УПРС
+        const uprsPrices = group.uprsPrices.sort((a, b) => a - b);
+        // ✅ Пороги для УПКС
+        const upksPrices = group.upksPrices.sort((a, b) => a - b);
+        
+        const lowerPercent = 0.10;
+        const upperPercent = 0.90;
+        
+        // УПРС
+        let uprsMin = 0, uprsMax = Infinity;
+        if (uprsPrices.length > 0) {
+            const lowerIndex = Math.floor(uprsPrices.length * lowerPercent);
+            const upperIndex = Math.ceil(uprsPrices.length * upperPercent) - 1;
+            uprsMin = uprsPrices[lowerIndex] || 0;
+            uprsMax = uprsPrices[upperIndex] || uprsPrices[uprsPrices.length - 1];
         }
         
-        // 🔥 ИЗМЕНЕНИЕ: 5% вместо 10%
-        const lowerPercent = 0.10;   // ← было 0.10, стало 0.05
-        const upperPercent = 0.90;   // ← было 0.90, стало 0.95
-        
-        const lowerIndex = Math.floor(prices.length * lowerPercent);
-        const upperIndex = Math.ceil(prices.length * upperPercent) - 1;
-        
-        const minUprs = prices[lowerIndex] || 0;
-        const maxUprs = prices[upperIndex] || prices[prices.length - 1];
+        // УПКС
+        let upksMin = 0, upksMax = Infinity;
+        if (upksPrices.length > 0) {
+            const lowerIndex = Math.floor(upksPrices.length * lowerPercent);
+            const upperIndex = Math.ceil(upksPrices.length * upperPercent) - 1;
+            upksMin = upksPrices[lowerIndex] || 0;
+            upksMax = upksPrices[upperIndex] || upksPrices[upksPrices.length - 1];
+        }
         
         thresholds[key] = { 
-            min: minUprs, 
-            max: maxUprs,
+            uprsMin: uprsMin,
+            uprsMax: uprsMax,
+            upksMin: upksMin,
+            upksMax: upksMax,
             kind: group.kind,
             city: group.city,
-            count: prices.length
+            count: uprsPrices.length
         };
         
-        console.log(`   ${group.kind} | ${group.city}: ${prices.length} сделок, диапазон УПРС = ${minUprs.toFixed(2)} - ${maxUprs.toFixed(2)} ₽/м²`);
+        console.log(`   ${group.kind} | ${group.city}: ${uprsPrices.length} сделок, УПРС = ${uprsMin.toFixed(2)} - ${uprsMax.toFixed(2)} ₽/м², УПКС = ${upksMin.toFixed(2)} - ${upksMax.toFixed(2)} ₽/м²`);
     });
     
     console.log('✅ Пороговые цены рассчитаны (по типам сделок и муниципалитетам)');
@@ -296,10 +306,16 @@ function filterDealsByPriceThreshold(thresholds) {
         if (!threshold) return true;
         
         const uprs = deal.uprs_rub;
-        return uprs >= threshold.min && uprs <= threshold.max;
+        const upks = deal.upks;
+        
+        // ✅ Проверяем и УПРС, и УПКС
+        const uprsOk = uprs >= threshold.uprsMin && uprs <= threshold.uprsMax;
+        const upksOk = upks >= threshold.upksMin && upks <= threshold.upksMax;
+        
+        // Сделка проходит, если И УПРС, И УПКС в допустимом диапазоне
+        return uprsOk && upksOk;
     });
 }
-
 function rebuildDealsData(filteredDeals) {
     // Очищаем старые данные
     dealsData = {};
