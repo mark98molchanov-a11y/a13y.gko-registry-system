@@ -3008,7 +3008,7 @@ if (quarterStats.length > 0) {
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
- layer.on('mouseover', function(e) {
+layer.on('mouseover', function(e) {
     if (!this || !this.setStyle) return;
     
     const lvl = feature?.properties?.level || 0;
@@ -3018,14 +3018,15 @@ if (quarterStats.length > 0) {
         const cadNum = feature?.properties?.cadastral_number;
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
-if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
-if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
-if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            // ✅ ИСПРАВЛЕНО: используем правильные имена полей
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             return true;
         });
         const count = filteredDeals.length;
@@ -3049,8 +3050,7 @@ if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return 
     }
 });
 
-    // ===== 🖱️ УХОД МЫШИ =====
-  // ===== 🖱️ УХОД МЫШИ =====
+// ===== 🖱️ УХОД МЫШИ =====
 layer.on('mouseout', function(e) {
     if (!this || !this.setStyle || !feature) return;
     
@@ -3061,14 +3061,15 @@ layer.on('mouseout', function(e) {
     if (level === 2) {
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
-if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
-if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
-if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            // ✅ ИСПРАВЛЕНО: используем правильные имена полей
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             return true;
         });
         const filteredCount = filteredDeals.length;
