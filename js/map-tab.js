@@ -3581,8 +3581,10 @@ function renderDealsTable() {
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">Квартал</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%;">Год постр.</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Материал стен</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 10%;">Цена сделки</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Цена сделки</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">УПРС</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%;">Разница (абс.)</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%;">Разница (%)</th>
                 </tr>
             </thead>
             <tbody>
@@ -3591,7 +3593,7 @@ function renderDealsTable() {
     if (filteredDeals.length === 0) {
         html += `
                 <tr>
-                    <td colspan="14" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
+                    <td colspan="16" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
                         Нет данных для отображения
                     </td>
                 </tr>
@@ -3601,6 +3603,30 @@ function renderDealsTable() {
         
         displayDeals.forEach((deal, index) => {
             const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+            
+            // ✅ ВЫЧИСЛЯЕМ РАЗНИЦУ
+            const cadCost = deal.cad_cost || 0;
+            const price = deal.deal_price_rub || 0;
+            const diffAbs = price - cadCost;
+            const diffPercent = cadCost > 0 ? (diffAbs / cadCost) * 100 : null;
+            
+            // ✅ ЦВЕТ ДЛЯ РАЗНИЦЫ
+            let diffColor = '#64748b';
+            let diffPercentColor = '#64748b';
+            if (diffAbs > 0) {
+                diffColor = '#22c55e';      // зеленый — цена выше кадастра
+                diffPercentColor = '#22c55e';
+            } else if (diffAbs < 0) {
+                diffColor = '#ef4444';      // красный — цена ниже кадастра
+                diffPercentColor = '#ef4444';
+            }
+            
+            // ✅ ФОРМАТИРОВАНИЕ
+            const diffAbsFormatted = diffAbs !== 0 ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
+            const diffPercentFormatted = diffPercent !== null && diffPercent !== 0 
+                ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%' 
+                : '—';
+            
             html += `
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
                     <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
@@ -3617,6 +3643,8 @@ function renderDealsTable() {
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${diffPercentColor}; font-weight: 600; font-size: 10px;">${diffPercentFormatted}</td>
                 </tr>
             `;
         });
