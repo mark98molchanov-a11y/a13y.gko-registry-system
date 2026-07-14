@@ -1544,74 +1544,54 @@ allQuarters.forEach(f => {
     const cadNum = f.properties?.cadastral_number;
     if (!cadNum) return;
     
-  const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
-});
-        if (filteredDeals.length > 0) {
-            totalDeals += filteredDeals.length;
-            quartersWithDeals.push(cadNum);
-            
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-            const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
-const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-            
-            if (prices.length > 0) {
-                quarterStats.push({
-                    count: filteredDeals.length,
-                    medianPrice: getMedian(prices),
-                    medianUprs: getMedian(uprs),
-                    medianUpks: getMedian(upks),
-    medianCadCost: getMedian(cadCosts),
-                    min: Math.min(...prices),
-                    max: Math.max(...prices)
-                });
-                allMins.push(Math.min(...prices));
-                allMaxs.push(Math.max(...prices));
-            }
-        }
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
     });
     
-    function getMedian(arr) {
-        if (arr.length === 0) return 0;
-        const sorted = arr.slice().sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        if (sorted.length % 2 === 0) {
-            return (sorted[mid - 1] + sorted[mid]) / 2;
+    if (filteredDeals.length > 0) {
+        totalDeals += filteredDeals.length;
+        quartersWithDeals.push(cadNum);
+        
+        const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+        const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+        const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
+        const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+        
+        quarterStats.push({
+            count: filteredDeals.length,
+            medianPrice: prices.length > 0 ? getMedian(prices) : 0,
+            medianUprs: uprs.length > 0 ? getMedian(uprs) : 0,
+            medianUpks: upks.length > 0 ? getMedian(upks) : 0,
+            medianCadCost: cadCosts.length > 0 ? getMedian(cadCosts) : 0,
+            min: prices.length > 0 ? Math.min(...prices) : 0,
+            max: prices.length > 0 ? Math.max(...prices) : 0
+        });
+        
+        if (prices.length > 0) {
+            allMins.push(Math.min(...prices));
+            allMaxs.push(Math.max(...prices));
         }
-        return sorted[mid];
     }
+});
+
+function getMedian(arr) {
+    if (arr.length === 0) return 0;
+    const sorted = arr.slice().sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+        return (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+    return sorted[mid];
+}
     
       let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
