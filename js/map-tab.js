@@ -2082,7 +2082,16 @@ const filtered = deals.filter(d => {
 function updateQuartersStyle(targetObjects) {
     if (!window.mapLayer) return;
     
-    console.log(`🎨 Обновление стилей кварталов с фильтром: ${currentDealTypeFilter}`);
+    console.log(`🎨 Обновление стилей кварталов с фильтрами:`, {
+        dealType: currentDealTypeFilter,
+        city: currentCityFilter,
+        objectType: currentObjectTypeFilter,
+        wallMaterial: currentWallMaterialFilter,
+        quarter: currentQuarterFilter,
+        yearBuild: currentYearBuildFilter,
+        purpose: currentPurposeFilter,
+        vri: currentVriFilter
+    });
     
     window.mapLayer.eachLayer(function(layer) {
         if (layer.feature && layer.feature.properties) {
@@ -2091,44 +2100,45 @@ function updateQuartersStyle(targetObjects) {
             
             if (!cadNum) return;
             
-            // Получаем сделки для этого квартала с учетом фильтра
-const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
-});
+            // ✅ ПОЛУЧАЕМ СДЕЛКИ С УЧЕТОМ ВСЕХ ФИЛЬТРОВ
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
+                    return false;
+                }
+                // ✅ ФИЛЬТР ПО ГОРОДУ
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
+                    return false;
+                }
+                // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
+                    return false;
+                }
+                // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
+                    return false;
+                }
+                // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
+                    return false;
+                }
+                // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
+                    return false;
+                }
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
+                    return false;
+                }
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+                    return false;
+                }
+                return true;
+            });
+            
             const dealsCount = filteredDeals.length;
             
-            // Применяем стиль в зависимости от количества сделок
+            // ✅ ПРИМЕНЯЕМ СТИЛЬ В ЗАВИСИМОСТИ ОТ КОЛИЧЕСТВА ОТФИЛЬТРОВАННЫХ СДЕЛОК
             const hasDeals = dealsCount > 0;
             const fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
             
@@ -2142,6 +2152,8 @@ const filteredDeals = deals.filter(deal => {
             });
         }
     });
+    
+    console.log('✅ Стили кварталов обновлены с учетом всех фильтров');
 }
 
 // ============================================================
