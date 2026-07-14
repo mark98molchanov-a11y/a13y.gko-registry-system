@@ -3472,80 +3472,65 @@ function renderDealsTable() {
     const container = document.getElementById('deals-table-container');
     if (!container) return;
     
-    // ✅ Получаем выбранный квартал (если есть)
     const selectedQuarter = window.selectedQuarterCadNumber || null;
     
-    // Получаем все сделки с учетом фильтров
-let filteredDeals = allDealsFlat.filter(deal => {
-    // ✅ ПРИОРИТЕТ ФИЛЬТРОВ:
-    // 1. Если выбран КВАРТАЛ (НЕ обертка) — показываем только его сделки
-    // 2. Если выбран РАЙОН — показываем только сделки района
-    // 3. Если выбрана ОБЕРТКА — показываем только сделки обертки
-    
-    // ✅ Проверяем, обертка ли это
-    const isWrapperSelected = selectedQuarter ? (
-        selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
-    ) : false;
-    
-    if (selectedQuarter) {
-        if (isWrapperSelected) {
-            // ✅ ОБЕРТКА: показываем ТОЛЬКО сделки с точным номером обертки
-            if (deal.cad_number !== selectedQuarter) return false;
-        } else {
-            // ✅ ОБЫЧНЫЙ КВАРТАЛ: показываем ТОЛЬКО сделки этого квартала
-            if (deal.cad_number !== selectedQuarter) return false;
+    let filteredDeals = allDealsFlat.filter(deal => {
+        const isWrapperSelected = selectedQuarter ? (
+            selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
+        ) : false;
+        
+        if (selectedQuarter) {
+            if (isWrapperSelected) {
+                if (deal.cad_number !== selectedQuarter) return false;
+            } else {
+                if (deal.cad_number !== selectedQuarter) return false;
+            }
+        } else if (currentDistrictFilter) {
+            const prefix = String(currentDistrictFilter).substring(0, 5);
+            if (!deal.cad_number.startsWith(prefix)) return false;
         }
-    } else if (currentDistrictFilter) {
-        // ✅ РАЙОН: показываем ТОЛЬКО сделки района
-        const prefix = String(currentDistrictFilter).substring(0, 5);
-        if (!deal.cad_number.startsWith(prefix)) return false;
-    }
         
         if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
-if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
-if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
-if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
         return true;
     });
     
-    // ✅ СОРТИРОВКА ПО ЦЕНЕ (от дорогих к дешевым)
     filteredDeals.sort((a, b) => {
         const priceA = a.deal_price_rub || 0;
         const priceB = b.deal_price_rub || 0;
-        return priceB - priceA; // по убыванию
+        return priceB - priceA;
     });
     
-    // ✅ ШАПКА ТАБЛИЦЫ ВСЕГДА ВИДНА
+    // ✅ ИСПРАВЛЕНО: table-layout: fixed + явные ширины колонок
     let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; font-family: 'Inter', sans-serif; table-layout: fixed;">
             <thead>
                 <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Кад. номер</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Площадь</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Назначение</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Кад. стоимость</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">УПКС</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Город</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Тип сделки</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Тип объекта</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">ВРИ</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Квартал</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Год постр.</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Материал стен</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Цена сделки</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">УПРС</th>
-                    <th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">Назначение</th>
-<th style="text-align: center; padding: 6px 8px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px;">ВРИ</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 8%;">Кад. номер</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">Площадь</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">Назначение</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Кад. стоимость</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">УПКС</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">Город</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Тип сделки</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Тип объекта</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">ВРИ</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">Квартал</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 5%;">Год постр.</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 7%;">Материал стен</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 10%;">Цена сделки</th>
+                    <th style="text-align: center; padding: 4px 4px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 8px; width: 6%;">УПРС</th>
                 </tr>
             </thead>
             <tbody>
     `;
     
-    // Если нет сделок
     if (filteredDeals.length === 0) {
         html += `
                 <tr>
@@ -3555,29 +3540,26 @@ if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return 
                 </tr>
         `;
     } else {
-        // Берем первые 100 сделок
         const displayDeals = filteredDeals.slice(0, 100);
         
         displayDeals.forEach((deal, index) => {
             const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
             html += `
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
-                    <td style="text-align: center; padding: 5px 8px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.year_build || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
-<td style="text-align: center; padding: 5px 8px; color: #1e293b; font-weight: 400; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; font-family: monospace; font-size: 8px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.year_build || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 4px 4px; color: #1e293b; font-weight: 400; font-size: 8px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
                 </tr>
             `;
         });
@@ -3590,6 +3572,7 @@ if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return 
     
     container.innerHTML = html;
 }
+
 function getSelectedQuarter() {
     // Проверяем, есть ли выбранный квартал на карте
     if (window.selectedQuarterCadNumber) {
