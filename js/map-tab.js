@@ -210,7 +210,13 @@ if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
         renderYearBuildFilters();
         renderDealsTable(); 
         renderPurposeFilters();
-renderVriFilters();
+        renderVriFilters();
+        
+        // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ ПОСЛЕ ЗАГРУЗКИ ДАННЫХ
+        if (mapData) {
+            console.log('🔄 Перерисовка карты после загрузки CSV...');
+            renderMapLevel(currentLevel || 0, currentParentId);
+        }
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -2138,32 +2144,38 @@ function initMapTab(containerId) {
         return;
     }
 
-    // Если карта уже есть — не создаём заново
     if (container._leaflet_id) {
         console.log('⚠️ Карта уже инициализирована');
         return;
     }
 
-    // Создаём карту внутри контейнера
-mapInstance = L.map(container, {
-    center: [66.0, 76.0],
-    zoom: 5,
-    zoomControl: true,
-    boxZoom: false 
-});
+    mapInstance = L.map(container, {
+        center: [66.0, 76.0],
+        zoom: 5,
+        zoomControl: true,
+        boxZoom: false 
+    });
 
-// ✅ УБИРАЕМ АТРИБУЦИЮ (Leaflet | © OpenStreetMap)
-mapInstance.attributionControl.remove();
+    mapInstance.attributionControl.remove();
 
-// Базовый слой
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
-}).addTo(mapInstance);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(mapInstance);
 
-// Загружаем данные
-loadMapData();
-loadDealsCSV();
+    // ✅ ЗАГРУЖАЕМ ДАННЫЕ ПАРАЛЛЕЛЬНО
+    Promise.all([
+        loadMapData(),
+        loadDealsCSV()
+    ]).then(() => {
+        console.log('✅ Карта и данные загружены!');
+        // После загрузки обоих — перерисовываем карту
+        if (mapData) {
+            renderMapLevel(currentLevel || 0, currentParentId);
+        }
+    }).catch(error => {
+        console.error('❌ Ошибка загрузки:', error);
+    });
 }
 
 // ============================================================
@@ -2177,14 +2189,19 @@ async function loadMapData() {
         mapData = await response.json();
         console.log('✅ Данные карты загружены:', mapData.features?.length || 0);
         
-        // Показываем начальный уровень
-        renderMapLevel(0);
+        // ✅ ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ ДАННЫЕ О СДЕЛКАХ
+        if (Object.keys(dealsData).length > 0) {
+            // Если данные уже есть — сразу рисуем карту
+            renderMapLevel(0);
+        } else {
+            // Если данных нет — показываем заглушку
+            console.log('⏳ Ожидаем загрузку данных о сделках...');
+        }
     } catch (error) {
         console.error('❌ Ошибка загрузки:', error);
         showMapError(error.message);
     }
 }
-
 // ============================================================
 // ОТРИСОВКА УРОВНЯ
 // ============================================================
