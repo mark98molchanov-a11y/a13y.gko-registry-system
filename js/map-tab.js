@@ -4017,48 +4017,74 @@ function exportDealsTableToExcel() {
         return;
     }
     
-    const table = container.querySelector('table');
-    if (!table) {
-        alert('Нет данных для экспорта');
-        return;
-    }
+    // ✅ БЕРЁМ ВСЕ СДЕЛКИ С ФИЛЬТРАМИ, А НЕ ТОЛЬКО 100
+    const selectedQuarter = window.selectedQuarterCadNumber || null;
     
-    // Собираем данные
-    const rows = table.querySelectorAll('tr');
-    const data = [];
-    
-    // Заголовки
-    const headers = [];
-    const headerCells = rows[0].querySelectorAll('th');
-    headerCells.forEach(th => {
-        headers.push(th.textContent.trim());
-    });
-    data.push(headers);
-    
-    // Данные
-    for (let i = 1; i < rows.length; i++) {
-        const rowData = [];
-        const cells = rows[i].querySelectorAll('td');
-        cells.forEach(td => {
-            rowData.push(td.textContent.trim());
-        });
-        if (rowData.length > 0) {
-            data.push(rowData);
+    let filteredDeals = allDealsFlat.filter(deal => {
+        const isWrapperSelected = selectedQuarter ? (
+            selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
+        ) : false;
+        
+        if (selectedQuarter) {
+            if (isWrapperSelected) {
+                if (deal.cad_number !== selectedQuarter) return false;
+            } else {
+                if (deal.cad_number !== selectedQuarter) return false;
+            }
+        } else if (currentDistrictFilter) {
+            const prefix = String(currentDistrictFilter).substring(0, 5);
+            if (!deal.cad_number.startsWith(prefix)) return false;
         }
-    }
+        
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
     
-    if (data.length <= 1) {
+    // ✅ СОРТИРУЕМ ПО ЦЕНЕ (от дорогих к дешевым)
+    filteredDeals.sort((a, b) => {
+        const priceA = a.deal_price_rub || 0;
+        const priceB = b.deal_price_rub || 0;
+        return priceB - priceA;
+    });
+    
+    if (filteredDeals.length === 0) {
         alert('Нет данных для экспорта');
         return;
     }
     
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(data);
+    // ✅ ФОРМИРУЕМ ДАННЫЕ ДЛЯ ЭКСПОРТА (ВСЕ СДЕЛКИ)
+    const data = filteredDeals.map(deal => ({
+        'Кад. номер': deal.cad_number || 'nan',
+        'Площадь': deal.area ? deal.area.toFixed(1) : 'nan',
+        'Назначение': deal.purpose_text || 'nan',
+        'Кад. стоимость': deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan',
+        'УПКС': deal.upks ? deal.upks.toFixed(2) : 'nan',
+        'Город': deal.city || 'nan',
+        'Тип сделки': deal.deal_kind_text || 'nan',
+        'Тип объекта': deal.obj_kind_text || 'nan',
+        'ВРИ': deal.vri || 'nan',
+        'Квартал': deal.quarter || 'nan',
+        'Год постройки': deal.year_build || 'nan',
+        'Материал стен': deal.wall_material_name || 'nan',
+        'Цена сделки': deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan',
+        'УПРС': deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'
+    }));
     
-    // Автоширина
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Сделки");
+    
+    // Автоширина колонок
     const colWidths = [];
     data.forEach(row => {
-        row.forEach((cell, idx) => {
+        Object.values(row).forEach((cell, idx) => {
             const len = String(cell).length;
             if (!colWidths[idx] || len > colWidths[idx]) {
                 colWidths[idx] = Math.min(len + 2, 30);
@@ -4067,12 +4093,10 @@ function exportDealsTableToExcel() {
     });
     ws['!cols'] = colWidths.map(w => ({ wch: w }));
     
-    XLSX.utils.book_append_sheet(wb, ws, "Сделки");
-    
     const fileName = `Сделки_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
     
-    console.log(`📊 Экспортировано ${data.length - 1} строк в ${fileName}`);
+    console.log(`📊 Экспортировано ${filteredDeals.length} сделок в Excel`);
 }
 // ============================================================
 // ЭКСПОРТ ФУНКЦИЙ
