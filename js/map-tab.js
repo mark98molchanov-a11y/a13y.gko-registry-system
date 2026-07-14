@@ -1589,6 +1589,8 @@ const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
     
     let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
+    let weightedMedianUpks = 0;      
+    let weightedMedianCadCost = 0; 
     let minPrice = 0;
     let maxPrice = 0;
     
@@ -1617,7 +1619,26 @@ const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
         minPrice = Math.min(...allMins);
         maxPrice = Math.max(...allMaxs);
     }
+        const sortedByUpks = quarterStats.slice().sort((a, b) => a.medianUpks - b.medianUpks);
+    let cumsumUpks = 0;
+    for (const q of sortedByUpks) {
+        cumsumUpks += q.count;
+        if (cumsumUpks >= totalWeight / 2) {
+            weightedMedianUpks = q.medianUpks;
+            break;
+        }
+    }
     
+    // 🆕 Медианная кадастровая стоимость
+    const sortedByCadCost = quarterStats.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
+    let cumsumCadCost = 0;
+    for (const q of sortedByCadCost) {
+        cumsumCadCost += q.count;
+        if (cumsumCadCost >= totalWeight / 2) {
+            weightedMedianCadCost = q.medianCadCost;
+            break;
+        }
+    }
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
         return num.toLocaleString('ru-RU') + ' ₽';
@@ -1869,6 +1890,8 @@ const filteredDeals = deals.filter(deal => {
     
     let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
+    let weightedMedianUpks = 0;      
+    let weightedMedianCadCost = 0; 
     let minPrice = 0;
     let maxPrice = 0;
     
@@ -2733,6 +2756,8 @@ const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
         
         let weightedMedianPrice = 0;
         let weightedMedianUprs = 0;
+    let weightedMedianUpks = 0;      
+    let weightedMedianCadCost = 0; 
         let minPrice = 0;
         let maxPrice = 0;
         
@@ -3109,6 +3134,8 @@ const filteredDeals = deals.filter(deal => {
     
     let weightedMedianPrice = 0;
     let weightedMedianUprs = 0;
+    let weightedMedianUpks = 0;      
+    let weightedMedianCadCost = 0; 
     let minPrice = 0;
     let maxPrice = 0;
     
