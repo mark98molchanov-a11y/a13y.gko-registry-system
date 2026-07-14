@@ -3167,6 +3167,26 @@ const filteredDeals = deals.filter(deal => {
                 break;
             }
         }
+                const sortedByUpks = quarterStats.slice().sort((a, b) => a.medianUpks - b.medianUpks);
+        let cumsumUpks = 0;
+        for (const q of sortedByUpks) {
+            cumsumUpks += q.count;
+            if (cumsumUpks >= totalWeight / 2) {
+                weightedMedianUpks = q.medianUpks;
+                break;
+            }
+        }
+        
+        // 🆕 Кадастровая стоимость
+        const sortedByCadCost = quarterStats.slice().sort((a, b) => a.medianCadCost - b.medianCadCost);
+        let cumsumCadCost = 0;
+        for (const q of sortedByCadCost) {
+            cumsumCadCost += q.count;
+            if (cumsumCadCost >= totalWeight / 2) {
+                weightedMedianCadCost = q.medianCadCost;
+                break;
+            }
+        }
         
         minPrice = Math.min(...allMins);
         maxPrice = Math.max(...allMaxs);
