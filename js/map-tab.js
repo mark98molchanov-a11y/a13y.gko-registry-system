@@ -428,7 +428,9 @@ function renderDealTypeFilters() {
     const container = document.getElementById('deal-type-filters');
     if (!container) return;
     
-    const types = Object.keys(dealTypes).sort((a, b) => dealTypes[b] - dealTypes[a]);
+    const types = Object.keys(dealTypes)
+    .map(k => k.trim())  // ← Удаляем пробелы в начале и конце
+    .sort((a, b) => dealTypes[b] - dealTypes[a]);
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
