@@ -443,7 +443,7 @@ function renderDealTypeFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы сделок</span>
-            <button onclick="toggleAllDealTypes(${JSON.stringify(types)})" 
+            <button onclick="toggleAllDealTypes(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -512,7 +512,7 @@ function renderCityFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Районы</span>
-            <button onclick="toggleAllCities(${JSON.stringify(cities)})" 
+            <button onclick="toggleAllCities(${JSON.stringify(cities).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -581,7 +581,7 @@ function renderObjectTypeFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы объектов</span>
-            <button onclick="toggleAllObjectTypes(${JSON.stringify(types)})" 
+            <button onclick="toggleAllObjectTypes(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -650,7 +650,7 @@ function renderWallMaterialFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Материал стен</span>
-            <button onclick="toggleAllWallMaterials(${JSON.stringify(types)})" 
+           <button onclick="toggleAllWallMaterials(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -727,7 +727,7 @@ function renderYearBuildFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Год постройки</span>
-            <button onclick="toggleAllYearBuilds(${JSON.stringify(types)})" 
+            <button onclick="toggleAllYearBuilds(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -814,7 +814,7 @@ function renderQuarterFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Квартал</span>
-            <button onclick="toggleAllQuarters(${JSON.stringify(types)})" 
+            <button onclick="toggleAllQuarters(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -883,7 +883,7 @@ function renderVriFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">ВРИ</span>
-            <button onclick="toggleAllVri(${JSON.stringify(types)})" 
+            <button onclick="toggleAllVri(${JSON.stringify(types).replace(/"/g, '&quot;')})" 
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -952,7 +952,7 @@ function renderPurposeFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Назначение</span>
-            <button onclick="toggleAllPurposes(${JSON.stringify(types)})" 
+            <button onclick="toggleAllPurposes(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
