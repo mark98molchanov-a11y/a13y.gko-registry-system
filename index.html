@@ -4023,13 +4023,13 @@ function switchTab(tabName) {
     const resetBtn = document.querySelector('button[onclick="hardResetCurrent()"]');
     const resetBtnText = document.getElementById('resetBtnText');
     
-    if (resetBtn) {
-        if (tabName === 'dio') {
-            resetBtn.style.display = 'none';
-        } else {
-            resetBtn.style.display = 'inline-flex';
-        }
+if (resetBtn) {
+    if (tabName === 'dio' || tabName === 'valuation' || tabName === 'map') {
+        resetBtn.style.display = 'none';
+    } else {
+        resetBtn.style.display = 'inline-flex';
     }
+}
     // ===== КОНЕЦ УПРАВЛЕНИЯ КНОПКОЙ СБРОСА =====
     
     if (tabName === 'dio') {
