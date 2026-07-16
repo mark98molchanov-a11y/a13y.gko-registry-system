@@ -434,8 +434,32 @@ function renderDealTypeFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    // Определяем, все ли типы выбраны
+    const allSelected = types.every(kind => currentDealTypeFilter.includes(kind));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы сделок</span>
+            <button onclick="toggleAllDealTypes(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -480,8 +504,31 @@ function renderCityFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = cities.every(city => currentCityFilter.includes(city));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Районы</span>
+            <button onclick="toggleAllCities(${JSON.stringify(cities)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -489,7 +536,6 @@ function renderCityFilters() {
     cities.forEach(city => {
         const count = cityTypes[city];
         const isActive = currentCityFilter.includes(city);
-        // Обрезаем длинные названия
         const shortName = city.length > 15 ? city.substring(0, 14) + '…' : city;
         
         html += `
@@ -527,8 +573,31 @@ function renderObjectTypeFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = types.every(type => currentObjectTypeFilter.includes(type));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы объектов</span>
+            <button onclick="toggleAllObjectTypes(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -573,8 +642,31 @@ function renderWallMaterialFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = types.every(type => currentWallMaterialFilter.includes(type));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Материал стен</span>
+            <button onclick="toggleAllWallMaterials(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -627,8 +719,31 @@ function renderYearBuildFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = types.every(type => currentYearBuildFilter.includes(type));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Год постройки</span>
+            <button onclick="toggleAllYearBuilds(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -691,8 +806,31 @@ function renderQuarterFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = types.every(type => currentQuarterFilter.includes(type));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Квартал</span>
+            <button onclick="toggleAllQuarters(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -737,8 +875,31 @@ function renderVriFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = types.every(type => currentVriFilter.includes(type));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">ВРИ</span>
+            <button onclick="toggleAllVri(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -783,8 +944,31 @@ function renderPurposeFilters() {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
+
+    const allSelected = types.every(type => currentPurposeFilter.includes(type));
     
     let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Назначение</span>
+            <button onclick="toggleAllPurposes(${JSON.stringify(types)})" 
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
         <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
             <tbody>
     `;
@@ -818,6 +1002,133 @@ function renderPurposeFilters() {
     `;
     
     container.innerHTML = html;
+}
+function toggleAllDealTypes(types) {
+    const allSelected = types.every(kind => currentDealTypeFilter.includes(kind));
+    if (allSelected) {
+        currentDealTypeFilter = [];
+    } else {
+        currentDealTypeFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllCities(cities) {
+    const allSelected = cities.every(city => currentCityFilter.includes(city));
+    if (allSelected) {
+        currentCityFilter = [];
+    } else {
+        currentCityFilter = [...cities];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllObjectTypes(types) {
+    const allSelected = types.every(type => currentObjectTypeFilter.includes(type));
+    if (allSelected) {
+        currentObjectTypeFilter = [];
+    } else {
+        currentObjectTypeFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllWallMaterials(types) {
+    const allSelected = types.every(type => currentWallMaterialFilter.includes(type));
+    if (allSelected) {
+        currentWallMaterialFilter = [];
+    } else {
+        currentWallMaterialFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllQuarters(types) {
+    const allSelected = types.every(type => currentQuarterFilter.includes(type));
+    if (allSelected) {
+        currentQuarterFilter = [];
+    } else {
+        currentQuarterFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllYearBuilds(types) {
+    const allSelected = types.every(type => currentYearBuildFilter.includes(type));
+    if (allSelected) {
+        currentYearBuildFilter = [];
+    } else {
+        currentYearBuildFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllPurposes(types) {
+    const allSelected = types.every(type => currentPurposeFilter.includes(type));
+    if (allSelected) {
+        currentPurposeFilter = [];
+    } else {
+        currentPurposeFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+function toggleAllVri(types) {
+    const allSelected = types.every(type => currentVriFilter.includes(type));
+    if (allSelected) {
+        currentVriFilter = [];
+    } else {
+        currentVriFilter = [...types];
+    }
+    applyFiltersAndUpdate();
+}
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ПОСЛЕ ИЗМЕНЕНИЯ ФИЛЬТРОВ
+// ============================================================
+
+function applyFiltersAndUpdate() {
+    // Перерисовываем все фильтры
+    renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderPurposeFilters();
+    renderVriFilters();
+    
+    // Обновляем карту и таблицу
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function applyDealTypeFilter(kind) {
     // ✅ МНОЖЕСТВЕННЫЙ ВЫБОР: добавляем или удаляем значение
