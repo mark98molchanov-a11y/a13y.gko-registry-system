@@ -1859,84 +1859,66 @@ const statCadCost = document.getElementById('stat-cadcost');
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
     
-    const quartersList = document.getElementById('quarters-list');
-    if (quartersList) {
- const sortedQuarters = allQuarters.filter(f => {
-    const cadNum = f.properties?.cadastral_number;
-    if (!cadNum) return false;
-    const deals = dealsData[cadNum] || [];
-    const filtered = deals.filter(d => {
-        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
-        if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
-        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
-        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
-        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
-        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
-        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
-        if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-        return true;
+  const quartersList = document.getElementById('quarters-list');
+if (quartersList) {
+    // Функция для подсчета сделок напрямую (без вызова getDealsCountForObject)
+    function getFilteredDealsCount(feature) {
+        const cadNum = feature.properties?.cadastral_number;
+        if (!cadNum) return 0;
+        const deals = dealsData[cadNum] || [];
+        return deals.filter(d => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+            return true;
+        }).length;
+    }
+
+    const sortedQuarters = allQuarters.filter(f => {
+        const cadNum = f.properties?.cadastral_number;
+        if (!cadNum) return false;
+        const deals = dealsData[cadNum] || [];
+        const filtered = deals.filter(d => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+            return true;
+        });
+        return filtered.length > 0;
+    }).sort((a, b) => {
+        const countA = getFilteredDealsCount(a);
+        const countB = getFilteredDealsCount(b);
+        return countB - countA;
     });
-    return filtered.length > 0;
-}).sort((a, b) => {
-    // ✅ СЧИТАЕМ КОЛИЧЕСТВО НАПРЯМУЮ, БЕЗ ВЫЗОВА getDealsCountForObject
-    const cadNumA = a.properties?.cadastral_number;
-    const cadNumB = b.properties?.cadastral_number;
     
-    let countA = 0;
-    let countB = 0;
-    
-    if (cadNumA) {
-        const dealsA = dealsData[cadNumA] || [];
-        countA = dealsA.filter(d => {
-            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
-            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
-            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
-            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
-            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
-            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
-            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
-            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-            return true;
-        }).length;
-    }
-    
-    if (cadNumB) {
-        const dealsB = dealsData[cadNumB] || [];
-        countB = dealsB.filter(d => {
-            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
-            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
-            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
-            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
-            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
-            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
-            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
-            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-            return true;
-        }).length;
-    }
-    
-    return countB - countA;
-});
-        
-        if (sortedQuarters.length === 0) {
-            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        } else {
-            let html = '';
-            sortedQuarters.forEach(f => {
-                const cadNum = f.properties?.cadastral_number || '—';
-                const count = getDealsCountForObject(f);
-                html += `
-                    <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                         onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                         onmouseover="this.style.background='#f1f5f9'"
-                         onmouseout="this.style.background='transparent'">
-                        <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-                    </div>
-                `;
-            });
-            quartersList.innerHTML = html;
-        }
+    if (sortedQuarters.length === 0) {
+        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
+    } else {
+        let html = '';
+        sortedQuarters.forEach(f => {
+            const cadNum = f.properties?.cadastral_number || '—';
+            const count = getFilteredDealsCount(f);
+            html += `
+                <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
+                     onclick="window.searchQuarterByCadNumber('${cadNum}')"
+                     onmouseover="this.style.background='#f1f5f9'"
+                     onmouseout="this.style.background='transparent'">
+                    <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
+                </div>
+            `;
+        });
+        quartersList.innerHTML = html;
     }
 }
 
