@@ -231,7 +231,7 @@ class MarketValuationApp {
                                 'Стоимость всего (₽)':result.predicted.price_total,
                                 'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
                                 'Как считали': result.calculation || '',
-                                'Расшифровка расчёта': result.details?.calculation_method_desc || '',
+                                'Расшифровка расчёта': result.details?.calc_desc || '',
                                 'Статус':'✅ Успешно'
                             });
                             success++;
@@ -312,7 +312,7 @@ class MarketValuationApp {
                 'Стоимость всего (₽)':result.predicted.price_total,
                 'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
                 'Как считали': result.calculation || '',
-                'Расшифровка расчёта': result.details?.calculation_method_desc || ''
+                'Расшифровка расчёта': result.details?.calc_desc || ''
             };
             this.displayResult(result);
             this.showNotification('✅ Оценка выполнена','success');
