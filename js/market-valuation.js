@@ -25,7 +25,7 @@ class MarketValuationApp {
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
                         <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl flex justify-between items-center">
-                            <h3 class="font-semibold text-slate-800">📋 Параметры объекта</h3>
+                            <h3 class="font-semibold text-slate-800">Параметры объекта</h3>
                             <div class="flex gap-2">
                                 <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors">📥 Шаблон</button>
                                 <label class="cursor-pointer bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
@@ -247,7 +247,7 @@ class MarketValuationApp {
                     <div class="p-5 text-center">
                         <div class="text-2xl font-bold text-green-600 mb-2">✅ Оценка завершена!</div>
                         <p class="text-slate-600">✅ ${success} успешно | ❌ ${errors} с ошибками | Всего: ${data.length}</p>
-                        <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">📥 Скачать результат Excel</button>
+                        <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Скачать Excel</button>
                         <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
                     </div>`;
             } catch (err) { this.showNotification('Ошибка чтения файла','error'); }
