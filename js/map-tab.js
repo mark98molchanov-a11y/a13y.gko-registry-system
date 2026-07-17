@@ -1982,7 +1982,6 @@ if (quartersList) {
         quartersList.innerHTML = html;
     }
 }
-    updatePopupsAndTooltips(level);
 }
 
 function updatePopupsAndTooltips(level) {
