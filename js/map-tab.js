@@ -1979,12 +1979,11 @@ if (quartersList) {
                     <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
                     <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
                 </div>
-            `;
+            `; 
         });
         quartersList.innerHTML = html;
     }
 }
-    updatePopupsAndTooltips(level);
 }
 
 function updatePopupsAndTooltips(level) {
