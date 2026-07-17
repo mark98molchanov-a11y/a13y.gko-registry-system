@@ -2794,7 +2794,6 @@ const filteredDeals = deals.filter(deal => {
     // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
     updatePopupsAndTooltips(level);
     
-    updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     // ============================================================
     // ✅ ДОБАВЛЯЕМ ПОДПИСИ НА ПОЛИГОНЫ (ЗДЕСЬ!)
