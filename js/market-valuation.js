@@ -237,6 +237,7 @@ class MarketValuationApp {
                                 'Метод расчёта':result.details?.method || '—',
                                 'Цена за м² (₽)':result.predicted.price_per_sqm,
                                 'Стоимость всего (₽)':result.predicted.price_total,
+                                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',  // ← ДОБАВИТЬ ЭТУ СТРОКУ
                                 'Аналогов':result.calculation.analogs_count,
                                 'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
                                 'Кадастры аналогов':analogsKadastrs,
@@ -328,6 +329,7 @@ class MarketValuationApp {
                 'Категория земель':land_category,
                 'Цена за м² (₽)':result.predicted.price_per_sqm,
                 'Стоимость всего (₽)':result.predicted.price_total,
+                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',  // ← ДОБАВИТЬ ЭТУ СТРОКУ
                 'Аналогов':result.calculation.analogs_count,
                 'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
                 'Кадастры аналогов':analogsKadastrs,
