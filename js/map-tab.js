@@ -2173,7 +2173,7 @@ const filtered = deals.filter(d => {
     });
     quartersList.innerHTML = html;
 }
-
+} 
 function updateQuartersStyle(targetObjects) {
     if (!window.mapLayer) return;
     
