@@ -27,9 +27,9 @@ class MarketValuationApp {
                         <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl flex justify-between items-center">
                             <h3 class="font-semibold text-slate-800">Параметры объекта</h3>
                             <div class="flex gap-2">
-                                <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors">📥 Шаблон</button>
+                                <button onclick="window.marketValuationApp.downloadTemplate()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg transition-colors">Шаблон</button>
                                 <label class="cursor-pointer bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
-                                    📤 Импорт Excel
+                                    Импорт Excel
                                     <input type="file" id="massFileInput" accept=".xlsx,.csv" class="hidden" onchange="window.marketValuationApp.handleFileImport(event)">
                                 </label>
                             </div>
@@ -39,12 +39,12 @@ class MarketValuationApp {
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Тип объекта *</label>
                                 <select id="objectType" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
-                                    <option value="Помещение">🚪 Помещение</option>
-                                    <option value="Здание">🏢 Здание</option>
-                                    <option value="Земельный участок">🌾 Земельный участок</option>
-                                    <option value="Сооружение">🏗️ Сооружение</option>
-                                    <option value="Машино-место">🅿️ Машино-место</option>
-                                    <option value="Объект незавершённого строительства">🏚️ Объект незавершенного строительства</option>
+                                    <option value="Помещение">Помещение</option>
+                                    <option value="Здание">Здание</option>
+                                    <option value="Земельный участок">Земельный участок</option>
+                                    <option value="Сооружение">Сооружение</option>
+                                    <option value="Машино-место">Машино-место</option>
+                                    <option value="Объект незавершённого строительства">Объект незавершенного строительства</option>
                                 </select>
                             </div>
                             
@@ -107,19 +107,19 @@ class MarketValuationApp {
                                 <p class="text-xs text-slate-400 mt-1">Необязательное поле</p>
                             </div>
                             
-                            <!-- 🔥 НОВОЕ ПОЛЕ: КАДАСТРОВАЯ СТОИМОСТЬ -->
+                            <!-- НОВОЕ ПОЛЕ: КАДАСТРОВАЯ СТОИМОСТЬ -->
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Кадастровая стоимость (полная), ₽</label>
 <input type="number" id="cadastralPrice" step="0.01" min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Например: 16982962">
 <p class="text-xs text-slate-400 mt-1">Введите полную кадастровую стоимость объекта. Если не заполнено — будет использована медиана по городу + каскад</p>
                             </div>
 
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50">🔍 Рассчитать стоимость</button>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50">Рассчитать стоимость</button>
                         </form>
                     </div>
                     
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
-                        <div id="resultPlaceholder" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]"><div class="text-6xl mb-4">🏠</div><p class="text-slate-500">Заполните форму и нажмите «Рассчитать»</p></div>
+                        <div id="resultPlaceholder" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]"><p class="text-slate-500">Заполните форму и нажмите «Рассчитать»</p></div>
                         <div id="resultContent" style="display: none;"></div>
                         <div id="resultLoading" style="display: none;" class="p-8 text-center flex flex-col items-center justify-center min-h-[300px]"><div class="animate-spin text-4xl mb-4">⏳</div><p class="text-slate-500" id="loadingText">Рассчитываем...</p></div>
                     </div>
@@ -142,7 +142,7 @@ class MarketValuationApp {
             const csv = 'Тип объекта;Площадь (м²);Город (МО);Материал стен;Наименование;Назначение;Год постройки;ВРИ;Категория земель;Кадастровый номер;КС (полная, ₽)\nПомещение;60;Ноябрьск;Кирпич;Квартира;Жилое;2015;;;;\nЗдание;100;г. Салехард;Монолит;Магазин;Торговое;2020;;;;\nЗемельный участок;600;Ноябрьск;;;;2024;для ИЖС;Земли населенных пунктов;;\nЗемельный участок;1000;Надым;;;;2024;для садоводства;Земли сельхозназначения;;\n';
             const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'шаблон_массовой_оценки.csv'; a.click();
         }
-        this.showNotification('📥 Шаблон скачан!','success');
+        this.showNotification('Шаблон скачан!','success');
     }
     
     attachEventListeners() {
@@ -182,7 +182,7 @@ class MarketValuationApp {
     
     async handleFileImport(event) {
         const file = event.target.files[0]; if (!file) return;
-        this.showNotification(`📤 Загружен: ${file.name}`,'info');
+        this.showNotification(`Загружен: ${file.name}`,'info');
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -248,7 +248,7 @@ class MarketValuationApp {
                         <div class="text-2xl font-bold text-green-600 mb-2">✅ Оценка завершена!</div>
                         <p class="text-slate-600">✅ ${success} успешно | ❌ ${errors} с ошибками | Всего: ${data.length}</p>
                         <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Скачать Excel</button>
-                        <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
+                        <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">Новая оценка</button>
                     </div>`;
             } catch (err) { this.showNotification('Ошибка чтения файла','error'); }
         };
@@ -326,7 +326,7 @@ class MarketValuationApp {
         document.getElementById('resultContent').style.display='block';
         const fp=(p)=>{if(p>=1000000)return `${(p/1000000).toFixed(2)} млн ₽`;if(p>=1000)return `${(p/1000).toFixed(0)} тыс. ₽`;return `${p} ₽`;};
         const method = data.details?.method || 'ML-модель';
-        const ksInfo = data.details?.ks_provided ? '✅ КС введена' : '📊 КС не введена (медиана + каскад)';
+        const ksInfo = data.details?.ks_provided ? '✅ КС введена' : 'КС не введена (медиана + каскад)';
         const ksValue = data.details?.ks_per_sqm ? `${new Intl.NumberFormat('ru-RU').format(data.details.ks_per_sqm)} ₽/м²` : '—';
         
         document.getElementById('resultContent').innerHTML=`
@@ -337,8 +337,8 @@ class MarketValuationApp {
                 <div class="text-xs text-slate-400 mt-2">${method}</div>
                 <div class="text-xs text-slate-400">${ksInfo} (КС: ${ksValue})</div>
                 <div class="border-t pt-4 mt-4 space-y-2">
-                    <button onclick="window.marketValuationApp.downloadSingleExcel()" class="w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">📥 Скачать Excel</button>
-                    <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2 border border-slate-300 rounded-lg text-sm">🔄 Новая оценка</button>
+                    <button onclick="window.marketValuationApp.downloadSingleExcel()" class="w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Скачать Excel</button>
+                    <button onclick="window.marketValuationApp.resetResult()" class="w-full py-2 border border-slate-300 rounded-lg text-sm">Новая оценка</button>
                 </div>
             </div>`;
         this.result=data;
@@ -378,7 +378,7 @@ class MarketValuationApp {
     setLoading(loading) {
         this.isLoading=loading;
         const btn=document.querySelector('#valuationForm button[type="submit"]');
-        if (btn){btn.disabled=loading;btn.innerHTML=loading?'⏳...':'🔍 Рассчитать стоимость';}
+        if (btn){btn.disabled=loading;btn.innerHTML=loading?'⏳...':'Рассчитать стоимость';}
         document.getElementById('resultLoading').style.display=loading?'flex':'none';
         if (loading){document.getElementById('resultPlaceholder').style.display='none';document.getElementById('resultContent').style.display='none';}
     }
