@@ -1987,7 +1987,7 @@ if (quartersList) {
         quartersList.innerHTML = html;
     }
 }
-
+}
 function updatePopupsAndTooltips(level) {
     if (!window.mapLayer) return;
     
