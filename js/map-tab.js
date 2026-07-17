@@ -2644,7 +2644,6 @@ const filteredDeals = deals.filter(deal => {
     }
     
     updateMapStatsFromDeals(level, parentId);
-    updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     
     if (level === 1 && window.mapLayer) {
