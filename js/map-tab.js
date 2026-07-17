@@ -2237,7 +2237,7 @@ const filtered = deals.filter(d => {
     let html = '';
     sorted.forEach(f => {
         const cadNum = f.properties?.cadastral_number || '—';
-        const count = getDealsCountForObject(f);
+        const count = getFilteredDealsCount(f);
         html += `
             <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
                  onclick="window.searchQuarterByCadNumber('${cadNum}')"
