@@ -207,14 +207,6 @@ class MarketValuationApp {
                         const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
                         if (resp.ok) {
                             const result=await resp.json();
-                            const analogsKadastrs = (result.analogs||[]).map(a=>a.kadastr).filter(k=>k).join('; ');
-                            const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
-                            const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
-                            
-                            let calcInfo = '';
-                            if (result.calculation_details && result.calculation_details.calculation) {
-                                calcInfo = result.calculation_details.calculation;
-                            }
                             
                             const ksUsed = result.details?.ks_per_sqm || '—';
                             const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
@@ -237,11 +229,8 @@ class MarketValuationApp {
                                 'Метод расчёта':result.details?.method || '—',
                                 'Цена за м² (₽)':result.predicted.price_per_sqm,
                                 'Стоимость всего (₽)':result.predicted.price_total,
-                                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',  // ← ДОБАВИТЬ ЭТУ СТРОКУ
-                                'Аналогов':result.calculation.analogs_count,
-                                'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
-                                'Кадастры аналогов':analogsKadastrs,
-                                'Как считали':calcInfo,
+                                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
+                                'Как считали': result.calculation || '',
                                 'Статус':'✅ Успешно'
                             });
                             success++;
@@ -300,15 +289,6 @@ class MarketValuationApp {
             if (!resp.ok) throw new Error(`Ошибка ${resp.status}`);
             const result=await resp.json();
             
-            const analogsKadastrs = (result.analogs||[]).map(a=>a.kadastr).filter(k=>k).join('; ');
-            const analogsPrices = (result.analogs||[]).map(a=>a.price_per_sqm).filter(p=>p);
-            const avgAnalogPrice = analogsPrices.length > 0 ? Math.round(analogsPrices.reduce((a,b)=>a+b,0)/analogsPrices.length) : 0;
-            
-            let calcInfo = '';
-            if (result.calculation_details && result.calculation_details.calculation) {
-                calcInfo = result.calculation_details.calculation;
-            }
-            
             const ksUsed = result.details?.ks_per_sqm || '—';
             const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
             
@@ -329,11 +309,8 @@ class MarketValuationApp {
                 'Категория земель':land_category,
                 'Цена за м² (₽)':result.predicted.price_per_sqm,
                 'Стоимость всего (₽)':result.predicted.price_total,
-                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',  // ← ДОБАВИТЬ ЭТУ СТРОКУ
-                'Аналогов':result.calculation.analogs_count,
-                'Ср. цена аналогов (₽/м²)':avgAnalogPrice,
-                'Кадастры аналогов':analogsKadastrs,
-                'Как считали':calcInfo
+                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
+                'Как считали': result.calculation || ''
             };
             this.displayResult(result);
             this.showNotification('✅ Оценка выполнена','success');
