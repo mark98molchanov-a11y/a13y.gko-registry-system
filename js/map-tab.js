@@ -1861,27 +1861,62 @@ const statCadCost = document.getElementById('stat-cadcost');
     
     const quartersList = document.getElementById('quarters-list');
     if (quartersList) {
-        const sortedQuarters = allQuarters.filter(f => {
-            const cadNum = f.properties?.cadastral_number;
-            if (!cadNum) return false;
-            const deals = dealsData[cadNum] || [];
-            const filtered = deals.filter(d => {
-                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
-                if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
-                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
-                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
-                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
-                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
-                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
-                if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-                return true;
-            });
-            return filtered.length > 0;
-        }).sort((a, b) => {
-            const countA = getDealsCountForObject(a);
-            const countB = getDealsCountForObject(b);
-            return countB - countA;
-        });
+ const sortedQuarters = allQuarters.filter(f => {
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return false;
+    const deals = dealsData[cadNum] || [];
+    const filtered = deals.filter(d => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+        return true;
+    });
+    return filtered.length > 0;
+}).sort((a, b) => {
+    // ✅ СЧИТАЕМ КОЛИЧЕСТВО НАПРЯМУЮ, БЕЗ ВЫЗОВА getDealsCountForObject
+    const cadNumA = a.properties?.cadastral_number;
+    const cadNumB = b.properties?.cadastral_number;
+    
+    let countA = 0;
+    let countB = 0;
+    
+    if (cadNumA) {
+        const dealsA = dealsData[cadNumA] || [];
+        countA = dealsA.filter(d => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+            return true;
+        }).length;
+    }
+    
+    if (cadNumB) {
+        const dealsB = dealsData[cadNumB] || [];
+        countB = dealsB.filter(d => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+            return true;
+        }).length;
+    }
+    
+    return countB - countA;
+});
         
         if (sortedQuarters.length === 0) {
             quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
