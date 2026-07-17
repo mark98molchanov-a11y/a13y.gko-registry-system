@@ -1772,6 +1772,11 @@ const medianUprs = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
 }
 
 function updateMapStatsFromDeals(level, parentId) {
+        if (window._updatingStats) {
+        console.warn('⚠️ updateMapStatsFromDeals уже выполняется, пропускаем');
+        return;
+    }
+    window._updatingStats = true;
     const statUpks = document.getElementById('stat-upks');
     const statCadCost = document.getElementById('stat-cadcost');
     const statMedian = document.getElementById('stat-median');
