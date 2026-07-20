@@ -1975,9 +1975,6 @@ function updateMapStatsFromDeals(level, parentId) {
     
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
-    
-    // ❗ УБИРАЕМ РЕКУРСИВНЫЙ ВЫЗОВ
-    // updatePopupsAndTooltips(level);  // ← ЭТО УБРАТЬ!
 }
 
 
