@@ -1993,69 +1993,6 @@ function updateMapStatsFromDeals(level, parentId) {
     }
 }
 
-        function updateStatsUI() {
-            console.log('🔄 updateStatsUI вызван');
-            
-            const formatPrice = (num) => {
-                if (num === 0 || isNaN(num)) return '—';
-                return num.toLocaleString('ru-RU') + ' ₽';
-            };
-            const formatNumber = (num) => {
-                if (num === 0 || isNaN(num)) return '—';
-                return num.toLocaleString('ru-RU');
-            };
-            const formatUprs = (num) => {
-                if (num === 0 || isNaN(num)) return '—';
-                return num.toFixed(2) + ' ₽/м²';
-            };
-            
-            statMedian.textContent = formatPrice(weightedMedianPrice);
-            statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
-                ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
-                : '—';
-            statUprs.textContent = formatUprs(weightedMedianUprs);
-            statTotalDeals.textContent = totalDeals.toLocaleString();
-            if (statUpks) statUpks.textContent = formatUprs(weightedMedianUpks);
-            if (statCadCost) statCadCost.textContent = formatPrice(weightedMedianCadCost);
-            
-            if (statObjects) statObjects.textContent = allQuarters.length;
-            if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
-            
-            console.log('✅ UI обновлен');
-            
-            // ✅ ОБНОВЛЯЕМ ОСТАЛЬНЫЕ UI
-            updateQuartersListWithFilteredObjects(null);
-            updatePopupsAndTooltips(level);
-        }
-        
-        // ✅ ЗАПУСКАЕМ В ФОНЕ
-        if (window.requestIdleCallback) {
-            console.log('⏳ Запуск requestIdleCallback');
-            requestIdleCallback(calculateAllMedians, { timeout: 4000 });
-        } else {
-            console.log('⏳ Запуск setTimeout (fallback)');
-            setTimeout(calculateAllMedians, 200);
-        }
-        
-        // ✅ ПОКА ПОКАЗЫВАЕМ ЗАГРУЗКУ
-        statMedian.textContent = '⏳';
-        statMinMax.textContent = '⏳';
-        statUprs.textContent = '⏳';
-        if (statUpks) statUpks.textContent = '⏳';
-        if (statCadCost) statCadCost.textContent = '⏳';
-        
-    } else {
-        // Нет сделок
-        statMedian.textContent = '—';
-        statMinMax.textContent = '—';
-        statUprs.textContent = '—';
-        statTotalDeals.textContent = '0';
-        if (statObjects) statObjects.textContent = allQuarters.length;
-        if (statWithDeals) statWithDeals.textContent = '0';
-        updateQuartersListWithFilteredObjects(null);
-    }
-}
-
 function updatePopupsAndTooltips(level) {
     if (!window.mapLayer) return;
     
