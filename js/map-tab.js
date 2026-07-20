@@ -2813,7 +2813,6 @@ function renderMapLevel(level, parentId = null) {
             });
         }
         
-        updateMapStatsFromDeals(level, parentId);
         updatePopupsAndTooltips(level);
         updateQuartersListWithFilteredObjects(null);
         addMapLegend();
