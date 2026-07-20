@@ -3545,10 +3545,15 @@ if (levelName === 'quarter') {
     const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
     const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
     
+    // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ
     const medianPrice = getMedianSync(prices);
     const uprsMedian = getMedianSync(uprsValues);
     const upksMedian = getMedianSync(upksValues);
     const cadCostMedian = getMedianSync(cadCostValues);
+    
+    // ✅ ВЫЧИСЛЯЕМ minPrice И maxPrice ДЛЯ КВАРТАЛА
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
     
     return `
       <div class="popup-title">${cadNum}</div>
