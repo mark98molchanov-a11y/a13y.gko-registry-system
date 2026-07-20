@@ -3542,17 +3542,13 @@ if (levelName === 'quarter') {
     const dealsCount = filteredDeals.length;
     const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
     const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-    // ✅ ДОБАВИТЬ ЭТИ ДВЕ СТРОКИ:
     const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
     const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
     
-    
-const medianPrice = getMedianSync(prices);
-const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-const uprsMedian = getMedianSync(uprsValues);
-const upksMedian = getMedianSync(upksValues);
-const cadCostMedian = getMedianSync(cadCostValues);
+    const medianPrice = getMedianSync(prices);
+    const uprsMedian = getMedianSync(uprsValues);
+    const upksMedian = getMedianSync(upksValues);
+    const cadCostMedian = getMedianSync(cadCostValues);
     
     return `
       <div class="popup-title">${cadNum}</div>
