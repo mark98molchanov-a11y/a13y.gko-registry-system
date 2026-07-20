@@ -220,11 +220,6 @@ if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
         renderPurposeFilters();
         renderVriFilters();
         
-        // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ ПОСЛЕ ЗАГРУЗКИ ДАННЫХ
-        if (mapData) {
-            console.log('🔄 Перерисовка карты после загрузки CSV...');
-            renderMapLevel(currentLevel || 0, currentParentId);
-        }
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -2431,19 +2426,19 @@ function initMapTab(containerId) {
         attribution: '© OpenStreetMap'
     }).addTo(mapInstance);
 
-    // ✅ ЗАГРУЖАЕМ ДАННЫЕ ПАРАЛЛЕЛЬНО
-    Promise.all([
-        loadMapData(),
-        loadDealsCSV()
-    ]).then(() => {
-        console.log('✅ Карта и данные загружены!');
-        // После загрузки обоих — перерисовываем карту
-        if (mapData) {
-            renderMapLevel(currentLevel || 0, currentParentId);
-        }
-    }).catch(error => {
-        console.error('❌ Ошибка загрузки:', error);
-    });
+    // ✅ ЗАГРУЖАЕМ ДАННЫЕ ПОСЛЕДОВАТЕЛЬНО, А НЕ ПАРАЛЛЕЛЬНО
+    loadMapData()
+        .then(() => loadDealsCSV())
+        .then(() => {
+            console.log('✅ Карта и данные загружены!');
+            if (mapData && Object.keys(dealsData).length > 0) {
+                // ✅ ТОЛЬКО ОДИН РАЗ
+                renderMapLevel(currentLevel || 0, currentParentId);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Ошибка загрузки:', error);
+        });
 }
 
 // ============================================================
@@ -2457,14 +2452,7 @@ async function loadMapData() {
         mapData = await response.json();
         console.log('✅ Данные карты загружены:', mapData.features?.length || 0);
         
-        // ✅ ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ ДАННЫЕ О СДЕЛКАХ
-        if (Object.keys(dealsData).length > 0) {
-            // Если данные уже есть — сразу рисуем карту
-            renderMapLevel(0);
-        } else {
-            // Если данных нет — показываем заглушку
-            console.log('⏳ Ожидаем загрузку данных о сделках...');
-        }
+        
     } catch (error) {
         console.error('❌ Ошибка загрузки:', error);
         showMapError(error.message);
@@ -2474,11 +2462,19 @@ async function loadMapData() {
 // ОТРИСОВКА УРОВНЯ
 // ============================================================
 function renderMapLevel(level, parentId = null) {
-    // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ ОКРУГА
-    if (level === 0) {
-        window.selectedQuarterCadNumber = null;
-        currentDistrictFilter = null;
+    // ✅ ЗАЩИТА ОТ РЕКУРСИИ
+    if (window._rendering) {
+        console.log('⏳ Рендеринг уже выполняется, пропускаем');
+        return;
     }
+    window._rendering = true;
+    
+    try {
+        // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ ОКРУГА
+        if (level === 0) {
+            window.selectedQuarterCadNumber = null;
+            currentDistrictFilter = null;
+        }
     
     // ✅ СБРАСЫВАЕМ ОБЕРТКУ ПРИ ПЕРЕХОДЕ НА РАЙОН
     if (level === 2 && parentId) {
