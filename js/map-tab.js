@@ -135,13 +135,16 @@ const locationIndex = headers.indexOf('location');
             return;
         }
         
-        const dealsByCad = {};
+               const dealsByCad = {};
         const typesCount = {};
         const citiesCount = {}; 
         const objectTypesCount = {};
         const purposeCount = {};   
-const vriCount = {}; 
+        const vriCount = {}; 
+        
+        // ✅ ОЧИЩАЕМ МАССИВЫ ПРИ ПОВТОРНОЙ ЗАГРУЗКЕ
         allDealsFlat = [];
+        originalAllDealsFlat = [];
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
