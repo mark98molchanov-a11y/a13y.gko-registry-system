@@ -2092,25 +2092,45 @@ function updatePopupsAndTooltips(level) {
             }
         }
         
-        if (levelName === 'quarter') {
-            // ✅ ПЕРЕСОЗДАЕМ ПОПАП
-            const newPopupContent = buildPopupContent(layer.feature);
-            layer.unbindPopup();
-            layer.bindPopup(newPopupContent, { 
-                className: 'custom-popup', 
-                maxWidth: 300,
-                closeButton: true
-            });
+    if (levelName === 'quarter') {
+    // ✅ ПЕРЕСОЗДАЕМ ПОПАП
+    const newPopupContent = buildPopupContent(layer.feature);
+    layer.unbindPopup();
+    layer.bindPopup(newPopupContent, { 
+        className: 'custom-popup', 
+        maxWidth: 300,
+        closeButton: true
+    });
+    
+    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
+    layer.off('popupclose');
+    layer.on('popupclose', function(e) {
+        if (currentLevel === 2) {
+            const districtId = layer.feature.properties.parent_id || 
+                              layer.feature.properties.district_id;
+            console.log('🔄 Попап закрыт → переход на уровень районов');
+            setTimeout(() => {
+                if (currentLevel === 2) {
+                    onPopupClose('quarter', districtId);
+                }
+            }, 300);
         }
     });
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-                console.log(`✅ Тултип обертки обновлен`);
-            }
-        });
-    }
+    
+    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА
+    layer.off('tooltipclose');
+    layer.on('tooltipclose', function(e) {
+        if (currentLevel === 2) {
+            const districtId = layer.feature.properties.parent_id || 
+                              layer.feature.properties.district_id;
+            console.log('🔄 Тултип закрыт → переход на уровень районов');
+            setTimeout(() => {
+                if (currentLevel === 2) {
+                    onPopupClose('quarter', districtId);
+                }
+            }, 300);
+        }
+    });
 }
 function buildDistrictTooltipContent(layer) {
     const feature = layer.feature;
@@ -2569,7 +2589,10 @@ if (level === 0) {
     window.selectedQuarterCadNumber = null;
     currentDistrictFilter = null;
 }
-    
+    if (level === 0) {
+    window.selectedQuarterCadNumber = null;
+    currentDistrictFilter = null;
+}
     // ✅ СОХРАНЯЕМ ТЕКУЩИЙ УРОВЕНЬ ДЛЯ ФИЛЬТРА
     currentLevel = level;
     currentParentId = parentId;
@@ -3407,6 +3430,42 @@ layer.on('mouseout', function(e) {
     }
     // ✅ РАЙОНЫ И ОКРУГ — НИЧЕГО НЕ МЕНЯЕМ
 });
+}
+function onPopupClose(levelName, districtId) {
+    // Если мы на уровне кварталов (level === 2) и попап закрылся
+    if (levelName === 'quarter' && districtId) {
+        console.log('🔄 Закрытие попапа квартала → переход на уровень районов');
+        
+        // Сбрасываем выбранный квартал
+        window.selectedQuarterCadNumber = null;
+        
+        // Переходим на уровень районов
+        renderMapLevel(1);
+        updateBreadcrumb('okrug');
+        
+        // Обновляем фильтры и таблицу
+        renderDealTypeFilters();
+        renderCityFilters();
+        renderObjectTypeFilters();
+        renderWallMaterialFilters();
+        renderQuarterFilters();
+        renderYearBuildFilters();
+        renderPurposeFilters();
+        renderVriFilters();
+        renderDealsTable();
+        updateActiveFiltersDisplay();
+        
+        // Сбрасываем выделение обертки
+        if (window.wrapperLayer) {
+            window.wrapperLayer.setStyle({
+                fillOpacity: 0.25,
+                weight: 1,
+                color: '#ff0000',
+                opacity: 0.4,
+                dashArray: '4 4'
+            });
+        }
+    }
 }
 function buildPopupContent(feature) {
     const props = feature.properties;
@@ -4763,4 +4822,5 @@ window.renderMapLevel = renderMapLevel;
 window.searchQuarter = searchQuarter;
 window.searchQuarterByCadNumber = searchQuarterByCadNumber; 
 window.exportDealsTableToExcel = exportDealsTableToExcel;
+window.onPopupClose = onPopupClose; 
 console.log('✅ map-tab.js загружен');
