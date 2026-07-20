@@ -2475,101 +2475,98 @@ function renderMapLevel(level, parentId = null) {
             window.selectedQuarterCadNumber = null;
             currentDistrictFilter = null;
         }
-    
-    // ✅ СБРАСЫВАЕМ ОБЕРТКУ ПРИ ПЕРЕХОДЕ НА РАЙОН
-    if (level === 2 && parentId) {
-        if (window.selectedQuarterCadNumber) {
-            const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
-                              window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
-            if (isWrapper) {
-                console.log('🔄 Сброс обертки при переходе на район:', parentId);
-                window.selectedQuarterCadNumber = null;
+        
+        // ✅ СБРАСЫВАЕМ ОБЕРТКУ ПРИ ПЕРЕХОДЕ НА РАЙОН
+        if (level === 2 && parentId) {
+            if (window.selectedQuarterCadNumber) {
+                const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                                  window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+                if (isWrapper) {
+                    console.log('🔄 Сброс обертки при переходе на район:', parentId);
+                    window.selectedQuarterCadNumber = null;
+                }
             }
         }
-    }
-    
-    // ✅ СОХРАНЯЕМ ТЕКУЩИЙ УРОВЕНЬ ДЛЯ ФИЛЬТРА
-    currentLevel = level;
-    currentParentId = parentId;
-    if (level === 2 && parentId) {
-        currentDistrictFilter = parentId;
-    } else {
-        currentDistrictFilter = null;
-    }
-    
-    if (!mapData || !mapInstance) {
-        console.warn('⚠️ mapData или mapInstance не инициализированы');
-        return;
-    }
-
-    console.log(`🔍 Фильтрация: level=${level}, parentId=${parentId}`);
-    console.log(`📊 Всего объектов в mapData: ${mapData.features.length}`);
-
-    // ✅ СБРАСЫВАЕМ ВЫДЕЛЕНИЕ ПРИ ПЕРЕХОДЕ НА КВАРТАЛЫ
-    if (level === 2) {
-        mapInstance.eachLayer(function(layer) {
-            if (layer.setStyle && layer.options && layer.options.weight) {
-                layer.setStyle({
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4,
-                    fillOpacity: 0.25
-                });
-            }
-        });
-    }
-
-    // Фильтруем объекты
-    let filtered = mapData.features.filter(f => {
-        const props = f.properties;
-        const cadNum = props.cadastral_number || '';
-        const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000');
         
-        // Уровень 0: только округ (level: 0)
-        if (level === 0) {
-            return props.level === 0;
+        // ✅ СОХРАНЯЕМ ТЕКУЩИЙ УРОВЕНЬ ДЛЯ ФИЛЬТРА
+        currentLevel = level;
+        currentParentId = parentId;
+        if (level === 2 && parentId) {
+            currentDistrictFilter = parentId;
+        } else {
+            currentDistrictFilter = null;
         }
         
-        // Уровень 1: районы (level: 1) + обертки (level: 2 с 000000)
-        if (level === 1) {
-            if (props.level === 1) return true;
-            if (props.level === 2 && isWrapper) return true;
-            return false;
+        if (!mapData || !mapInstance) {
+            console.warn('⚠️ mapData или mapInstance не инициализированы');
+            return;
         }
-        
-        // Уровень 2: кварталы (level: 2) в конкретном районе
+
+        console.log(`🔍 Фильтрация: level=${level}, parentId=${parentId}`);
+        console.log(`📊 Всего объектов в mapData: ${mapData.features.length}`);
+
+        // ✅ СБРАСЫВАЕМ ВЫДЕЛЕНИЕ ПРИ ПЕРЕХОДЕ НА КВАРТАЛЫ
         if (level === 2) {
-            if (props.level !== 2) return false;
-            if (parentId) {
-                const belongs = String(props.parent_id) === String(parentId) || 
-                               String(props.district_id) === String(parentId);
-                if (!belongs) return false;
-            }
-            return true;
+            mapInstance.eachLayer(function(layer) {
+                if (layer.setStyle && layer.options && layer.options.weight) {
+                    layer.setStyle({
+                        weight: 1,
+                        color: '#ff0000',
+                        opacity: 0.4,
+                        fillOpacity: 0.25
+                    });
+                }
+            });
         }
+
+        // Фильтруем объекты
+        let filtered = mapData.features.filter(f => {
+            const props = f.properties;
+            const cadNum = props.cadastral_number || '';
+            const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000');
+            
+            if (level === 0) {
+                return props.level === 0;
+            }
+            
+            if (level === 1) {
+                if (props.level === 1) return true;
+                if (props.level === 2 && isWrapper) return true;
+                return false;
+            }
+            
+            if (level === 2) {
+                if (props.level !== 2) return false;
+                if (parentId) {
+                    const belongs = String(props.parent_id) === String(parentId) || 
+                                   String(props.district_id) === String(parentId);
+                    if (!belongs) return false;
+                }
+                return true;
+            }
+            
+            return false;
+        });
+
+        console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
         
-        return false;
-    });
+        if (filtered.length === 0) {
+            console.warn('⚠️ Нет объектов для отображения!');
+            showMapError('Нет объектов для отображения');
+            return;
+        }
 
-    console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
-    
-    if (filtered.length === 0) {
-        console.warn('⚠️ Нет объектов для отображения!');
-        showMapError('Нет объектов для отображения');
-        return;
-    }
-
-    // Удаляем старые слои
-    if (window.mapLayer) {
-        mapInstance.removeLayer(window.mapLayer);
-        window.mapLayer.off();
-        window.mapLayer = null;
-    }
-    if (window.wrapperLayer) {
-        mapInstance.removeLayer(window.wrapperLayer);
-        window.wrapperLayer = null;
-    }
-    clearAllLabels();
+        // Удаляем старые слои
+        if (window.mapLayer) {
+            mapInstance.removeLayer(window.mapLayer);
+            window.mapLayer.off();
+            window.mapLayer = null;
+        }
+        if (window.wrapperLayer) {
+            mapInstance.removeLayer(window.wrapperLayer);
+            window.wrapperLayer = null;
+        }
+        clearAllLabels();
 
     // 🔥 РАЗДЕЛЯЕМ НА ОБЕРТКИ И КВАРТАЛЫ
     const wrapperQuarters = filtered.filter(f => {
@@ -2781,50 +2778,53 @@ function renderMapLevel(level, parentId = null) {
     
     // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ С УЧЕТОМ ФИЛЬТРА
     let targetObjects = [];
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === parentId;
-        });
-    }
-    
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    
-    // Для районов (уровень 1)
-    if (level === 1 && window.mapLayer) {
-        addLabelsToPolygons(window.mapLayer, filtered, level);
-    }
+        const allObjects = mapData.features.filter(f => f.properties.level === 2);
+        
+        if (level === 0 || level === 1) {
+            targetObjects = allObjects;
+        } else if (level === 2) {
+            targetObjects = allObjects.filter(f => {
+                const fParentId = f.properties.parent_id || f.properties.district_id;
+                return fParentId === parentId;
+            });
+        }
+        
+        updateMapStatsFromDeals(level, parentId);
+        updatePopupsAndTooltips(level);
+        updateQuartersListWithFilteredObjects(null);
+        addMapLegend();
+        
+        if (level === 1 && window.mapLayer) {
+            addLabelsToPolygons(window.mapLayer, filtered, level);
+        }
 
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ КВАРТАЛОВ (ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ)
-    if (level === 2 && window.mapLayer) {
-        window.mapLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const props = layer.feature.properties;
-                const levelName = props.level_name || 'unknown';
-                if (levelName === 'quarter') {
-                    const newPopupContent = buildPopupContent(layer.feature);
-                    layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
+        if (level === 2 && window.mapLayer) {
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    const props = layer.feature.properties;
+                    const levelName = props.level_name || 'unknown';
+                    if (levelName === 'quarter') {
+                        const newPopupContent = buildPopupContent(layer.feature);
+                        layer.bindPopup(newPopupContent, { className: 'custom-popup', maxWidth: 300 });
+                    }
                 }
-            }
-        });
+            });
+        }
+        
+        if (level === 1 && window.mapLayer) {
+            addLabelsToPolygons(window.mapLayer, filtered, level);
+        }
+        
+        updateActiveFiltersDisplay();
+        renderDealsTable();
+        
+    } catch (error) {
+        console.error('❌ Ошибка в renderMapLevel:', error);
+    } finally {
+        // ✅ ВАЖНО: снимаем блокировку в любом случае
+        window._rendering = false;
     }
-    
-    // Для районов (уровень 1)
-    if (level === 1 && window.mapLayer) {
-        addLabelsToPolygons(window.mapLayer, filtered, level);
-    }
-    
-    updateActiveFiltersDisplay();
-    renderDealsTable();
 }
-
 function getMapColor(dealsCount) {
     if (!dealsCount || dealsCount === 0) return '#f1f5f9';  // нет сделок
     
