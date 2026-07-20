@@ -2812,7 +2812,7 @@ function renderMapLevel(level, parentId = null) {
                 return fParentId === parentId;
             });
         }
-        
+        updateMapStatsFromDeals(level, parentId);
         updatePopupsAndTooltips(level);
         updateQuartersListWithFilteredObjects(null);
         addMapLegend();
