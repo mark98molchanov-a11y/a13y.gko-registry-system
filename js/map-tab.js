@@ -2608,138 +2608,109 @@ function renderMapLevel(level, parentId = null) {
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
- // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-if (wrapperQuarters.length > 0) {
-    window.wrapperLayer = L.geoJSON(wrapperQuarters, {
-        style: function(feature) {
-            return {
-                fillColor: 'transparent',
-                fillOpacity: 0,
-                color: '#dc2626',
-                weight: 2.5,
-                opacity: 0.8,
-                dashArray: '6 4'
-            };
-        },
-        onEachFeature: function(feature, layer) {
-            const cadNum = feature.properties.cadastral_number || '—';
-            
-            function updateTooltip() {
-                const deals = dealsData[cadNum] || [];
-                const filteredDeals = deals.filter(deal => {
-                    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-                    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-                    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-                    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-                    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-                    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-                    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-                    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-                    return true;
+    if (wrapperQuarters.length > 0) {
+        window.wrapperLayer = L.geoJSON(wrapperQuarters, {
+            style: function(feature) {
+                return {
+                    fillColor: 'transparent',
+                    fillOpacity: 0,
+                    color: '#dc2626',
+                    weight: 2.5,
+                    opacity: 0.8,
+                    dashArray: '6 4'
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                const cadNum = feature.properties.cadastral_number || '—';
+                
+                function updateTooltip() {
+                    const deals = dealsData[cadNum] || [];
+                    const filteredDeals = deals.filter(deal => {
+                        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                        return true;
+                    });
+                    
+                    const dealsCount = filteredDeals.length;
+                    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+                    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+                    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
+                    const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+                    
+
+                    
+       const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
+const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
+const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
+const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
+                    
+                    const tooltipContent = `
+                        <div class="popup-title">${cadNum}</div>
+                        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                        ${dealsCount > 0 ? `
+                        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                        <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+                        <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
+                        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+                    `;
+                    
+                    layer.bindTooltip(tooltipContent, {
+                        className: 'custom-popup',
+                        permanent: false,
+                        direction: 'top',
+                        offset: [0, -10],
+                        opacity: 0.95,
+                        sticky: true,
+                        interactive: false
+                    });
+                }
+                
+                layer._updateTooltip = updateTooltip;
+                updateTooltip();
+                
+                layer.on('mouseover', function() {
+                    updateTooltip();
+                    this.setStyle({
+                        fillOpacity: 0.5,
+                        weight: 2,
+                        color: '#ff0000',
+                        opacity: 0.7
+                    });
+                    this.openTooltip();
                 });
                 
-                const dealsCount = filteredDeals.length;
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
-                const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+                layer.on('mouseout', function() {
+                    this.setStyle({
+                        fillOpacity: 0.25,
+                        weight: 1,
+                        color: '#ff0000',
+                        opacity: 0.4
+                    });
+                    this.closeTooltip();
+                });
                 
-                const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
-                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
-                const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
-                const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
-                
-                const tooltipContent = `
-                    <div class="popup-title">📦 ${cadNum}</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
-                    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
-                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                    <div style="margin-top:6px;font-size:9px;color:#94a3b8;text-align:center;">🔄 Обертка (агрегированные данные)</div>
-                `;
-                
-                layer.bindTooltip(tooltipContent, {
-                    className: 'custom-popup',
-                    permanent: false,
-                    direction: 'top',
-                    offset: [0, -10],
-                    opacity: 0.95,
-                    sticky: true,
-                    interactive: false
+                layer.on('click', function(e) {
+                    updateTooltip();
+                    this.openTooltip();
+                    if (this.getBounds && this.getBounds().isValid()) {
+                        mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
+                    }
                 });
             }
-            
-            layer._updateTooltip = updateTooltip;
-            updateTooltip();
-            
-            layer.on('mouseover', function() {
-                updateTooltip();
-                this.setStyle({
-                    fillOpacity: 0.5,
-                    weight: 2,
-                    color: '#ff0000',
-                    opacity: 0.7
-                });
-                this.openTooltip();
-            });
-            
-            layer.on('mouseout', function() {
-                this.setStyle({
-                    fillOpacity: 0.25,
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4
-                });
-                this.closeTooltip();
-            });
-            
-            layer.on('click', function(e) {
-                updateTooltip();
-                this.openTooltip();
-                if (this.getBounds && this.getBounds().isValid()) {
-                    mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
-                }
-            });
-            
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА ОБЕРТКИ
-            layer.on('tooltipclose', function(e) {
-                console.log('🔄 Тултип обертки закрыт → возврат на уровень округа');
-                
-                // Сбрасываем выбранный квартал
-                window.selectedQuarterCadNumber = null;
-                
-                // ✅ ВОЗВРАЩАЕМСЯ НА УРОВЕНЬ ОКРУГА (level 0)
-                renderMapLevel(0);
-                updateBreadcrumb('okrug');
-                
-                // Обновляем статистику
-                updateMapStatsFromDeals(0, null);
-                
-                // Обновляем список кварталов
-                updateQuartersListWithFilteredObjects(null);
-                
-                // Обновляем активные фильтры
-                updateActiveFiltersDisplay();
-                
-                // Обновляем таблицу
-                renderDealsTable();
-                
-                // Центрируем карту на округе
-                if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-                }
-            });
-        }
-    }).addTo(mapInstance);
-    
-    console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
-}
+        }).addTo(mapInstance);
+        
+        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
+    }
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
@@ -3302,36 +3273,6 @@ layer.on('mouseout', function(e) {
 });
 }
 function onPopupClose(levelName, districtId) {
-    // ✅ ПРОВЕРЯЕМ: если это обертка, возвращаемся на уровень округа
-    if (window.selectedQuarterCadNumber) {
-        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
-                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
-        if (isWrapper) {
-            console.log('🔄 Закрытие тултипа обертки → возврат на уровень округа');
-            
-            // Сбрасываем выбранный квартал
-            window.selectedQuarterCadNumber = null;
-            
-            // ✅ ВОЗВРАЩАЕМСЯ НА УРОВЕНЬ ОКРУГА
-            renderMapLevel(0);
-            updateBreadcrumb('okrug');
-            
-            // Обновляем статистику
-            updateMapStatsFromDeals(0, null);
-            
-            // Обновляем список кварталов
-            updateQuartersListWithFilteredObjects(null);
-            
-            // Обновляем активные фильтры
-            updateActiveFiltersDisplay();
-            
-            // Обновляем таблицу
-            renderDealsTable();
-            
-            return; // ← ВЫХОДИМ
-        }
-    }
-    
     // Если мы на уровне кварталов (level === 2) и попап/тултип закрылся
     if (levelName === 'quarter' && districtId) {
         console.log('🔄 Закрытие попапа/тултипа квартала → обновление таблицы');
