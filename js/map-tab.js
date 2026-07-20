@@ -122,24 +122,24 @@ const location = values[locationIndex] || 'nan';
             const area = parseFloat(values[areaIndex]) || 0;
             const cadCost = parseFloat(values[cadCostIndex]) || 0;
               
-           allDealsFlat.push({
+ allDealsFlat.push({
     cad_number: cadNum,
-    area: area,
-    purpose_text: purposeText,
-    cad_cost: cadCost,
-    upks: upks,
-    uprs: uprs,
-    city: city,
-    deal_kind_text: kind,
-    obj_kind_text: objKind,
-    vri: vri,
-    quarter: quarter,
-    year_build: yearBuild,
-    wall_material_name: wallMaterial,
-    deal_price_rub: price,
-    uprs_rub: uprs,
-    floor: floor,
-    location: location
+    area: parseFloat(values[areaIndex]) || 0,
+    purpose_text: values[purposeIndex] || 'nan',
+    cad_cost: parseFloat(values[cadCostIndex]) || 0,
+    upks: parseFloat(values[upksIndex]) || 0,
+    uprs: parseFloat(values[uprsIndex]) || 0,
+    city: values[cityIndex] || 'nan',
+    deal_kind_text: values[kindIndex] || 'nan',
+    obj_kind_text: values[objKindIndex] || 'nan',
+    vri: values[vriIndex] || 'nan',
+    quarter: values[quarterIndex] || 'nan',
+    year_build: values[yearBuildIndex] || 'nan',
+    wall_material_name: values[wallMaterialIndex] || 'nan',
+    deal_price_rub: parseFloat(values[priceIndex]) || 0,
+    uprs_rub: parseFloat(values[uprsIndex]) || 0,
+    floor: values[floorIndex] || 'nan',
+    location: values[locationIndex] || 'nan'
 });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
