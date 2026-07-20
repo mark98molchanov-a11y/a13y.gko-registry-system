@@ -1807,6 +1807,7 @@ const medianUprs = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
     // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
     updateQuartersListWithFilteredObjects(null);
 }
+
 function updateMapStatsFromDeals(level, parentId) {
     const statUpks = document.getElementById('stat-upks');
     const statCadCost = document.getElementById('stat-cadcost');
@@ -1826,27 +1827,15 @@ function updateMapStatsFromDeals(level, parentId) {
     if (statUpks) statUpks.textContent = '⏳';
     if (statCadCost) statCadCost.textContent = '⏳';
     
+    // ✅ СОБИРАЕМ ВСЕ КВАРТАЛЫ ДЛЯ ТЕКУЩЕГО УРОВНЯ
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     let allQuarters = [];
     
-    if (level === 0) {
+    if (level === 0 || level === 1) {
+        // Для округа и района — все кварталы
         allQuarters = [...allObjects];
-        const allCadNumbers = Object.keys(dealsData);
-        const wrapperQuarters = allCadNumbers.filter(cad => {
-            return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
-        });
-        wrapperQuarters.forEach(cad => {
-            if (!allQuarters.some(f => f.properties?.cadastral_number === cad)) {
-                allQuarters.push({
-                    properties: { 
-                        cadastral_number: cad,
-                        level: 2
-                    }
-                });
-            }
-        });
-    } else if (level === 1) {
-        allQuarters = [...allObjects];
+        
+        // Добавляем обертки из dealsData
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -1862,6 +1851,7 @@ function updateMapStatsFromDeals(level, parentId) {
             }
         });
     } else if (level === 2 && parentId) {
+        // Для конкретного района — только его кварталы
         const prefix = String(parentId).substring(0, 5);
         const allCadNumbers = Object.keys(dealsData);
         
@@ -1892,11 +1882,15 @@ function updateMapStatsFromDeals(level, parentId) {
     
     console.log(`📊 Уровень ${level}, всего кварталов: ${allQuarters.length}`);
     
-    const quarterStats = [];
-    let totalDeals = 0;
-    let allMins = [];
-    let allMaxs = [];
-    let quartersWithDeals = [];
+    // ✅ СОБИРАЕМ ВСЕ ЦЕНЫ ИЗ ВСЕХ СДЕЛОК (НЕ ПО КВАРТАЛАМ!)
+    let allPrices = [];
+    let allUprs = [];
+    let allUpks = [];
+    let allCadCosts = [];
+    let totalDealsCount = 0;
+    let quartersWithDealsCount = 0;
+    let allMinPrices = [];
+    let allMaxPrices = [];
     
     allQuarters.forEach(f => {
         const cadNum = f.properties?.cadastral_number;
@@ -1916,98 +1910,89 @@ function updateMapStatsFromDeals(level, parentId) {
         });
         
         if (filteredDeals.length > 0) {
-            totalDeals += filteredDeals.length;
-            quartersWithDeals.push(cadNum);
+            totalDealsCount += filteredDeals.length;
+            quartersWithDealsCount++;
             
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-            const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
-            const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-            
-            quarterStats.push({
-                count: filteredDeals.length,
-                medianPrice: prices.length > 0 ? getMedianSync(prices) : 0,
-                medianUprs: uprs.length > 0 ? getMedianSync(uprs) : 0,
-                medianUpks: upks.length > 0 ? getMedianSync(upks) : 0,
-                medianCadCost: cadCosts.length > 0 ? getMedianSync(cadCosts) : 0,
-                min: prices.length > 0 ? Math.min(...prices) : 0,
-                max: prices.length > 0 ? Math.max(...prices) : 0
+            filteredDeals.forEach(d => {
+                if (d.price > 0) allPrices.push(d.price);
+                if (d.uprs > 0) allUprs.push(d.uprs);
+                if (d.upks > 0) allUpks.push(d.upks);
+                if (d.cad_cost > 0) allCadCosts.push(d.cad_cost);
             });
             
+            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
             if (prices.length > 0) {
-                allMins.push(Math.min(...prices));
-                allMaxs.push(Math.max(...prices));
+                allMinPrices.push(Math.min(...prices));
+                allMaxPrices.push(Math.max(...prices));
             }
         }
     });
     
-    // ✅ ИСПОЛЬЗУЕМ getMedianSync для быстрых расчетов, а тяжелые — в async
-    let weightedMedianPrice = 0;
-    let weightedMedianUprs = 0;
-    let weightedMedianUpks = 0;
-    let weightedMedianCadCost = 0;
-    let minPrice = 0;
-    let maxPrice = 0;
+    console.log(`📊 Всего сделок: ${totalDealsCount}, цен: ${allPrices.length}`);
     
-    if (quarterStats.length > 0) {
-        const priceValues = quarterStats.map(q => q.medianPrice).filter(p => p > 0);
-        const uprsValues = quarterStats.map(q => q.medianUprs).filter(u => u > 0);
-        const upksValues = quarterStats.map(q => q.medianUpks).filter(u => u > 0);
-        const cadCostValues = quarterStats.map(q => q.medianCadCost).filter(c => c > 0);
+    // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ АСИНХРОННО
+    function calculateAndUpdateStats() {
+        console.log('🔄 calculateAndUpdateStats начат');
+        console.log('📊 allPrices.length:', allPrices.length);
+        console.log('📊 allUprs.length:', allUprs.length);
         
-        // ✅ АСИНХРОННО ВЫЧИСЛЯЕМ МЕДИАНЫ
-        function calculateAllMedians() {
-            console.log('🔄 calculateAllMedians начат');
-            
-            // ✅ СНАЧАЛА ВЫЧИСЛЯЕМ ЦЕНУ
-            if (priceValues.length > 0) {
-                const sorted = priceValues.slice().sort((a, b) => a - b);
-                const mid = Math.floor(sorted.length / 2);
-                weightedMedianPrice = sorted.length % 2 === 0 
-                    ? (sorted[mid - 1] + sorted[mid]) / 2 
-                    : sorted[mid];
-                console.log('✅ weightedMedianPrice:', weightedMedianPrice);
-            }
-            
-            // ✅ ПОТОМ УПРС
-            if (uprsValues.length > 0) {
-                const sorted = uprsValues.slice().sort((a, b) => a - b);
-                const mid = Math.floor(sorted.length / 2);
-                weightedMedianUprs = sorted.length % 2 === 0 
-                    ? (sorted[mid - 1] + sorted[mid]) / 2 
-                    : sorted[mid];
-                console.log('✅ weightedMedianUprs:', weightedMedianUprs);
-            }
-            
-            // ✅ ПОТОМ УПКС
-            if (upksValues.length > 0) {
-                const sorted = upksValues.slice().sort((a, b) => a - b);
-                const mid = Math.floor(sorted.length / 2);
-                weightedMedianUpks = sorted.length % 2 === 0 
-                    ? (sorted[mid - 1] + sorted[mid]) / 2 
-                    : sorted[mid];
-                console.log('✅ weightedMedianUpks:', weightedMedianUpks);
-            }
-            
-            // ✅ ПОТОМ КАДАСТРОВАЯ СТОИМОСТЬ
-            if (cadCostValues.length > 0) {
-                const sorted = cadCostValues.slice().sort((a, b) => a - b);
-                const mid = Math.floor(sorted.length / 2);
-                weightedMedianCadCost = sorted.length % 2 === 0 
-                    ? (sorted[mid - 1] + sorted[mid]) / 2 
-                    : sorted[mid];
-                console.log('✅ weightedMedianCadCost:', weightedMedianCadCost);
-            }
-            
-            minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-            maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
-            
-            console.log('🔄 calculateAllMedians завершен');
-            
-            // ✅ ОБНОВЛЯЕМ UI
-            updateStatsUI();
-        }
+        // Вычисляем медианы
+        const medianPrice = getMedianSync(allPrices);
+        const medianUprs = getMedianSync(allUprs);
+        const medianUpks = getMedianSync(allUpks);
+        const medianCadCost = getMedianSync(allCadCosts);
         
+        const minPrice = allMinPrices.length > 0 ? Math.min(...allMinPrices) : 0;
+        const maxPrice = allMaxPrices.length > 0 ? Math.max(...allMaxPrices) : 0;
+        
+        console.log('✅ medianPrice:', medianPrice);
+        console.log('✅ medianUprs:', medianUprs);
+        console.log('✅ medianUpks:', medianUpks);
+        console.log('✅ medianCadCost:', medianCadCost);
+        
+        // ✅ ОБНОВЛЯЕМ UI
+        const formatPrice = (num) => {
+            if (num === 0 || isNaN(num)) return '—';
+            return num.toLocaleString('ru-RU') + ' ₽';
+        };
+        const formatNumber = (num) => {
+            if (num === 0 || isNaN(num)) return '—';
+            return num.toLocaleString('ru-RU');
+        };
+        const formatUprs = (num) => {
+            if (num === 0 || isNaN(num)) return '—';
+            return num.toFixed(2) + ' ₽/м²';
+        };
+        
+        statMedian.textContent = formatPrice(medianPrice);
+        statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
+            ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
+            : '—';
+        statUprs.textContent = formatUprs(medianUprs);
+        statTotalDeals.textContent = totalDealsCount.toLocaleString();
+        if (statUpks) statUpks.textContent = formatUprs(medianUpks);
+        if (statCadCost) statCadCost.textContent = formatPrice(medianCadCost);
+        
+        if (statObjects) statObjects.textContent = allQuarters.length;
+        if (statWithDeals) statWithDeals.textContent = quartersWithDealsCount;
+        
+        console.log('✅ UI обновлен');
+        
+        // ✅ ОБНОВЛЯЕМ ОСТАЛЬНЫЕ UI
+        updateQuartersListWithFilteredObjects(null);
+        updatePopupsAndTooltips(level);
+    }
+    
+    // ✅ ЗАПУСКАЕМ В ФОНЕ
+    if (window.requestIdleCallback) {
+        console.log('⏳ Запуск requestIdleCallback');
+        requestIdleCallback(calculateAndUpdateStats, { timeout: 4000 });
+    } else {
+        console.log('⏳ Запуск setTimeout (fallback)');
+        setTimeout(calculateAndUpdateStats, 200);
+    }
+}
+
         function updateStatsUI() {
             console.log('🔄 updateStatsUI вызван');
             
