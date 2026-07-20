@@ -1719,7 +1719,6 @@ const filteredDeals = deals.filter(deal => {
         if (statObjects) statObjects.textContent = targetObjects.length;
         if (statWithDeals) statWithDeals.textContent = '0';
         // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
-        updateQuartersListWithFilteredObjects(null);
         return;
     }
     
@@ -1768,8 +1767,6 @@ const medianUprs = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
     if (statObjects) statObjects.textContent = targetObjects.length;
     if (statWithDeals) statWithDeals.textContent = objectsWithFilteredDeals.length;
     
-    // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
-    updateQuartersListWithFilteredObjects(null);
 }
 
 function updateMapStatsFromDeals(level, parentId) {
