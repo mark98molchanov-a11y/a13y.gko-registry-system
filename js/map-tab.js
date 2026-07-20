@@ -1090,7 +1090,6 @@ function toggleAllVri(types) {
 // ============================================================
 
 function applyFiltersAndUpdate() {
-    // Перерисовываем все фильтры
     renderDealTypeFilters();
     renderCityFilters();
     renderObjectTypeFilters();
@@ -1100,7 +1099,6 @@ function applyFiltersAndUpdate() {
     renderPurposeFilters();
     renderVriFilters();
     
-    // Обновляем карту и таблицу
     const level = currentLevel;
     const parentId = currentParentId;
     
@@ -1118,7 +1116,7 @@ function applyFiltersAndUpdate() {
     
     updateQuartersStyle(targetObjects);
     updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
+    updatePopupsAndTooltips(level);  // ← ЯВНЫЙ ВЫЗОВ
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
@@ -1771,7 +1769,7 @@ const medianUprs = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
 
 function updateMapStatsFromDeals(level, parentId) {
     const statUpks = document.getElementById('stat-upks');
-const statCadCost = document.getElementById('stat-cadcost');
+    const statCadCost = document.getElementById('stat-cadcost');
     const statMedian = document.getElementById('stat-median');
     const statMinMax = document.getElementById('stat-minmax');
     const statUprs = document.getElementById('stat-uprs');
@@ -1816,178 +1814,141 @@ const statCadCost = document.getElementById('stat-cadcost');
                 });
             }
         });
-  
-} else if (level === 2 && parentId) {
-    const prefix = String(parentId).substring(0, 5);
-    const allCadNumbers = Object.keys(dealsData);
-    
-    // ✅ 1. Берем ВСЕ кварталы из dealsData для этого района
-    const allQuartersFromDeals = allCadNumbers
-        .filter(cad => cad.startsWith(prefix))
-        .map(cad => ({
-            properties: { 
-                cadastral_number: cad,
-                level: 2,
-                district_id: parentId
+    } else if (level === 2 && parentId) {
+        const prefix = String(parentId).substring(0, 5);
+        const allCadNumbers = Object.keys(dealsData);
+        
+        const allQuartersFromDeals = allCadNumbers
+            .filter(cad => cad.startsWith(prefix))
+            .map(cad => ({
+                properties: { 
+                    cadastral_number: cad,
+                    level: 2,
+                    district_id: parentId
+                }
+            }));
+        
+        const allObjects2 = mapData.features.filter(f => {
+            if (f.properties.level !== 2) return false;
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+        
+        allQuarters = [...allQuartersFromDeals];
+        
+        allObjects2.forEach(f => {
+            const cadNum = f.properties.cadastral_number;
+            if (cadNum && !allQuarters.some(q => q.properties.cadastral_number === cadNum)) {
+                allQuarters.push(f);
             }
-        }));
-    
-    // ✅ 2. Берем кварталы из GeoJSON (на случай, если есть без сделок)
-    const allObjects = mapData.features.filter(f => {
-        if (f.properties.level !== 2) return false;
-        const fParentId = f.properties.parent_id || f.properties.district_id;
-        return String(fParentId) === String(parentId);
-    });
-    
-    // ✅ 3. Объединяем: сначала все из dealsData, потом добавляем недостающие из GeoJSON
-    allQuarters = [...allQuartersFromDeals];
-    
-    allObjects.forEach(f => {
-        const cadNum = f.properties.cadastral_number;
-        if (cadNum && !allQuarters.some(q => q.properties.cadastral_number === cadNum)) {
-            allQuarters.push(f);
-        }
-    });
-    
-    console.log(`📊 Всего кварталов для района ${parentId}: ${allQuarters.length}`);
-    console.log(`   Из dealsData: ${allQuartersFromDeals.length}`);
-    console.log(`   Дополнительно из GeoJSON: ${allQuarters.length - allQuartersFromDeals.length}`);
-}
+        });
+    }
     
     console.log(`📊 Уровень ${level}, всего кварталов: ${allQuarters.length}`);
     
-    const quarterStats = [];
     let totalDeals = 0;
-    let allMins = [];
-    let allMaxs = [];
     let quartersWithDeals = [];
     
-allQuarters.forEach(f => {
-    const cadNum = f.properties?.cadastral_number;
-    if (!cadNum) return;
-    
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-        return true;
-    });
-    
-    if (filteredDeals.length > 0) {
-        totalDeals += filteredDeals.length;
-        quartersWithDeals.push(cadNum);
+    allQuarters.forEach(f => {
+        const cadNum = f.properties?.cadastral_number;
+        if (!cadNum) return;
         
-        const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-        const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-        const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
-        const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-        
-        quarterStats.push({
-            count: filteredDeals.length,
-            medianPrice: prices.length > 0 ? getMedian(prices) : 0,
-            medianUprs: uprs.length > 0 ? getMedian(uprs) : 0,
-            medianUpks: upks.length > 0 ? getMedian(upks) : 0,
-            medianCadCost: cadCosts.length > 0 ? getMedian(cadCosts) : 0,
-            min: prices.length > 0 ? Math.min(...prices) : 0,
-            max: prices.length > 0 ? Math.max(...prices) : 0
+        const deals = dealsData[cadNum] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            return true;
         });
         
-        if (prices.length > 0) {
-            allMins.push(Math.min(...prices));
-            allMaxs.push(Math.max(...prices));
+        if (filteredDeals.length > 0) {
+            totalDeals += filteredDeals.length;
+            quartersWithDeals.push(cadNum);
         }
-    }
-});
-
-function getMedian(arr) {
-    if (arr.length === 0) return 0;
-    const sorted = arr.slice().sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    if (sorted.length % 2 === 0) {
-        return (sorted[mid - 1] + sorted[mid]) / 2;
-    }
-    return sorted[mid];
-}
-    
-   let weightedMedianPrice = 0;
-let weightedMedianUprs = 0;
-let weightedMedianUpks = 0;      
-let weightedMedianCadCost = 0; 
-let minPrice = 0;
-let maxPrice = 0;
-
-// ✅ НОВАЯ ЛОГИКА: собираем ВСЕ сделки в один массив
-let allDealsForStats = [];
-
-allQuarters.forEach(f => {
-    const cadNum = f.properties?.cadastral_number;
-    if (!cadNum) return;
-    
-    const deals = dealsData[cadNum] || [];
-    const filteredDeals = deals.filter(deal => {
-        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-        return true;
     });
     
-    if (filteredDeals.length > 0) {
-        allDealsForStats = allDealsForStats.concat(filteredDeals);
-    }
-});
-
-// ✅ Считаем медиану по ВСЕМ сделкам, а не по кварталам
-if (allDealsForStats.length > 0) {
-    // Цены
-    const priceValues = allDealsForStats
-        .map(d => d.price)
-        .filter(p => p > 0)
-        .sort((a, b) => a - b);
-    if (priceValues.length > 0) {
-        weightedMedianPrice = getMedian(priceValues);
-        minPrice = Math.min(...priceValues);
-        maxPrice = Math.max(...priceValues);
+    function getMedian(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+            return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
     }
     
-    // УПРС
-    const uprsValues = allDealsForStats
-        .map(d => d.uprs)
-        .filter(u => u > 0)
-        .sort((a, b) => a - b);
-    if (uprsValues.length > 0) {
-        weightedMedianUprs = getMedian(uprsValues);
+    let weightedMedianPrice = 0;
+    let weightedMedianUprs = 0;
+    let weightedMedianUpks = 0;      
+    let weightedMedianCadCost = 0; 
+    let minPrice = 0;
+    let maxPrice = 0;
+    
+    let allDealsForStats = [];
+    
+    allQuarters.forEach(f => {
+        const cadNum = f.properties?.cadastral_number;
+        if (!cadNum) return;
+        
+        const deals = dealsData[cadNum] || [];
+        const filteredDeals = deals.filter(deal => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            return true;
+        });
+        
+        if (filteredDeals.length > 0) {
+            allDealsForStats = allDealsForStats.concat(filteredDeals);
+        }
+    });
+    
+    if (allDealsForStats.length > 0) {
+        const priceValues = allDealsForStats
+            .map(d => d.price)
+            .filter(p => p > 0)
+            .sort((a, b) => a - b);
+        if (priceValues.length > 0) {
+            weightedMedianPrice = getMedian(priceValues);
+            minPrice = Math.min(...priceValues);
+            maxPrice = Math.max(...priceValues);
+        }
+        
+        const uprsValues = allDealsForStats
+            .map(d => d.uprs)
+            .filter(u => u > 0)
+            .sort((a, b) => a - b);
+        if (uprsValues.length > 0) {
+            weightedMedianUprs = getMedian(uprsValues);
+        }
+        
+        const upksValues = allDealsForStats
+            .map(d => d.upks)
+            .filter(u => u > 0)
+            .sort((a, b) => a - b);
+        if (upksValues.length > 0) {
+            weightedMedianUpks = getMedian(upksValues);
+        }
+        
+        const cadCostValues = allDealsForStats
+            .map(d => d.cad_cost)
+            .filter(c => c > 0)
+            .sort((a, b) => a - b);
+        if (cadCostValues.length > 0) {
+            weightedMedianCadCost = getMedian(cadCostValues);
+        }
     }
     
-    // УПКС
-    const upksValues = allDealsForStats
-        .map(d => d.upks)
-        .filter(u => u > 0)
-        .sort((a, b) => a - b);
-    if (upksValues.length > 0) {
-        weightedMedianUpks = getMedian(upksValues);
-    }
-    
-    // Кадастровая стоимость
-    const cadCostValues = allDealsForStats
-        .map(d => d.cad_cost)
-        .filter(c => c > 0)
-        .sort((a, b) => a - b);
-    if (cadCostValues.length > 0) {
-        weightedMedianCadCost = getMedian(cadCostValues);
-    }
-}
-
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
         return num.toLocaleString('ru-RU') + ' ₽';
@@ -2010,12 +1971,15 @@ if (allDealsForStats.length > 0) {
     statUprs.textContent = formatUprs(weightedMedianUprs);
     statTotalDeals.textContent = totalDeals.toLocaleString();
     if (statUpks) statUpks.textContent = formatUprs(weightedMedianUpks);
-if (statCadCost) statCadCost.textContent = formatPrice(weightedMedianCadCost);
+    if (statCadCost) statCadCost.textContent = formatPrice(weightedMedianCadCost);
     
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
-        updatePopupsAndTooltips(level);
+    
+    // ❗ УБИРАЕМ РЕКУРСИВНЫЙ ВЫЗОВ
+    // updatePopupsAndTooltips(level);  // ← ЭТО УБРАТЬ!
 }
+
 
 
 function updatePopupsAndTooltips(level) {
