@@ -1729,11 +1729,12 @@ const uprsValues = allDeals.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a
 
 function getMedian(arr) {
     if (arr.length === 0) return 0;
-    const mid = Math.floor(arr.length / 2);
-    if (arr.length % 2 === 0) {
-        return (arr[mid - 1] + arr[mid]) / 2;
+    const sorted = arr.slice().sort((a, b) => a - b);  // ← ДОБАВИТЬ СОРТИРОВКУ
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+        return (sorted[mid - 1] + sorted[mid]) / 2;
     }
-    return arr[mid];
+    return sorted[mid];
 }
 
 // ✅ ПРОВЕРЯЕМ, ЧТО МАССИВ НЕ ПУСТОЙ
