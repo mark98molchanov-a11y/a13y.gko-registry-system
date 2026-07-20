@@ -1918,72 +1918,77 @@ function getMedian(arr) {
     return sorted[mid];
 }
     
-    let weightedMedianPrice = 0;
-    let weightedMedianUprs = 0;
-    let weightedMedianUpks = 0;      
-    let weightedMedianCadCost = 0; 
-    let minPrice = 0;
-    let maxPrice = 0;
+   let weightedMedianPrice = 0;
+let weightedMedianUprs = 0;
+let weightedMedianUpks = 0;      
+let weightedMedianCadCost = 0; 
+let minPrice = 0;
+let maxPrice = 0;
+
+// ✅ НОВАЯ ЛОГИКА: собираем ВСЕ сделки в один массив
+let allDealsForStats = [];
+
+allQuarters.forEach(f => {
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return;
     
-  if (quarterStats.length > 0) {
-    // ✅ 1. Медианная цена — ОБЫЧНАЯ МЕДИАНА
-    const priceValues = quarterStats
-        .map(q => q.medianPrice)
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
+    
+    if (filteredDeals.length > 0) {
+        allDealsForStats = allDealsForStats.concat(filteredDeals);
+    }
+});
+
+// ✅ Считаем медиану по ВСЕМ сделкам, а не по кварталам
+if (allDealsForStats.length > 0) {
+    // Цены
+    const priceValues = allDealsForStats
+        .map(d => d.price)
         .filter(p => p > 0)
         .sort((a, b) => a - b);
     if (priceValues.length > 0) {
-        const mid = Math.floor(priceValues.length / 2);
-        if (priceValues.length % 2 === 0) {
-            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
-        } else {
-            weightedMedianPrice = priceValues[mid];
-        }
+        weightedMedianPrice = getMedian(priceValues);
+        minPrice = Math.min(...priceValues);
+        maxPrice = Math.max(...priceValues);
     }
-
-    // ✅ 2. Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
-    const uprsValues = quarterStats
-        .map(q => q.medianUprs)
+    
+    // УПРС
+    const uprsValues = allDealsForStats
+        .map(d => d.uprs)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (uprsValues.length > 0) {
-        const mid = Math.floor(uprsValues.length / 2);
-        if (uprsValues.length % 2 === 0) {
-            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
-        } else {
-            weightedMedianUprs = uprsValues[mid];
-        }
+        weightedMedianUprs = getMedian(uprsValues);
     }
     
-    // ✅ 3. Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
-    const upksValues = quarterStats
-        .map(q => q.medianUpks)
+    // УПКС
+    const upksValues = allDealsForStats
+        .map(d => d.upks)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (upksValues.length > 0) {
-        const mid = Math.floor(upksValues.length / 2);
-        if (upksValues.length % 2 === 0) {
-            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
-        } else {
-            weightedMedianUpks = upksValues[mid];
-        }
+        weightedMedianUpks = getMedian(upksValues);
     }
     
-    // ✅ 4. Медианная кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
-    const cadCostValues = quarterStats
-        .map(q => q.medianCadCost)
+    // Кадастровая стоимость
+    const cadCostValues = allDealsForStats
+        .map(d => d.cad_cost)
         .filter(c => c > 0)
         .sort((a, b) => a - b);
     if (cadCostValues.length > 0) {
-        const mid = Math.floor(cadCostValues.length / 2);
-        if (cadCostValues.length % 2 === 0) {
-            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
-        } else {
-            weightedMedianCadCost = cadCostValues[mid];
-        }
+        weightedMedianCadCost = getMedian(cadCostValues);
     }
-    
-    minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
-    maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
 }
 
     const formatPrice = (num) => {
@@ -2242,69 +2247,74 @@ function buildDistrictTooltipContent(layer) {
         return sorted[mid];
     }
     
-    let weightedMedianPrice = 0;
-    let weightedMedianUprs = 0;
-    let weightedMedianUpks = 0;
-    let weightedMedianCadCost = 0;
-    let minPrice = 0;
-    let maxPrice = 0;
+let weightedMedianPrice = 0;
+let weightedMedianUprs = 0;
+let weightedMedianUpks = 0;
+let weightedMedianCadCost = 0;
+let minPrice = 0;
+let maxPrice = 0;
+
+// ✅ НОВАЯ ЛОГИКА: собираем ВСЕ сделки в один массив
+let allDealsForStats = [];
+
+allQuarters.forEach(f => {
+    const cadNum = f.properties?.cadastral_number;
+    if (!cadNum) return;
     
- if (quarterStats.length > 0) {
-    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
-    const priceValues = quarterStats
-        .map(q => q.medianPrice)
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
+    
+    if (filteredDeals.length > 0) {
+        allDealsForStats = allDealsForStats.concat(filteredDeals);
+    }
+});
+
+// ✅ Считаем медиану по ВСЕМ сделкам
+if (allDealsForStats.length > 0) {
+    const priceValues = allDealsForStats
+        .map(d => d.price)
         .filter(p => p > 0)
         .sort((a, b) => a - b);
     if (priceValues.length > 0) {
-        const mid = Math.floor(priceValues.length / 2);
-        if (priceValues.length % 2 === 0) {
-            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
-        } else {
-            weightedMedianPrice = priceValues[mid];
-        }
+        weightedMedianPrice = getMedian(priceValues);
+        minPrice = Math.min(...priceValues);
+        maxPrice = Math.max(...priceValues);
     }
-
-    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
-    const uprsValues = quarterStats
-        .map(q => q.medianUprs)
+    
+    const uprsValues = allDealsForStats
+        .map(d => d.uprs)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (uprsValues.length > 0) {
-        const mid = Math.floor(uprsValues.length / 2);
-        if (uprsValues.length % 2 === 0) {
-            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
-        } else {
-            weightedMedianUprs = uprsValues[mid];
-        }
+        weightedMedianUprs = getMedian(uprsValues);
     }
     
-    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
-    const upksValues = quarterStats
-        .map(q => q.medianUpks)
+    const upksValues = allDealsForStats
+        .map(d => d.upks)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (upksValues.length > 0) {
-        const mid = Math.floor(upksValues.length / 2);
-        if (upksValues.length % 2 === 0) {
-            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
-        } else {
-            weightedMedianUpks = upksValues[mid];
-        }
+        weightedMedianUpks = getMedian(upksValues);
     }
     
-    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
-    const cadCostValues = quarterStats
-        .map(q => q.medianCadCost)
+    const cadCostValues = allDealsForStats
+        .map(d => d.cad_cost)
         .filter(c => c > 0)
         .sort((a, b) => a - b);
     if (cadCostValues.length > 0) {
-        const mid = Math.floor(cadCostValues.length / 2);
-        if (cadCostValues.length % 2 === 0) {
-            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
-        } else {
-            weightedMedianCadCost = cadCostValues[mid];
-        }
+        weightedMedianCadCost = getMedian(cadCostValues);
     }
+}
     
     minPrice = Math.min(...allMins);
     maxPrice = Math.max(...allMaxs);
@@ -3003,163 +3013,85 @@ if (levelName === 'district') {
     console.log(`📊 Попап: всего кварталов для района ${districtId}: ${allQuarters.length}`);
         
         // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
-        const quarterStats = [];
-        let totalDeals = 0;
-        let allMins = [];
-        let allMaxs = [];
-        let allPrices = [];
-        let allUprs = [];
-        
-        allQuarters.forEach(f => {
+      let totalDeals = 0;
+let allDealsForStats = [];
+
+allQuarters.forEach(f => {
     const cadNumFeature = f.properties.cadastral_number;
     if (!cadNumFeature) return;
     
-const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
+    
+    if (filteredDeals.length > 0) {
+        totalDeals += filteredDeals.length;
+        allDealsForStats = allDealsForStats.concat(filteredDeals);
     }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
 });
-            
-            if (filteredDeals.length > 0) {
-                totalDeals += filteredDeals.length;
-                
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
-const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-                
-                allPrices = allPrices.concat(prices);
-                allUprs = allUprs.concat(uprs);
-                
-                if (prices.length > 0) {
-                    const medianPrice = getMedian(prices);
-                    const medianUprs = getMedian(uprs);
-                     const medianUpks = getMedian(upks);
-            const medianCadCost = getMedian(cadCosts);
-                    
-                    quarterStats.push({
-                        count: filteredDeals.length,
-                        medianPrice: medianPrice,
-                        medianUprs: medianUprs,
-                        medianUpks: medianUpks,
-                medianCadCost: medianCadCost,
-                        min: Math.min(...prices),
-                        max: Math.max(...prices)
-                    });
-                    
-                    allMins.push(Math.min(...prices));
-                    allMaxs.push(Math.max(...prices));
-                }
-            }
-        });
-        
-        function getMedian(arr) {
-            if (arr.length === 0) return 0;
-            const sorted = arr.slice().sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            if (sorted.length % 2 === 0) {
-                return (sorted[mid - 1] + sorted[mid]) / 2;
-            }
-            return sorted[mid];
-        }
-        
-        let weightedMedianPrice = 0;
-        let weightedMedianUprs = 0;
-    let weightedMedianUpks = 0;      
-    let weightedMedianCadCost = 0; 
-        let minPrice = 0;
-        let maxPrice = 0;
-        
-if (quarterStats.length > 0) {
-    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
-    const priceValues = quarterStats
-        .map(q => q.medianPrice)
+
+function getMedian(arr) {
+    if (arr.length === 0) return 0;
+    const sorted = arr.slice().sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+        return (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+    return sorted[mid];
+}
+
+let weightedMedianPrice = 0;
+let weightedMedianUprs = 0;
+let weightedMedianUpks = 0;      
+let weightedMedianCadCost = 0; 
+let minPrice = 0;
+let maxPrice = 0;
+
+// ✅ Считаем медиану по ВСЕМ сделкам
+if (allDealsForStats.length > 0) {
+    const priceValues = allDealsForStats
+        .map(d => d.price)
         .filter(p => p > 0)
         .sort((a, b) => a - b);
     if (priceValues.length > 0) {
-        const mid = Math.floor(priceValues.length / 2);
-        if (priceValues.length % 2 === 0) {
-            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
-        } else {
-            weightedMedianPrice = priceValues[mid];
-        }
+        weightedMedianPrice = getMedian(priceValues);
+        minPrice = Math.min(...priceValues);
+        maxPrice = Math.max(...priceValues);
     }
-
-    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
-    const uprsValues = quarterStats
-        .map(q => q.medianUprs)
+    
+    const uprsValues = allDealsForStats
+        .map(d => d.uprs)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (uprsValues.length > 0) {
-        const mid = Math.floor(uprsValues.length / 2);
-        if (uprsValues.length % 2 === 0) {
-            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
-        } else {
-            weightedMedianUprs = uprsValues[mid];
-        }
+        weightedMedianUprs = getMedian(uprsValues);
     }
     
-    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
-    const upksValues = quarterStats
-        .map(q => q.medianUpks)
+    const upksValues = allDealsForStats
+        .map(d => d.upks)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (upksValues.length > 0) {
-        const mid = Math.floor(upksValues.length / 2);
-        if (upksValues.length % 2 === 0) {
-            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
-        } else {
-            weightedMedianUpks = upksValues[mid];
-        }
+        weightedMedianUpks = getMedian(upksValues);
     }
     
-    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
-    const cadCostValues = quarterStats
-        .map(q => q.medianCadCost)
+    const cadCostValues = allDealsForStats
+        .map(d => d.cad_cost)
         .filter(c => c > 0)
         .sort((a, b) => a - b);
     if (cadCostValues.length > 0) {
-        const mid = Math.floor(cadCostValues.length / 2);
-        if (cadCostValues.length % 2 === 0) {
-            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
-        } else {
-            weightedMedianCadCost = cadCostValues[mid];
-        }
+        weightedMedianCadCost = getMedian(cadCostValues);
     }
-    
-    minPrice = Math.min(...allMins);
-    maxPrice = Math.max(...allMaxs);
 }
-
         
         const formatNum = (num) => num.toLocaleString();
         const formatPrice = (num) => num.toLocaleString() + ' ₽';
@@ -3510,69 +3442,74 @@ if (levelName === 'district') {
         return sorted[mid];
     }
     
-    let weightedMedianPrice = 0;
-    let weightedMedianUprs = 0;
-    let weightedMedianUpks = 0;      
-    let weightedMedianCadCost = 0; 
-    let minPrice = 0;
-    let maxPrice = 0;
+ let weightedMedianPrice = 0;
+let weightedMedianUprs = 0;
+let weightedMedianUpks = 0;      
+let weightedMedianCadCost = 0; 
+let minPrice = 0;
+let maxPrice = 0;
+
+// ✅ НОВАЯ ЛОГИКА: собираем ВСЕ сделки в один массив
+let allDealsForStats = [];
+
+allQuarters.forEach(f => {
+    const cadNumFeature = f.properties.cadastral_number;
+    if (!cadNumFeature) return;
     
-   if (quarterStats.length > 0) {
-    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
-    const priceValues = quarterStats
-        .map(q => q.medianPrice)
+    const deals = dealsData[cadNum] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
+    
+    if (filteredDeals.length > 0) {
+        allDealsForStats = allDealsForStats.concat(filteredDeals);
+    }
+});
+
+// ✅ Считаем медиану по ВСЕМ сделкам
+if (allDealsForStats.length > 0) {
+    const priceValues = allDealsForStats
+        .map(d => d.price)
         .filter(p => p > 0)
         .sort((a, b) => a - b);
     if (priceValues.length > 0) {
-        const mid = Math.floor(priceValues.length / 2);
-        if (priceValues.length % 2 === 0) {
-            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
-        } else {
-            weightedMedianPrice = priceValues[mid];
-        }
+        weightedMedianPrice = getMedian(priceValues);
+        minPrice = Math.min(...priceValues);
+        maxPrice = Math.max(...priceValues);
     }
-
-    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
-    const uprsValues = quarterStats
-        .map(q => q.medianUprs)
+    
+    const uprsValues = allDealsForStats
+        .map(d => d.uprs)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (uprsValues.length > 0) {
-        const mid = Math.floor(uprsValues.length / 2);
-        if (uprsValues.length % 2 === 0) {
-            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
-        } else {
-            weightedMedianUprs = uprsValues[mid];
-        }
+        weightedMedianUprs = getMedian(uprsValues);
     }
     
-    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
-    const upksValues = quarterStats
-        .map(q => q.medianUpks)
+    const upksValues = allDealsForStats
+        .map(d => d.upks)
         .filter(u => u > 0)
         .sort((a, b) => a - b);
     if (upksValues.length > 0) {
-        const mid = Math.floor(upksValues.length / 2);
-        if (upksValues.length % 2 === 0) {
-            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
-        } else {
-            weightedMedianUpks = upksValues[mid];
-        }
+        weightedMedianUpks = getMedian(upksValues);
     }
     
-    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
-    const cadCostValues = quarterStats
-        .map(q => q.medianCadCost)
+    const cadCostValues = allDealsForStats
+        .map(d => d.cad_cost)
         .filter(c => c > 0)
         .sort((a, b) => a - b);
     if (cadCostValues.length > 0) {
-        const mid = Math.floor(cadCostValues.length / 2);
-        if (cadCostValues.length % 2 === 0) {
-            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
-        } else {
-            weightedMedianCadCost = cadCostValues[mid];
-        }
+        weightedMedianCadCost = getMedian(cadCostValues);
     }
+}
     
     minPrice = Math.min(...allMins);
     maxPrice = Math.max(...allMaxs);
