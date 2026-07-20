@@ -141,6 +141,7 @@ const locationIndex = headers.indexOf('location');
         const objectTypesCount = {};
         const purposeCount = {};   
 const vriCount = {}; 
+        allDealsFlat = [];
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
