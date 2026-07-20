@@ -2315,11 +2315,7 @@ if (allDealsForStats.length > 0) {
         weightedMedianCadCost = getMedian(cadCostValues);
     }
 }
-    
-    minPrice = Math.min(...allMins);
-    maxPrice = Math.max(...allMaxs);
-}
-    
+     
     const formatNum = (num) => num.toLocaleString();
     const formatPrice = (num) => num.toLocaleString() + ' ₽';
     const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
@@ -3510,11 +3506,6 @@ if (allDealsForStats.length > 0) {
         weightedMedianCadCost = getMedian(cadCostValues);
     }
 }
-    
-    minPrice = Math.min(...allMins);
-    maxPrice = Math.max(...allMaxs);
-}
-    
     return `
     <div class="popup-title">📋 ${districtName}</div>
     <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
