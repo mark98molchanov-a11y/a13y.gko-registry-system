@@ -2288,17 +2288,16 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
     const quartersList = document.getElementById('quarters-list');
     if (!quartersList) return;
     
+    // ✅ ПРОСТО ПОКАЗЫВАЕМ КОЛИЧЕСТВО, БЕЗ КЛИКАБЕЛЬНЫХ ЭЛЕМЕНТОВ
     const level = currentLevel;
     const parentId = currentParentId;
     
-    // ✅ Собираем ВСЕ кварталы для текущего уровня
+    // Собираем кварталы
     let allQuarters = [];
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     
     if (level === 0 || level === 1) {
-        // Для округа и района - все кварталы + все обертки
         allQuarters = [...allObjects];
-        
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -2314,14 +2313,11 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
             }
         });
     } else if (level === 2 && parentId) {
-        // Для конкретного района - только кварталы этого района
         allQuarters = allObjects.filter(f => {
             if (f.properties.level !== 2) return false;
             const fParentId = f.properties.parent_id || f.properties.district_id;
             return String(fParentId) === String(parentId);
         });
-        
-        // Добавляем обертки для этого района
         const prefix = String(parentId).substring(0, 5);
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
@@ -2340,54 +2336,32 @@ function updateQuartersListWithFilteredObjects(objectsWithDeals) {
         });
     }
     
-    // ✅ ФИЛЬТРУЕМ ПО НАЛИЧИЮ СДЕЛОК С УЧЕТОМ ФИЛЬТРА
-    // ❗ ИСКЛЮЧАЕМ ОБЕРТКУ 89:00:000000 ИЗ СПИСКА
-const withDeals = allQuarters.filter(f => {
-    const cadNum = f.properties?.cadastral_number;
-    if (!cadNum) return false;
-    
-    const deals = dealsData[cadNum] || [];
-const filtered = deals.filter(d => {
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-    return true;
-});
-    return filtered.length > 0;
-});
-    
-    if (withDeals.length === 0) {
-        quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        return;
-    }
-    
-    // ✅ СОРТИРУЕМ ПО КОЛИЧЕСТВУ СДЕЛОК
-    const sorted = withDeals.sort((a, b) => {
-        const countA = getDealsCountForObject(a);
-        const countB = getDealsCountForObject(b);
-        return countB - countA;
+    // ✅ СЧИТАЕМ КОЛИЧЕСТВО КВАРТАЛОВ СО СДЕЛКАМИ
+    let withDealsCount = 0;
+    allQuarters.forEach(f => {
+        const cadNum = f.properties?.cadastral_number;
+        if (!cadNum) return;
+        const deals = dealsData[cadNum] || [];
+        const filtered = deals.filter(d => {
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(d.kind)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(d.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(d.obj_kind)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(d.wall_material)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(d.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+            return true;
+        });
+        if (filtered.length > 0) withDealsCount++;
     });
     
-    let html = '';
-    sorted.forEach(f => {
-        const cadNum = f.properties?.cadastral_number || '—';
-        const count = getDealsCountForObject(f);
-        html += `
-            <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                 onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                 onmouseover="this.style.background='#f1f5f9'"
-                 onmouseout="this.style.background='transparent'">
-                <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-            </div>
-        `;
-    });
-    quartersList.innerHTML = html;
+    // ✅ ПОКАЗЫВАЕМ ТОЛЬКО СТАТИСТИКУ
+    quartersList.innerHTML = `
+        <div style="color: #64748b; font-size: 12px; padding: 8px 0; text-align: center;">
+            ${withDealsCount} кварталов с сделками
+        </div>
+    `;
 }
 
 function updateQuartersStyle(targetObjects) {
