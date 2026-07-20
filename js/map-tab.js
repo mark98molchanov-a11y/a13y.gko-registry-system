@@ -1985,84 +1985,93 @@ function updateMapStatsFromDeals(level, parentId) {
     }
 }
 function updatePopupsAndTooltips(level) {
-    if (!window.mapLayer) return;
+    if (window._updatingPopups) {
+        console.log('⏳ Обновление попапов уже выполняется, пропускаем');
+        return;
+    }
+    window._updatingPopups = true;
     
-    console.log(`🔄 updatePopupsAndTooltips: level=${level}, filter=${currentDealTypeFilter}`);
-    
-    window.mapLayer.eachLayer(function(layer) {
-        if (!layer.feature || !layer.feature.properties) return;
+    try {
+        if (!window.mapLayer) return;
         
-        const props = layer.feature.properties;
-        const levelName = props.level_name || 'unknown';
+        console.log(`🔄 updatePopupsAndTooltips: level=${level}, filter=${currentDealTypeFilter}`);
         
-        if (levelName === 'district') {
-            // ✅ ПЕРЕСОЗДАЕМ ТУЛТИП
-            const tooltipContent = buildDistrictTooltipContent(layer);
-            if (tooltipContent) {
-                // Удаляем старый тултип
-                layer.unbindTooltip();
-                // Привязываем новый
-                layer.bindTooltip(tooltipContent, {
-                    className: 'custom-popup',
-                    permanent: false,
-                    direction: 'top',
-                    offset: [0, -10],
-                    opacity: 0.95,
-                    sticky: true,
-                    interactive: false
-                });
-                console.log(`✅ Тултип обновлен для: ${props.district_name}`);
+        window.mapLayer.eachLayer(function(layer) {
+            if (!layer.feature || !layer.feature.properties) return;
+            
+            const props = layer.feature.properties;
+            const levelName = props.level_name || 'unknown';
+            
+            if (levelName === 'district') {
+                const tooltipContent = buildDistrictTooltipContent(layer);
+                if (tooltipContent) {
+                    layer.unbindTooltip();
+                    layer.bindTooltip(tooltipContent, {
+                        className: 'custom-popup',
+                        permanent: false,
+                        direction: 'top',
+                        offset: [0, -10],
+                        opacity: 0.95,
+                        sticky: true,
+                        interactive: false
+                    });
+                    console.log(`✅ Тултип обновлен для: ${props.district_name}`);
+                }
             }
-        }
-        
-        if (levelName === 'quarter') {
-            // ✅ ПЕРЕСОЗДАЕМ ПОПАП
-            const newPopupContent = buildPopupContent(layer.feature);
-            layer.unbindPopup();
-            layer.bindPopup(newPopupContent, { 
-                className: 'custom-popup', 
-                maxWidth: 300,
-                closeButton: true
-            });
             
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-            layer.off('popupclose');
-            layer.on('popupclose', function(e) {
-                if (currentLevel === 2) {
-                    const districtId = layer.feature.properties.parent_id || 
-                                      layer.feature.properties.district_id;
-                    console.log('🔄 Попап закрыт → обновление таблицы');
-                    setTimeout(() => {
-                        if (currentLevel === 2) {
-                            onPopupClose('quarter', districtId);
-                        }
-                    }, 300);
-                }
-            });
-            
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА
-            layer.off('tooltipclose');
-            layer.on('tooltipclose', function(e) {
-                if (currentLevel === 2) {
-                    const districtId = layer.feature.properties.parent_id || 
-                                      layer.feature.properties.district_id;
-                    console.log('🔄 Тултип закрыт → обновление таблицы');
-                    setTimeout(() => {
-                        if (currentLevel === 2) {
-                            onPopupClose('quarter', districtId);
-                        }
-                    }, 300);
-                }
-            });
-        }
-    });
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-                console.log(`✅ Тултип обертки обновлен`);
+            if (levelName === 'quarter') {
+                const newPopupContent = buildPopupContent(layer.feature);
+                layer.unbindPopup();
+                layer.bindPopup(newPopupContent, { 
+                    className: 'custom-popup', 
+                    maxWidth: 300,
+                    closeButton: true
+                });
+                
+                layer.off('popupclose');
+                layer.on('popupclose', function(e) {
+                    if (currentLevel === 2) {
+                        const districtId = layer.feature.properties.parent_id || 
+                                          layer.feature.properties.district_id;
+                        console.log('🔄 Попап закрыт → обновление таблицы');
+                        setTimeout(() => {
+                            if (currentLevel === 2) {
+                                onPopupClose('quarter', districtId);
+                            }
+                        }, 300);
+                    }
+                });
+                
+                layer.off('tooltipclose');
+                layer.on('tooltipclose', function(e) {
+                    if (currentLevel === 2) {
+                        const districtId = layer.feature.properties.parent_id || 
+                                          layer.feature.properties.district_id;
+                        console.log('🔄 Тултип закрыт → обновление таблицы');
+                        setTimeout(() => {
+                            if (currentLevel === 2) {
+                                onPopupClose('quarter', districtId);
+                            }
+                        }, 300);
+                    }
+                });
             }
         });
+        
+        if (window.wrapperLayer) {
+            window.wrapperLayer.eachLayer(function(layer) {
+                if (layer._updateTooltip) {
+                    layer._updateTooltip();
+                    console.log(`✅ Тултип обертки обновлен`);
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка в updatePopupsAndTooltips:', error);
+    } finally {
+        // ✅ ПРАВИЛЬНО: finally после закрытия try
+        window._updatingPopups = false;
     }
 }
 function buildDistrictTooltipContent(layer) {
@@ -3210,9 +3219,6 @@ function onPopupClose(levelName, districtId) {
         
         // Обновляем таблицу сделок (покажет все сделки района)
         renderDealsTable();
-        
-        // Обновляем статистику для текущего уровня
-        updateMapStatsFromDeals(currentLevel, currentParentId);
         
         // Обновляем список кварталов
         updateQuartersListWithFilteredObjects(null);
