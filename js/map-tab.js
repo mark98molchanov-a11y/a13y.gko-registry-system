@@ -145,6 +145,15 @@ const locationIndex = headers.indexOf('location');
         // ✅ ОЧИЩАЕМ МАССИВЫ ПРИ ПОВТОРНОЙ ЗАГРУЗКЕ
         allDealsFlat = [];
         originalAllDealsFlat = [];
+         dealsData = {};
+        dealTypes = {};
+        cityTypes = {};
+        objectTypes = {};
+        wallMaterialTypes = {};
+        quarterTypes = {};
+        yearBuildTypes = {};
+        purposeCount = {};
+        vriCount = {};
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
