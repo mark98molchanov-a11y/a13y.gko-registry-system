@@ -2076,9 +2076,7 @@ function updatePopupsAndTooltips(level) {
             // ✅ ПЕРЕСОЗДАЕМ ТУЛТИП
             const tooltipContent = buildDistrictTooltipContent(layer);
             if (tooltipContent) {
-                // Удаляем старый тултип
                 layer.unbindTooltip();
-                // Привязываем новый
                 layer.bindTooltip(tooltipContent, {
                     className: 'custom-popup',
                     permanent: false,
@@ -2131,7 +2129,19 @@ function updatePopupsAndTooltips(level) {
                     }, 300);
                 }
             });
-        }
+        } // ← ЗАКРЫВАЕТ if (levelName === 'quarter')
+        
+    }); // ← ЗАКРЫВАЕТ eachLayer (ЭТОЙ СКОБКИ НЕ ХВАТАЕТ!)
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+                console.log(`✅ Тултип обертки обновлен`);
+            }
+        });
+    }
+}
 function buildDistrictTooltipContent(layer) {
     const feature = layer.feature;
     if (!feature || !feature.properties) return null;
