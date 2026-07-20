@@ -1807,7 +1807,6 @@ const medianUprs = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
     // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
     updateQuartersListWithFilteredObjects(null);
 }
-
 function updateMapStatsFromDeals(level, parentId) {
     const statUpks = document.getElementById('stat-upks');
     const statCadCost = document.getElementById('stat-cadcost');
@@ -1958,13 +1957,16 @@ function updateMapStatsFromDeals(level, parentId) {
         
         // ✅ АСИНХРОННО ВЫЧИСЛЯЕМ МЕДИАНЫ
         function calculateAllMedians() {
-            // ✅ СНАЧАЛА ВЫЧИСЛЯЕМ ЦЕНУ (быстро)
+            console.log('🔄 calculateAllMedians начат');
+            
+            // ✅ СНАЧАЛА ВЫЧИСЛЯЕМ ЦЕНУ
             if (priceValues.length > 0) {
                 const sorted = priceValues.slice().sort((a, b) => a - b);
                 const mid = Math.floor(sorted.length / 2);
                 weightedMedianPrice = sorted.length % 2 === 0 
                     ? (sorted[mid - 1] + sorted[mid]) / 2 
                     : sorted[mid];
+                console.log('✅ weightedMedianPrice:', weightedMedianPrice);
             }
             
             // ✅ ПОТОМ УПРС
@@ -1974,6 +1976,7 @@ function updateMapStatsFromDeals(level, parentId) {
                 weightedMedianUprs = sorted.length % 2 === 0 
                     ? (sorted[mid - 1] + sorted[mid]) / 2 
                     : sorted[mid];
+                console.log('✅ weightedMedianUprs:', weightedMedianUprs);
             }
             
             // ✅ ПОТОМ УПКС
@@ -1983,6 +1986,7 @@ function updateMapStatsFromDeals(level, parentId) {
                 weightedMedianUpks = sorted.length % 2 === 0 
                     ? (sorted[mid - 1] + sorted[mid]) / 2 
                     : sorted[mid];
+                console.log('✅ weightedMedianUpks:', weightedMedianUpks);
             }
             
             // ✅ ПОТОМ КАДАСТРОВАЯ СТОИМОСТЬ
@@ -1992,16 +1996,21 @@ function updateMapStatsFromDeals(level, parentId) {
                 weightedMedianCadCost = sorted.length % 2 === 0 
                     ? (sorted[mid - 1] + sorted[mid]) / 2 
                     : sorted[mid];
+                console.log('✅ weightedMedianCadCost:', weightedMedianCadCost);
             }
             
             minPrice = allMins.length > 0 ? Math.min(...allMins) : 0;
             maxPrice = allMaxs.length > 0 ? Math.max(...allMaxs) : 0;
+            
+            console.log('🔄 calculateAllMedians завершен');
             
             // ✅ ОБНОВЛЯЕМ UI
             updateStatsUI();
         }
         
         function updateStatsUI() {
+            console.log('🔄 updateStatsUI вызван');
+            
             const formatPrice = (num) => {
                 if (num === 0 || isNaN(num)) return '—';
                 return num.toLocaleString('ru-RU') + ' ₽';
@@ -2027,6 +2036,8 @@ function updateMapStatsFromDeals(level, parentId) {
             if (statObjects) statObjects.textContent = allQuarters.length;
             if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
             
+            console.log('✅ UI обновлен');
+            
             // ✅ ОБНОВЛЯЕМ ОСТАЛЬНЫЕ UI
             updateQuartersListWithFilteredObjects(null);
             updatePopupsAndTooltips(level);
@@ -2034,8 +2045,10 @@ function updateMapStatsFromDeals(level, parentId) {
         
         // ✅ ЗАПУСКАЕМ В ФОНЕ
         if (window.requestIdleCallback) {
+            console.log('⏳ Запуск requestIdleCallback');
             requestIdleCallback(calculateAllMedians, { timeout: 4000 });
         } else {
+            console.log('⏳ Запуск setTimeout (fallback)');
             setTimeout(calculateAllMedians, 200);
         }
         
