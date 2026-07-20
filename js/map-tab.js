@@ -2101,17 +2101,37 @@ function updatePopupsAndTooltips(level) {
                 maxWidth: 300,
                 closeButton: true
             });
+            
+            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
+            layer.off('popupclose');
+            layer.on('popupclose', function(e) {
+                if (currentLevel === 2) {
+                    const districtId = layer.feature.properties.parent_id || 
+                                      layer.feature.properties.district_id;
+                    console.log('🔄 Попап закрыт → обновление таблицы');
+                    setTimeout(() => {
+                        if (currentLevel === 2) {
+                            onPopupClose('quarter', districtId);
+                        }
+                    }, 300);
+                }
+            });
+            
+            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА
+            layer.off('tooltipclose');
+            layer.on('tooltipclose', function(e) {
+                if (currentLevel === 2) {
+                    const districtId = layer.feature.properties.parent_id || 
+                                      layer.feature.properties.district_id;
+                    console.log('🔄 Тултип закрыт → обновление таблицы');
+                    setTimeout(() => {
+                        if (currentLevel === 2) {
+                            onPopupClose('quarter', districtId);
+                        }
+                    }, 300);
+                }
+            });
         }
-    });
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-                console.log(`✅ Тултип обертки обновлен`);
-            }
-        });
-    }
-}
 function buildDistrictTooltipContent(layer) {
     const feature = layer.feature;
     if (!feature || !feature.properties) return null;
@@ -3310,16 +3330,19 @@ if (quarterStats.length > 0) {
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
-        } else if (levelName === 'quarter') {
+           } else if (levelName === 'quarter') {
             // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
             const cadNum = props.cadastral_number;
             const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
             console.log('🏘️ Квартал выбран:', cadNum);
             console.log('📊 Сделок:', dealsCount);
-               window.selectedQuarterCadNumber = cadNum;
-    
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
-    renderDealsTable();
+            window.selectedQuarterCadNumber = cadNum;
+            
+            // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
+            renderDealsTable();
+            
+            // ✅ СОХРАНЯЕМ ID РАЙОНА ДЛЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ ПРИ ЗАКРЫТИИ
+            const districtId = props.parent_id || props.district_id;
             
             if (layer.getBounds && layer.getBounds().isValid()) {
                 mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
@@ -3327,8 +3350,20 @@ if (quarterStats.length > 0) {
                 mapInstance.setView(layer.getLatLng(), 15);
             }
             layer.openPopup();
+            
+            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
+            layer.off('popupclose');
+            layer.on('popupclose', function(e) {
+                if (currentLevel === 2) {
+                    console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
+                    setTimeout(() => {
+                        if (currentLevel === 2) {
+                            onPopupClose('quarter', districtId);
+                        }
+                    }, 300);
+                }
+            });
         }
-    });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
 layer.on('mouseover', function(e) {
@@ -3407,6 +3442,30 @@ layer.on('mouseout', function(e) {
     }
     // ✅ РАЙОНЫ И ОКРУГ — НИЧЕГО НЕ МЕНЯЕМ
 });
+}
+function onPopupClose(levelName, districtId) {
+    // Если мы на уровне кварталов (level === 2) и попап/тултип закрылся
+    if (levelName === 'quarter' && districtId) {
+        console.log('🔄 Закрытие попапа/тултипа квартала → обновление таблицы');
+        
+        // Сбрасываем выбранный квартал
+        window.selectedQuarterCadNumber = null;
+        
+        // ✅ ТОЛЬКО ОБНОВЛЯЕМ ТАБЛИЦУ И СТАТИСТИКУ
+        // НЕ МЕНЯЕМ УРОВЕНЬ КАРТЫ!
+        
+        // Обновляем таблицу сделок (покажет все сделки района)
+        renderDealsTable();
+        
+        // Обновляем статистику для текущего уровня
+        updateMapStatsFromDeals(currentLevel, currentParentId);
+        
+        // Обновляем список кварталов
+        updateQuartersListWithFilteredObjects(null);
+        
+        // Обновляем активные фильтры
+        updateActiveFiltersDisplay();
+    }
 }
 function buildPopupContent(feature) {
     const props = feature.properties;
@@ -4763,4 +4822,5 @@ window.renderMapLevel = renderMapLevel;
 window.searchQuarter = searchQuarter;
 window.searchQuarterByCadNumber = searchQuarterByCadNumber; 
 window.exportDealsTableToExcel = exportDealsTableToExcel;
+window.onPopupClose = onPopupClose;
 console.log('✅ map-tab.js загружен');
