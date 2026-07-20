@@ -2076,9 +2076,7 @@ function updatePopupsAndTooltips(level) {
             // ✅ ПЕРЕСОЗДАЕМ ТУЛТИП
             const tooltipContent = buildDistrictTooltipContent(layer);
             if (tooltipContent) {
-                // Удаляем старый тултип
                 layer.unbindTooltip();
-                // Привязываем новый
                 layer.bindTooltip(tooltipContent, {
                     className: 'custom-popup',
                     permanent: false,
@@ -2092,46 +2090,58 @@ function updatePopupsAndTooltips(level) {
             }
         }
         
-    if (levelName === 'quarter') {
-    // ✅ ПЕРЕСОЗДАЕМ ПОПАП
-    const newPopupContent = buildPopupContent(layer.feature);
-    layer.unbindPopup();
-    layer.bindPopup(newPopupContent, { 
-        className: 'custom-popup', 
-        maxWidth: 300,
-        closeButton: true
-    });
-    
-    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-    layer.off('popupclose');
-    layer.on('popupclose', function(e) {
-        if (currentLevel === 2) {
-            const districtId = layer.feature.properties.parent_id || 
-                              layer.feature.properties.district_id;
-            console.log('🔄 Попап закрыт → переход на уровень районов');
-            setTimeout(() => {
+        if (levelName === 'quarter') {
+            // ✅ ПЕРЕСОЗДАЕМ ПОПАП
+            const newPopupContent = buildPopupContent(layer.feature);
+            layer.unbindPopup();
+            layer.bindPopup(newPopupContent, { 
+                className: 'custom-popup', 
+                maxWidth: 300,
+                closeButton: true
+            });
+            
+            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
+            layer.off('popupclose');
+            layer.on('popupclose', function(e) {
                 if (currentLevel === 2) {
-                    onPopupClose('quarter', districtId);
+                    const districtId = layer.feature.properties.parent_id || 
+                                      layer.feature.properties.district_id;
+                    console.log('🔄 Попап закрыт → переход на уровень районов');
+                    setTimeout(() => {
+                        if (currentLevel === 2) {
+                            onPopupClose('quarter', districtId);
+                        }
+                    }, 300);
                 }
-            }, 300);
-        }
-    });
-    
-    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА
-    layer.off('tooltipclose');
-    layer.on('tooltipclose', function(e) {
-        if (currentLevel === 2) {
-            const districtId = layer.feature.properties.parent_id || 
-                              layer.feature.properties.district_id;
-            console.log('🔄 Тултип закрыт → переход на уровень районов');
-            setTimeout(() => {
+            });
+            
+            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА
+            layer.off('tooltipclose');
+            layer.on('tooltipclose', function(e) {
                 if (currentLevel === 2) {
-                    onPopupClose('quarter', districtId);
+                    const districtId = layer.feature.properties.parent_id || 
+                                      layer.feature.properties.district_id;
+                    console.log('🔄 Тултип закрыт → переход на уровень районов');
+                    setTimeout(() => {
+                        if (currentLevel === 2) {
+                            onPopupClose('quarter', districtId);
+                        }
+                    }, 300);
                 }
-            }, 300);
-        }
-    });
-}
+            });
+        } // ⬅️ СКОБКА 1: ЗАКРЫВАЕТ if (levelName === 'quarter')
+        
+    }); // ⬅️ СКОБКА 2: ЗАКРЫВАЕТ eachLayer (ЭТОЙ СКОБКИ НЕ ХВАТАЕТ!)
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+                console.log(`✅ Тултип обертки обновлен`);
+            }
+        });
+    }
+} 
 function buildDistrictTooltipContent(layer) {
     const feature = layer.feature;
     if (!feature || !feature.properties) return null;
