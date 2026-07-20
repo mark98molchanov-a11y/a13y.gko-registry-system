@@ -1763,6 +1763,14 @@ const medianUprs = uprsValues.length > 0 ? getMedian(uprsValues) : 0;
 }
 
 function updateMapStatsFromDeals(level, parentId) {
+    // ✅ ЗАЩИТА ОТ РЕКУРСИИ
+    if (window._updatingStats) {
+        console.log('⏳ Обновление статистики уже выполняется, пропускаем');
+        return;
+    }
+    window._updatingStats = true;
+    
+    try {
     const statUpks = document.getElementById('stat-upks');
     const statCadCost = document.getElementById('stat-cadcost');
     const statMedian = document.getElementById('stat-median');
