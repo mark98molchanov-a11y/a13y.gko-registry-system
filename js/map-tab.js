@@ -2017,55 +2017,9 @@ if (statCadCost) statCadCost.textContent = formatPrice(weightedMedianCadCost);
     
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
-    
-    const quartersList = document.getElementById('quarters-list');
-    if (quartersList) {
-        if (quarterStats.length === 0) {
-            quartersList.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px 0;">Нет сделок</div>';
-        } else {
- const sortedQuarters = allQuarters.filter(f => {
-    const cadNum = f.properties?.cadastral_number;
-    if (!cadNum) return false;
-    const deals = dealsData[cadNum] || [];
-    const filtered = deals.filter(d => {
-        if (currentDealTypeFilter && d.kind !== currentDealTypeFilter) return false;
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ГОРОДУ
-        if (currentCityFilter && d.city !== currentCityFilter) return false;
-        // ✅ ДОБАВЛЯЕМ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-        if (currentObjectTypeFilter && d.obj_kind !== currentObjectTypeFilter) return false;
-         if (currentWallMaterialFilter && d.wall_material !== currentWallMaterialFilter) return false;
-         if (currentQuarterFilter && d.quarter !== currentQuarterFilter) return false;
-         if (currentYearBuildFilter && d.year_build !== currentYearBuildFilter) return false;
-        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
-        if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-        return true;
-    });
-    return filtered.length > 0;
-}).sort((a, b) => {
-    const countA = getDealsCountForObject(a);
-    const countB = getDealsCountForObject(b);
-    return countB - countA;
-});
-            
-            let html = '';
-            sortedQuarters.forEach(f => {
-                const cadNum = f.properties?.cadastral_number || '—';
-                const count = getDealsCountForObject(f);
-                html += `
-                    <div style="padding: 5px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s;" 
-                         onclick="window.searchQuarterByCadNumber('${cadNum}')"
-                         onmouseover="this.style.background='#f1f5f9'"
-                         onmouseout="this.style.background='transparent'">
-                        <div style="font-weight: 500; font-size: 12px; color: #1e293b;">${cadNum}</div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 1px;">${count.toLocaleString('ru-RU')} сделок</div>
-                    </div>
-                `;
-            });
-            quartersList.innerHTML = html;
-        }
-    }   
-    updatePopupsAndTooltips(level);
+        updatePopupsAndTooltips(level);
 }
+
 
 function updatePopupsAndTooltips(level) {
     if (!window.mapLayer) return;
