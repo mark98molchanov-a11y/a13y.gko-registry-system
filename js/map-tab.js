@@ -124,43 +124,31 @@ async function loadDealsCSV() {
         const wallMaterialIndex = headers.indexOf('wall_material_name');
         const quarterIndex = headers.indexOf('Квартал сделки');
         const yearBuildIndex = headers.indexOf('year_build'); 
-       const purposeIndex = headers.indexOf('purpose_text'); 
-const vriIndex = headers.indexOf('vri');  
-const cadCostIndex = headers.indexOf('cad_cost'); 
+        const purposeIndex = headers.indexOf('purpose_text'); 
+        const vriIndex = headers.indexOf('vri');  
+        const cadCostIndex = headers.indexOf('cad_cost'); 
         const floorIndex = headers.indexOf('floor');
-const locationIndex = headers.indexOf('location');
+        const locationIndex = headers.indexOf('location');
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
             return;
         }
         
-               const dealsByCad = {};
+        // ✅ ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ СБОРА ДАННЫХ
+        const dealsByCad = {};
         const typesCount = {};
         const citiesCount = {}; 
         const objectTypesCount = {};
-        const purposeCount = {};   
-        const vriCount = {}; 
+        const wallMaterialTypesLocal = {};
+        const quarterTypesLocal = {};
+        const yearBuildTypesLocal = {};
+        const purposeCountLocal = {};   
+        const vriCountLocal = {};
         
-   allDealsFlat = [];
-originalAllDealsFlat = [];
-dealsData = {};
-dealTypes = {};
-cityTypes = {};
-objectTypes = {};
-wallMaterialTypes = {};
-quarterTypes = {};
-yearBuildTypes = {};
-purposeCount = {};
-vriCount = {};
-currentDealTypeFilter = [];
-currentCityFilter = [];
-currentObjectTypeFilter = [];
-currentWallMaterialFilter = [];
-currentQuarterFilter = [];
-currentYearBuildFilter = [];
-currentPurposeFilter = [];
-currentVriFilter = [];
+        // ✅ ОЧИЩАЕМ ГЛОБАЛЬНЫЕ МАССИВЫ
+        allDealsFlat = [];
+        originalAllDealsFlat = [];
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLine(lines[i]);
@@ -176,8 +164,7 @@ currentVriFilter = [];
             const purposeText = values[purposeIndex] || 'nan';
             const vri = values[vriIndex] || 'nan';  
             const floor = values[floorIndex] || 'nan';
-const location = values[locationIndex] || 'nan';
-            
+            const location = values[locationIndex] || 'nan';
             
             if (!cadNum) continue;
             
@@ -187,90 +174,95 @@ const location = values[locationIndex] || 'nan';
             const area = parseFloat(values[areaIndex]) || 0;
             const cadCost = parseFloat(values[cadCostIndex]) || 0;
               
- allDealsFlat.push({
-    cad_number: cadNum,
-    area: parseFloat(values[areaIndex]) || 0,
-    purpose_text: values[purposeIndex] || 'nan',
-    cad_cost: parseFloat(values[cadCostIndex]) || 0,
-    upks: parseFloat(values[upksIndex]) || 0,
-    uprs: parseFloat(values[uprsIndex]) || 0,
-    city: values[cityIndex] || 'nan',
-    deal_kind_text: values[kindIndex] || 'nan',
-    obj_kind_text: values[objKindIndex] || 'nan',
-    vri: values[vriIndex] || 'nan',
-    quarter: values[quarterIndex] || 'nan',
-    year_build: values[yearBuildIndex] || 'nan',
-    wall_material_name: values[wallMaterialIndex] || 'nan',
-    deal_price_rub: parseFloat(values[priceIndex]) || 0,
-    uprs_rub: parseFloat(values[uprsIndex]) || 0,
-    floor: values[floorIndex] || 'nan',
-    location: values[locationIndex] || 'nan'
-});
+            allDealsFlat.push({
+                cad_number: cadNum,
+                area: parseFloat(values[areaIndex]) || 0,
+                purpose_text: values[purposeIndex] || 'nan',
+                cad_cost: parseFloat(values[cadCostIndex]) || 0,
+                upks: parseFloat(values[upksIndex]) || 0,
+                uprs: parseFloat(values[uprsIndex]) || 0,
+                city: values[cityIndex] || 'nan',
+                deal_kind_text: values[kindIndex] || 'nan',
+                obj_kind_text: values[objKindIndex] || 'nan',
+                vri: values[vriIndex] || 'nan',
+                quarter: values[quarterIndex] || 'nan',
+                year_build: values[yearBuildIndex] || 'nan',
+                wall_material_name: values[wallMaterialIndex] || 'nan',
+                deal_price_rub: parseFloat(values[priceIndex]) || 0,
+                uprs_rub: parseFloat(values[uprsIndex]) || 0,
+                floor: values[floorIndex] || 'nan',
+                location: values[locationIndex] || 'nan'
+            });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
-           dealsByCad[cadNum].push({
-    kind: kind,
-    price: price,
-    uprs: uprs,
-    upks: upks,
-    cad_cost: cadCost,
-    area: area,
-    city: city,
-    obj_kind: objKind,
-    wall_material: wallMaterial,
-    quarter: quarter,
-    year_build: yearBuild,
-    purpose_text: purposeText,
-    vri: vri,
-    floor: floor,
-    location: location
-});
+            dealsByCad[cadNum].push({
+                kind: kind,
+                price: price,
+                uprs: uprs,
+                upks: upks,
+                cad_cost: cadCost,
+                area: area,
+                city: city,
+                obj_kind: objKind,
+                wall_material: wallMaterial,
+                quarter: quarter,
+                year_build: yearBuild,
+                purpose_text: purposeText,
+                vri: vri,
+                floor: floor,
+                location: location
+            });
             
+            // ✅ ИСПОЛЬЗУЕМ ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
             typesCount[kind] = (typesCount[kind] || 0) + 1;
             citiesCount[city] = (citiesCount[city] || 0) + 1;
             objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
-            wallMaterialTypes[wallMaterial] = (wallMaterialTypes[wallMaterial] || 0) + 1;
-            quarterTypes[quarter] = (quarterTypes[quarter] || 0) + 1;
-            yearBuildTypes[yearBuild] = (yearBuildTypes[yearBuild] || 0) + 1; 
-            purposeCount[purposeText] = (purposeCount[purposeText] || 0) + 1;
-vriCount[vri] = (vriCount[vri] || 0) + 1;
+            wallMaterialTypesLocal[wallMaterial] = (wallMaterialTypesLocal[wallMaterial] || 0) + 1;
+            quarterTypesLocal[quarter] = (quarterTypesLocal[quarter] || 0) + 1;
+            yearBuildTypesLocal[yearBuild] = (yearBuildTypesLocal[yearBuild] || 0) + 1; 
+            purposeCountLocal[purposeText] = (purposeCountLocal[purposeText] || 0) + 1;
+            vriCountLocal[vri] = (vriCountLocal[vri] || 0) + 1;
         }
         
         // ============================================================
-        // 🆕 НОВЫЙ КОД: ФИЛЬТРАЦИЯ ПО 5% САМЫХ МАЛЕНЬКИХ ЦЕН
+        // 🆕 ФИЛЬТРАЦИЯ ПО 10% НИЗКИХ И 10% ВЫСОКИХ ЦЕН
         // ============================================================
         
-console.log('📊 Всего сделок загружено:', allDealsFlat.length);
+        console.log('📊 Всего сделок загружено:', allDealsFlat.length);
         
-// Сохраняем оригинальные данные (на случай если понадобится)
-originalAllDealsFlat = [...allDealsFlat];
+        // Сохраняем оригинальные данные (на случай если понадобится)
+        originalAllDealsFlat = [...allDealsFlat];
         
-// Рассчитываем пороговые цены для каждого типа сделки
-priceThresholds = calculatePriceThresholds();
-console.log('📊 Пороговые цены рассчитаны');
+        // Рассчитываем пороговые цены для каждого типа сделки
+        priceThresholds = calculatePriceThresholds();
+        console.log('📊 Пороговые цены рассчитаны');
         
-// Применяем фильтрацию (по умолчанию включена)
-if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
-    const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
-    console.log(`📊 После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
+        // Применяем фильтрацию (по умолчанию включена)
+        if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
+            const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
+            console.log(`📊 После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
             
-    // Обновляем глобальные данные
-    allDealsFlat = filteredDeals;
-    rebuildDealsData(filteredDeals);
-} else {
-    rebuildDealsData(allDealsFlat);
-}
+            // Обновляем глобальные данные
+            allDealsFlat = filteredDeals;
+            rebuildDealsData(filteredDeals);
+        } else {
+            rebuildDealsData(allDealsFlat);
+        }
         
         // ============================================================
-        // 🆕 КОНЕЦ НОВОГО КОДА
+        // 🆕 КОНЕЦ КОДА ФИЛЬТРАЦИИ
         // ============================================================
         
-        // Обновляем dealsData, dealTypes и т.д. с учетом фильтрации
-        // (это уже делает rebuildDealsData, но оставляем для совместимости)
+        // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
         dealsData = dealsByCad;
         dealTypes = typesCount;
         cityTypes = citiesCount; 
         objectTypes = objectTypesCount;
+        wallMaterialTypes = wallMaterialTypesLocal;
+        quarterTypes = quarterTypesLocal;
+        yearBuildTypes = yearBuildTypesLocal;
+        purposeCount = purposeCountLocal;
+        vriCount = vriCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Типы сделок:', dealTypes);
