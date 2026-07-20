@@ -1994,6 +1994,12 @@ function updatePopupsAndTooltips(level) {
     try {
         if (!window.mapLayer) return;
         
+        // ✅ ЕСЛИ УРОВЕНЬ 0 (ОКРУГ) — НЕ ОБНОВЛЯЕМ ТУЛТИПЫ
+        if (level === 0) {
+            console.log('⏩ Уровень 0: пропускаем обновление тултипов');
+            return;
+        }
+        
         console.log(`🔄 updatePopupsAndTooltips: level=${level}, filter=${currentDealTypeFilter}`);
         
         window.mapLayer.eachLayer(function(layer) {
@@ -2070,7 +2076,6 @@ function updatePopupsAndTooltips(level) {
     } catch (error) {
         console.error('❌ Ошибка в updatePopupsAndTooltips:', error);
     } finally {
-        // ✅ ПРАВИЛЬНО: finally после закрытия try
         window._updatingPopups = false;
     }
 }
