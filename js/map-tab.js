@@ -1978,10 +1978,12 @@ function updateMapStatsFromDeals(level, parentId) {
     
     if (statObjects) statObjects.textContent = allQuarters.length;
     if (statWithDeals) statWithDeals.textContent = quartersWithDeals.length;
+  } catch (error) {
+        console.error('❌ Ошибка в updateMapStatsFromDeals:', error);
+    } finally {
+        window._updatingStats = false;
+    }
 }
-
-
-
 function updatePopupsAndTooltips(level) {
     if (!window.mapLayer) return;
     
