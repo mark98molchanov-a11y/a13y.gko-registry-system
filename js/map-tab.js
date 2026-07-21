@@ -2608,7 +2608,7 @@ function renderMapLevel(level, parentId = null) {
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
- if (wrapperQuarters.length > 0) {
+if (wrapperQuarters.length > 0) {
     window.wrapperLayer = L.geoJSON(wrapperQuarters, {
         style: function(feature) {
             return {
@@ -2623,7 +2623,7 @@ function renderMapLevel(level, parentId = null) {
         onEachFeature: function(feature, layer) {
             const cadNum = feature.properties.cadastral_number || '—';
             
-            function updateTooltip() {
+            function getPopupContent() {
                 const deals = dealsData[cadNum] || [];
                 const filteredDeals = deals.filter(deal => {
                     if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
@@ -2650,17 +2650,7 @@ function renderMapLevel(level, parentId = null) {
                 const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
                 const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
                 
-                // ✅ КРЕСТИК ПРЯМО В HTML (без CSS)
-                const tooltipContent = `
-                    <div style="text-align:right; margin-bottom:4px;">
-                        <span onclick="event.stopPropagation(); closeWrapperTooltip('${cadNum}')" 
-                              style="cursor:pointer; font-size:18px; font-weight:bold; color:#dc2626; 
-                                     background:white; border-radius:50%; display:inline-block; 
-                                     width:22px; height:22px; line-height:18px; text-align:center;
-                                     border:2px solid #dc2626; user-select:none;">
-                            ✕
-                        </span>
-                    </div>
+                return `
                     <div class="popup-title">${cadNum}</div>
                     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
                     ${dealsCount > 0 ? `
@@ -2671,30 +2661,24 @@ function renderMapLevel(level, parentId = null) {
                     <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
                     ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
                 `;
-                
-                layer.bindTooltip(tooltipContent, {
-                    className: 'custom-popup',
-                    permanent: false,
-                    direction: 'top',
-                    offset: [0, -10],
-                    opacity: 0.95,
-                    sticky: true,
-                    interactive: true  // ← ВАЖНО: чтобы крестик реагировал на клик
-                });
             }
             
-            layer._updateTooltip = updateTooltip;
-            updateTooltip();
+            // ✅ ИСПОЛЬЗУЕМ ПОПАП ВМЕСТО ТУЛТИПА (у попапа есть стандартный крестик)
+            layer.bindPopup(getPopupContent(), {
+                className: 'custom-popup',
+                maxWidth: 300,
+                closeButton: true  // ← СТАНДАРТНЫЙ КРЕСТИК LEAFLET
+            });
             
+            // Обновляем попап при наведении
             layer.on('mouseover', function() {
-                updateTooltip();
                 this.setStyle({
                     fillOpacity: 0.5,
                     weight: 2,
                     color: '#ff0000',
                     opacity: 0.7
                 });
-                this.openTooltip();
+                this.setPopupContent(getPopupContent());
             });
             
             layer.on('mouseout', function() {
@@ -2707,10 +2691,39 @@ function renderMapLevel(level, parentId = null) {
             });
             
             layer.on('click', function(e) {
-                updateTooltip();
-                this.openTooltip();
+                this.setPopupContent(getPopupContent());
+                this.openPopup();
                 if (this.getBounds && this.getBounds().isValid()) {
                     mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
+                }
+            });
+            
+            // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА (КРЕСТИК) → ВОЗВРАТ НА УРОВЕНЬ ОКРУГА
+            layer.on('popupclose', function(e) {
+                console.log('🔄 Попап обертки закрыт → возврат на уровень округа');
+                
+                // Сбрасываем выбранный квартал
+                window.selectedQuarterCadNumber = null;
+                
+                // ✅ ВОЗВРАЩАЕМСЯ НА УРОВЕНЬ ОКРУГА (level 0)
+                renderMapLevel(0);
+                updateBreadcrumb('okrug');
+                
+                // Обновляем статистику
+                updateMapStatsFromDeals(0, null);
+                
+                // Обновляем список кварталов
+                updateQuartersListWithFilteredObjects(null);
+                
+                // Обновляем активные фильтры
+                updateActiveFiltersDisplay();
+                
+                // Обновляем таблицу
+                renderDealsTable();
+                
+                // Центрируем карту на округе
+                if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+                    mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
                 }
             });
         }
@@ -2718,7 +2731,6 @@ function renderMapLevel(level, parentId = null) {
     
     console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
 }
-
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
