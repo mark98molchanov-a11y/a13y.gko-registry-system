@@ -4641,28 +4641,36 @@ function closeWrapperTooltip(cadNum) {
         });
     }
     
-    // ✅ ВОЗВРАЩАЕМСЯ НА УРОВЕНЬ ОКРУГА
+    // ✅ УСТАНАВЛИВАЕМ УРОВЕНЬ ОКРУГА
+    currentLevel = 0;
+    currentParentId = null;
+    currentDistrictFilter = null;
+    
+    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ НА УРОВНЕ ОКРУГА
     renderMapLevel(0);
     updateBreadcrumb('okrug');
     
-    // Обновляем статистику для уровня округа
+    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ ДЛЯ УРОВНЯ ОКРУГА
     updateMapStatsFromDeals(0, null);
     
-    // Обновляем список кварталов
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
     
-    // Обновляем активные фильтры
+    // ✅ ОБНОВЛЯЕМ АКТИВНЫЕ ФИЛЬТРЫ
     updateActiveFiltersDisplay();
     
-    // Обновляем таблицу
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     renderDealsTable();
+    
+    // ✅ ПЕРЕРИСОВЫВАЕМ ЛЕГЕНДУ
+    addMapLegend();
     
     // Центрируем карту на округе
     if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
     }
     
-    console.log('✅ Тултип обертки закрыт, возврат на уровень округа');
+    console.log('✅ Тултип обертки закрыт, возврат на уровень округа, таблица и карточки обновлены');
 }
 window.initMapTab = initMapTab;
 window.destroyMap = destroyMap;
