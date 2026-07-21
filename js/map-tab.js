@@ -2608,7 +2608,7 @@ function renderMapLevel(level, parentId = null) {
     console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
- if (wrapperQuarters.length > 0) {
+if (wrapperQuarters.length > 0) {
     window.wrapperLayer = L.geoJSON(wrapperQuarters, {
         style: function(feature) {
             return {
@@ -2650,10 +2650,9 @@ function renderMapLevel(level, parentId = null) {
                 const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
                 const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
                 
-                // ✅ КРЕСТИК КАК У КВАРТАЛОВ (белый в красном круге)
                 const tooltipContent = `
                     <div style="text-align:right; margin-bottom:4px;">
-                        <span onclick="event.stopPropagation(); closeWrapperTooltip('${cadNum}')" 
+                        <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNum}'); return false;" 
                               style="cursor:pointer; font-size:16px; font-weight:bold; color:white; 
                                      background:#dc2626; border-radius:50%; display:inline-block; 
                                      width:20px; height:20px; line-height:18px; text-align:center;
@@ -2718,6 +2717,7 @@ function renderMapLevel(level, parentId = null) {
     
     console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
 }
+
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
         const normalLayer = L.geoJSON(normalQuarters, {
