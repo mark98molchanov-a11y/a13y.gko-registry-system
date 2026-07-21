@@ -4626,70 +4626,41 @@ function exportDealsTableToExcel() {
 function closeWrapperTooltip(cadNum) {
     console.log(`🔄 Закрытие тултипа обертки: ${cadNum}`);
     
-    // Сбрасываем выбранный квартал
+    // ✅ СБРАСЫВАЕМ ВСЕ СОСТОЯНИЯ
     window.selectedQuarterCadNumber = null;
-    
-    // Находим и закрываем тултип
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const layerCadNum = layer.feature.properties.cadastral_number || '';
-                if (layerCadNum === cadNum) {
-                    layer.closeTooltip();
-                }
-            }
-        });
-    }
-    
-    // ✅ УСТАНАВЛИВАЕМ УРОВЕНЬ ОКРУГА
     currentLevel = 0;
     currentParentId = null;
     currentDistrictFilter = null;
+    
+    // ✅ ЗАКРЫВАЕМ ВСЕ ТУЛТИПЫ В ОБЕРТКЕ
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            layer.closeTooltip();
+        });
+    }
+    
+    // ✅ ЗАКРЫВАЕМ ВСЕ ТУЛТИПЫ НА КАРТЕ
+    if (mapInstance) {
+        mapInstance.closePopup();
+    }
     
     // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ НА УРОВНЕ ОКРУГА
     renderMapLevel(0);
     updateBreadcrumb('okrug');
     
-    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ ДЛЯ УРОВНЯ ОКРУГА
+    // ✅ ОБНОВЛЯЕМ ВСЕ ДАННЫЕ
     updateMapStatsFromDeals(0, null);
-    
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
     updateQuartersListWithFilteredObjects(null);
-    
-    // ✅ ОБНОВЛЯЕМ АКТИВНЫЕ ФИЛЬТРЫ
     updateActiveFiltersDisplay();
-    
-    // ✅ ПЕРЕРИСОВЫВАЕМ ЛЕГЕНДУ
     addMapLegend();
-    
-    // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ТАБЛИЦУ
-    // Очищаем контейнер и перерисовываем заново
-    const container = document.getElementById('deals-table-container');
-    if (container) {
-        // Показываем загрузку
-        container.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">⏳ Обновление таблицы...</div>';
-    }
-    
-    // Используем setTimeout для гарантированного обновления
-    setTimeout(function() {
-        console.log('📊 Принудительное обновление таблицы после закрытия обертки');
-        console.log('   selectedQuarter:', window.selectedQuarterCadNumber);
-        console.log('   currentDistrictFilter:', currentDistrictFilter);
-        console.log('   currentLevel:', currentLevel);
-        
-        // ✅ ПРЯМОЙ ВЫЗОВ renderDealsTable()
-        renderDealsTable();
-        
-        // ✅ ДОПОЛНИТЕЛЬНО: обновляем фильтры в таблице
-        updateActiveFiltersDisplay();
-        
-        console.log('✅ Таблица сделок принудительно обновлена');
-    }, 200);
+    renderDealsTable();
     
     // Центрируем карту на округе
-    if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-        mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
-    }
+    setTimeout(function() {
+        if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
+            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+        }
+    }, 100);
     
     console.log('✅ Тултип обертки закрыт, возврат на уровень округа');
 }
