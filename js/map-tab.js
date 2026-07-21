@@ -4662,12 +4662,29 @@ function closeWrapperTooltip(cadNum) {
     // ✅ ПЕРЕРИСОВЫВАЕМ ЛЕГЕНДУ
     addMapLegend();
     
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ ПОСЛЕ ВСЕХ ОБНОВЛЕНИЙ
-    // Используем setTimeout чтобы гарантировать, что все данные обновились
+    // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ТАБЛИЦУ
+    // Очищаем контейнер и перерисовываем заново
+    const container = document.getElementById('deals-table-container');
+    if (container) {
+        // Показываем загрузку
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">⏳ Обновление таблицы...</div>';
+    }
+    
+    // Используем setTimeout для гарантированного обновления
     setTimeout(function() {
+        console.log('📊 Принудительное обновление таблицы после закрытия обертки');
+        console.log('   selectedQuarter:', window.selectedQuarterCadNumber);
+        console.log('   currentDistrictFilter:', currentDistrictFilter);
+        console.log('   currentLevel:', currentLevel);
+        
+        // ✅ ПРЯМОЙ ВЫЗОВ renderDealsTable()
         renderDealsTable();
-        console.log('✅ Таблица сделок обновлена после закрытия обертки');
-    }, 100);
+        
+        // ✅ ДОПОЛНИТЕЛЬНО: обновляем фильтры в таблице
+        updateActiveFiltersDisplay();
+        
+        console.log('✅ Таблица сделок принудительно обновлена');
+    }, 200);
     
     // Центрируем карту на округе
     if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
