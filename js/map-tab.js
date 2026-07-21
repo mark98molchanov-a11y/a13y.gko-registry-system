@@ -2650,26 +2650,26 @@ if (wrapperQuarters.length > 0) {
                 const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
                 const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
                 
-                const tooltipContent = `
-                    <div style="text-align:right; margin-bottom:4px;">
-                        <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNum}'); return false;" 
-                              style="cursor:pointer; font-size:16px; font-weight:bold; color:white; 
-                                     background:#dc2626; border-radius:50%; display:inline-block; 
-                                     width:20px; height:20px; line-height:18px; text-align:center;
-                                     border:2px solid white; user-select:none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                            ✕
-                        </span>
-                    </div>
-                    <div class="popup-title">${cadNum}</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
-                    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
-                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                `;
+               const tooltipContent = `
+    <div style="text-align:right; margin-bottom:4px;">
+        <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNum}'); return false;" 
+              style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
+                     background:transparent; border-radius:0; display:inline-block; 
+                     width:auto; height:auto; line-height:1; text-align:center;
+                     border:none; user-select:none; padding:0 2px;">
+            ✕
+        </span>
+    </div>
+    <div class="popup-title">${cadNum}</div>
+    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+    ${dealsCount > 0 ? `
+    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
+    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+`;
                 
                 layer.bindTooltip(tooltipContent, {
                     className: 'custom-popup',
