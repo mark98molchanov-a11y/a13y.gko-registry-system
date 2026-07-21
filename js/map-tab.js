@@ -4659,18 +4659,22 @@ function closeWrapperTooltip(cadNum) {
     // ✅ ОБНОВЛЯЕМ АКТИВНЫЕ ФИЛЬТРЫ
     updateActiveFiltersDisplay();
     
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
-    renderDealsTable();
-    
     // ✅ ПЕРЕРИСОВЫВАЕМ ЛЕГЕНДУ
     addMapLegend();
+    
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ ПОСЛЕ ВСЕХ ОБНОВЛЕНИЙ
+    // Используем setTimeout чтобы гарантировать, что все данные обновились
+    setTimeout(function() {
+        renderDealsTable();
+        console.log('✅ Таблица сделок обновлена после закрытия обертки');
+    }, 100);
     
     // Центрируем карту на округе
     if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
         mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
     }
     
-    console.log('✅ Тултип обертки закрыт, возврат на уровень округа, таблица и карточки обновлены');
+    console.log('✅ Тултип обертки закрыт, возврат на уровень округа');
 }
 window.initMapTab = initMapTab;
 window.destroyMap = destroyMap;
