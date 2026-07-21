@@ -1147,8 +1147,6 @@ function toggleAllVri(types) {
 // ============================================================
 
 function applyFiltersAndUpdate() {
-    // ✅ СОХРАНЯЕМ ПОЗИЦИЮ СКРОЛЛА ПЕРЕД ОБНОВЛЕНИЕМ
-    const scrollPosition = saveTableScrollPosition();
     
     // Перерисовываем все фильтры
     renderDealTypeFilters();
@@ -1186,8 +1184,6 @@ function applyFiltersAndUpdate() {
     // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     renderDealsTable();
     
-    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СКРОЛЛА ПОСЛЕ ОБНОВЛЕНИЯ
-    restoreTableScrollPosition(scrollPosition);
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
