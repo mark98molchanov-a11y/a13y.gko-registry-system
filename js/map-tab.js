@@ -1316,7 +1316,7 @@ function applyCityFilter(city) {
     }
     applyFiltersAndUpdate();
 }
-unction applyObjectTypeFilter(type) {
+function applyObjectTypeFilter(type) {
     const index = currentObjectTypeFilter.indexOf(type);
     if (index === -1) {
         currentObjectTypeFilter.push(type);
