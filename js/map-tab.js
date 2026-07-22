@@ -25,86 +25,6 @@ let allDealsFlat = [];
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
-function addTableScrollStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-        #city-filters,
-        #object-type-filters,
-        #deal-type-filters,
-        #purpose-filters,
-        #quarter-filters,
-        #wall-material-filters,
-        #year-build-filters,
-        #vri-filters {
-            max-height: 250px;
-            overflow-y: auto;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-        }
-        
-        #deals-table-container {
-            max-height: 500px;
-            overflow-y: auto;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-        }
-        
-        #city-filters::-webkit-scrollbar,
-        #object-type-filters::-webkit-scrollbar,
-        #deal-type-filters::-webkit-scrollbar,
-        #purpose-filters::-webkit-scrollbar,
-        #quarter-filters::-webkit-scrollbar,
-        #wall-material-filters::-webkit-scrollbar,
-        #year-build-filters::-webkit-scrollbar,
-        #vri-filters::-webkit-scrollbar,
-        #deals-table-container::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        
-        #city-filters::-webkit-scrollbar-track,
-        #object-type-filters::-webkit-scrollbar-track,
-        #deal-type-filters::-webkit-scrollbar-track,
-        #purpose-filters::-webkit-scrollbar-track,
-        #quarter-filters::-webkit-scrollbar-track,
-        #wall-material-filters::-webkit-scrollbar-track,
-        #year-build-filters::-webkit-scrollbar-track,
-        #vri-filters::-webkit-scrollbar-track,
-        #deals-table-container::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 3px;
-        }
-        
-        #city-filters::-webkit-scrollbar-thumb,
-        #object-type-filters::-webkit-scrollbar-thumb,
-        #deal-type-filters::-webkit-scrollbar-thumb,
-        #purpose-filters::-webkit-scrollbar-thumb,
-        #quarter-filters::-webkit-scrollbar-thumb,
-        #wall-material-filters::-webkit-scrollbar-thumb,
-        #year-build-filters::-webkit-scrollbar-thumb,
-        #vri-filters::-webkit-scrollbar-thumb,
-        #deals-table-container::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-        
-        #city-filters::-webkit-scrollbar-thumb:hover,
-        #object-type-filters::-webkit-scrollbar-thumb:hover,
-        #deal-type-filters::-webkit-scrollbar-thumb:hover,
-        #purpose-filters::-webkit-scrollbar-thumb:hover,
-        #quarter-filters::-webkit-scrollbar-thumb:hover,
-        #wall-material-filters::-webkit-scrollbar-thumb:hover,
-        #year-build-filters::-webkit-scrollbar-thumb:hover,
-        #vri-filters::-webkit-scrollbar-thumb:hover,
-        #deals-table-container::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// ✅ ВЫЗЫВАЕМ СРАЗУ
-addTableScrollStyles();
 function getMedianAsync(arr, callback) {
     if (!arr || arr.length === 0) {
         callback(0);
@@ -609,7 +529,7 @@ function renderDealTypeFilters() {
         const shortName = kind.length > 15 ? kind.substring(0, 14) + '…' : kind;
         
         html += `
-           <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}', event)" 
+            <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -678,7 +598,7 @@ function renderCityFilters() {
         const shortName = city.length > 15 ? city.substring(0, 14) + '…' : city;
         
         html += `
-            <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}', event)"
+            <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -747,7 +667,7 @@ function renderObjectTypeFilters() {
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
-            <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}', event)"
+            <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -816,7 +736,7 @@ function renderWallMaterialFilters() {
         const shortName = type.length > 12 ? type.substring(0, 11) + '…' : type;
         
         html += `
-            <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}', event)"
+            <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -892,7 +812,7 @@ function renderYearBuildFilters() {
         const isActive = currentYearBuildFilter.includes(type);
         
         html += `
-            <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}', event)"
+            <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -980,7 +900,7 @@ function renderQuarterFilters() {
         const shortName = type.length > 10 ? type.substring(0, 9) + '…' : type;
         
         html += `
-            <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}', event)"
+            <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -1049,7 +969,7 @@ function renderVriFilters() {
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
-            <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}', event)"
+            <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -1118,7 +1038,7 @@ function renderPurposeFilters() {
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
-            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}', event)" 
+            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}')" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -1221,13 +1141,12 @@ function toggleAllVri(types) {
     }
     applyFiltersAndUpdate();
 }
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ПОСЛЕ ИЗМЕНЕНИЯ ФИЛЬТРОВ
+// ============================================================
+
 function applyFiltersAndUpdate() {
-    // ✅ СОХРАНЯЕМ ПОЗИЦИЮ СТРАНИЦЫ
-    const pagePosition = savePageScrollPosition();
-    
-    // ✅ СОХРАНЯЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
-    const allPositions = saveAllTableScrollPositions();
-    
     // Перерисовываем все фильтры
     renderDealTypeFilters();
     renderCityFilters();
@@ -1260,33 +1179,7 @@ function applyFiltersAndUpdate() {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     updateActiveFiltersDisplay();
-    
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     renderDealsTable();
-    
-    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
-    restoreAllTableScrollPositions(allPositions);
-    
-    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СТРАНИЦЫ (МНОГОКРАТНО!)
-    if (pagePosition) {
-        // Попытка 1: сразу
-        restorePageScrollPosition(pagePosition);
-        
-        // Попытка 2: через 50ms
-        setTimeout(function() {
-            restorePageScrollPosition(pagePosition);
-        }, 50);
-        
-        // Попытка 3: через 200ms
-        setTimeout(function() {
-            restorePageScrollPosition(pagePosition);
-        }, 200);
-        
-        // Попытка 4: через 500ms
-        setTimeout(function() {
-            restorePageScrollPosition(pagePosition);
-        }, 500);
-    }
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -1297,10 +1190,7 @@ function applyFiltersAndUpdate() {
     }
 }
 function applyDealTypeFilter(kind) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
+    // ✅ МНОЖЕСТВЕННЫЙ ВЫБОР: добавляем или удаляем значение
     const index = currentDealTypeFilter.indexOf(kind);
     if (index === -1) {
         currentDealTypeFilter.push(kind);
@@ -1320,14 +1210,51 @@ function applyDealTypeFilter(kind) {
         }
     }
     
-    applyFiltersAndUpdate();
-}
-
-function applyCityFilter(city) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
+    // ✅ ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
+    renderDealTypeFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    console.log(`🔍 applyDealTypeFilter: level=${level}, parentId=${parentId}, filter=${currentDealTypeFilter}`);
+    
+    // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
     }
+    
+    updateQuartersStyle(targetObjects);
+    
+    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ С УЧЕТОМ ФИЛЬТРА
+    updateMapStatsFromDeals(level, parentId);
+    
+    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
+    updatePopupsAndTooltips(level);
+    
+    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
+function applyCityFilter(city) {
     const index = currentCityFilter.indexOf(city);
     if (index === -1) {
         currentCityFilter.push(city);
@@ -1343,13 +1270,41 @@ function applyCityFilter(city) {
             window.selectedQuarterCadNumber = null;
         }
     }
-    applyFiltersAndUpdate();
+    
+    renderCityFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function applyObjectTypeFilter(type) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
     const index = currentObjectTypeFilter.indexOf(type);
     if (index === -1) {
         currentObjectTypeFilter.push(type);
@@ -1366,14 +1321,41 @@ function applyObjectTypeFilter(type) {
         }
     }
     
-    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
-    applyFiltersAndUpdate();
-}
-function applyWallMaterialFilter(type) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
+    renderObjectTypeFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
     }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
+
+function applyWallMaterialFilter(type) {
     const index = currentWallMaterialFilter.indexOf(type);
     if (index === -1) {
         currentWallMaterialFilter.push(type);
@@ -1390,14 +1372,40 @@ function applyWallMaterialFilter(type) {
         }
     }
     
-    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
-    applyFiltersAndUpdate();
+    renderWallMaterialFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function applyQuarterFilter(type) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
     const index = currentQuarterFilter.indexOf(type);
     if (index === -1) {
         currentQuarterFilter.push(type);
@@ -1414,14 +1422,40 @@ function applyQuarterFilter(type) {
         }
     }
     
-    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
-    applyFiltersAndUpdate();
+    renderQuarterFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function applyYearBuildFilter(type) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
     const index = currentYearBuildFilter.indexOf(type);
     if (index === -1) {
         currentYearBuildFilter.push(type);
@@ -1438,14 +1472,40 @@ function applyYearBuildFilter(type) {
         }
     }
     
-    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
-    applyFiltersAndUpdate();
+    renderYearBuildFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function applyPurposeFilter(type) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
     const index = currentPurposeFilter.indexOf(type);
     if (index === -1) {
         currentPurposeFilter.push(type);
@@ -1462,13 +1522,40 @@ function applyPurposeFilter(type) {
         }
     }
     
-    applyFiltersAndUpdate();
+    renderPurposeFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function applyVriFilter(type) {
-        if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
     const index = currentVriFilter.indexOf(type);
     if (index === -1) {
         currentVriFilter.push(type);
@@ -1485,7 +1572,38 @@ function applyVriFilter(type) {
         }
     }
     
-    applyFiltersAndUpdate();
+    renderVriFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 
 function updateDistrictTooltip(layer, props) {
@@ -3612,67 +3730,9 @@ if (currentVriFilter.length > 0) {
         container.style.color = '#1e293b';
     }
 }
-function saveAllTableScrollPositions() {
-    const positions = {};
-    
-    const filterContainers = [
-        'city-filters',
-        'object-type-filters',
-        'deal-type-filters',
-        'purpose-filters',
-        'quarter-filters',
-        'wall-material-filters',
-        'year-build-filters',
-        'vri-filters'
-    ];
-    
-    filterContainers.forEach(id => {
-        const container = document.getElementById(id);
-        if (container) {
-            positions[id] = {
-                scrollTop: container.scrollTop || 0,
-                scrollLeft: container.scrollLeft || 0
-            };
-        }
-    });
-    
-    const dealsContainer = document.getElementById('deals-table-container');
-    if (dealsContainer) {
-        positions['deals-table-container'] = {
-            scrollTop: dealsContainer.scrollTop || 0,
-            scrollLeft: dealsContainer.scrollLeft || 0
-        };
-    }
-    
-    return positions;
-}
-function restoreAllTableScrollPositions(positions) {
-    if (!positions) return;
-    
-    Object.keys(positions).forEach(id => {
-        const container = document.getElementById(id);
-        if (container) {
-            container.scrollTop = positions[id].scrollTop || 0;
-            container.scrollLeft = positions[id].scrollLeft || 0;
-        }
-    });
-}
-function savePageScrollPosition() {
-    return {
-        scrollY: window.scrollY || 0,
-        scrollX: window.scrollX || 0
-    };
-}
-
-// ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СТРАНИЦЫ
-function restorePageScrollPosition(position) {
-    if (!position) return;
-    window.scrollTo(position.scrollX || 0, position.scrollY || 0);
-}
 function renderDealsTable() {
     const container = document.getElementById('deals-table-container');
     if (!container) return;
-    
     
     const selectedQuarter = window.selectedQuarterCadNumber || null;
     
@@ -3719,6 +3779,7 @@ function renderDealsTable() {
         return diffA - diffB;
     });
     
+    // ✅ ИСПРАВЛЕНО: увеличен шрифт до 11px, колонки адаптивные
     let html = `
         <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
             <thead>
@@ -3734,9 +3795,215 @@ function renderDealsTable() {
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('vri')">ВРИ ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('quarter')">Квартал ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
+<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
+<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
+<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_price_rub')">Цена сделки ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('uprs_rub')">УПРС ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('diff_abs')">Разница (абс.) ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('diff_percent')">Разница (%) ↕</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    if (filteredDeals.length === 0) {
+        html += `
+                <tr>
+                    <td colspan="18" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
+                        Нет данных для отображения
+                    </td>
+                </tr>
+        `;
+    } else {
+        const displayDeals = filteredDeals.slice(0, 100);
+        
+        displayDeals.forEach((deal, index) => {
+            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+            
+            // ✅ ВЫЧИСЛЯЕМ РАЗНИЦУ (кадастр - цена)
+            const cadCost = deal.cad_cost || 0;
+            const price = deal.deal_price_rub || 0;
+            const hasCadCost = cadCost > 0;
+            
+            let diffAbs = null;
+            let diffPercent = null;
+            let diffColor = '#64748b';
+            let diffPercentColor = '#64748b';
+            
+            if (hasCadCost) {
+                diffAbs = cadCost - price;
+                diffPercent = (diffAbs / cadCost) * 100;
+                
+                if (diffAbs > 0) {
+                    diffColor = '#22c55e';
+                    diffPercentColor = '#22c55e';
+                } else if (diffAbs < 0) {
+                    diffColor = '#ef4444';
+                    diffPercentColor = '#ef4444';
+                }
+            }
+            
+            // ✅ ФОРМАТИРОВАНИЕ
+            const diffAbsFormatted = (hasCadCost && diffAbs !== 0) ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
+            const diffPercentFormatted = (hasCadCost && diffPercent !== null && diffPercent !== 0) 
+                ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%' 
+                : '—';
+            
+            html += `
+                <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
+                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
+                   <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
+<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
+<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
+<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${diffPercentColor}; font-weight: 600; font-size: 10px;">${diffPercentFormatted}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
+let dealsSortField = 'diff_abs';
+let dealsSortAsc = true;
+
+function sortDealsTable(field) {
+    // Если кликнули по тому же полю — меняем направление сортировки
+    if (dealsSortField === field) {
+        dealsSortAsc = !dealsSortAsc;
+    } else {
+        dealsSortField = field;
+        dealsSortAsc = true;
+    }
+    
+    const selectedQuarter = window.selectedQuarterCadNumber || null;
+    
+    let filteredDeals = allDealsFlat.filter(deal => {
+        const isWrapperSelected = selectedQuarter ? (
+            selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
+        ) : false;
+        
+        if (selectedQuarter) {
+            if (isWrapperSelected) {
+                if (deal.cad_number !== selectedQuarter) return false;
+            } else {
+                if (deal.cad_number !== selectedQuarter) return false;
+            }
+        } else if (currentDistrictFilter) {
+            const prefix = String(currentDistrictFilter).substring(0, 5);
+            if (!deal.cad_number.startsWith(prefix)) return false;
+        }
+        
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
+    
+    // ✅ СОРТИРОВКА
+    filteredDeals.sort((a, b) => {
+        let valA, valB;
+        
+        // Для специальных полей
+        if (field === 'diff_abs') {
+            const cadCostA = a.cad_cost || 0;
+            const priceA = a.deal_price_rub || 0;
+            valA = cadCostA > 0 ? cadCostA - priceA : null;
+            
+            const cadCostB = b.cad_cost || 0;
+            const priceB = b.deal_price_rub || 0;
+            valB = cadCostB > 0 ? cadCostB - priceB : null;
+            
+            // null (нет кадастра) идут в конец
+            if (valA === null && valB === null) return 0;
+            if (valA === null) return 1;
+            if (valB === null) return -1;
+            
+            return dealsSortAsc ? valA - valB : valB - valA;
+        }
+        
+        if (field === 'diff_percent') {
+            const cadCostA = a.cad_cost || 0;
+            const priceA = a.deal_price_rub || 0;
+            valA = cadCostA > 0 ? ((cadCostA - priceA) / cadCostA) * 100 : null;
+            
+            const cadCostB = b.cad_cost || 0;
+            const priceB = b.deal_price_rub || 0;
+            valB = cadCostB > 0 ? ((cadCostB - priceB) / cadCostB) * 100 : null;
+            
+            if (valA === null && valB === null) return 0;
+            if (valA === null) return 1;
+            if (valB === null) return -1;
+            
+            return dealsSortAsc ? valA - valB : valB - valA;
+        }
+        
+        // Для числовых полей
+        const numericFields = ['area', 'cad_cost', 'upks', 'deal_price_rub', 'uprs_rub', 'year_build'];
+        if (numericFields.includes(field)) {
+            valA = a[field] || 0;
+            valB = b[field] || 0;
+            return dealsSortAsc ? valA - valB : valB - valA;
+        }
+        
+        // Для строковых полей
+        valA = (a[field] || 'nan').toString().toLowerCase();
+        valB = (b[field] || 'nan').toString().toLowerCase();
+        
+        if (dealsSortAsc) {
+            return valA.localeCompare(valB);
+        } else {
+            return valB.localeCompare(valA);
+        }
+    });
+    
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
+    const container = document.getElementById('deals-table-container');
+    if (!container) return;
+    
+    // Перерисовываем таблицу с отсортированными данными
+    // (используем ту же логику рендеринга, что и в renderDealsTable)
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_number')">Кад. квартал ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('area')">Площадь ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('purpose_text')">Назначение ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('cad_cost')">Кад. стоимость ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('upks')">УПКС ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('city')">Город ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_kind_text')">Тип сделки ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('obj_kind_text')">Тип объекта ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('vri')">ВРИ ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('quarter')">Квартал ↕</th>
+                   <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
+<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
+<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
+<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_price_rub')">Цена сделки ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('uprs_rub')">УПРС ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('diff_abs')">Разница (абс.) ↕</th>
@@ -3799,10 +4066,10 @@ function renderDealsTable() {
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                   <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
+<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
+<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
+<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
@@ -3819,19 +4086,6 @@ function renderDealsTable() {
     
     container.innerHTML = html;
 }
-let dealsSortField = 'diff_abs';
-let dealsSortAsc = true;
-
-function sortDealsTable(field) {
-    if (dealsSortField === field) {
-        dealsSortAsc = !dealsSortAsc;
-    } else {
-        dealsSortField = field;
-        dealsSortAsc = true;
-    }
-    renderDealsTable(); 
-}
-
 
 function getSelectedQuarter() {
     // Проверяем, есть ли выбранный квартал на карте
@@ -4418,23 +4672,4 @@ window.searchQuarterByCadNumber = searchQuarterByCadNumber;
 window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
-document.addEventListener('DOMContentLoaded', function() {
-    const filterSelectors = [
-        '#city-filters tr',
-        '#object-type-filters tr',
-        '#deal-type-filters tr',
-        '#purpose-filters tr',
-        '#quarter-filters tr',
-        '#wall-material-filters tr',
-        '#year-build-filters tr',
-        '#vri-filters tr'
-    ];
-    
-    document.querySelectorAll(filterSelectors.join(',')).forEach(function(el) {
-        el.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }, true);
-    });
-});
 console.log('✅ map-tab.js загружен');
