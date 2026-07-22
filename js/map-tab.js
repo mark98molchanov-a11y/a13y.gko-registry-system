@@ -22,7 +22,29 @@ let currentQuarterFilter = [];
 let currentYearBuildFilter = [];
 let currentPurposeFilter = [];   
 let currentVriFilter = [];    
-let allDealsFlat = []; 
+let allDealsFlat = [];
+let isHeatmapEnabled = false;
+function toggleHeatmapMode() {
+    isHeatmapEnabled = !isHeatmapEnabled;
+    
+    // Меняем стиль кнопки
+    const btn = document.getElementById('heatmap-toggle-btn');
+    if (btn) {
+        if (isHeatmapEnabled) {
+            btn.style.background = '#8b5cf6';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#8b5cf6';
+            btn.textContent = 'Heatmap включен';
+        } else {
+            btn.style.background = '#f1f5f9';
+            btn.style.color = '#475569';
+            btn.style.borderColor = '#e2e8f0';
+            btn.textContent = '🌡️ Heatmap';
+        }
+    }
+    
+    renderMapLevel(currentLevel, currentParentId);
+}
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
@@ -2403,20 +2425,85 @@ function updateQuartersStyle(targetObjects) {
                 return true;
             });
             
-            const dealsCount = filteredDeals.length;
+const dealsCount = filteredDeals.length;
+
+// ✅ ПРИМЕНЯЕМ СТИЛЬ
+let fillColor = '#f1f5f9';
+let fillOpacity = 0.2;
+let borderColor = '#3b82f6';
+let borderWeight = 2.5;
+let borderOpacity = 0.6;
+
+if (isHeatmapEnabled) {
+    // 🔥 РЕЖИМ HEATMAP: цвет по разнице КС и РС
+    if (filteredDeals.length > 0) {
+        // Считаем среднюю кадастровую стоимость и среднюю цену сделки
+        let totalCadCost = 0;
+        let totalPrice = 0;
+        let countWithData = 0;
+        
+        filteredDeals.forEach(deal => {
+            if (deal.cad_cost && deal.cad_cost > 0 && deal.deal_price_rub && deal.deal_price_rub > 0) {
+                totalCadCost += deal.cad_cost;
+                totalPrice += deal.deal_price_rub;
+                countWithData++;
+            }
+        });
+        
+        if (countWithData > 0) {
+            const avgCadCost = totalCadCost / countWithData;
+            const avgPrice = totalPrice / countWithData;
+            const diffPercent = ((avgCadCost - avgPrice) / avgCadCost) * 100;
             
-            // ✅ ПРИМЕНЯЕМ СТИЛЬ В ЗАВИСИМОСТИ ОТ КОЛИЧЕСТВА ОТФИЛЬТРОВАННЫХ СДЕЛОК
-            const hasDeals = dealsCount > 0;
-            const fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
+            // Цветовая шкала
+            if (diffPercent < -20) {
+                fillColor = '#22c55e';      // зеленый — КС сильно ниже
+            } else if (diffPercent < -5) {
+                fillColor = '#84cc16';      // салатовый — КС ниже
+            } else if (diffPercent < 5) {
+                fillColor = '#eab308';      // желтый — КС ≈ РС
+            } else if (diffPercent < 30) {
+                fillColor = '#f97316';      // оранжевый — КС выше
+            } else {
+                fillColor = '#ef4444';      // красный — КС сильно выше
+            }
             
-            layer.setStyle({
-                fillColor: fillColor,
-                fillOpacity: 0.2,
-                color: '#3b82f6',
-                weight: 2.5,
-                opacity: 0.6,
-                dashArray: null
-            });
+            fillOpacity = 0.35;
+            borderColor = '#475569';
+            borderWeight = 2;
+            borderOpacity = 0.7;
+        } else {
+            fillColor = '#f1f5f9';
+            fillOpacity = 0.15;
+            borderColor = '#94a3b8';
+            borderWeight = 1.5;
+            borderOpacity = 0.4;
+        }
+    } else {
+        fillColor = '#f1f5f9';
+        fillOpacity = 0.15;
+        borderColor = '#94a3b8';
+        borderWeight = 1.5;
+        borderOpacity = 0.4;
+    }
+} else {
+    // ❌ ОБЫЧНЫЙ РЕЖИМ: цвет по количеству сделок
+    const hasDeals = dealsCount > 0;
+    fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
+    fillOpacity = 0.2;
+    borderColor = '#3b82f6';
+    borderWeight = 2.5;
+    borderOpacity = 0.6;
+}
+
+layer.setStyle({
+    fillColor: fillColor,
+    fillOpacity: fillOpacity,
+    color: borderColor,
+    weight: borderWeight,
+    opacity: borderOpacity,
+    dashArray: null
+});
         }
     });
     
@@ -2508,9 +2595,7 @@ async function loadMapData() {
         showMapError(error.message);
     }
 }
-// ============================================================
-// ОТРИСОВКА УРОВНЯ
-// ============================================================
+
 function renderMapLevel(level, parentId = null) {
     // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ ОКРУГА
     if (level === 0) {
@@ -2894,27 +2979,21 @@ function renderMapLevel(level, parentId = null) {
         }
     }
 
-    // ✅ МНОЖЕСТВЕННЫЕ ПОПЫТКИ ЦЕНТРИРОВАНИЯ
-    
-    // 1-я попытка: через 100ms
     setTimeout(() => {
         console.log('⏳ 1-я попытка центрирования через 100ms');
         centerMap(1);
     }, 100);
     
-    // 2-я попытка: через 400ms
     setTimeout(() => {
         console.log('⏳ 2-я попытка центрирования через 400ms');
         centerMap(2);
     }, 400);
     
-    // 3-я попытка: через 900ms (гарантированная)
     setTimeout(() => {
         console.log('⏳ 3-я (гарантированная) попытка центрирования через 900ms');
         centerMap(3);
     }, 900);
 
-    // Сбрасываем выделение при переходе
     if (window.wrapperLayer) {
         window.wrapperLayer.setStyle({
             fillOpacity: 0.25,
@@ -2943,12 +3022,13 @@ function renderMapLevel(level, parentId = null) {
     updateQuartersListWithFilteredObjects(null);
     addMapLegend();
     
-    // Для районов (уровень 1)
+    if (isHeatmapEnabled) {
+    addHeatmapLegend();            
+}
     if (level === 1 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
 
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ КВАРТАЛОВ (ЕСЛИ МЫ НА УРОВНЕ КВАРТАЛОВ)
     if (level === 2 && window.mapLayer) {
         window.mapLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
@@ -2962,7 +3042,6 @@ function renderMapLevel(level, parentId = null) {
         });
     }
     
-    // Для районов (уровень 1)
     if (level === 1 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
@@ -3724,6 +3803,9 @@ function destroyMap() {
     }
 }
 function addMapLegend() {
+    const oldHeatmapLegend = document.querySelector('.heatmap-legend');
+if (oldHeatmapLegend) oldHeatmapLegend.remove();
+    
     const oldLegend = document.querySelector('.map-legend');
     if (oldLegend) oldLegend.remove();
     
@@ -4855,6 +4937,60 @@ window.searchQuarterByCadNumber = searchQuarterByCadNumber;
 window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
+function addHeatmapLegend() {
+    // Удаляем старую легенду если есть
+    const oldLegend = document.querySelector('.heatmap-legend');
+    if (oldLegend) oldLegend.remove();
+    
+    const legend = document.createElement('div');
+    legend.className = 'heatmap-legend';
+    legend.style.cssText = `
+        position: absolute;
+        bottom: 30px;
+        left: 220px;
+        background: white;
+        padding: 10px 14px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        font-size: 10px;
+        font-family: 'Inter', sans-serif;
+        z-index: 1000;
+        border: 1px solid #e2e8f0;
+        min-width: 140px;
+    `;
+    
+    legend.innerHTML = `
+        <div style="font-weight:600; font-size:10px; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+            🌡️ КС vs Рыночная цена
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#22c55e;"></span>
+            <span style="color:#475569; font-size:9px;">КС &lt; РС (скидка &gt;20%)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#84cc16;"></span>
+            <span style="color:#475569; font-size:9px;">КС &lt; РС (5-20%)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#eab308;"></span>
+            <span style="color:#475569; font-size:9px;">КС ≈ РС (±5%)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#f97316;"></span>
+            <span style="color:#475569; font-size:9px;">КС &gt; РС (5-30%)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#ef4444;"></span>
+            <span style="color:#475569; font-size:9px;">КС &gt; РС (&gt;30%)</span>
+        </div>
+    `;
+    
+    const mapContainer = document.getElementById('map-container');
+    if (mapContainer) {
+        mapContainer.style.position = 'relative';
+        mapContainer.appendChild(legend);
+    }
+}
 console.log('✅ map-tab.js загружен');
 (function autoCenterOnLoad() {
     // Проверяем, что mapInstance существует
