@@ -27,19 +27,33 @@ let isHeatmapEnabled = false;
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
-    // Меняем стиль кнопки
-    const btn = document.getElementById('heatmap-toggle-btn');
+    // Меняем стиль кнопки (ищем новую кнопку в хедере)
+    const btn = document.getElementById('heatmap-toggle-btn-header');
     if (btn) {
         if (isHeatmapEnabled) {
-            btn.style.background = '#8b5cf6';
+            btn.style.background = '#7c3aed';
             btn.style.color = 'white';
-            btn.style.borderColor = '#8b5cf6';
-            btn.textContent = 'Heatmap включен';
+            btn.style.borderColor = '#7c3aed';
+            btn.textContent = '🌡️ Heatmap включен';
         } else {
-            btn.style.background = '#f1f5f9';
-            btn.style.color = '#475569';
-            btn.style.borderColor = '#e2e8f0';
-            btn.textContent = '🌡️ Heatmap';
+            btn.style.background = '#f3e8ff';
+            btn.style.color = '#7c3aed';
+            btn.style.borderColor = '#d8b4fe';
+            btn.textContent = '🌡️ Тепловая карта';
+        }
+    }
+    
+    // Также обновляем кнопку в панели статистики (если она осталась)
+    const btnOld = document.getElementById('heatmap-toggle-btn');
+    if (btnOld) {
+        if (isHeatmapEnabled) {
+            btnOld.style.background = '#8b5cf6';
+            btnOld.style.color = 'white';
+            btnOld.textContent = 'Heatmap включен';
+        } else {
+            btnOld.style.background = '#f1f5f9';
+            btnOld.style.color = '#475569';
+            btnOld.textContent = '🌡️ Heatmap';
         }
     }
     
