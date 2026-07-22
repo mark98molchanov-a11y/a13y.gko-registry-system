@@ -2433,13 +2433,17 @@ function updateQuartersStyle(targetObjects) {
                     let totalUpks = 0;
                     let countWithData = 0;
                     
-                    filteredDeals.forEach(deal => {
-                        if (deal.uprs_rub && deal.uprs_rub > 0 && deal.upks && deal.upks > 0) {
-                            totalUprs += deal.uprs_rub;
-                            totalUpks += deal.upks;
-                            countWithData++;
-                        }
-                    });
+ filteredDeals.forEach(deal => {
+    // ✅ Берем uprs (из dealsData) или uprs_rub (из allDealsFlat) — что есть
+    const uprsValue = deal.uprs || deal.uprs_rub || 0;
+    const upksValue = deal.upks || 0;
+    
+    if (uprsValue > 0 && upksValue > 0) {
+        totalUprs += uprsValue;
+        totalUpks += upksValue;
+        countWithData++;
+    }
+});
                     
                     if (countWithData > 0) {
                         const avgUprs = totalUprs / countWithData;
