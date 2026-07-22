@@ -1691,32 +1691,55 @@
             <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-width: 900px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
 
                 <!-- ЛЕВАЯ ЧАСТЬ: кнопка ценового фильтра -->
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <button onclick="togglePriceFilter()" 
-                            id="priceFilterToggle"
-                            title="Исключаем 10% самых низких и 10% самых высоких УПРС/УПКС по каждому типу сделки в каждом кадастровом районе"
-                            style="
-                                font-size: 10px; 
-                                color: #0284c7; 
-                                background: #e0f2fe; 
-                                border: 1px solid #bae6fd; 
-                                border-radius: 6px; 
-                                padding: 4px 12px; 
-                                cursor: pointer; 
-                                font-weight: 500;
-                                transition: all 0.2s;
-                                font-family: 'Inter', sans-serif;
-                                white-space: nowrap;
-                            "
-                            onmouseover="this.style.background='#bae6fd'; this.style.borderColor='#7dd3fc';"
-                            onmouseout="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd';">
-                        Ценовой фильтр
-                    </button>
+               <div style="display: flex; align-items: center; gap: 12px;">
+    <!-- Кнопка ценового фильтра -->
+    <button onclick="togglePriceFilter()" 
+            id="priceFilterToggle"
+            title="Исключаем 10% самых низких и 10% самых высоких УПРС/УПКС по каждому типу сделки в каждом кадастровом районе"
+            style="
+                font-size: 10px; 
+                color: #0284c7; 
+                background: #e0f2fe; 
+                border: 1px solid #bae6fd; 
+                border-radius: 6px; 
+                padding: 4px 12px; 
+                cursor: pointer; 
+                font-weight: 500;
+                transition: all 0.2s;
+                font-family: 'Inter', sans-serif;
+                white-space: nowrap;
+            "
+            onmouseover="this.style.background='#bae6fd'; this.style.borderColor='#7dd3fc';"
+            onmouseout="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd';">
+        Ценовой фильтр
+    </button>
 
-                    <div id="map-breadcrumb" style="font-size:0.85rem;color:#475569;">
-                        ЯНАО
-                    </div>
-                </div>
+    <!-- 🔥 НОВАЯ КНОПКА HEATMAP -->
+    <button onclick="toggleHeatmapMode()" 
+            id="heatmap-toggle-btn-header"
+            title="Показывает разницу между кадастровой и рыночной стоимостью"
+            style="
+                font-size: 10px; 
+                color: #7c3aed; 
+                background: #f3e8ff; 
+                border: 1px solid #d8b4fe; 
+                border-radius: 6px; 
+                padding: 4px 12px; 
+                cursor: pointer; 
+                font-weight: 500;
+                transition: all 0.2s;
+                font-family: 'Inter', sans-serif;
+                white-space: nowrap;
+            "
+            onmouseover="this.style.background='#e9d5ff'; this.style.borderColor='#c084fc';"
+            onmouseout="this.style.background='#f3e8ff'; this.style.borderColor='#d8b4fe';">
+        🌡️ Тепловая карта
+    </button>
+
+    <div id="map-breadcrumb" style="font-size:0.85rem;color:#475569;">
+        ЯНАО
+    </div>
+</div>
                 
                 <!-- ПРАВАЯ ЧАСТЬ: поиск -->
                 <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
@@ -1801,35 +1824,6 @@
                     <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider">Всего сделок</div>
                     <div class="text-base font-bold text-slate-800" id="stat-total-deals">0</div>
                 </div>
-                <div id="stat-card-heatmap" class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex-shrink-0">
-    <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider">Режим отображения</div>
-    <button id="heatmap-toggle-btn" 
-            onclick="toggleHeatmapMode()"
-            style="
-                margin-top: 4px;
-                padding: 4px 14px;
-                border-radius: 6px;
-                border: 1px solid #e2e8f0;
-                background: #f1f5f9;
-                color: #475569;
-                font-size: 10px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.2s;
-                width: 100%;
-                font-family: 'Inter', sans-serif;
-            "
-            onmouseover="if(!this.classList.contains('active')){this.style.background='#e2e8f0'}"
-            onmouseout="if(!this.classList.contains('active')){this.style.background='#f1f5f9'}">
-        Тепловая карта
-    </button>
-    <div class="flex gap-1 mt-1 text-[7px] text-slate-400 flex-wrap">
-        <span class="w-2.5 h-2.5 rounded bg-green-500 inline-block"></span> КС↓
-        <span class="w-2.5 h-2.5 rounded bg-yellow-500 inline-block ml-1"></span> ≈
-        <span class="w-2.5 h-2.5 rounded bg-orange-500 inline-block ml-1"></span> КС↑
-        <span class="w-2.5 h-2.5 rounded bg-red-500 inline-block ml-1"></span> КС↑↑
-    </div>
-</div>
                 <div id="stat-card-quarters" class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex-1 overflow-y-auto min-h-0">
                     <div class="text-[9px] text-slate-400 font-medium uppercase tracking-wider mb-1">Кварталы со сделками</div>
                     <div id="quarters-list" style="font-size: 11px; color: #1e293b; max-height: 100%; overflow-y: auto;">
