@@ -2406,127 +2406,103 @@ function updateQuartersStyle(targetObjects) {
             // ✅ ПОЛУЧАЕМ СДЕЛКИ С УЧЕТОМ ВСЕХ ФИЛЬТРОВ
             const deals = dealsData[cadNum] || [];
             const filteredDeals = deals.filter(deal => {
-                // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-                    return false;
-                }
-                // ✅ ФИЛЬТР ПО ГОРОДУ
-                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-                    return false;
-                }
-                // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-                    return false;
-                }
-                // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-                    return false;
-                }
-                // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-                    return false;
-                }
-                // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-                    return false;
-                }
-                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-                    return false;
-                }
-                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-                    return false;
-                }
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
                 return true;
             });
             
-const dealsCount = filteredDeals.length;
-
-// ✅ ПРИМЕНЯЕМ СТИЛЬ
-let fillColor = '#f1f5f9';
-let fillOpacity = 0.2;
-let borderColor = '#3b82f6';
-let borderWeight = 2.5;
-let borderOpacity = 0.6;
-
-if (isHeatmapEnabled) {
-    // 🔥 РЕЖИМ HEATMAP: цвет по разнице КС и РС
-    if (filteredDeals.length > 0) {
-        // Считаем среднюю кадастровую стоимость и среднюю цену сделки
-        let totalCadCost = 0;
-        let totalPrice = 0;
-        let countWithData = 0;
-        
-        filteredDeals.forEach(deal => {
-            if (deal.cad_cost && deal.cad_cost > 0 && deal.deal_price_rub && deal.deal_price_rub > 0) {
-                totalCadCost += deal.cad_cost;
-                totalPrice += deal.deal_price_rub;
-                countWithData++;
-            }
-        });
-        
-        if (countWithData > 0) {
-            const avgCadCost = totalCadCost / countWithData;
-            const avgPrice = totalPrice / countWithData;
-            const diffPercent = ((avgCadCost - avgPrice) / avgCadCost) * 100;
+            const dealsCount = filteredDeals.length;
             
-            // Цветовая шкала
-            if (diffPercent < -20) {
-                fillColor = '#22c55e';      // зеленый — КС сильно ниже
-            } else if (diffPercent < -5) {
-                fillColor = '#84cc16';      // салатовый — КС ниже
-            } else if (diffPercent < 5) {
-                fillColor = '#eab308';      // желтый — КС ≈ РС
-            } else if (diffPercent < 30) {
-                fillColor = '#f97316';      // оранжевый — КС выше
+            // ✅ ПРИМЕНЯЕМ СТИЛЬ
+            let fillColor = '#f1f5f9';
+            let fillOpacity = 0.2;
+            let borderColor = '#3b82f6';
+            let borderWeight = 2.5;
+            let borderOpacity = 0.6;
+            
+            if (isHeatmapEnabled) {
+                // 🔥 РЕЖИМ HEATMAP: цвет по разнице УПРС и УПКС
+                if (filteredDeals.length > 0) {
+                    let totalUprs = 0;
+                    let totalUpks = 0;
+                    let countWithData = 0;
+                    
+                    filteredDeals.forEach(deal => {
+                        if (deal.uprs_rub && deal.uprs_rub > 0 && deal.upks && deal.upks > 0) {
+                            totalUprs += deal.uprs_rub;
+                            totalUpks += deal.upks;
+                            countWithData++;
+                        }
+                    });
+                    
+                    if (countWithData > 0) {
+                        const avgUprs = totalUprs / countWithData;
+                        const avgUpks = totalUpks / countWithData;
+                        
+                        // Разница в процентах (УПРС vs УПКС)
+                        const diffPercent = ((avgUprs - avgUpks) / avgUpks) * 100;
+                        
+                        // Цветовая шкала
+                        if (diffPercent > 20) {
+                            fillColor = '#22c55e';      // зеленый — УПРС > УПКС (рынок дороже кадастра)
+                        } else if (diffPercent > 5) {
+                            fillColor = '#84cc16';      // салатовый — УПРС немного выше УПКС
+                        } else if (diffPercent >= -5) {
+                            fillColor = '#eab308';      // желтый — УПРС ≈ УПКС
+                        } else if (diffPercent > -30) {
+                            fillColor = '#f97316';      // оранжевый — УПРС ниже УПКС
+                        } else {
+                            fillColor = '#ef4444';      // красный — УПРС сильно ниже УПКС
+                        }
+                        
+                        fillOpacity = 0.35;
+                        borderColor = '#475569';
+                        borderWeight = 2;
+                        borderOpacity = 0.7;
+                    } else {
+                        fillColor = '#f1f5f9';
+                        fillOpacity = 0.15;
+                        borderColor = '#94a3b8';
+                        borderWeight = 1.5;
+                        borderOpacity = 0.4;
+                    }
+                } else {
+                    fillColor = '#f1f5f9';
+                    fillOpacity = 0.15;
+                    borderColor = '#94a3b8';
+                    borderWeight = 1.5;
+                    borderOpacity = 0.4;
+                }
             } else {
-                fillColor = '#ef4444';      // красный — КС сильно выше
+                // ❌ ОБЫЧНЫЙ РЕЖИМ: цвет по количеству сделок
+                const hasDeals = dealsCount > 0;
+                fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
+                fillOpacity = 0.2;
+                borderColor = '#3b82f6';
+                borderWeight = 2.5;
+                borderOpacity = 0.6;
             }
             
-            fillOpacity = 0.35;
-            borderColor = '#475569';
-            borderWeight = 2;
-            borderOpacity = 0.7;
-        } else {
-            fillColor = '#f1f5f9';
-            fillOpacity = 0.15;
-            borderColor = '#94a3b8';
-            borderWeight = 1.5;
-            borderOpacity = 0.4;
-        }
-    } else {
-        fillColor = '#f1f5f9';
-        fillOpacity = 0.15;
-        borderColor = '#94a3b8';
-        borderWeight = 1.5;
-        borderOpacity = 0.4;
-    }
-} else {
-    // ❌ ОБЫЧНЫЙ РЕЖИМ: цвет по количеству сделок
-    const hasDeals = dealsCount > 0;
-    fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
-    fillOpacity = 0.2;
-    borderColor = '#3b82f6';
-    borderWeight = 2.5;
-    borderOpacity = 0.6;
-}
-
-layer.setStyle({
-    fillColor: fillColor,
-    fillOpacity: fillOpacity,
-    color: borderColor,
-    weight: borderWeight,
-    opacity: borderOpacity,
-    dashArray: null
-});
+            layer.setStyle({
+                fillColor: fillColor,
+                fillOpacity: fillOpacity,
+                color: borderColor,
+                weight: borderWeight,
+                opacity: borderOpacity,
+                dashArray: null
+            });
         }
     });
     
     console.log('✅ Стили кварталов обновлены с учетом всех фильтров');
 }
 
-// ============================================================
-// ИНИЦИАЛИЗАЦИЯ КАРТЫ
-// ============================================================
 function initMapTab(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -4989,31 +4965,31 @@ function addHeatmapLegend() {
         min-width: 140px;
     `;
     
-    legend.innerHTML = `
-        <div style="font-weight:600; font-size:10px; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
-            🌡️ КС vs Рыночная цена
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
-            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#22c55e;"></span>
-            <span style="color:#475569; font-size:9px;">КС &lt; РС (скидка &gt;20%)</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
-            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#84cc16;"></span>
-            <span style="color:#475569; font-size:9px;">КС &lt; РС (5-20%)</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
-            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#eab308;"></span>
-            <span style="color:#475569; font-size:9px;">КС ≈ РС (±5%)</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
-            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#f97316;"></span>
-            <span style="color:#475569; font-size:9px;">КС &gt; РС (5-30%)</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#ef4444;"></span>
-            <span style="color:#475569; font-size:9px;">КС &gt; РС (&gt;30%)</span>
-        </div>
-    `;
+legend.innerHTML = `
+    <div style="font-weight:600; font-size:10px; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+        🌡️ УПРС vs УПКС
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+        <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#22c55e;"></span>
+        <span style="color:#475569; font-size:9px;">УПРС &gt; УПКС (+20%)</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+        <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#84cc16;"></span>
+        <span style="color:#475569; font-size:9px;">УПРС &gt; УПКС (+5-20%)</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+        <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#eab308;"></span>
+        <span style="color:#475569; font-size:9px;">УПРС ≈ УПКС (±5%)</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+        <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#f97316;"></span>
+        <span style="color:#475569; font-size:9px;">УПРС &lt; УПКС (5-30%)</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+        <span style="display:inline-block; width:18px; height:12px; border-radius:3px; background:#ef4444;"></span>
+        <span style="color:#475569; font-size:9px;">УПРС &lt; УПКС (&gt;30%)</span>
+    </div>
+`;
     
     const mapContainer = document.getElementById('map-container');
     if (mapContainer) {
