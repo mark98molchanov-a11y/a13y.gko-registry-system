@@ -25,6 +25,86 @@ let allDealsFlat = [];
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
+function addTableScrollStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        #city-filters,
+        #object-type-filters,
+        #deal-type-filters,
+        #purpose-filters,
+        #quarter-filters,
+        #wall-material-filters,
+        #year-build-filters,
+        #vri-filters {
+            max-height: 250px;
+            overflow-y: auto;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+        
+        #deals-table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+        
+        #city-filters::-webkit-scrollbar,
+        #object-type-filters::-webkit-scrollbar,
+        #deal-type-filters::-webkit-scrollbar,
+        #purpose-filters::-webkit-scrollbar,
+        #quarter-filters::-webkit-scrollbar,
+        #wall-material-filters::-webkit-scrollbar,
+        #year-build-filters::-webkit-scrollbar,
+        #vri-filters::-webkit-scrollbar,
+        #deals-table-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        #city-filters::-webkit-scrollbar-track,
+        #object-type-filters::-webkit-scrollbar-track,
+        #deal-type-filters::-webkit-scrollbar-track,
+        #purpose-filters::-webkit-scrollbar-track,
+        #quarter-filters::-webkit-scrollbar-track,
+        #wall-material-filters::-webkit-scrollbar-track,
+        #year-build-filters::-webkit-scrollbar-track,
+        #vri-filters::-webkit-scrollbar-track,
+        #deals-table-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        
+        #city-filters::-webkit-scrollbar-thumb,
+        #object-type-filters::-webkit-scrollbar-thumb,
+        #deal-type-filters::-webkit-scrollbar-thumb,
+        #purpose-filters::-webkit-scrollbar-thumb,
+        #quarter-filters::-webkit-scrollbar-thumb,
+        #wall-material-filters::-webkit-scrollbar-thumb,
+        #year-build-filters::-webkit-scrollbar-thumb,
+        #vri-filters::-webkit-scrollbar-thumb,
+        #deals-table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        #city-filters::-webkit-scrollbar-thumb:hover,
+        #object-type-filters::-webkit-scrollbar-thumb:hover,
+        #deal-type-filters::-webkit-scrollbar-thumb:hover,
+        #purpose-filters::-webkit-scrollbar-thumb:hover,
+        #quarter-filters::-webkit-scrollbar-thumb:hover,
+        #wall-material-filters::-webkit-scrollbar-thumb:hover,
+        #year-build-filters::-webkit-scrollbar-thumb:hover,
+        #vri-filters::-webkit-scrollbar-thumb:hover,
+        #deals-table-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// ✅ ВЫЗЫВАЕМ СРАЗУ
+addTableScrollStyles();
 function getMedianAsync(arr, callback) {
     if (!arr || arr.length === 0) {
         callback(0);
@@ -1141,12 +1221,9 @@ function toggleAllVri(types) {
     }
     applyFiltersAndUpdate();
 }
-
-// ============================================================
-// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ПОСЛЕ ИЗМЕНЕНИЯ ФИЛЬТРОВ
-// ============================================================
-
 function applyFiltersAndUpdate() {
+    // ✅ СОХРАНЯЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
+    const allPositions = saveAllTableScrollPositions();
     
     // Перерисовываем все фильтры
     renderDealTypeFilters();
@@ -1181,9 +1258,11 @@ function applyFiltersAndUpdate() {
     addMapLegend();
     updateActiveFiltersDisplay();
     
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (теперь без сохранения позиции)
     renderDealsTable();
     
+    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
+    restoreAllTableScrollPositions(allPositions);
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -3734,32 +3813,57 @@ if (currentVriFilter.length > 0) {
         container.style.color = '#1e293b';
     }
 }
-function saveTableScrollPosition() {
-    const container = document.getElementById('deals-table-container');
-    if (!container) return null;
+function saveAllTableScrollPositions() {
+    const positions = {};
     
-    // Сохраняем позицию скролла контейнера
-    return {
-        scrollTop: container.scrollTop,
-        scrollLeft: container.scrollLeft
-    };
+    const filterContainers = [
+        'city-filters',
+        'object-type-filters',
+        'deal-type-filters',
+        'purpose-filters',
+        'quarter-filters',
+        'wall-material-filters',
+        'year-build-filters',
+        'vri-filters'
+    ];
+    
+    filterContainers.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            positions[id] = {
+                scrollTop: container.scrollTop || 0,
+                scrollLeft: container.scrollLeft || 0
+            };
+        }
+    });
+    
+    const dealsContainer = document.getElementById('deals-table-container');
+    if (dealsContainer) {
+        positions['deals-table-container'] = {
+            scrollTop: dealsContainer.scrollTop || 0,
+            scrollLeft: dealsContainer.scrollLeft || 0
+        };
+    }
+    
+    return positions;
 }
-
-function restoreTableScrollPosition(position) {
-    if (!position) return;
-    const container = document.getElementById('deals-table-container');
-    if (!container) return;
+function restoreAllTableScrollPositions(positions) {
+    if (!positions) return;
     
-    // Восстанавливаем позицию
-    container.scrollTop = position.scrollTop || 0;
-    container.scrollLeft = position.scrollLeft || 0;
+    Object.keys(positions).forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            container.scrollTop = positions[id].scrollTop || 0;
+            container.scrollLeft = positions[id].scrollLeft || 0;
+        }
+    });
 }
 function renderDealsTable() {
     const container = document.getElementById('deals-table-container');
     if (!container) return;
     
-    // ✅ СОХРАНЯЕМ ПОЗИЦИЮ СКРОЛЛА ПЕРЕД ОБНОВЛЕНИЕМ
-    const scrollPosition = saveTableScrollPosition();
+    
+        const positions = saveAllTableScrollPositions();
     
     const selectedQuarter = window.selectedQuarterCadNumber || null;
     
@@ -3905,9 +4009,7 @@ function renderDealsTable() {
     `;
     
     container.innerHTML = html;
-    
-    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СКРОЛЛА ПОСЛЕ ОБНОВЛЕНИЯ
-    restoreTableScrollPosition(scrollPosition);
+    restoreAllTableScrollPositions(positions);
 }
 let dealsSortField = 'diff_abs';
 let dealsSortAsc = true;
