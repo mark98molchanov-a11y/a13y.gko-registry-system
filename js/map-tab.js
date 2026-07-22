@@ -2460,6 +2460,14 @@ function initMapTab(containerId) {
         // После загрузки обоих — перерисовываем карту
         if (mapData) {
             renderMapLevel(currentLevel || 0, currentParentId);
+            
+            // ✅ ПРИНУДИТЕЛЬНОЕ ЦЕНТРИРОВАНИЕ ПОСЛЕ ЗАГРУЗКИ
+            setTimeout(() => {
+                console.log('📍 Принудительное центрирование после загрузки');
+                if (mapInstance) {
+                    mapInstance.setView([66.0, 76.0], 5);
+                }
+            }, 500);
         }
     }).catch(error => {
         console.error('❌ Ошибка загрузки:', error);
@@ -2767,47 +2775,45 @@ function renderMapLevel(level, parentId = null) {
         window.mapLayer.addTo(mapInstance);
     }
 
-    // ✅ КАРДИНАЛЬНОЕ РЕШЕНИЕ ДЛЯ ЦЕНТРИРОВАНИЯ
-    function centerMap() {
+    // ✅ КАРДИНАЛЬНОЕ РЕШЕНИЕ ДЛЯ ЦЕНТРИРОВАНИЯ С ПРИНУДИТЕЛЬНЫМИ ПОПЫТКАМИ
+    function centerMap(attempt) {
+        attempt = attempt || 1;
+        console.log(`🔄 Попытка центрирования #${attempt}`);
+        
         try {
             // ===== ДЛЯ УРОВНЯ 0 (ОКРУГ) - ВСЕГДА ЦЕНТР ЯНАО =====
             if (level === 0) {
                 console.log('📍 УРОВЕНЬ ОКРУГА: центрируем на ЯНАО');
                 mapInstance.setView([66.0, 76.0], 5);
-                // Защита от смещения
-                setTimeout(() => {
-                    const center = mapInstance.getCenter();
-                    if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
-                        console.warn('⚠️ Центр сместился, восстанавливаем...');
-                        mapInstance.setView([66.0, 76.0], 5);
-                    }
-                }, 300);
-                return;
+                return true;
             }
             
             // ===== ДЛЯ УРОВНЯ 1 (РАЙОНЫ) =====
             if (level === 1) {
                 console.log('📍 УРОВЕНЬ РАЙОНОВ: центрируем по границам');
-                // Пытаемся найти границы районов
                 let bounds = null;
                 
                 if (window.mapLayer && window.mapLayer.getBounds) {
                     const b = window.mapLayer.getBounds();
                     if (b && b.isValid()) {
-                        bounds = b;
-                        console.log('✅ Границы районов найдены');
+                        const sw = b._southWest;
+                        const ne = b._northEast;
+                        if (sw && ne && (ne.lat - sw.lat) > 0.001 && (ne.lng - sw.lng) > 0.001) {
+                            bounds = b;
+                            console.log('✅ Границы районов найдены');
+                        }
                     }
                 }
                 
                 if (bounds && bounds.isValid()) {
                     mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
                     console.log('✅ Карта отцентрирована по районам');
+                    return true;
                 } else {
-                    // Fallback
                     mapInstance.setView([66.0, 76.0], 6);
                     console.log('⚠️ Fallback: центрируем на ЯНАО с зумом 6');
+                    return true;
                 }
-                return;
             }
             
             // ===== ДЛЯ УРОВНЯ 2 (КВАРТАЛЫ) =====
@@ -2820,8 +2826,7 @@ function renderMapLevel(level, parentId = null) {
                     if (b && b.isValid()) {
                         const sw = b._southWest;
                         const ne = b._northEast;
-                        // Проверяем, что границы не слишком маленькие
-                        if (sw && ne && (ne.lat - sw.lat) > 0.01 && (ne.lng - sw.lng) > 0.01) {
+                        if (sw && ne && (ne.lat - sw.lat) > 0.001 && (ne.lng - sw.lng) > 0.001) {
                             bounds = b;
                             console.log('✅ Границы кварталов найдены');
                         }
@@ -2831,17 +2836,16 @@ function renderMapLevel(level, parentId = null) {
                 if (bounds && bounds.isValid()) {
                     mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
                     console.log('✅ Карта отцентрирована по кварталам');
+                    return true;
                 } else {
                     // Если границы не найдены - показываем район
                     const districtId = parentId || currentDistrictFilter;
                     if (districtId) {
-                        // Пытаемся найти район по ID и центрировать на нем
                         const districtFeature = mapData.features.find(f => 
                             f.properties.level === 1 && 
                             (f.properties.district_id === districtId || f.properties.cadastral_number === districtId)
                         );
                         if (districtFeature && districtFeature.geometry) {
-                            // Центрируем на центре района
                             const coords = districtFeature.geometry.coordinates[0];
                             if (coords && coords.length > 0) {
                                 let lat = 0, lng = 0;
@@ -2850,20 +2854,20 @@ function renderMapLevel(level, parentId = null) {
                                 lng /= coords.length;
                                 mapInstance.setView([lat, lng], 10);
                                 console.log('📍 Центрируем на центр района');
+                                return true;
                             }
-                        } else {
-                            mapInstance.setView([66.0, 76.0], 6);
                         }
-                    } else {
-                        mapInstance.setView([66.0, 76.0], 6);
                     }
+                    mapInstance.setView([66.0, 76.0], 6);
+                    console.log('⚠️ Fallback: центрируем на ЯНАО с зумом 6');
+                    return true;
                 }
-                return;
             }
             
             // Fallback
             console.warn('⚠️ Неизвестный уровень, центрируем на ЯНАО');
             mapInstance.setView([66.0, 76.0], 5);
+            return true;
             
         } catch(e) {
             console.warn('⚠️ Ошибка центрирования:', e);
@@ -2872,11 +2876,29 @@ function renderMapLevel(level, parentId = null) {
             } catch(err) {
                 console.error('❌ Критическая ошибка центрирования:', err);
             }
+            return true;
         }
     }
 
-    // Центрируем карту с задержкой
-    setTimeout(centerMap, 200);
+    // ✅ МНОЖЕСТВЕННЫЕ ПОПЫТКИ ЦЕНТРИРОВАНИЯ
+    
+    // 1-я попытка: через 100ms
+    setTimeout(() => {
+        console.log('⏳ 1-я попытка центрирования через 100ms');
+        centerMap(1);
+    }, 100);
+    
+    // 2-я попытка: через 400ms
+    setTimeout(() => {
+        console.log('⏳ 2-я попытка центрирования через 400ms');
+        centerMap(2);
+    }, 400);
+    
+    // 3-я попытка: через 900ms (гарантированная)
+    setTimeout(() => {
+        console.log('⏳ 3-я (гарантированная) попытка центрирования через 900ms');
+        centerMap(3);
+    }, 900);
 
     // Сбрасываем выделение при переходе
     if (window.wrapperLayer) {
@@ -4760,3 +4782,22 @@ window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
 console.log('✅ map-tab.js загружен');
+(function autoCenterOnLoad() {
+    // Проверяем, что карта уже создана
+    setTimeout(() => {
+        if (mapInstance) {
+            console.log('🔄 Автоматическое центрирование при загрузке');
+            mapInstance.setView([66.0, 76.0], 5);
+            
+            // Повторная проверка через 1 секунду
+            setTimeout(() => {
+                if (mapInstance) {
+                    const center = mapInstance.getCenter();
+                    if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
+                        console.warn('⚠️ Центр сместился, восстанавливаем...');
+                        mapInstance.setView([66.0, 76.0], 5);
+                    }
+                }
+            }, 1000);
+        }
+    }, 200);
