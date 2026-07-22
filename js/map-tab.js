@@ -1222,6 +1222,9 @@ function toggleAllVri(types) {
     applyFiltersAndUpdate();
 }
 function applyFiltersAndUpdate() {
+    // ✅ СОХРАНЯЕМ ПОЗИЦИЮ СТРАНИЦЫ
+    const pagePosition = savePageScrollPosition();
+    
     // ✅ СОХРАНЯЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
     const allPositions = saveAllTableScrollPositions();
     
@@ -1258,11 +1261,16 @@ function applyFiltersAndUpdate() {
     addMapLegend();
     updateActiveFiltersDisplay();
     
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (теперь без сохранения позиции)
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     renderDealsTable();
     
     // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
     restoreAllTableScrollPositions(allPositions);
+    
+    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СТРАНИЦЫ (ГЛАВНОЕ!)
+    setTimeout(function() {
+        restorePageScrollPosition(pagePosition);
+    }, 50);
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
@@ -3605,6 +3613,18 @@ function restoreAllTableScrollPositions(positions) {
             container.scrollLeft = positions[id].scrollLeft || 0;
         }
     });
+}
+function savePageScrollPosition() {
+    return {
+        scrollY: window.scrollY || 0,
+        scrollX: window.scrollX || 0
+    };
+}
+
+// ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СТРАНИЦЫ
+function restorePageScrollPosition(position) {
+    if (!position) return;
+    window.scrollTo(position.scrollX || 0, position.scrollY || 0);
 }
 function renderDealsTable() {
     const container = document.getElementById('deals-table-container');
