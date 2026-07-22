@@ -1301,8 +1301,6 @@ function applyDealTypeFilter(kind) {
         }
     }
     
-    // ✅ ВСЁ ОБНОВЛЕНИЕ ДЕЛАЕТ applyFiltersAndUpdate()
-    // ОНА СОХРАНЯЕТ ПОЗИЦИИ, ОБНОВЛЯЕТ ВСЁ И ВОССТАНАВЛИВАЕТ
     applyFiltersAndUpdate();
 }
 
