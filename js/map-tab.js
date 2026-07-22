@@ -3863,8 +3863,6 @@ function renderDealsTable() {
     if (!container) return;
     
     
-        const positions = saveAllTableScrollPositions();
-    
     const selectedQuarter = window.selectedQuarterCadNumber || null;
     
     let filteredDeals = allDealsFlat.filter(deal => {
@@ -4009,23 +4007,20 @@ function renderDealsTable() {
     `;
     
     container.innerHTML = html;
-    restoreAllTableScrollPositions(positions);
 }
 let dealsSortField = 'diff_abs';
 let dealsSortAsc = true;
 
 function sortDealsTable(field) {
-    // Если кликнули по тому же полю — меняем направление сортировки
     if (dealsSortField === field) {
         dealsSortAsc = !dealsSortAsc;
     } else {
         dealsSortField = field;
         dealsSortAsc = true;
     }
-    
-    // ✅ ПРОСТО ВЫЗЫВАЕМ renderDealsTable() - она сама отфильтрует и отсортирует
-    renderDealsTable();
+    renderDealsTable(); 
 }
+
 
 function getSelectedQuarter() {
     // Проверяем, есть ли выбранный квартал на карте
