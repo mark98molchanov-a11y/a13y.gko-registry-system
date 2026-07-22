@@ -2,6 +2,7 @@ let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
 let currentDistrictFilter = null;
+let isUpdatingFromSearch = false;
 
 const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/yanao_hierarchical_web.geojson';
 let dealsData = {};
@@ -4478,9 +4479,15 @@ function searchQuarter() {
     }, 300);
 }
 function searchQuarterByCadNumber(cadNumber) {
-    if (!cadNumber) return;
+    // ✅ ПРОВЕРЯЕМ ФЛАГ — ЕСЛИ УЖЕ В ПРОЦЕССЕ, ПРОПУСКАЕМ
+    if (!cadNumber || isUpdatingFromSearch) {
+        console.log('⏳ Пропускаем, уже в процессе обновления');
+        return;
+    }
     
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
+    isUpdatingFromSearch = true;  // ✅ УСТАНАВЛИВАЕМ ФЛАГ
+    console.log('🔒 Флаг isUpdatingFromSearch = true');
     
     // 1. Ищем в mapData (level 2)
     let found = mapData.features.find(f => {
@@ -4517,6 +4524,7 @@ function searchQuarterByCadNumber(cadNumber) {
     
     if (!found) {
         console.log(`❌ Квартал "${cadNumber}" не найден`);
+        isUpdatingFromSearch = false;  // ✅ СБРАСЫВАЕМ ФЛАГ
         return;
     }
     
@@ -4585,7 +4593,6 @@ function searchQuarterByCadNumber(cadNumber) {
                 });
             } else {
                 console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях`);
-                // Fallback: центрируем на районе
                 const prefix = cadNum.substring(0, 5);
                 const districtFeature = mapData.features.find(f => 
                     f.properties.level === 1 && 
@@ -4603,6 +4610,8 @@ function searchQuarterByCadNumber(cadNumber) {
                     }
                 }
             }
+            isUpdatingFromSearch = false;  // ✅ СБРАСЫВАЕМ ФЛАГ
+            console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
         }, 500);
         
         return;
@@ -4614,8 +4623,8 @@ function searchQuarterByCadNumber(cadNumber) {
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
-    // ✅ Переходим на уровень 2 (кварталы)
-    renderMapLevel(2, districtId);
+    // ✅ Переходим на уровень 2 (кварталы) С ФЛАГОМ
+    renderMapLevelWithFlag(2, districtId, true);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
     window.selectedQuarterCadNumber = cadNum;
@@ -4640,7 +4649,45 @@ function searchQuarterByCadNumber(cadNumber) {
             }
         }
         renderDealsTable();
+        isUpdatingFromSearch = false;  // ✅ СБРАСЫВАЕМ ФЛАГ
+        console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
     }, 300);
+}
+function renderMapLevelWithFlag(level, parentId, fromSearch = false) {
+    console.log(`🔄 renderMapLevelWithFlag: level=${level}, fromSearch=${fromSearch}`);
+    
+    // Если это поиск и уровень 2 — пропускаем центрирование
+    if (fromSearch && level === 2) {
+        console.log('⏳ Пропускаем автоматическое центрирование (поиск)');
+        
+        // Сохраняем оригинальные setTimeout
+        const originalSetTimeout = window.setTimeout;
+        
+        // Перехватываем вызовы centerMap через setTimeout
+        window.setTimeout = function(fn, delay) {
+            const fnStr = fn.toString();
+            // Блокируем только вызовы centerMap
+            if (fnStr.includes('centerMap') || fnStr.includes('Попытка центрирования')) {
+                console.log(`⏳ Блокируем setTimeout centerMap (delay=${delay}ms)`);
+                return 0; // Возвращаем таймаут, но не выполняем
+            }
+            // Для всех остальных вызовов — выполняем как обычно
+            return originalSetTimeout.call(this, fn, delay);
+        };
+        
+        // Вызываем renderMapLevel
+        renderMapLevel(level, parentId);
+        
+        // Восстанавливаем setTimeout
+        setTimeout(() => {
+            window.setTimeout = originalSetTimeout;
+            console.log('✅ setTimeout восстановлен');
+        }, 100);
+        
+    } else {
+        // Обычный вызов
+        renderMapLevel(level, parentId);
+    }
 }
 function exportDealsTableToExcel() {
     const container = document.getElementById('deals-table-container');
@@ -4802,6 +4849,7 @@ function closeWrapperTooltip(cadNum) {
 window.initMapTab = initMapTab;
 window.destroyMap = destroyMap;
 window.renderMapLevel = renderMapLevel;
+window.renderMapLevelWithFlag = renderMapLevelWithFlag;
 window.searchQuarter = searchQuarter;
 window.searchQuarterByCadNumber = searchQuarterByCadNumber; 
 window.exportDealsTableToExcel = exportDealsTableToExcel;
