@@ -2767,58 +2767,59 @@ function renderMapLevel(level, parentId = null) {
         window.mapLayer.addTo(mapInstance);
     }
 
-    // ✅ ИСПРАВЛЕНАЯ ПОДГОНКА ГРАНИЦ
-    try {
-        let bounds = null;
-        let hasValidBounds = false;
-        
-        // Проверяем wrapperLayer
-        if (window.wrapperLayer && window.wrapperLayer.getBounds) {
-            const wrapperBounds = window.wrapperLayer.getBounds();
-            if (wrapperBounds && wrapperBounds.isValid()) {
-                bounds = wrapperBounds;
-                hasValidBounds = true;
-                console.log('✅ Границы от wrapperLayer');
-            }
-        }
-        
-        // Проверяем mapLayer
-        if (window.mapLayer && window.mapLayer.getBounds) {
-            const mapBounds = window.mapLayer.getBounds();
-            if (mapBounds && mapBounds.isValid()) {
-                if (!hasValidBounds) {
-                    bounds = mapBounds;
-                    hasValidBounds = true;
-                    console.log('✅ Границы от mapLayer');
-                } else {
-                    // Расширяем существующие границы
-                    bounds.extend(mapBounds);
-                    console.log('✅ Границы расширены mapLayer');
+    // ✅ УЛУЧШЕННАЯ ПОДГОНКА ГРАНИЦ
+    function fitMapToBounds() {
+        try {
+            // Пытаемся найти любой слой с валидными границами
+            let targetLayer = null;
+            
+            // 1. Сначала пробуем mapLayer (кварталы или районы)
+            if (window.mapLayer && window.mapLayer.getBounds) {
+                const bounds = window.mapLayer.getBounds();
+                if (bounds && bounds.isValid()) {
+                    targetLayer = window.mapLayer;
+                    console.log('📍 Центрируем по mapLayer');
                 }
             }
-        }
-        
-        // Если есть валидные границы - центрируем
-        if (hasValidBounds && bounds && bounds.isValid()) {
-            console.log('📍 Центрируем карту на найденных границах');
-            mapInstance.fitBounds(bounds, { 
-                padding: [30, 30],
-                maxZoom: 12
-            });
-        } else {
-            // Fallback: если границы не определены, используем стандартный центр
-            console.warn('⚠️ Нет валидных границ, используем стандартный центр');
+            
+            // 2. Если mapLayer не подошел, пробуем wrapperLayer
+            if (!targetLayer && window.wrapperLayer && window.wrapperLayer.getBounds) {
+                const bounds = window.wrapperLayer.getBounds();
+                if (bounds && bounds.isValid()) {
+                    targetLayer = window.wrapperLayer;
+                    console.log('📍 Центрируем по wrapperLayer');
+                }
+            }
+            
+            // 3. Центрируем по найденному слою
+            if (targetLayer) {
+                const bounds = targetLayer.getBounds();
+                if (bounds && bounds.isValid()) {
+                    mapInstance.fitBounds(bounds, { 
+                        padding: [30, 30],
+                        maxZoom: level === 0 ? 6 : level === 1 ? 8 : 12
+                    });
+                    console.log('✅ Карта отцентрирована успешно');
+                    return;
+                }
+            }
+            
+            // 4. Fallback: используем стандартный центр
+            console.warn('⚠️ Не найдено валидных границ, используем стандартный центр');
             mapInstance.setView([66.0, 76.0], 5);
-        }
-    } catch(e) {
-        console.warn('⚠️ Не удалось подогнать границы:', e);
-        // Fallback при ошибке
-        try {
-            mapInstance.setView([66.0, 76.0], 5);
-        } catch(err) {
-            console.error('❌ Критическая ошибка центрирования:', err);
+            
+        } catch(e) {
+            console.warn('⚠️ Ошибка центрирования:', e);
+            try {
+                mapInstance.setView([66.0, 76.0], 5);
+            } catch(err) {
+                console.error('❌ Критическая ошибка центрирования:', err);
+            }
         }
     }
+
+    // Центрируем карту с небольшой задержкой, чтобы слои успели отрендериться
+    setTimeout(fitMapToBounds, 100);
 
     // Сбрасываем выделение при переходе
     if (window.wrapperLayer) {
