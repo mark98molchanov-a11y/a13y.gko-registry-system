@@ -4782,27 +4782,30 @@ window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
 console.log('✅ map-tab.js загружен');
-
-// ============================================================
-// АВТОМАТИЧЕСКОЕ ЦЕНТРИРОВАНИЕ ПРИ ЗАГРУЗКЕ
-// ============================================================
 (function autoCenterOnLoad() {
-    // Проверяем, что карта уже создана
-    setTimeout(() => {
-        if (mapInstance) {
-            console.log('🔄 Автоматическое центрирование при загрузке');
-            mapInstance.setView([66.0, 76.0], 5);
-            
-            // Повторная проверка через 1 секунду
-            setTimeout(() => {
-                if (mapInstance) {
-                    const center = mapInstance.getCenter();
-                    if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
-                        console.warn('⚠️ Центр сместился, восстанавливаем...');
-                        mapInstance.setView([66.0, 76.0], 5);
-                    }
+    // Проверяем, что mapInstance существует
+    if (typeof mapInstance !== 'undefined' && mapInstance) {
+        console.log('🔄 Автоматическое центрирование при загрузке');
+        mapInstance.setView([66.0, 76.0], 5);
+        
+        // Повторная проверка через 1 секунду
+        setTimeout(() => {
+            if (mapInstance) {
+                const center = mapInstance.getCenter();
+                if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
+                    console.warn('⚠️ Центр сместился, восстанавливаем...');
+                    mapInstance.setView([66.0, 76.0], 5);
                 }
-            }, 1000);
-        }
-    }, 200);
+            }
+        }, 1000);
+    } else {
+        // Если карта еще не создана - пробуем через 500ms
+        console.log('⏳ Карта еще не создана, пробуем позже...');
+        setTimeout(() => {
+            if (typeof mapInstance !== 'undefined' && mapInstance) {
+                console.log('🔄 Автоматическое центрирование (отложенное)');
+                mapInstance.setView([66.0, 76.0], 5);
+            }
+        }, 500);
+    }
 })();
