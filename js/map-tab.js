@@ -1178,11 +1178,6 @@ function toggleAllVri(types) {
     }
     applyFiltersAndUpdate();
 }
-
-// ============================================================
-// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ПОСЛЕ ИЗМЕНЕНИЯ ФИЛЬТРОВ
-// ============================================================
-
 function applyFiltersAndUpdate() {
     // Перерисовываем все фильтры
     renderDealTypeFilters();
@@ -1214,7 +1209,10 @@ function applyFiltersAndUpdate() {
     updateMapStatsFromDeals(level, parentId);
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
+    
+    // ✅ Обновляем легенду (учитывает режим Heatmap)
     addMapLegend();
+    
     updateActiveFiltersDisplay();
     renderDealsTable();
     
@@ -3031,10 +3029,6 @@ if (window.mapLayer) {
     }
     updateQuartersStyle(targetObjects);
 }
-
-if (isHeatmapEnabled) {
-    addHeatmapLegend();            
-}
     if (level === 1 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
@@ -3419,11 +3413,10 @@ layer.on('mouseover', function(e) {
     const lvl = feature?.properties?.level || 0;
     
     if (lvl === 2) {
-        // ✅ КВАРТАЛЫ — оставляем изменение
+        // ✅ КВАРТАЛЫ — подсвечиваем
         const cadNum = feature?.properties?.cadastral_number;
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
-            // ✅ ИСПРАВЛЕНО: используем правильные имена полей
             if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
             if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
             if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
@@ -3434,19 +3427,49 @@ layer.on('mouseover', function(e) {
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             return true;
         });
-        const count = filteredDeals.length;
-        const fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
+        
+        let fillColor = '#f1f5f9';
+        let fillOpacity = 0.35;
+        
+        if (isHeatmapEnabled) {
+            // 🔥 РЕЖИМ HEATMAP: цвет по УПРС/УПКС
+            if (filteredDeals.length > 0) {
+                let totalUprs = 0, totalUpks = 0, count = 0;
+                filteredDeals.forEach(deal => {
+                    const uprsValue = deal.uprs || deal.uprs_rub || 0;
+                    const upksValue = deal.upks || 0;
+                    if (uprsValue > 0 && upksValue > 0) {
+                        totalUprs += uprsValue;
+                        totalUpks += upksValue;
+                        count++;
+                    }
+                });
+                if (count > 0) {
+                    const avgUprs = totalUprs / count;
+                    const avgUpks = totalUpks / count;
+                    const diff = ((avgUprs - avgUpks) / avgUpks) * 100;
+                    if (diff > 20) fillColor = '#22c55e';
+                    else if (diff > 5) fillColor = '#84cc16';
+                    else if (diff >= -5) fillColor = '#eab308';
+                    else if (diff > -30) fillColor = '#f97316';
+                    else fillColor = '#ef4444';
+                    fillOpacity = 0.5;
+                }
+            }
+        } else {
+            // ❌ ОБЫЧНЫЙ РЕЖИМ: по количеству сделок
+            const count = filteredDeals.length;
+            fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
+            fillOpacity = 0.35;
+        }
         
         this.setStyle({
             fillColor: fillColor,
-            fillOpacity: 0.2,
+            fillOpacity: fillOpacity,
             weight: 2,
             color: '#60a5fa',
             opacity: 0.8
         });
-    } else {
-        // ✅ РАЙОНЫ И ОКРУГ — НЕ МЕНЯЕМ СТИЛЬ (убираем выделение)
-        // Просто меняем курсор, без изменения цвета
     }
     
     this.bringToFront();
@@ -3462,11 +3485,9 @@ layer.on('mouseout', function(e) {
     const level = feature.properties?.level || 0;
     const cadNum = feature.properties?.cadastral_number;
     
-    // ✅ ТОЛЬКО ДЛЯ КВАРТАЛОВ (level === 2) — восстанавливаем стиль
     if (level === 2) {
         const deals = cadNum ? (dealsData[cadNum] || []) : [];
         const filteredDeals = deals.filter(deal => {
-            // ✅ ИСПРАВЛЕНО: используем правильные имена полей
             if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
             if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
             if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
@@ -3477,17 +3498,59 @@ layer.on('mouseout', function(e) {
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             return true;
         });
-        const filteredCount = filteredDeals.length;
+        
+        let fillColor = '#f1f5f9';
+        let fillOpacity = 0.2;
+        let borderColor = '#3b82f6';
+        let borderWeight = 2.5;
+        let borderOpacity = 0.6;
+        
+        if (isHeatmapEnabled) {
+            // 🔥 ВОССТАНАВЛИВАЕМ HEATMAP СТИЛЬ
+            if (filteredDeals.length > 0) {
+                let totalUprs = 0, totalUpks = 0, count = 0;
+                filteredDeals.forEach(deal => {
+                    const uprsValue = deal.uprs || deal.uprs_rub || 0;
+                    const upksValue = deal.upks || 0;
+                    if (uprsValue > 0 && upksValue > 0) {
+                        totalUprs += uprsValue;
+                        totalUpks += upksValue;
+                        count++;
+                    }
+                });
+                if (count > 0) {
+                    const avgUprs = totalUprs / count;
+                    const avgUpks = totalUpks / count;
+                    const diff = ((avgUprs - avgUpks) / avgUpks) * 100;
+                    if (diff > 20) fillColor = '#22c55e';
+                    else if (diff > 5) fillColor = '#84cc16';
+                    else if (diff >= -5) fillColor = '#eab308';
+                    else if (diff > -30) fillColor = '#f97316';
+                    else fillColor = '#ef4444';
+                    fillOpacity = 0.35;
+                    borderColor = '#475569';
+                    borderWeight = 2;
+                    borderOpacity = 0.7;
+                }
+            }
+        } else {
+            // ❌ ОБЫЧНЫЙ РЕЖИМ
+            const hasDeals = filteredDeals.length > 0;
+            fillColor = hasDeals ? getMapColor(filteredDeals.length) : '#f1f5f9';
+            fillOpacity = 0.2;
+            borderColor = '#3b82f6';
+            borderWeight = 2.5;
+            borderOpacity = 0.6;
+        }
         
         this.setStyle({
-            fillColor: filteredCount > 0 ? getMapColor(filteredCount) : '#f1f5f9',
-            fillOpacity: 0.2,
-            color: '#3b82f6',
-            weight: 2.5,
-            opacity: 0.4
+            fillColor: fillColor,
+            fillOpacity: fillOpacity,
+            color: borderColor,
+            weight: borderWeight,
+            opacity: borderOpacity
         });
     }
-    // ✅ РАЙОНЫ И ОКРУГ — НИЧЕГО НЕ МЕНЯЕМ
 });
 }
 function onPopupClose(levelName, districtId) {
@@ -3813,8 +3876,9 @@ function destroyMap() {
     }
 }
 function addMapLegend() {
+    // Удаляем старые легенды
     const oldHeatmapLegend = document.querySelector('.heatmap-legend');
-if (oldHeatmapLegend) oldHeatmapLegend.remove();
+    if (oldHeatmapLegend) oldHeatmapLegend.remove();
     
     const oldLegend = document.querySelector('.map-legend');
     if (oldLegend) oldLegend.remove();
@@ -3836,27 +3900,57 @@ if (oldHeatmapLegend) oldHeatmapLegend.remove();
         min-width: 160px;
     `;
     
-    legend.innerHTML = `
-        <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-            Сделки в квартале
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
-            <span style="color:#475569;">> 500 сделок</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f59e0b;"></span>
-            <span style="color:#475569;">101 – 500</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
-            <span style="color:#475569;">1 – 100</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-            <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
-            <span style="color:#475569;">нет сделок</span>
-        </div>
-    `;
+    // ✅ Если включен Heatmap — показываем легенду УПРС vs УПКС
+    if (isHeatmapEnabled) {
+        legend.innerHTML = `
+            <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
+                🌡️ УПРС vs УПКС
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
+                <span style="color:#475569;">УПРС &gt; УПКС (+20%)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#84cc16;"></span>
+                <span style="color:#475569;">УПРС &gt; УПКС (+5-20%)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#eab308;"></span>
+                <span style="color:#475569;">УПРС ≈ УПКС (±5%)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f97316;"></span>
+                <span style="color:#475569;">УПРС &lt; УПКС (5-30%)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
+                <span style="color:#475569;">УПРС &lt; УПКС (&gt;30%)</span>
+            </div>
+        `;
+    } else {
+        // ❌ Обычный режим: легенда по количеству сделок
+        legend.innerHTML = `
+            <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
+                📊 Сделки в квартале
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
+                <span style="color:#475569;">> 500 сделок</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f59e0b;"></span>
+                <span style="color:#475569;">101 – 500</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
+                <span style="color:#475569;">1 – 100</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
+                <span style="color:#475569;">нет сделок</span>
+            </div>
+        `;
+    }
     
     const mapContainer = document.getElementById('map-container');
     if (mapContainer) {
