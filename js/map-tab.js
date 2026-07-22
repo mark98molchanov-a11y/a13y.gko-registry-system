@@ -3031,12 +3031,28 @@ function renderMapLevel(level, parentId = null) {
         });
     }
     
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
+updateMapStatsFromDeals(level, parentId);
+updatePopupsAndTooltips(level);
+updateQuartersListWithFilteredObjects(null);
+addMapLegend();
+
+// Обновляем стили кварталов с учетом Heatmap
+if (window.mapLayer) {
+    let targetObjects = [];
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
     
-    if (isHeatmapEnabled) {
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return fParentId === parentId;
+        });
+    }
+    updateQuartersStyle(targetObjects);
+}
+
+if (isHeatmapEnabled) {
     addHeatmapLegend();            
 }
     if (level === 1 && window.mapLayer) {
