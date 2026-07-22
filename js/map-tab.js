@@ -2451,6 +2451,14 @@ function initMapTab(containerId) {
         attribution: '© OpenStreetMap'
     }).addTo(mapInstance);
 
+    // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ РАЗМЕРЫ КАРТЫ ПОСЛЕ ИНИЦИАЛИЗАЦИИ
+    setTimeout(() => {
+        if (mapInstance) {
+            mapInstance.invalidateSize();
+            console.log('📏 invalidateSize() выполнен после инициализации');
+        }
+    }, 100);
+
     // ✅ ЗАГРУЖАЕМ ДАННЫЕ ПАРАЛЛЕЛЬНО
     Promise.all([
         loadMapData(),
@@ -2465,6 +2473,7 @@ function initMapTab(containerId) {
             setTimeout(() => {
                 console.log('📍 Принудительное центрирование после загрузки');
                 if (mapInstance) {
+                    mapInstance.invalidateSize();
                     mapInstance.setView([66.0, 76.0], 5);
                 }
             }, 500);
@@ -2773,7 +2782,11 @@ function renderMapLevel(level, parentId = null) {
         });
         window.mapLayer = normalLayer;
         window.mapLayer.addTo(mapInstance);
-    }
+    if (mapInstance) {
+    mapInstance.invalidateSize();
+    console.log('📏 invalidateSize() выполнен после добавления слоев');
+  }
+}
 
     // ✅ КАРДИНАЛЬНОЕ РЕШЕНИЕ ДЛЯ ЦЕНТРИРОВАНИЯ С ПРИНУДИТЕЛЬНЫМИ ПОПЫТКАМИ
     function centerMap(attempt) {
@@ -4786,11 +4799,13 @@ console.log('✅ map-tab.js загружен');
     // Проверяем, что mapInstance существует
     if (typeof mapInstance !== 'undefined' && mapInstance) {
         console.log('🔄 Автоматическое центрирование при загрузке');
+        mapInstance.invalidateSize();
         mapInstance.setView([66.0, 76.0], 5);
         
         // Повторная проверка через 1 секунду
         setTimeout(() => {
             if (mapInstance) {
+                mapInstance.invalidateSize();
                 const center = mapInstance.getCenter();
                 if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
                     console.warn('⚠️ Центр сместился, восстанавливаем...');
@@ -4804,6 +4819,7 @@ console.log('✅ map-tab.js загружен');
         setTimeout(() => {
             if (typeof mapInstance !== 'undefined' && mapInstance) {
                 console.log('🔄 Автоматическое центрирование (отложенное)');
+                mapInstance.invalidateSize();
                 mapInstance.setView([66.0, 76.0], 5);
             }
         }, 500);
