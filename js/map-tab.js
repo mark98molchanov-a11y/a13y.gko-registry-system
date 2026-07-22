@@ -609,7 +609,7 @@ function renderDealTypeFilters() {
         const shortName = kind.length > 15 ? kind.substring(0, 14) + '…' : kind;
         
         html += `
-            <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
+           <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}', event)" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -678,7 +678,7 @@ function renderCityFilters() {
         const shortName = city.length > 15 ? city.substring(0, 14) + '…' : city;
         
         html += `
-            <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}', event)"
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -747,7 +747,7 @@ function renderObjectTypeFilters() {
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
-            <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}', event)"
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -816,7 +816,7 @@ function renderWallMaterialFilters() {
         const shortName = type.length > 12 ? type.substring(0, 11) + '…' : type;
         
         html += `
-            <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}', event)"
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -892,7 +892,7 @@ function renderYearBuildFilters() {
         const isActive = currentYearBuildFilter.includes(type);
         
         html += `
-            <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}', event)"
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -980,7 +980,7 @@ function renderQuarterFilters() {
         const shortName = type.length > 10 ? type.substring(0, 9) + '…' : type;
         
         html += `
-            <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}', event)"
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -1049,7 +1049,7 @@ function renderVriFilters() {
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
-            <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}', event)"
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -1118,7 +1118,7 @@ function renderPurposeFilters() {
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
         
         html += `
-            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}')" 
+            <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}', event)" 
                 style="
                     cursor: pointer;
                     transition: all 0.15s;
@@ -1272,17 +1272,17 @@ function applyFiltersAndUpdate() {
         // Попытка 1: сразу
         restorePageScrollPosition(pagePosition);
         
-        // Попытка 2: через 50ms (после отрисовки)
+        // Попытка 2: через 50ms
         setTimeout(function() {
             restorePageScrollPosition(pagePosition);
         }, 50);
         
-        // Попытка 3: через 200ms (на случай асинхронной загрузки)
+        // Попытка 3: через 200ms
         setTimeout(function() {
             restorePageScrollPosition(pagePosition);
         }, 200);
         
-        // Попытка 4: через 500ms (на всякий случай)
+        // Попытка 4: через 500ms
         setTimeout(function() {
             restorePageScrollPosition(pagePosition);
         }, 500);
@@ -1297,7 +1297,10 @@ function applyFiltersAndUpdate() {
     }
 }
 function applyDealTypeFilter(kind) {
-    // ✅ МНОЖЕСТВЕННЫЙ ВЫБОР: добавляем или удаляем значение
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentDealTypeFilter.indexOf(kind);
     if (index === -1) {
         currentDealTypeFilter.push(kind);
@@ -1321,6 +1324,10 @@ function applyDealTypeFilter(kind) {
 }
 
 function applyCityFilter(city) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentCityFilter.indexOf(city);
     if (index === -1) {
         currentCityFilter.push(city);
@@ -1339,6 +1346,10 @@ function applyCityFilter(city) {
     applyFiltersAndUpdate();
 }
 function applyObjectTypeFilter(type) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentObjectTypeFilter.indexOf(type);
     if (index === -1) {
         currentObjectTypeFilter.push(type);
@@ -1359,6 +1370,10 @@ function applyObjectTypeFilter(type) {
     applyFiltersAndUpdate();
 }
 function applyWallMaterialFilter(type) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentWallMaterialFilter.indexOf(type);
     if (index === -1) {
         currentWallMaterialFilter.push(type);
@@ -1379,6 +1394,10 @@ function applyWallMaterialFilter(type) {
     applyFiltersAndUpdate();
 }
 function applyQuarterFilter(type) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentQuarterFilter.indexOf(type);
     if (index === -1) {
         currentQuarterFilter.push(type);
@@ -1399,6 +1418,10 @@ function applyQuarterFilter(type) {
     applyFiltersAndUpdate();
 }
 function applyYearBuildFilter(type) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentYearBuildFilter.indexOf(type);
     if (index === -1) {
         currentYearBuildFilter.push(type);
@@ -1419,6 +1442,10 @@ function applyYearBuildFilter(type) {
     applyFiltersAndUpdate();
 }
 function applyPurposeFilter(type) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentPurposeFilter.indexOf(type);
     if (index === -1) {
         currentPurposeFilter.push(type);
@@ -1435,10 +1462,13 @@ function applyPurposeFilter(type) {
         }
     }
     
-    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
     applyFiltersAndUpdate();
 }
 function applyVriFilter(type) {
+        if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const index = currentVriFilter.indexOf(type);
     if (index === -1) {
         currentVriFilter.push(type);
@@ -1455,7 +1485,6 @@ function applyVriFilter(type) {
         }
     }
     
-    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
     applyFiltersAndUpdate();
 }
 
@@ -4389,4 +4418,23 @@ window.searchQuarterByCadNumber = searchQuarterByCadNumber;
 window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelectors = [
+        '#city-filters tr',
+        '#object-type-filters tr',
+        '#deal-type-filters tr',
+        '#purpose-filters tr',
+        '#quarter-filters tr',
+        '#wall-material-filters tr',
+        '#year-build-filters tr',
+        '#vri-filters tr'
+    ];
+    
+    document.querySelectorAll(filterSelectors.join(',')).forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, true);
+    });
+});
 console.log('✅ map-tab.js загружен');
