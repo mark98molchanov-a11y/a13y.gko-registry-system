@@ -4782,6 +4782,10 @@ window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
 console.log('✅ map-tab.js загружен');
+
+// ============================================================
+// АВТОМАТИЧЕСКОЕ ЦЕНТРИРОВАНИЕ ПРИ ЗАГРУЗКЕ
+// ============================================================
 (function autoCenterOnLoad() {
     // Проверяем, что карта уже создана
     setTimeout(() => {
@@ -4801,3 +4805,4 @@ console.log('✅ map-tab.js загружен');
             }, 1000);
         }
     }, 200);
+})();
