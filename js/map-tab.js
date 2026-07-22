@@ -1293,50 +1293,11 @@ function applyDealTypeFilter(kind) {
         }
     }
     
-    // ✅ ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
-    renderDealTypeFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    console.log(`🔍 applyDealTypeFilter: level=${level}, parentId=${parentId}, filter=${currentDealTypeFilter}`);
-    
-    // ✅ ОБНОВЛЯЕМ СТИЛИ КВАРТАЛОВ
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    
-    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ С УЧЕТОМ ФИЛЬТРА
-    updateMapStatsFromDeals(level, parentId);
-    
-    // ✅ ОБНОВЛЯЕМ ПОПАПЫ И ТУЛТИПЫ
-    updatePopupsAndTooltips(level);
-    
-    // ✅ ОБНОВЛЯЕМ СПИСОК КВАРТАЛОВ
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    // ✅ ОБНОВЛЯЕМ ТУЛТИП ОБЕРТКИ
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВСЁ ОБНОВЛЕНИЕ ДЕЛАЕТ applyFiltersAndUpdate()
+    // ОНА СОХРАНЯЕТ ПОЗИЦИИ, ОБНОВЛЯЕТ ВСЁ И ВОССТАНАВЛИВАЕТ
+    applyFiltersAndUpdate();
 }
+
 function applyCityFilter(city) {
     const index = currentCityFilter.indexOf(city);
     if (index === -1) {
@@ -1353,41 +1314,9 @@ function applyCityFilter(city) {
             window.selectedQuarterCadNumber = null;
         }
     }
-    
-    renderCityFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    applyFiltersAndUpdate();
 }
-function applyObjectTypeFilter(type) {
+unction applyObjectTypeFilter(type) {
     const index = currentObjectTypeFilter.indexOf(type);
     if (index === -1) {
         currentObjectTypeFilter.push(type);
@@ -1404,40 +1333,9 @@ function applyObjectTypeFilter(type) {
         }
     }
     
-    renderObjectTypeFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
+    applyFiltersAndUpdate();
 }
-
 function applyWallMaterialFilter(type) {
     const index = currentWallMaterialFilter.indexOf(type);
     if (index === -1) {
@@ -1455,38 +1353,8 @@ function applyWallMaterialFilter(type) {
         }
     }
     
-    renderWallMaterialFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
+    applyFiltersAndUpdate();
 }
 function applyQuarterFilter(type) {
     const index = currentQuarterFilter.indexOf(type);
@@ -1505,38 +1373,8 @@ function applyQuarterFilter(type) {
         }
     }
     
-    renderQuarterFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
+    applyFiltersAndUpdate();
 }
 function applyYearBuildFilter(type) {
     const index = currentYearBuildFilter.indexOf(type);
@@ -1555,38 +1393,8 @@ function applyYearBuildFilter(type) {
         }
     }
     
-    renderYearBuildFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
+    applyFiltersAndUpdate();
 }
 function applyPurposeFilter(type) {
     const index = currentPurposeFilter.indexOf(type);
@@ -1605,38 +1413,8 @@ function applyPurposeFilter(type) {
         }
     }
     
-    renderPurposeFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
+    applyFiltersAndUpdate();
 }
 function applyVriFilter(type) {
     const index = currentVriFilter.indexOf(type);
@@ -1655,38 +1433,8 @@ function applyVriFilter(type) {
         }
     }
     
-    renderVriFilters();
-    
-    const level = currentLevel;
-    const parentId = currentParentId;
-    
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    let targetObjects = [];
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return String(fParentId) === String(parentId);
-        });
-    }
-    
-    updateQuartersStyle(targetObjects);
-    updateMapStatsFromDeals(level, parentId);
-    updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
-    addMapLegend();
-    updateActiveFiltersDisplay();
-    renderDealsTable();
-    
-    if (window.wrapperLayer) {
-        window.wrapperLayer.eachLayer(function(layer) {
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-        });
-    }
+    // ✅ ВЫЗЫВАЕМ applyFiltersAndUpdate()
+    applyFiltersAndUpdate();
 }
 
 function updateDistrictTooltip(layer, props) {
