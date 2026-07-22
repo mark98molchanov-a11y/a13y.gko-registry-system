@@ -1267,10 +1267,26 @@ function applyFiltersAndUpdate() {
     // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИИ ВСЕХ ТАБЛИЦ
     restoreAllTableScrollPositions(allPositions);
     
-    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СТРАНИЦЫ (ГЛАВНОЕ!)
-    setTimeout(function() {
+    // ✅ ВОССТАНАВЛИВАЕМ ПОЗИЦИЮ СТРАНИЦЫ (МНОГОКРАТНО!)
+    if (pagePosition) {
+        // Попытка 1: сразу
         restorePageScrollPosition(pagePosition);
-    }, 50);
+        
+        // Попытка 2: через 50ms (после отрисовки)
+        setTimeout(function() {
+            restorePageScrollPosition(pagePosition);
+        }, 50);
+        
+        // Попытка 3: через 200ms (на случай асинхронной загрузки)
+        setTimeout(function() {
+            restorePageScrollPosition(pagePosition);
+        }, 200);
+        
+        // Попытка 4: через 500ms (на всякий случай)
+        setTimeout(function() {
+            restorePageScrollPosition(pagePosition);
+        }, 500);
+    }
     
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
