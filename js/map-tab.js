@@ -34,12 +34,12 @@ function toggleHeatmapMode() {
             btn.style.background = '#7c3aed';
             btn.style.color = 'white';
             btn.style.borderColor = '#7c3aed';
-            btn.textContent = '🌡️ Heatmap включен';
+            btn.textContent = 'Heatmap включен';
         } else {
             btn.style.background = '#f3e8ff';
             btn.style.color = '#7c3aed';
             btn.style.borderColor = '#d8b4fe';
-            btn.textContent = '🌡️ Тепловая карта';
+            btn.textContent = 'Тепловая карта';
         }
     }
     
@@ -265,19 +265,19 @@ async function loadDealsCSV() {
         // 🆕 ФИЛЬТРАЦИЯ ПО 10% НИЗКИХ И 10% ВЫСОКИХ ЦЕН
         // ============================================================
         
-        console.log('📊 Всего сделок загружено:', allDealsFlat.length);
+        console.log('Всего сделок загружено:', allDealsFlat.length);
         
         // Сохраняем оригинальные данные (на случай если понадобится)
         originalAllDealsFlat = [...allDealsFlat];
         
         // Рассчитываем пороговые цены для каждого типа сделки
         priceThresholds = calculatePriceThresholds();
-        console.log('📊 Пороговые цены рассчитаны');
+        console.log('Пороговые цены рассчитаны');
         
         // Применяем фильтрацию (по умолчанию включена)
         if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
             const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
-            console.log(`📊 После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
+            console.log(`После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
             
             // Обновляем глобальные данные
             allDealsFlat = filteredDeals;
@@ -302,7 +302,7 @@ async function loadDealsCSV() {
         vriCount = vriCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
-        console.log('📊 Типы сделок:', dealTypes);
+        console.log('Типы сделок:', dealTypes);
         
         renderDealTypeFilters();
         renderCityFilters();
@@ -326,7 +326,7 @@ async function loadDealsCSV() {
     }
 }
 function calculatePriceThresholds() {
-    console.log('📊 Расчет пороговых цен по типам сделок и муниципалитетам (10% низких и 10% высоких)...');
+    console.log('Расчет пороговых цен по типам сделок и муниципалитетам (10% низких и 10% высоких)...');
     
     const thresholds = {};
     
@@ -1712,7 +1712,7 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     
     let allDeals = [];
     
-    console.log(`📊 updateMapStatsWithDealFilter: level=${level}, parentId=${parentId}, targetObjects=${targetObjects.length}`);
+    console.log(`updateMapStatsWithDealFilter: level=${level}, parentId=${parentId}, targetObjects=${targetObjects.length}`);
     
     // ✅ СОБИРАЕМ ТОЛЬКО ТЕ ОБЪЕКТЫ, У КОТОРЫХ ЕСТЬ СДЕЛКИ ПОСЛЕ ФИЛЬТРАЦИИ
     let objectsWithFilteredDeals = [];
@@ -1762,7 +1762,7 @@ const filteredDeals = deals.filter(deal => {
                 objectsWithFilteredDeals.push(f);
             }
         });
-        console.log(`📊 Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}`);
+        console.log(`Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}`);
     } else {
         Object.keys(dealsData).forEach(cadNum => {
      const deals = dealsData[cadNum] || [];
@@ -1802,7 +1802,7 @@ const filteredDeals = deals.filter(deal => {
             allDeals = allDeals.concat(filteredDeals);
         });
         objectsWithFilteredDeals = targetObjects;
-        console.log(`📊 Все сделки с фильтром: ${allDeals.length}`);
+        console.log(`Все сделки с фильтром: ${allDeals.length}`);
     }
     
     if (allDeals.length === 0) {
@@ -1929,7 +1929,7 @@ function updateMapStatsFromDeals(level, parentId) {
         });
     }
     
-    console.log(`📊 Уровень ${level}, всего кварталов: ${allQuarters.length}`);
+    console.log(`Уровень ${level}, всего кварталов: ${allQuarters.length}`);
     
     // ✅ СОБИРАЕМ ВСЕ ЦЕНЫ ИЗ ВСЕХ СДЕЛОК (НЕ ПО КВАРТАЛАМ!)
     let allPrices = [];
@@ -1977,13 +1977,13 @@ function updateMapStatsFromDeals(level, parentId) {
         }
     });
     
-    console.log(`📊 Всего сделок: ${totalDealsCount}, цен: ${allPrices.length}`);
+    console.log(`Всего сделок: ${totalDealsCount}, цен: ${allPrices.length}`);
     
     // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ АСИНХРОННО
     function calculateAndUpdateStats() {
-        console.log('🔄 calculateAndUpdateStats начат');
-        console.log('📊 allPrices.length:', allPrices.length);
-        console.log('📊 allUprs.length:', allUprs.length);
+        console.log('calculateAndUpdateStats начат');
+        console.log('allPrices.length:', allPrices.length);
+        console.log('allUprs.length:', allUprs.length);
         
         // Вычисляем медианы
         const medianPrice = getMedianSync(allPrices);
@@ -2643,8 +2643,8 @@ function renderMapLevel(level, parentId = null) {
         return;
     }
 
-    console.log(`🔍 Фильтрация: level=${level}, parentId=${parentId}`);
-    console.log(`📊 Всего объектов в mapData: ${mapData.features.length}`);
+    console.log(`Фильтрация: level=${level}, parentId=${parentId}`);
+    console.log(`Всего объектов в mapData: ${mapData.features.length}`);
 
     // ✅ СБРАСЫВАЕМ ВЫДЕЛЕНИЕ ПРИ ПЕРЕХОДЕ НА КВАРТАЛЫ
     if (level === 2) {
@@ -2692,7 +2692,7 @@ function renderMapLevel(level, parentId = null) {
         return false;
     });
 
-    console.log(`📊 Отфильтровано: ${filtered.length} объектов`);
+    console.log(`Отфильтровано: ${filtered.length} объектов`);
     
     if (filtered.length === 0) {
         console.warn('⚠️ Нет объектов для отображения!');
@@ -2722,7 +2722,7 @@ function renderMapLevel(level, parentId = null) {
         const cadNum = f.properties?.cadastral_number || '';
         return !cadNum.endsWith('000000') && !cadNum.match(/^\d{2}:\d{2}:000000$/);
     });
-    console.log(`📊 Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
+    console.log(`Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
     if (wrapperQuarters.length > 0) {
@@ -3142,7 +3142,7 @@ if (levelName === 'district') {
         }
     });
 
-    console.log(`📊 Попап: всего кварталов для района ${districtId}: ${allQuarters.length}`);
+    console.log(`Попап: всего кварталов для района ${districtId}: ${allQuarters.length}`);
         
         // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
         const quarterStats = [];
@@ -3400,8 +3400,8 @@ if (quarterStats.length > 0) {
             // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
             const cadNum = props.cadastral_number;
             const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
-            console.log('🏘️ Квартал выбран:', cadNum);
-            console.log('📊 Сделок:', dealsCount);
+            console.log('Квартал выбран:', cadNum);
+            console.log('Сделок:', dealsCount);
             window.selectedQuarterCadNumber = cadNum;
             
             // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
@@ -3858,7 +3858,7 @@ if (oldHeatmapLegend) oldHeatmapLegend.remove();
     
     legend.innerHTML = `
         <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-            📊 Сделки в квартале
+            Сделки в квартале
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
@@ -4915,7 +4915,7 @@ function exportDealsTableToExcel() {
     const fileName = `Сделки_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
     
-    console.log(`📊 Экспортировано ${filteredDeals.length} сделок в Excel`);
+    console.log(`Экспортировано ${filteredDeals.length} сделок в Excel`);
 }
 function closeWrapperTooltip(cadNum) {
     console.log(`🔄 Закрытие тултипа обертки: ${cadNum}`);
