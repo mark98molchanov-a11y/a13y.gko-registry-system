@@ -4482,13 +4482,22 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     
-    // 1. Ищем в mapData
+    // 1. Ищем в mapData (level 2)
     let found = mapData.features.find(f => {
         if (f.properties.level !== 2) return false;
         return f.properties.cadastral_number === cadNumber;
     });
     
-    // 2. Если не нашли, проверяем dealsData (обертки)
+    // 2. Ищем в mapData (level 1 — обертки)
+    if (!found) {
+        found = mapData.features.find(f => {
+            if (f.properties.level !== 1) return false;
+            const cadNum = f.properties.cadastral_number || '';
+            return cadNum === cadNumber;
+        });
+    }
+    
+    // 3. Если не нашли, проверяем dealsData
     if (!found) {
         const deals = dealsData[cadNumber] || [];
         const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
@@ -4513,11 +4522,15 @@ function searchQuarterByCadNumber(cadNumber) {
     
     console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
     
-    const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
+    const cadNum = found.properties.cadastral_number || cadNumber;
+    const isWrapper = cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
+    // ✅ ДЛЯ ОБЕРТОК — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (1), НО ПРИБЛИЖАЕМ К ОБЕРТКЕ
     if (isWrapper) {
-        console.log(`🔴 Найдена обертка: ${cadNumber}`);
-        window.selectedQuarterCadNumber = cadNumber;
+        console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов с приближением`);
+        window.selectedQuarterCadNumber = cadNum;
+        
+        // ✅ Переходим на уровень районов (1)
         renderMapLevel(1);
         updateBreadcrumb('okrug');
         renderDealTypeFilters();
@@ -4528,20 +4541,39 @@ function searchQuarterByCadNumber(cadNumber) {
         renderYearBuildFilters();
         renderDealsTable();
         
+        // ✅ Ищем и приближаем к обертке
         setTimeout(() => {
             let foundLayer = null;
+            
+            // Ищем в wrapperLayer
             if (window.wrapperLayer) {
                 window.wrapperLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
                         const layerCadNum = layer.feature.properties.cadastral_number || '';
-                        if (layerCadNum === cadNumber) {
+                        if (layerCadNum === cadNum) {
                             foundLayer = layer;
                         }
                     }
                 });
             }
+            
+            // Если не нашли в wrapperLayer, ищем в mapLayer
+            if (!foundLayer && window.mapLayer) {
+                window.mapLayer.eachLayer(function(layer) {
+                    if (layer.feature && layer.feature.properties) {
+                        const layerCadNum = layer.feature.properties.cadastral_number || '';
+                        if (layerCadNum === cadNum) {
+                            foundLayer = layer;
+                        }
+                    }
+                });
+            }
+            
             if (foundLayer) {
-                foundLayer.openTooltip();
+                console.log(`✅ Обертка ${cadNum} найдена, приближаем`);
+                if (foundLayer.openTooltip) {
+                    foundLayer.openTooltip();
+                }
                 if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
                     mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
                 }
@@ -4551,35 +4583,56 @@ function searchQuarterByCadNumber(cadNumber) {
                     color: '#ff0000',
                     opacity: 0.8
                 });
+            } else {
+                console.warn(`⚠️ Обертка ${cadNum} не найдена в слоях`);
+                // Fallback: центрируем на районе
+                const prefix = cadNum.substring(0, 5);
+                const districtFeature = mapData.features.find(f => 
+                    f.properties.level === 1 && 
+                    f.properties.cadastral_number && 
+                    f.properties.cadastral_number.startsWith(prefix)
+                );
+                if (districtFeature && districtFeature.geometry) {
+                    const coords = districtFeature.geometry.coordinates[0];
+                    if (coords && coords.length > 0) {
+                        let lat = 0, lng = 0;
+                        coords.forEach(c => { lat += c[1]; lng += c[0]; });
+                        lat /= coords.length;
+                        lng /= coords.length;
+                        mapInstance.setView([lat, lng], 10);
+                    }
+                }
             }
         }, 500);
+        
         return;
     }
     
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ
-    console.log(`🏘️ Обычный квартал: ${cadNumber}, приближаем`);
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ НА УРОВЕНЬ 2
+    console.log(`🏘️ Обычный квартал: ${cadNum}, приближаем на уровень кварталов`);
     
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
-    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ 2
+    // ✅ Переходим на уровень 2 (кварталы)
     renderMapLevel(2, districtId);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
-    window.selectedQuarterCadNumber = cadNumber;
+    window.selectedQuarterCadNumber = cadNum;
     
+    // ✅ Приближаем к кварталу
     setTimeout(() => {
         if (window.mapLayer) {
             let foundLayer = null;
             window.mapLayer.eachLayer(function(layer) {
                 if (layer.feature && layer.feature.properties) {
-                    if (layer.feature.properties.cadastral_number === cadNumber) {
+                    if (layer.feature.properties.cadastral_number === cadNum) {
                         foundLayer = layer;
                     }
                 }
             });
             if (foundLayer) {
-                console.log(`✅ Квартал ${cadNumber} найден, приближаем`);
+                console.log(`✅ Квартал ${cadNum} найден, приближаем`);
                 foundLayer.openPopup();
                 if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
                     mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
