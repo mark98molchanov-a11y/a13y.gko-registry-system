@@ -2767,72 +2767,102 @@ function renderMapLevel(level, parentId = null) {
         window.mapLayer.addTo(mapInstance);
     }
 
-    // ✅ ИСПРАВЛЕННАЯ ПОДГОНКА ГРАНИЦ
-    function fitMapToBounds() {
+    // ✅ КАРДИНАЛЬНОЕ РЕШЕНИЕ ДЛЯ ЦЕНТРИРОВАНИЯ
+    function centerMap() {
         try {
-            // Для уровня округа используем жестко заданный центр ЯНАО
+            // ===== ДЛЯ УРОВНЯ 0 (ОКРУГ) - ВСЕГДА ЦЕНТР ЯНАО =====
             if (level === 0) {
-                console.log('📍 Центрирование на уровне округа (ЯНАО)');
+                console.log('📍 УРОВЕНЬ ОКРУГА: центрируем на ЯНАО');
                 mapInstance.setView([66.0, 76.0], 5);
-                // Повторная проверка через 300ms
+                // Защита от смещения
                 setTimeout(() => {
                     const center = mapInstance.getCenter();
-                    if (Math.abs(center.lat - 66.0) > 2 || Math.abs(center.lng - 76.0) > 2) {
-                        console.warn('⚠️ Центр уровня округа сместился, восстанавливаем...');
+                    if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
+                        console.warn('⚠️ Центр сместился, восстанавливаем...');
                         mapInstance.setView([66.0, 76.0], 5);
                     }
                 }, 300);
                 return;
             }
             
-            // Для уровней 1 и 2 пытаемся найти границы
-            let targetLayer = null;
-            let bounds = null;
-            
-            // 1. Сначала пробуем mapLayer
-            if (window.mapLayer && window.mapLayer.getBounds) {
-                const b = window.mapLayer.getBounds();
-                if (b && b.isValid()) {
-                    // Проверяем, что границы не слишком маленькие (не один объект)
-                    const sw = b._southWest;
-                    const ne = b._northEast;
-                    if (sw && ne && (ne.lat - sw.lat) > 0.01 && (ne.lng - sw.lng) > 0.01) {
+            // ===== ДЛЯ УРОВНЯ 1 (РАЙОНЫ) =====
+            if (level === 1) {
+                console.log('📍 УРОВЕНЬ РАЙОНОВ: центрируем по границам');
+                // Пытаемся найти границы районов
+                let bounds = null;
+                
+                if (window.mapLayer && window.mapLayer.getBounds) {
+                    const b = window.mapLayer.getBounds();
+                    if (b && b.isValid()) {
                         bounds = b;
-                        targetLayer = window.mapLayer;
-                        console.log('📍 Центрируем по mapLayer');
-                    } else {
-                        console.warn('⚠️ mapLayer имеет слишком маленькие границы, используем fallback');
+                        console.log('✅ Границы районов найдены');
                     }
                 }
-            }
-            
-            // 2. Если mapLayer не подошел, пробуем wrapperLayer
-            if (!bounds && window.wrapperLayer && window.wrapperLayer.getBounds) {
-                const b = window.wrapperLayer.getBounds();
-                if (b && b.isValid()) {
-                    const sw = b._southWest;
-                    const ne = b._northEast;
-                    if (sw && ne && (ne.lat - sw.lat) > 0.01 && (ne.lng - sw.lng) > 0.01) {
-                        bounds = b;
-                        targetLayer = window.wrapperLayer;
-                        console.log('📍 Центрируем по wrapperLayer');
-                    }
+                
+                if (bounds && bounds.isValid()) {
+                    mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+                    console.log('✅ Карта отцентрирована по районам');
+                } else {
+                    // Fallback
+                    mapInstance.setView([66.0, 76.0], 6);
+                    console.log('⚠️ Fallback: центрируем на ЯНАО с зумом 6');
                 }
-            }
-            
-            // 3. Если есть валидные границы - центрируем
-            if (bounds && bounds.isValid()) {
-                const maxZoom = level === 1 ? 8 : 12;
-                mapInstance.fitBounds(bounds, { 
-                    padding: [30, 30],
-                    maxZoom: maxZoom
-                });
-                console.log('✅ Карта отцентрирована успешно');
                 return;
             }
             
-            // 4. Fallback: используем стандартный центр ЯНАО
-            console.warn('⚠️ Не найдено валидных границ, используем стандартный центр ЯНАО');
+            // ===== ДЛЯ УРОВНЯ 2 (КВАРТАЛЫ) =====
+            if (level === 2) {
+                console.log('📍 УРОВЕНЬ КВАРТАЛОВ: центрируем по границам');
+                let bounds = null;
+                
+                if (window.mapLayer && window.mapLayer.getBounds) {
+                    const b = window.mapLayer.getBounds();
+                    if (b && b.isValid()) {
+                        const sw = b._southWest;
+                        const ne = b._northEast;
+                        // Проверяем, что границы не слишком маленькие
+                        if (sw && ne && (ne.lat - sw.lat) > 0.01 && (ne.lng - sw.lng) > 0.01) {
+                            bounds = b;
+                            console.log('✅ Границы кварталов найдены');
+                        }
+                    }
+                }
+                
+                if (bounds && bounds.isValid()) {
+                    mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+                    console.log('✅ Карта отцентрирована по кварталам');
+                } else {
+                    // Если границы не найдены - показываем район
+                    const districtId = parentId || currentDistrictFilter;
+                    if (districtId) {
+                        // Пытаемся найти район по ID и центрировать на нем
+                        const districtFeature = mapData.features.find(f => 
+                            f.properties.level === 1 && 
+                            (f.properties.district_id === districtId || f.properties.cadastral_number === districtId)
+                        );
+                        if (districtFeature && districtFeature.geometry) {
+                            // Центрируем на центре района
+                            const coords = districtFeature.geometry.coordinates[0];
+                            if (coords && coords.length > 0) {
+                                let lat = 0, lng = 0;
+                                coords.forEach(c => { lat += c[1]; lng += c[0]; });
+                                lat /= coords.length;
+                                lng /= coords.length;
+                                mapInstance.setView([lat, lng], 10);
+                                console.log('📍 Центрируем на центр района');
+                            }
+                        } else {
+                            mapInstance.setView([66.0, 76.0], 6);
+                        }
+                    } else {
+                        mapInstance.setView([66.0, 76.0], 6);
+                    }
+                }
+                return;
+            }
+            
+            // Fallback
+            console.warn('⚠️ Неизвестный уровень, центрируем на ЯНАО');
             mapInstance.setView([66.0, 76.0], 5);
             
         } catch(e) {
@@ -2845,8 +2875,8 @@ function renderMapLevel(level, parentId = null) {
         }
     }
 
-    // Центрируем карту с небольшой задержкой
-    setTimeout(fitMapToBounds, 150);
+    // Центрируем карту с задержкой
+    setTimeout(centerMap, 200);
 
     // Сбрасываем выделение при переходе
     if (window.wrapperLayer) {
