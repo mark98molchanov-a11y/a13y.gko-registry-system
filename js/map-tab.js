@@ -5111,7 +5111,7 @@ async function generateReport() {
         }
     }
 
-    // 2. Данные для отчёта (компактные)
+    // 2. Данные для отчёта
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
     const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
 
@@ -5124,29 +5124,28 @@ async function generateReport() {
     const statObjects = document.getElementById('stat-objects')?.textContent || '0';
     const statWithDeals = document.getElementById('stat-with-deals')?.textContent || '0';
 
-    // Активные фильтры (текстом)
     const filtersText = document.getElementById('active-filters-list')?.textContent || 'все';
     const filterDetails = filtersText !== '—' ? filtersText : 'нет';
 
-    // Список кварталов (только названия, без сделок)
+    // Список кварталов (до 15)
     const quartersList = document.getElementById('quarters-list');
     let quartersHtml = '';
     if (quartersList) {
         const items = quartersList.querySelectorAll('div');
-        const limited = Array.from(items).slice(0, 15); // максимум 15 кварталов
+        const limited = Array.from(items).slice(0, 15);
         quartersHtml = limited.map(el => el.innerHTML).join('');
         if (items.length > 15) {
             quartersHtml += `<div style="color:#94a3b8;">... и ещё ${items.length - 15} кварталов</div>`;
         }
     }
 
-    // 3. Контейнер для отчёта (скрытый)
+    // 3. Контейнер для отчёта
     const reportContainer = document.createElement('div');
     reportContainer.style.cssText = `
         position: fixed; top:0; left:0; width:1100px;
         background:white; padding:30px; z-index:-1000;
         opacity:0; pointer-events:none;
-        font-family: 'Liberation Sans', 'Arial', sans-serif;
+        font-family: 'Arial', sans-serif;
     `;
     document.body.appendChild(reportContainer);
 
@@ -5175,7 +5174,7 @@ async function generateReport() {
         }
     }
 
-    // 5. Формируем компактный HTML-отчёт
+    // 5. Формируем HTML-отчёт для Word (Arial 14pt)
     const reportHTML = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office"
               xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -5192,8 +5191,9 @@ async function generateReport() {
             </xml>
             <![endif]-->
             <style>
+                /* Стили для Word — используем Arial, есть везде */
                 body {
-                    font-family: 'Liberation Sans', 'Arial', sans-serif;
+                    font-family: 'Arial', sans-serif;
                     font-size: 14pt;
                     color: #1e293b;
                     padding: 30px;
