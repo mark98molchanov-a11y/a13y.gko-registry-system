@@ -31,13 +31,13 @@ function toggleHeatmapMode() {
     const btn = document.getElementById('heatmap-toggle-btn-header');
     if (btn) {
         if (isHeatmapEnabled) {
-            // ✅ ВКЛЮЧЕНА — зеленый фон (как у ценового фильтра)
+            // ✅ ВКЛЮЧЕНА — зеленый фон (ТОЧНО КАК У ЦЕНОВОГО ФИЛЬТРА)
             btn.innerHTML = '🌡️ Тепловая карта';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            // ✅ ВЫКЛЮЧЕНА — синий фон (как у ценового фильтра)
+            // ✅ ВЫКЛЮЧЕНА — синий фон (ТОЧНО КАК У ЦЕНОВОГО ФИЛЬТРА)
             btn.innerHTML = '🌡️ Тепловая карта';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
@@ -54,8 +54,8 @@ function toggleHeatmapMode() {
             btnOld.style.color = '#166534';
         } else {
             btnOld.innerHTML = '🌡️ Тепловая карта';
-            btnOld.style.background = '#f1f5f9';
-            btnOld.style.color = '#475569';
+            btnOld.style.background = '#e0f2fe';
+            btnOld.style.color = '#0284c7';
         }
     }
     
