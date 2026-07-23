@@ -3,6 +3,7 @@ let currentLevel = 0;
 let currentParentId = null;
 let currentDistrictFilter = null;
 let isUpdatingFromSearch = false;
+let docxLoaded = false;
 
 const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/yanao_hierarchical_web.geojson';
 let dealsData = {};
@@ -5084,34 +5085,43 @@ legend.innerHTML = `
 }
 function loadScript(src) {
     return new Promise((resolve, reject) => {
+        // Проверяем, загружен ли уже скрипт
         const existing = document.querySelector(`script[src="${src}"]`);
         if (existing) {
+            console.log(`✅ Скрипт уже загружен: ${src}`);
             resolve();
             return;
         }
         const script = document.createElement('script');
         script.src = src;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        script.onload = () => {
+            console.log(`✅ Скрипт загружен: ${src}`);
+            resolve();
+        };
+        script.onerror = () => {
+            reject(new Error(`Failed to load script: ${src}`));
+        };
         document.head.appendChild(script);
     });
 }
 
 async function generateReport() {
-    console.log('📄 Генерация компактного отчета в Word...');
+    console.log('📄 Генерация отчета в DOCX...');
 
-    // 1. Проверяем html2canvas
-    if (typeof html2canvas === 'undefined') {
-        showNotification('⏳ Загрузка библиотек...', 'info');
+    // 1. Проверяем библиотеку docx
+    if (typeof window.docx === 'undefined') {
+        showNotification('⏳ Загрузка библиотеки...', 'info');
         try {
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+            await loadScript('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.min.js');
         } catch (error) {
-            showNotification('❌ Ошибка загрузки библиотек', 'error');
+            showNotification('❌ Ошибка загрузки библиотеки', 'error');
             return;
         }
     }
 
-    // 2. Данные для отчёта
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = window.docx;
+
+    // 2. Собираем данные
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
     const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
 
@@ -5129,230 +5139,243 @@ async function generateReport() {
 
     // Список кварталов (до 15)
     const quartersList = document.getElementById('quarters-list');
-    let quartersHtml = '';
+    let quarterItems = [];
     if (quartersList) {
         const items = quartersList.querySelectorAll('div');
-        const limited = Array.from(items).slice(0, 15);
-        quartersHtml = limited.map(el => el.innerHTML).join('');
-        if (items.length > 15) {
-            quartersHtml += `<div style="color:#94a3b8;">... и ещё ${items.length - 15} кварталов</div>`;
-        }
+        quarterItems = Array.from(items).slice(0, 15);
     }
 
-    // 3. Контейнер для отчёта
-    const reportContainer = document.createElement('div');
-    reportContainer.style.cssText = `
-        position: fixed; top:0; left:0; width:1100px;
-        background:white; padding:30px; z-index:-1000;
-        opacity:0; pointer-events:none;
-        font-family: 'Arial', sans-serif;
-    `;
-    document.body.appendChild(reportContainer);
+    // 3. Создаём документ
+    const doc = new Document({
+        sections: [{
+            properties: {
+                page: {
+                    margin: {
+                        top: 1440,
+                        bottom: 1440,
+                        left: 1440,
+                        right: 1440,
+                    }
+                }
+            },
+            children: [
+                // ===== ЗАГОЛОВОК =====
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: 'Отчёт по кадастровой оценке',
+                            size: 28,
+                            bold: true,
+                            color: '0c4a6e',
+                        }),
+                    ],
+                    spacing: { after: 200 },
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: `Уровень: ${currentLevelName}`,
+                            size: 22,
+                            color: '475569',
+                        }),
+                    ],
+                    spacing: { after: 80 },
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: `Фильтры: ${filterDetails}`,
+                            size: 20,
+                            color: '0ea5e9',
+                        }),
+                    ],
+                    spacing: { after: 300 },
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: `Дата: ${new Date().toLocaleDateString('ru-RU')}  ${new Date().toLocaleTimeString('ru-RU')}`,
+                            size: 18,
+                            color: '64748b',
+                        }),
+                    ],
+                    spacing: { after: 400 },
+                }),
 
-    // 4. Захват карты
-    const mapContainer = document.getElementById('map-container');
-    let mapImageData = null;
-    if (mapContainer) {
-        try {
-            const origHeight = mapContainer.style.height;
-            mapContainer.style.height = '500px';
-            if (mapInstance) {
-                mapInstance.invalidateSize();
-                await new Promise(r => setTimeout(r, 300));
-            }
-            const mapCanvas = await html2canvas(mapContainer, {
-                scale: 1.5,
-                useCORS: true,
-                backgroundColor: '#e8ecf0',
-                logging: false,
-            });
-            mapImageData = mapCanvas.toDataURL('image/png');
-            mapContainer.style.height = origHeight || '';
-            if (mapInstance) setTimeout(() => mapInstance.invalidateSize(), 100);
-        } catch (e) {
-            console.warn('⚠️ Карта не захвачена:', e);
-        }
-    }
+                // ===== СТАТИСТИКА =====
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: '📊 Статистика сделок',
+                            size: 24,
+                            bold: true,
+                            color: '1e293b',
+                        }),
+                    ],
+                    spacing: { after: 200 },
+                }),
 
-    // 5. Формируем HTML-отчёт для Word (Arial 14pt)
-    const reportHTML = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office"
-              xmlns:w="urn:schemas-microsoft-com:office:word"
-              xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-            <meta charset="UTF-8">
-            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-            <!--[if gte mso 9]>
-            <xml>
-                <w:WordDocument>
-                    <w:View>Print</w:View>
-                    <w:Zoom>100</w:Zoom>
-                </w:WordDocument>
-            </xml>
-            <![endif]-->
-            <style>
-                /* Стили для Word — используем Arial, есть везде */
-                body {
-                    font-family: 'Arial', sans-serif;
-                    font-size: 14pt;
-                    color: #1e293b;
-                    padding: 30px;
-                    line-height: 1.5;
-                }
-                h1 { font-size: 20pt; font-weight: 700; color: #0c4a6e; margin: 0 0 6px 0; }
-                h2 { font-size: 16pt; font-weight: 600; color: #1e293b; margin: 12px 0 6px 0; }
-                .subtitle { color: #475569; font-size: 13pt; margin: 0 0 4px 0; }
-                .filters { color: #0ea5e9; font-size: 12pt; margin: 0 0 12px 0; }
-                .stat-row {
-                    display: table;
-                    width: 100%;
-                    background: #f8fafc;
-                    padding: 10px 14px;
-                    border: 1px solid #e2e8f0;
-                    margin: 6px 0 10px 0;
-                    border-radius: 4px;
-                }
-                .stat-cell {
-                    display: table-cell;
-                    width: 25%;
-                    padding: 4px 8px;
-                }
-                .stat-label { color: #94a3b8; font-size: 11pt; }
-                .stat-value { font-size: 16pt; font-weight: 700; }
-                .stat-row2 {
-                    display: table;
-                    width: 100%;
-                    background: #f8fafc;
-                    padding: 6px 14px;
-                    border: 1px solid #e2e8f0;
-                    margin: 6px 0 10px 0;
-                    border-radius: 4px;
-                }
-                .stat-cell2 {
-                    display: table-cell;
-                    width: 50%;
-                    padding: 4px 8px;
-                }
-                .quarters-box {
-                    background: #f8fafc;
-                    padding: 8px 14px;
-                    border: 1px solid #e2e8f0;
-                    margin: 6px 0 10px 0;
-                    border-radius: 4px;
-                    max-height: 180px;
-                    overflow: hidden;
-                }
-                .quarters-box div {
-                    padding: 3px 0;
-                    border-bottom: 1px solid #f1f5f9;
-                    font-size: 12pt;
-                }
-                .quarters-box div:last-child { border-bottom: none; }
-                .map-container {
-                    margin: 10px 0;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-                .map-container img { width: 100%; height: auto; }
-                .footer {
-                    margin-top: 16px;
-                    padding-top: 10px;
-                    border-top: 1px solid #e2e8f0;
-                    text-align: center;
-                    color: #94a3b8;
-                    font-size: 11pt;
-                }
-                .header-table {
-                    width: 100%;
-                    border-bottom: 2px solid #0ea5e9;
-                    padding-bottom: 10px;
-                    margin-bottom: 14px;
-                }
-                .header-left { text-align: left; }
-                .header-right { text-align: right; font-size: 12pt; color: #64748b; }
-                .note { color: #64748b; font-size: 11pt; margin-top: 4px; }
-            </style>
-        </head>
-        <body>
-            <table class="header-table">
-                <tr>
-                    <td class="header-left" style="width:70%;">
-                        <h1>Отчёт по кадастровой оценке</h1>
-                        <p class="subtitle">Уровень: ${currentLevelName}</p>
-                        <p class="filters">Фильтры: ${filterDetails}</p>
-                    </td>
-                    <td class="header-right" style="width:30%;">
-                        <p>${new Date().toLocaleDateString('ru-RU')}</p>
-                        <p>${new Date().toLocaleTimeString('ru-RU')}</p>
-                    </td>
-                </tr>
-            </table>
+                // Таблица статистики (2x4)
+                new Table({
+                    width: { size: 100, type: WidthType.PERCENTAGE },
+                    borders: {
+                        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                    },
+                    rows: [
+                        new TableRow({
+                            children: [
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({ children: [new TextRun({ text: 'Медианная цена', size: 18, color: '94a3b8' })] }),
+                                        new Paragraph({ children: [new TextRun({ text: statMedian, size: 24, bold: true, color: '1e293b' })] }),
+                                    ],
+                                    width: { size: 25, type: WidthType.PERCENTAGE },
+                                }),
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({ children: [new TextRun({ text: 'Кад. стоимость (медиана)', size: 18, color: '94a3b8' })] }),
+                                        new Paragraph({ children: [new TextRun({ text: statCadCost, size: 24, bold: true, color: '1e293b' })] }),
+                                    ],
+                                    width: { size: 25, type: WidthType.PERCENTAGE },
+                                }),
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({ children: [new TextRun({ text: 'УПРС (медиана)', size: 18, color: '94a3b8' })] }),
+                                        new Paragraph({ children: [new TextRun({ text: statUprs, size: 24, bold: true, color: '1e293b' })] }),
+                                    ],
+                                    width: { size: 25, type: WidthType.PERCENTAGE },
+                                }),
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({ children: [new TextRun({ text: 'УПКС (медиана)', size: 18, color: '94a3b8' })] }),
+                                        new Paragraph({ children: [new TextRun({ text: statUpks, size: 24, bold: true, color: '1e293b' })] }),
+                                    ],
+                                    width: { size: 25, type: WidthType.PERCENTAGE },
+                                }),
+                            ],
+                        }),
+                    ],
+                }),
 
-            <h2>📊 Статистика сделок</h2>
-            <div class="stat-row">
-                <div class="stat-cell"><span class="stat-label">Медианная цена</span><br><span class="stat-value">${statMedian}</span></div>
-                <div class="stat-cell"><span class="stat-label">Кад. стоимость (медиана)</span><br><span class="stat-value">${statCadCost}</span></div>
-                <div class="stat-cell"><span class="stat-label">УПРС (медиана)</span><br><span class="stat-value">${statUprs}</span></div>
-                <div class="stat-cell"><span class="stat-label">УПКС (медиана)</span><br><span class="stat-value">${statUpks}</span></div>
-            </div>
-            <div class="stat-row2">
-                <div class="stat-cell2"><span class="stat-label">Всего сделок</span><br><span class="stat-value">${statTotalDeals}</span></div>
-                <div class="stat-cell2"><span class="stat-label">Мин / Макс</span><br><span class="stat-value">${statMinMax}</span></div>
-            </div>
+                new Paragraph({ spacing: { after: 200 } }),
 
-            <h2>🏘️ Кварталы со сделками (${statWithDeals} из ${statObjects})</h2>
-            <div class="quarters-box">
-                ${quartersHtml || '<div style="color:#94a3b8;">Нет данных</div>'}
-            </div>
+                // Вторая строка статистики
+                new Table({
+                    width: { size: 100, type: WidthType.PERCENTAGE },
+                    borders: {
+                        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                    },
+                    rows: [
+                        new TableRow({
+                            children: [
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({ children: [new TextRun({ text: 'Всего сделок', size: 18, color: '94a3b8' })] }),
+                                        new Paragraph({ children: [new TextRun({ text: statTotalDeals, size: 24, bold: true, color: '1e293b' })] }),
+                                    ],
+                                    width: { size: 50, type: WidthType.PERCENTAGE },
+                                }),
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({ children: [new TextRun({ text: 'Мин / Макс', size: 18, color: '94a3b8' })] }),
+                                        new Paragraph({ children: [new TextRun({ text: statMinMax, size: 24, bold: true, color: '1e293b' })] }),
+                                    ],
+                                    width: { size: 50, type: WidthType.PERCENTAGE },
+                                }),
+                            ],
+                        }),
+                    ],
+                }),
 
-            ${mapImageData ? `
-            <h2>🗺️ Карта сделок</h2>
-            <div class="map-container">
-                <img src="${mapImageData}" alt="Карта сделок">
-            </div>
-            ` : ''}
+                new Paragraph({ spacing: { after: 300 } }),
 
-            <p class="note">* В отчёте приведена сводная статистика. Полный список сделок доступен в интерфейсе.</p>
+                // ===== КВАРТАЛЫ =====
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: `🏘️ Кварталы со сделками (${statWithDeals} из ${statObjects})`,
+                            size: 24,
+                            bold: true,
+                            color: '1e293b',
+                        }),
+                    ],
+                    spacing: { after: 200 },
+                }),
 
-            <div class="footer">
-                Отдел ГКО • База знаний • Данные из открытых источников Росреестра
-            </div>
-        </body>
-        </html>
-    `;
+                // Список кварталов
+                ...quarterItems.map((item, index) => {
+                    const text = item.textContent?.trim() || '';
+                    return new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: `${index + 1}. ${text}`,
+                                size: 20,
+                                color: '1e293b',
+                            }),
+                        ],
+                        spacing: { after: 80 },
+                    });
+                }),
 
-    reportContainer.innerHTML = reportHTML;
-    await new Promise(r => setTimeout(r, 300));
+                ...(quarterItems.length === 0 ? [
+                    new Paragraph({
+                        children: [new TextRun({ text: 'Нет данных', size: 20, color: '94a3b8' })],
+                        spacing: { after: 200 },
+                    })
+                ] : []),
 
-    // 6. Экспорт в Word
+                new Paragraph({ spacing: { after: 300 } }),
+
+                // ===== ПРИМЕЧАНИЕ =====
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: '* В отчёте приведена сводная статистика. Полный список сделок доступен в интерфейсе.',
+                            size: 18,
+                            color: '64748b',
+                            italics: true,
+                        }),
+                    ],
+                    spacing: { after: 300 },
+                }),
+
+                // ===== ПОДВАЛ =====
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: 'Отдел ГКО • База знаний • Данные из открытых источников Росреестра',
+                            size: 18,
+                            color: '94a3b8',
+                        }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 200, after: 100 },
+                }),
+            ],
+        }],
+    });
+
+    // 4. Сохраняем DOCX
     try {
-        showNotification('📄 Формирование Word-документа...', 'info');
-
-        const fullHtml = reportContainer.innerHTML;
-        const blob = new Blob([fullHtml], {
-            type: 'application/msword;charset=utf-8'
-        });
-
+        showNotification('📄 Формирование DOCX...', 'info');
+        const blob = await Packer.toBlob(doc);
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `Отчёт_по_кадастровой_оценке_${new Date().toISOString().split('T')[0]}.doc`;
+        link.download = `Отчёт_по_кадастровой_оценке_${new Date().toISOString().split('T')[0]}.docx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
-
         showNotification('✅ Отчёт сформирован!', 'success');
     } catch (error) {
         console.error('❌ Ошибка:', error);
         showNotification('❌ Ошибка: ' + error.message, 'error');
     }
-
-    document.body.removeChild(reportContainer);
 }
 
 window.generateReport = generateReport;
 window.loadScript = loadScript;
+window.generateDocxReport = generateReport;
 console.log('✅ map-tab.js загружен');
 (function autoCenterOnLoad() {
     // Проверяем, что mapInstance существует
