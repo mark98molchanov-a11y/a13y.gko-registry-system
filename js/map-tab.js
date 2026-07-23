@@ -5228,7 +5228,7 @@ async function generateReport() {
                                     ...(logoImageData ? [
                                         new ImageRun({ 
                                             data: logoImageData, 
-                                            transformation: { width: 180, height: 60 },  // <--- УВЕЛИЧЕНО!
+                                            transformation: { width: 130, height: 65 },  // <--- УВЕЛИЧЕНО!
                                             type: 'image/webp' 
                                         })
                                     ] : []),
