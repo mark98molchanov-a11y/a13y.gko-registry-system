@@ -5413,22 +5413,22 @@ async function generateReport() {
                     // ==========================================================
                     // 🔥 ИЗОБРАЖЕНИЕ-ПОДЛОЖКА (ПРОЗРАЧНОЕ, СВЕРХУ СТРАНИЦЫ)
                     // ==========================================================
-                    ...(logoImageData && logoImageData.byteLength > 100 ? [
-                        new Paragraph({
-                            children: [
-                                new ImageRun({
-                                    data: logoImageData,
-                                    transformation: {
-                                        width: 140,
-                                        height: 47,
-                                    },
-                                    type: 'image/webp',
-                                })
-                            ],
-                            alignment: AlignmentType.CENTER,
-                            spacing: { after: 150 },
-                        })
-                    ] : []),
+             ...(logoImageData && logoImageData.byteLength > 100 ? [
+    new Paragraph({
+        children: [
+            new ImageRun({
+                data: logoImageData,
+                transformation: {
+                    width: 300,
+                    height: 100,
+                },
+                type: 'image/webp',
+            })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 400, after: 200 },
+    })
+] : []),
 
                     // ==========================================================
                     // ЗАГОЛОВОК (как на скриншоте)
