@@ -3892,36 +3892,9 @@ function addMapLegend() {
     
     // ✅ Если включен Heatmap — показываем легенду УПРС vs УПКС
     if (isHeatmapEnabled) {
-        legend.innerHTML = `
-            <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                УПРС vs УПКС
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
-                <span style="color:#475569;">УПРС &gt; УПКС (+20%)</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#84cc16;"></span>
-                <span style="color:#475569;">УПРС &gt; УПКС (+5-20%)</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#eab308;"></span>
-                <span style="color:#475569;">УПРС ≈ УПКС (±5%)</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f97316;"></span>
-                <span style="color:#475569;">УПРС &lt; УПКС (5-30%)</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
-                <span style="color:#475569;">УПРС &lt; УПКС (&gt;30%)</span>
-            </div>
-        `;
-    } else {
-
-legend.innerHTML = `
+     legend.innerHTML = `
     <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-        🌡️ УПРС vs УПКС
+        УПРС vs УПКС
     </div>
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
         <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
@@ -3936,6 +3909,29 @@ legend.innerHTML = `
         <span style="color:#475569;">Отклонение &gt;20%</span>
     </div>
 `;
+    } else {
+        // ❌ Обычный режим: легенда по количеству сделок
+        legend.innerHTML = `
+            <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
+                📊 Сделки в квартале
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
+                <span style="color:#475569;">> 500 сделок</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f59e0b;"></span>
+                <span style="color:#475569;">101 – 500</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
+                <span style="color:#475569;">1 – 100</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f1f5f9; border:1px solid #e2e8f0;"></span>
+                <span style="color:#475569;">нет сделок</span>
+            </div>
+        `;
     }
     
     const mapContainer = document.getElementById('map-container');
