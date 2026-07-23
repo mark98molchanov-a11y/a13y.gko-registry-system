@@ -5126,7 +5126,7 @@ async function generateReport() {
             }
         }
         
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, Header, Footer } = docxModule;
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, ImageRun, Header, Footer } = docxModule;
 
         // 2. Собираем данные
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
@@ -5152,24 +5152,100 @@ async function generateReport() {
             quarterItems = Array.from(items).slice(0, 15);
         }
 
-        // 3. Создаём элементы для заголовка (ТОЛЬКО ТЕКСТ, без изображения)
-        const headerChildren = [
-            new TextRun({
-                text: '📋 ГКО',
-                size: 24,
-                bold: true,
-                color: '0c4a6e',
-                font: 'Arial',
-            }),
+        // 3. Функция загрузки изображения через Image (обход CORS)
+        async function loadImageAsArrayBuffer(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = this.width;
+                        canvas.height = this.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(this, 0, 0);
+                        canvas.toBlob(function(blob) {
+                            if (blob) {
+                                blob.arrayBuffer().then(resolve).catch(reject);
+                            } else {
+                                reject(new Error('Failed to create blob'));
+                            }
+                        }, 'image/webp', 0.95);
+                    } catch(e) {
+                        reject(e);
+                    }
+                };
+                img.onerror = () => reject(new Error('Failed to load image'));
+                img.src = url;
+            });
+        }
+
+        // 4. Загружаем изображение из локальной папки
+        // ✅ ИЗМЕНИТЕ ПУТЬ НА ВАШ (если файл .jpg или .png)
+        const logoUrl = './images/logo-mfc.webp';  // или ./images/logo-mfc.jpg
+        let logoImageData = null;
+
+        try {
+            console.log('➡️ Загрузка изображения из локальной папки...');
+            logoImageData = await loadImageAsArrayBuffer(logoUrl);
+            console.log('✅ Изображение загружено! Размер:', logoImageData.byteLength);
+        } catch(e) {
+            console.warn('⚠️ Не удалось загрузить изображение:', e.message);
+            // Продолжаем без изображения
+        }
+
+        // 5. Создаём элементы для заголовка (с изображением или без)
+        const headerChildren = [];
+
+        if (logoImageData && logoImageData.byteLength > 100) {
+            try {
+                headerChildren.push(
+                    new ImageRun({
+                        data: logoImageData,
+                        transformation: {
+                            width: 120,
+                            height: 40,
+                        },
+                        type: 'image/webp',  // если .jpg — image/jpeg, если .png — image/png
+                    })
+                );
+                console.log('✅ Изображение добавлено в колонтитул');
+            } catch (e) {
+                console.warn('⚠️ Ошибка вставки изображения:', e);
+                headerChildren.push(
+                    new TextRun({
+                        text: '📋 ГКО',
+                        size: 24,
+                        bold: true,
+                        color: '0c4a6e',
+                        font: 'Arial',
+                    })
+                );
+            }
+        } else {
+            // Запасной вариант — текст вместо изображения
+            headerChildren.push(
+                new TextRun({
+                    text: '📋 ГКО',
+                    size: 24,
+                    bold: true,
+                    color: '0c4a6e',
+                    font: 'Arial',
+                })
+            );
+            console.log('ℹ️ Используем текстовый логотип (изображение не загружено)');
+        }
+
+        headerChildren.push(
             new TextRun({
                 text: '  Отдел ГКО • База знаний',
                 size: 18,
                 color: '94a3b8',
                 font: 'Arial',
-            }),
-        ];
+            })
+        );
 
-        // 4. Создаём документ с колонтитулом
+        // 6. Создаём документ с колонтитулом
         const doc = new Document({
             sections: [{
                 properties: {
@@ -5504,7 +5580,7 @@ async function generateReport() {
             }],
         });
 
-        // 6. Сохраняем DOCX
+        // 7. Сохраняем DOCX
         showNotification('📄 Формирование DOCX...', 'info');
         const blob = await Packer.toBlob(doc);
         const link = document.createElement('a');
