@@ -5143,7 +5143,7 @@ async function generateReport() {
         const filterDetails = filtersText !== '—' ? filtersText : 'нет';
 
         // ============================================================
-        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (НЕБОЛЬШОЕ, СПРАВА СВЕРХУ)
+        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (ЧУТЬ ДЛИННЕЕ)
         // ============================================================
         async function loadImageAsArrayBuffer(url) {
             return new Promise((resolve, reject) => {
@@ -5181,42 +5181,16 @@ async function generateReport() {
         // ============================================================
         // ФУНКЦИИ ДЛЯ ЯЧЕЕК ТАБЛИЦ (Arial, ЧЁРНЫЙ)
         // ============================================================
-        function makeLabel(text, width = 25) {
+        function makeCell(text, size = 14, bold = false, color = '1e293b', align = AlignmentType.CENTER, width = 25) {
             const p = new Paragraph({
                 children: [new TextRun({ 
                     text: String(text), 
-                    size: 14, 
-                    bold: false, 
-                    color: '1e293b',  // ЧЁРНЫЙ
+                    size: size, 
+                    bold: bold, 
+                    color: color,  // ЧЁРНЫЙ
                     font: 'Arial' 
                 })],
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0 }
-            });
-            const cell = new TableCell({
-                children: [p],
-                width: { size: width, type: WidthType.PERCENTAGE },
-                verticalAlign: 'center',
-            });
-            cell.borders = {
-                top: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                left: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                right: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-            };
-            return cell;
-        }
-
-        function makeValue(text, width = 25) {
-            const p = new Paragraph({
-                children: [new TextRun({ 
-                    text: String(text), 
-                    size: 20, 
-                    bold: true, 
-                    color: '1e293b',  // ЧЁРНЫЙ
-                    font: 'Arial' 
-                })],
-                alignment: AlignmentType.CENTER,
+                alignment: align,
                 spacing: { after: 0 }
             });
             const cell = new TableCell({
@@ -5249,12 +5223,12 @@ async function generateReport() {
                             new Paragraph({
                                 children: [
                                     // ==========================================
-                                    // 🔥 ИЗОБРАЖЕНИЕ СПРАВА СВЕРХУ (НЕБОЛЬШОЕ)
+                                    // 🔥 ИЗОБРАЖЕНИЕ СПРАВА СВЕРХУ (ЧУТЬ ДЛИННЕЕ)
                                     // ==========================================
                                     ...(logoImageData ? [
                                         new ImageRun({ 
                                             data: logoImageData, 
-                                            transformation: { width: 80, height: 27 }, 
+                                            transformation: { width: 100, height: 34 }, 
                                             type: 'image/webp' 
                                         })
                                     ] : []),
@@ -5350,18 +5324,18 @@ async function generateReport() {
                         rows: [
                             new TableRow({
                                 children: [
-                                    makeLabel('Уровень', 25),
-                                    makeValue(currentLevelName, 25),
-                                    makeLabel('Фильтры', 25),
-                                    makeValue(filterDetails, 25),
+                                    makeCell('Уровень', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(currentLevelName, 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Фильтры', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(filterDetails, 18, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
                                 children: [
-                                    makeLabel('Дата', 25),
-                                    makeValue(new Date().toLocaleDateString('ru-RU'), 25),
-                                    makeLabel('Время', 25),
-                                    makeValue(new Date().toLocaleTimeString('ru-RU'), 25),
+                                    makeCell('Дата', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(new Date().toLocaleDateString('ru-RU'), 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Время', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(new Date().toLocaleTimeString('ru-RU'), 20, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                         ]
@@ -5388,26 +5362,26 @@ async function generateReport() {
                         rows: [
                             new TableRow({
                                 children: [
-                                    makeLabel('Медианная цена', 25),
-                                    makeValue(statMedian, 25),
-                                    makeLabel('УПРС (медиана)', 25),
-                                    makeValue(statUprs, 25),
+                                    makeCell('Медианная цена', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(statMedian, 22, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('УПРС (медиана)', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(statUprs, 22, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
                                 children: [
-                                    makeLabel('Кад. стоимость (медиана)', 25),
-                                    makeValue(statCadCost, 25),
-                                    makeLabel('УПКС (медиана)', 25),
-                                    makeValue(statUpks, 25),
+                                    makeCell('Кад. стоимость (медиана)', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(statCadCost, 22, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('УПКС (медиана)', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(statUpks, 22, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
                                 children: [
-                                    makeLabel('Всего сделок', 25),
-                                    makeValue(statTotalDeals, 25),
-                                    makeLabel('Мин / Макс', 25),
-                                    makeValue(statMinMax, 25),
+                                    makeCell('Всего сделок', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(statTotalDeals, 22, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Мин / Макс', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(statMinMax, 20, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                         ]
@@ -5426,7 +5400,7 @@ async function generateReport() {
                             color: '0c4a6e', 
                             font: 'Arial' 
                         })],
-                        alignment: AlignmentType.LEFT,  // СЛЕВА
+                        alignment: AlignmentType.LEFT,
                         spacing: { after: 80 }
                     }),
 
@@ -5442,7 +5416,7 @@ async function generateReport() {
                             new TextRun({ 
                                 text: `УПРС = ${statUprs}`, 
                                 size: 20, 
-                                bold: true,  // ЖИРНЫЙ
+                                bold: true,
                                 color: '1e293b', 
                                 font: 'Arial' 
                             })
@@ -5463,7 +5437,7 @@ async function generateReport() {
                             new TextRun({ 
                                 text: `УПКС = ${statUpks}`, 
                                 size: 20, 
-                                bold: true,  // ЖИРНЫЙ
+                                bold: true,
                                 color: '1e293b', 
                                 font: 'Arial' 
                             })
