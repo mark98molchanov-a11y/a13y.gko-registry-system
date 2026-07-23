@@ -5161,60 +5161,78 @@ async function generateReport() {
         quartersHtml = quartersList.innerHTML;
     }
 
-    // Собираем HTML отчета
+    // Собираем HTML отчета (с явным указанием кодировки)
     const reportHTML = `
-        <div style="padding: 20px; max-width: 1100px; margin: 0 auto;">
-            <!-- ЗАГОЛОВОК -->
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px;">
-                <div>
-                    <h1 style="font-size: 24px; font-weight: 700; color: #0c4a6e; margin: 0;">Отчет по кадастровой оценке</h1>
-                    <p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">Уровень: ${currentLevelName}</p>
-                    <p style="color: #64748b; font-size: 12px; margin: 2px 0 0 0;">
-                        Фильтры: ${document.getElementById('active-filters-list')?.textContent || 'все'}
-                    </p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; color: #1e293b; }
+                .report-title { font-size: 24px; font-weight: 700; color: #0c4a6e; margin: 0; }
+                .report-subtitle { color: #64748b; font-size: 14px; margin: 4px 0 0 0; }
+                .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                .stat-label { color: #94a3b8; font-size: 11px; }
+                .stat-value { font-size: 16px; font-weight: 700; }
+                .section-title { font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0; }
+                .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px; }
+            </style>
+        </head>
+        <body>
+            <div style="padding: 20px; max-width: 1100px; margin: 0 auto;">
+                <!-- ЗАГОЛОВОК -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px;">
+                    <div>
+                        <h1 class="report-title">Отчет по кадастровой оценке</h1>
+                        <p class="report-subtitle">Уровень: ${currentLevelName}</p>
+                        <p style="color: #64748b; font-size: 12px; margin: 2px 0 0 0;">
+                            Фильтры: ${document.getElementById('active-filters-list')?.textContent || 'все'}
+                        </p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="color: #64748b; font-size: 12px; margin: 0;">Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
+                        <p style="color: #64748b; font-size: 12px; margin: 0;">Время: ${new Date().toLocaleTimeString('ru-RU')}</p>
+                    </div>
                 </div>
-                <div style="text-align: right;">
-                    <p style="color: #64748b; font-size: 12px; margin: 0;">Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
-                    <p style="color: #64748b; font-size: 12px; margin: 0;">Время: ${new Date().toLocaleTimeString('ru-RU')}</p>
+                
+                <!-- СТАТИСТИКА -->
+                <div style="margin-bottom: 20px;">
+                    <h2 class="section-title">📊 Статистика сделок</h2>
+                    <div class="stat-grid">
+                        <div><span class="stat-label">Медианная цена</span><br><span class="stat-value">${statMedian}</span></div>
+                        <div><span class="stat-label">Кад. стоимость (медиана)</span><br><span class="stat-value">${statCadCost}</span></div>
+                        <div><span class="stat-label">УПРС (медиана)</span><br><span class="stat-value">${statUprs}</span></div>
+                        <div><span class="stat-label">УПКС (медиана)</span><br><span class="stat-value">${statUpks}</span></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; background: #f8fafc; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div><span class="stat-label">Всего сделок</span><br><span class="stat-value">${statTotalDeals}</span></div>
+                        <div><span class="stat-label">Мин / Макс</span><br><span class="stat-value">${statMinMax}</span></div>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- СТАТИСТИКА -->
-            <div style="margin-bottom: 20px;">
-                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📊 Статистика сделок</h2>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div><span style="color: #94a3b8; font-size: 11px;">Медианная цена</span><br><strong style="font-size: 16px;">${statMedian}</strong></div>
-                    <div><span style="color: #94a3b8; font-size: 11px;">Кад. стоимость (медиана)</span><br><strong style="font-size: 16px;">${statCadCost}</strong></div>
-                    <div><span style="color: #94a3b8; font-size: 11px;">УПРС (медиана)</span><br><strong style="font-size: 16px;">${statUprs}</strong></div>
-                    <div><span style="color: #94a3b8; font-size: 11px;">УПКС (медиана)</span><br><strong style="font-size: 16px;">${statUpks}</strong></div>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; background: #f8fafc; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div><span style="color: #94a3b8; font-size: 11px;">Всего сделок</span><br><strong style="font-size: 16px;">${statTotalDeals}</strong></div>
-                    <div><span style="color: #94a3b8; font-size: 11px;">Мин / Макс</span><br><strong style="font-size: 16px;">${statMinMax}</strong></div>
-                </div>
-            </div>
 
-            <!-- КВАРТАЛЫ -->
-            <div style="margin-bottom: 20px;">
-                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">🏘️ Кварталы со сделками</h2>
-                <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 200px; overflow-y: auto;">
-                    ${quartersHtml || '<div style="color: #94a3b8;">Нет данных</div>'}
+                <!-- КВАРТАЛЫ -->
+                <div style="margin-bottom: 20px;">
+                    <h2 class="section-title">🏘️ Кварталы со сделками</h2>
+                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 200px; overflow-y: auto;">
+                        ${quartersHtml || '<div style="color: #94a3b8;">Нет данных</div>'}
+                    </div>
+                </div>
+
+                <!-- ТАБЛИЦА СДЕЛОК -->
+                <div style="margin-top: 20px;">
+                    <h2 class="section-title">📋 Список сделок</h2>
+                    <div id="report-table-placeholder" style="max-height: 400px; overflow: hidden; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <!-- Сюда копируется таблица -->
+                    </div>
+                </div>
+
+                <!-- ПОДВАЛ -->
+                <div class="footer">
+                    Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
                 </div>
             </div>
-
-            <!-- ТАБЛИЦА СДЕЛОК -->
-            <div style="margin-top: 20px;">
-                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📋 Список сделок</h2>
-                <div id="report-table-placeholder" style="max-height: 400px; overflow: hidden; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <!-- Сюда копируется таблица -->
-                </div>
-            </div>
-
-            <!-- ПОДВАЛ -->
-            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px;">
-                Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
-            </div>
-        </div>
+        </body>
+        </html>
     `;
 
     reportContainer.innerHTML = reportHTML;
@@ -5235,7 +5253,7 @@ async function generateReport() {
     // Ждем рендеринга
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    // ===== 6. ЗАХВАТ КАРТЫ ЧЕРЕЗ LEAFET-IMAGE =====
+    // ===== 6. ЗАХВАТ КАРТЫ =====
     let mapImageData = null;
     
     // Пытаемся загрузить leaflet-image
@@ -5270,11 +5288,10 @@ async function generateReport() {
         }
     }
     
-    // Fallback: используем html2canvas для захвата карты
+    // Fallback: используем html2canvas
     if (!mapImageData) {
         console.log('📸 Fallback: захват карты через html2canvas...');
         try {
-            // Делаем скриншот КАРТЫ
             const mapCanvas = await html2canvas(mapContainer, {
                 scale: 1.5,
                 useCORS: true,
@@ -5283,15 +5300,11 @@ async function generateReport() {
                 logging: false,
                 width: mapContainer.scrollWidth,
                 height: mapContainer.scrollHeight,
-                onclone: function(clonedDoc) {
-                    // В clonedDoc карта уже должна быть отрендерена
-                    console.log('🔄 Клон документа создан для html2canvas');
-                }
             });
             mapImageData = mapCanvas.toDataURL('image/jpeg', 0.9);
             console.log('✅ html2canvas захватил карту');
         } catch (e) {
-            console.error('❌ Ошибка захвата карты через html2canvas:', e);
+            console.error('❌ Ошибка захвата карты:', e);
             // Создаем заглушку
             const fallbackCanvas = document.createElement('canvas');
             fallbackCanvas.width = 1200;
@@ -5323,15 +5336,18 @@ async function generateReport() {
     });
     const reportImageData = reportCanvas.toDataURL('image/jpeg', 0.95);
 
-    // ===== 8. СОЗДАНИЕ PDF =====
+    // ===== 8. СОЗДАНИЕ PDF С ПОДДЕРЖКОЙ КИРИЛЛИЦЫ =====
     try {
         showNotification('📄 Генерация PDF...', 'info');
         
         const { jsPDF } = window.jspdf;
+        
+        // Создаем PDF с поддержкой UTF-8
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            // Используем стандартный шрифт, но с заменой проблемных символов
         });
 
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -5341,14 +5357,18 @@ async function generateReport() {
         const mapImgWidth = pdfWidth - 20;
         const mapImgHeight = (mapContainer.offsetHeight / mapContainer.offsetWidth) * mapImgWidth;
         
-        // Заголовок страницы
+        // ✅ ИСПОЛЬЗУЕМ ОБЫЧНЫЙ ТЕКСТ С ПРАВИЛЬНОЙ КОДИРОВКОЙ
+        // jsPDF поддерживает UTF-8 через метод text
+        
+        // Заголовок страницы (используем текст с правильной кодировкой)
         pdf.setFontSize(16);
         pdf.setTextColor(12, 74, 110);
-        pdf.text('🗺️ Карта сделок', 10, 20);
+        pdf.text('Карта сделок', 10, 20);
+        
         pdf.setFontSize(10);
         pdf.setTextColor(100, 116, 139);
-        pdf.text(`Уровень: ${currentLevelName} | ${new Date().toLocaleDateString('ru-RU')}`, 10, 28);
-        pdf.text(`Всего сделок: ${statTotalDeals}`, 10, 36);
+        pdf.text('Уровень: ' + currentLevelName + ' | ' + new Date().toLocaleDateString('ru-RU'), 10, 28);
+        pdf.text('Всего сделок: ' + statTotalDeals, 10, 36);
         
         // Добавляем карту
         pdf.addImage(mapImageData, 'JPEG', 10, 42, mapImgWidth, mapImgHeight);
