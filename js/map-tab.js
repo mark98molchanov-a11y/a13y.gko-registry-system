@@ -5104,7 +5104,6 @@ function loadScript(src) {
         document.head.appendChild(script);
     });
 }
-
 async function generateReport() {
     console.log('📄 Генерация отчета в DOCX...');
 
@@ -5127,7 +5126,7 @@ async function generateReport() {
             }
         }
         
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, ImageRun, Header, Footer } = docxModule;
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, Header, Footer } = docxModule;
 
         // 2. Собираем данные
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
@@ -5153,86 +5152,24 @@ async function generateReport() {
             quarterItems = Array.from(items).slice(0, 15);
         }
 
-        // 3. Загружаем изображение для колонтитула через CORS-прокси
-        const logoUrl = 'https://mfc.yanao.ru/images/NewImages/4kvmEVkVGdM.jpg';
-        let logoImageData = null;
-        
-        try {
-            console.log('➡️ Загрузка изображения через CORS-прокси...');
-            
-            // Используем бесплатный CORS-прокси
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(logoUrl);
-            const response = await fetch(proxyUrl);
-            
-            if (response.ok) {
-                const blob = await response.blob();
-                if (blob.type.startsWith('image/')) {
-                    logoImageData = await blob.arrayBuffer();
-                    console.log('✅ Изображение загружено! Размер:', logoImageData.byteLength);
-                } else {
-                    console.warn('⚠️ Загруженный файл не изображение:', blob.type);
-                }
-            } else {
-                console.warn('⚠️ Не удалось загрузить изображение (HTTP ' + response.status + ')');
-            }
-        } catch (e) {
-            console.warn('⚠️ Ошибка загрузки изображения:', e.message);
-            // Продолжаем без изображения
-        }
-
-        // 4. Создаём элементы для заголовка (с изображением или без)
-        const headerChildren = [];
-
-        if (logoImageData && logoImageData.byteLength > 100) {
-            try {
-                headerChildren.push(
-                    new ImageRun({
-                        data: logoImageData,
-                        transformation: {
-                            width: 120,
-                            height: 40,
-                        },
-                        type: 'image/jpeg',
-                    })
-                );
-                console.log('✅ Изображение добавлено в колонтитул');
-            } catch (e) {
-                console.warn('⚠️ Ошибка вставки изображения:', e);
-                // Запасной вариант
-                headerChildren.push(
-                    new TextRun({
-                        text: '🏛️ ГКО',
-                        size: 24,
-                        bold: true,
-                        color: '0c4a6e',
-                        font: 'Arial',
-                    })
-                );
-            }
-        } else {
-            // Запасной вариант — текст вместо изображения
-            headerChildren.push(
-                new TextRun({
-                    text: '🏛️ ГКО',
-                    size: 24,
-                    bold: true,
-                    color: '0c4a6e',
-                    font: 'Arial',
-                })
-            );
-            console.log('ℹ️ Используем текстовый логотип (изображение не загружено)');
-        }
-
-        headerChildren.push(
+        // 3. Создаём элементы для заголовка (ТОЛЬКО ТЕКСТ, без изображения)
+        const headerChildren = [
+            new TextRun({
+                text: '📋 ГКО',
+                size: 24,
+                bold: true,
+                color: '0c4a6e',
+                font: 'Arial',
+            }),
             new TextRun({
                 text: '  Отдел ГКО • База знаний',
                 size: 18,
                 color: '94a3b8',
                 font: 'Arial',
-            })
-        );
+            }),
+        ];
 
-        // 5. Создаём документ с колонтитулом
+        // 4. Создаём документ с колонтитулом
         const doc = new Document({
             sections: [{
                 properties: {
