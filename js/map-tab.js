@@ -3899,7 +3899,7 @@ function addMapLegend() {
     if (isHeatmapEnabled) {
         legend.innerHTML = `
             <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                🌡️ УПРС vs УПКС
+                УПРС vs УПКС
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                 <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
@@ -3918,7 +3918,7 @@ function addMapLegend() {
         // ❌ Обычный режим: легенда по количеству сделок
         legend.innerHTML = `
             <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                📊 Сделки в квартале
+                Сделки в квартале
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                 <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
