@@ -5112,14 +5112,21 @@ async function generateReport() {
     if (typeof window.docx === 'undefined') {
         showNotification('⏳ Загрузка библиотеки...', 'info');
         try {
-            await loadScript('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.min.js');
+            // ✅ ПРАВИЛЬНАЯ ССЫЛКА ДЛЯ UMD
+            await loadScript('https://unpkg.com/docx@8.2.2/build/index.umd.min.js');
         } catch (error) {
             showNotification('❌ Ошибка загрузки библиотеки', 'error');
             return;
         }
     }
 
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = window.docx;
+    // Ждём, пока библиотека загрузится
+    if (typeof window.docx === 'undefined') {
+        showNotification('❌ Библиотека не загрузилась', 'error');
+        return;
+    }
+
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = window.docx;
 
     // 2. Собираем данные
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
@@ -5372,7 +5379,6 @@ async function generateReport() {
         showNotification('❌ Ошибка: ' + error.message, 'error');
     }
 }
-
 window.generateReport = generateReport;
 window.loadScript = loadScript;
 window.generateDocxReport = generateReport;
