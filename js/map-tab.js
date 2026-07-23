@@ -5413,7 +5413,7 @@ async function generateReport() {
                     // ==========================================================
                     // 🔥 ИЗОБРАЖЕНИЕ-ПОДЛОЖКА (ПРОЗРАЧНОЕ, СВЕРХУ СТРАНИЦЫ)
                     // ==========================================================
-             ...(logoImageData && logoImageData.byteLength > 100 ? [
+...(logoImageData && logoImageData.byteLength > 100 ? [
     new Paragraph({
         children: [
             new ImageRun({
