@@ -5143,7 +5143,7 @@ async function generateReport() {
         const filterDetails = filtersText !== '—' ? filtersText : 'нет';
 
         // ============================================================
-        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (ЧУТЬ ДЛИННЕЕ)
+        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (УВЕЛИЧЕННОЕ В ДЛИНУ)
         // ============================================================
         async function loadImageAsArrayBuffer(url) {
             return new Promise((resolve, reject) => {
@@ -5187,7 +5187,7 @@ async function generateReport() {
                     text: String(text), 
                     size: size, 
                     bold: bold, 
-                    color: color,  // ЧЁРНЫЙ
+                    color: color,  // ЧЁРНЫЙ (#1e293b)
                     font: 'Arial' 
                 })],
                 alignment: align,
@@ -5223,12 +5223,12 @@ async function generateReport() {
                             new Paragraph({
                                 children: [
                                     // ==========================================
-                                    // 🔥 ИЗОБРАЖЕНИЕ СПРАВА СВЕРХУ (ЧУТЬ ДЛИННЕЕ)
+                                    // 🔥 ИЗОБРАЖЕНИЕ СПРАВА СВЕРХУ (УВЕЛИЧЕННОЕ)
                                     // ==========================================
                                     ...(logoImageData ? [
                                         new ImageRun({ 
                                             data: logoImageData, 
-                                            transformation: { width: 100, height: 34 }, 
+                                            transformation: { width: 140, height: 47 }, 
                                             type: 'image/webp' 
                                         })
                                     ] : []),
