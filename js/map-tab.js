@@ -5083,31 +5083,49 @@ legend.innerHTML = `
     }
 }
 async function loadCyrillicFont() {
-    if (window._cyrillicFontLoaded) return;
+    if (window._cyrillicFontLoaded) return true;
     
     try {
         console.log('⏳ Загрузка шрифта с поддержкой кириллицы...');
         
-        // Загружаем шрифт Roboto с поддержкой кириллицы
-        const fontUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/fonts/Roboto-Regular.ttf';
-        const response = await fetch(fontUrl);
+        // Используем шрифт LiberationSerif (поддерживает кириллицу)
+        const fontUrl = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/fonts/Helvetica.ttf';
+        
+        // Альтернативный источник, если первый не работает
+        const fontUrl2 = 'https://unpkg.com/pdf-lib@1.17.1/fonts/Helvetica.ttf';
+        
+        let response = await fetch(fontUrl);
+        if (!response.ok) {
+            response = await fetch(fontUrl2);
+        }
+        
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить шрифт');
+        }
+        
         const arrayBuffer = await response.arrayBuffer();
         
         // Конвертируем в base64
-        const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
         const fontBase64 = btoa(binary);
         
         // Добавляем шрифт в jsPDF
         const { jsPDF } = window.jspdf;
         if (jsPDF && jsPDF.API) {
-            jsPDF.API.addFileToVFS('Roboto-Regular.ttf', fontBase64);
-            jsPDF.API.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+            jsPDF.API.addFileToVFS('Helvetica.ttf', fontBase64);
+            jsPDF.API.addFont('Helvetica.ttf', 'Helvetica', 'normal');
             window._cyrillicFontLoaded = true;
-            console.log('✅ Шрифт Roboto загружен');
+            console.log('✅ Шрифт загружен');
+            return true;
         }
     } catch (e) {
         console.warn('⚠️ Не удалось загрузить шрифт:', e);
         window._cyrillicFontLoaded = false;
+        return false;
     }
 }
 
@@ -5116,319 +5134,337 @@ async function generateReport() {
 
     // 1. Проверяем, загружены ли библиотеки
     if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
-        console.log('⏳ Загрузка библиотек html2canvas и jsPDF...');
+        console.log('⏳ Загрузка библиотек...');
         showNotification('⏳ Загрузка библиотек для PDF...', 'info');
         
         try {
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
             console.log('✅ Библиотеки загружены');
-            
-            // Загружаем шрифт после jsPDF
-            await loadCyrillicFont();
-            
-            showNotification('✅ Библиотеки загружены, формируем отчет...', 'success');
         } catch (error) {
             console.error('❌ Ошибка загрузки библиотек:', error);
             showNotification('❌ Ошибка загрузки библиотек для PDF', 'error');
             return;
         }
-    } else {
-        // Если библиотеки уже загружены, проверяем шрифт
-        if (!window._cyrillicFontLoaded) {
-            await loadCyrillicFont();
-        }
     }
 
-    // 2. Находим контейнер карты
-    const mapContainer = document.getElementById('map-container');
-    if (!mapContainer) {
-        showNotification('❌ Контейнер карты не найден', 'error');
-        return;
+    // 2. Загружаем шрифт с кириллицей
+    const fontLoaded = await loadCyrillicFont();
+    if (!fontLoaded) {
+        console.warn('⚠️ Шрифт не загружен, текст может отображаться некорректно');
     }
 
-    // 3. Сохраняем текущие настройки карты
-    const originalHeight = mapContainer.style.height;
-    const originalWidth = mapContainer.style.width;
-    const originalZoom = mapInstance ? mapInstance.getZoom() : 5;
-    const originalCenter = mapInstance ? mapInstance.getCenter() : [66.0, 76.0];
-    
-    // Устанавливаем размер для захвата
-    mapContainer.style.height = '700px';
-    mapContainer.style.width = '100%';
-    
-    // Принудительно обновляем карту
-    if (mapInstance) {
-        mapInstance.setView(originalCenter, Math.min(originalZoom, 7));
-        mapInstance.invalidateSize();
-        await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    // 4. Создаем временный контейнер для отчета
-    const reportContainer = document.createElement('div');
-    reportContainer.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 1200px;
-        background: white;
-        padding: 30px;
-        z-index: -1000;
-        opacity: 0;
-        pointer-events: none;
-        font-family: 'Inter', sans-serif;
-    `;
-    document.body.appendChild(reportContainer);
-
-    // 5. Формируем HTML отчета
+    // 3. Получаем данные для отчета
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
     const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
     
-    // Получаем данные из статистики
     const statMedian = document.getElementById('stat-median')?.textContent || '—';
     const statMinMax = document.getElementById('stat-minmax')?.textContent || '—';
     const statUprs = document.getElementById('stat-uprs')?.textContent || '—';
     const statUpks = document.getElementById('stat-upks')?.textContent || '—';
     const statTotalDeals = document.getElementById('stat-total-deals')?.textContent || '0';
     const statCadCost = document.getElementById('stat-cadcost')?.textContent || '—';
+    const statObjects = document.getElementById('stat-objects')?.textContent || '0';
+    const statWithDeals = document.getElementById('stat-with-deals')?.textContent || '0';
     
     // Получаем список кварталов
     const quartersList = document.getElementById('quarters-list');
-    let quartersHtml = '';
+    let quartersText = '';
     if (quartersList) {
-        quartersHtml = quartersList.innerHTML;
+        const items = quartersList.querySelectorAll('div');
+        items.forEach(item => {
+            const text = item.textContent?.trim();
+            if (text) quartersText += '• ' + text + '\n';
+        });
     }
 
-    // Собираем HTML отчета
-    const reportHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; color: #1e293b; }
-                .report-title { font-size: 24px; font-weight: 700; color: #0c4a6e; margin: 0; }
-                .report-subtitle { color: #64748b; font-size: 14px; margin: 4px 0 0 0; }
-                .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
-                .stat-label { color: #94a3b8; font-size: 11px; }
-                .stat-value { font-size: 16px; font-weight: 700; }
-                .section-title { font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0; }
-                .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px; }
-            </style>
-        </head>
-        <body>
-            <div style="padding: 20px; max-width: 1100px; margin: 0 auto;">
-                <!-- ЗАГОЛОВОК -->
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px;">
-                    <div>
-                        <h1 class="report-title">Отчет по кадастровой оценке</h1>
-                        <p class="report-subtitle">Уровень: ${currentLevelName}</p>
-                        <p style="color: #64748b; font-size: 12px; margin: 2px 0 0 0;">
-                            Фильтры: ${document.getElementById('active-filters-list')?.textContent || 'все'}
-                        </p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p style="color: #64748b; font-size: 12px; margin: 0;">Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
-                        <p style="color: #64748b; font-size: 12px; margin: 0;">Время: ${new Date().toLocaleTimeString('ru-RU')}</p>
-                    </div>
-                </div>
-                
-                <!-- СТАТИСТИКА -->
-                <div style="margin-bottom: 20px;">
-                    <h2 class="section-title">📊 Статистика сделок</h2>
-                    <div class="stat-grid">
-                        <div><span class="stat-label">Медианная цена</span><br><span class="stat-value">${statMedian}</span></div>
-                        <div><span class="stat-label">Кад. стоимость (медиана)</span><br><span class="stat-value">${statCadCost}</span></div>
-                        <div><span class="stat-label">УПРС (медиана)</span><br><span class="stat-value">${statUprs}</span></div>
-                        <div><span class="stat-label">УПКС (медиана)</span><br><span class="stat-value">${statUpks}</span></div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; background: #f8fafc; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div><span class="stat-label">Всего сделок</span><br><span class="stat-value">${statTotalDeals}</span></div>
-                        <div><span class="stat-label">Мин / Макс</span><br><span class="stat-value">${statMinMax}</span></div>
-                    </div>
-                </div>
-
-                <!-- КВАРТАЛЫ -->
-                <div style="margin-bottom: 20px;">
-                    <h2 class="section-title">🏘️ Кварталы со сделками</h2>
-                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 200px; overflow-y: auto;">
-                        ${quartersHtml || '<div style="color: #94a3b8;">Нет данных</div>'}
-                    </div>
-                </div>
-
-                <!-- ТАБЛИЦА СДЕЛОК -->
-                <div style="margin-top: 20px;">
-                    <h2 class="section-title">📋 Список сделок</h2>
-                    <div id="report-table-placeholder" style="max-height: 400px; overflow: hidden; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <!-- Сюда копируется таблица -->
-                    </div>
-                </div>
-
-                <!-- ПОДВАЛ -->
-                <div class="footer">
-                    Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-
-    reportContainer.innerHTML = reportHTML;
-
-    // Вставляем клон таблицы
-    const tablePlaceholder = reportContainer.querySelector('#report-table-placeholder');
-    if (tablePlaceholder) {
-        const tableContainer = document.getElementById('deals-table-container');
-        if (tableContainer) {
-            const tableClone = tableContainer.cloneNode(true);
-            tableClone.style.maxHeight = '400px';
-            tableClone.style.overflow = 'auto';
-            tableClone.style.borderRadius = '8px';
-            tablePlaceholder.appendChild(tableClone);
-        }
-    }
-
-    // Ждем рендеринга
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    // ===== 6. ЗАХВАТ КАРТЫ =====
-    let mapImageData = null;
-    
-    // Пытаемся загрузить leaflet-image
-    if (typeof leafletImage === 'undefined') {
-        console.log('⏳ Загрузка leaflet-image...');
-        try {
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet-image/0.4.0/leaflet-image.min.js');
-            console.log('✅ leaflet-image загружен');
-        } catch (e) {
-            console.warn('⚠️ Не удалось загрузить leaflet-image:', e);
-        }
-    }
-    
-    // Используем leafletImage если доступен
-    if (typeof leafletImage !== 'undefined' && mapInstance) {
-        console.log('📸 Захват карты через leafletImage...');
-        try {
-            mapImageData = await new Promise((resolve, reject) => {
-                leafletImage(mapInstance, function(err, canvas) {
-                    if (err) {
-                        console.warn('⚠️ leafletImage ошибка:', err);
-                        reject(err);
-                    } else {
-                        console.log('✅ leafletImage успешно захватил карту');
-                        resolve(canvas.toDataURL('image/jpeg', 0.9));
-                    }
+    // 4. Получаем данные сделок для таблицы
+    const tableData = [];
+    const tableContainer = document.getElementById('deals-table-container');
+    if (tableContainer) {
+        const rows = tableContainer.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0) {
+                tableData.push({
+                    cad_number: cells[0]?.textContent?.trim() || '',
+                    area: cells[1]?.textContent?.trim() || '',
+                    purpose: cells[2]?.textContent?.trim() || '',
+                    cad_cost: cells[3]?.textContent?.trim() || '',
+                    upks: cells[4]?.textContent?.trim() || '',
+                    city: cells[5]?.textContent?.trim() || '',
+                    deal_type: cells[6]?.textContent?.trim() || '',
+                    obj_type: cells[7]?.textContent?.trim() || '',
+                    vri: cells[8]?.textContent?.trim() || '',
+                    quarter: cells[9]?.textContent?.trim() || '',
+                    year_build: cells[10]?.textContent?.trim() || '',
+                    wall_material: cells[13]?.textContent?.trim() || '',
+                    price: cells[14]?.textContent?.trim() || '',
+                    uprs: cells[15]?.textContent?.trim() || '',
+                    diff_abs: cells[16]?.textContent?.trim() || '',
+                    diff_percent: cells[17]?.textContent?.trim() || ''
                 });
-            });
-        } catch (e) {
-            console.warn('⚠️ leafletImage не сработал, используем fallback:', e);
-            mapImageData = null;
-        }
-    }
-    
-    // Fallback: используем html2canvas
-    if (!mapImageData) {
-        console.log('📸 Fallback: захват карты через html2canvas...');
-        try {
-            const mapCanvas = await html2canvas(mapContainer, {
-                scale: 1.5,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#e8ecf0',
-                logging: false,
-                width: mapContainer.scrollWidth,
-                height: mapContainer.scrollHeight,
-            });
-            mapImageData = mapCanvas.toDataURL('image/jpeg', 0.9);
-            console.log('✅ html2canvas захватил карту');
-        } catch (e) {
-            console.error('❌ Ошибка захвата карты:', e);
-            // Создаем заглушку
-            const fallbackCanvas = document.createElement('canvas');
-            fallbackCanvas.width = 1200;
-            fallbackCanvas.height = 800;
-            const ctx = fallbackCanvas.getContext('2d');
-            ctx.fillStyle = '#e8ecf0';
-            ctx.fillRect(0, 0, 1200, 800);
-            ctx.fillStyle = '#475569';
-            ctx.font = '24px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('⚠️ Карта не доступна для захвата', 600, 400);
-            ctx.font = '16px Inter, sans-serif';
-            ctx.fillStyle = '#94a3b8';
-            ctx.fillText('Пожалуйста, повторите попытку или обновите страницу', 600, 440);
-            mapImageData = fallbackCanvas.toDataURL('image/jpeg', 0.9);
-        }
+            }
+        });
     }
 
-    // ===== 7. ЗАХВАТ ОТЧЕТА =====
-    const reportCanvas = await html2canvas(reportContainer, {
-        scale: 1.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        width: 1100,
-        height: reportContainer.scrollHeight,
-        windowHeight: reportContainer.scrollHeight,
-    });
-    const reportImageData = reportCanvas.toDataURL('image/jpeg', 0.95);
-
-    // ===== 8. СОЗДАНИЕ PDF С ПОДДЕРЖКОЙ КИРИЛЛИЦЫ =====
+    // 5. Создаем PDF
     try {
         showNotification('📄 Генерация PDF...', 'info');
         
         const { jsPDF } = window.jspdf;
-        
-        // Создаем PDF
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
             format: 'a4'
         });
 
+        // Устанавливаем шрифт с поддержкой кириллицы
+        if (fontLoaded) {
+            pdf.setFont('Helvetica', 'normal');
+        }
+
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const maxWidth = pdfWidth - margin * 2;
+        let y = margin + 10;
+
+        // ============================================================
+        // СТРАНИЦА 1: ЗАГОЛОВОК + СТАТИСТИКА + КВАРТАЛЫ
+        // ============================================================
         
-        // ===== СТРАНИЦА 1: КАРТА =====
-        const mapImgWidth = pdfWidth - 20;
-        const mapImgHeight = (mapContainer.offsetHeight / mapContainer.offsetWidth) * mapImgWidth;
-        
-        // ✅ ИСПОЛЬЗУЕМ ШРИФТ С ПОДДЕРЖКОЙ КИРИЛЛИЦЫ
-        if (window._cyrillicFontLoaded) {
-            pdf.setFont('Roboto', 'normal');
-        }
-        
-        // Заголовок страницы
-        pdf.setFontSize(16);
+        // ЗАГОЛОВОК
+        pdf.setFontSize(18);
         pdf.setTextColor(12, 74, 110);
-        pdf.text('Карта сделок', 10, 20);
+        pdf.text('Отчет по кадастровой оценке', margin, y);
+        y += 8;
         
         pdf.setFontSize(10);
         pdf.setTextColor(100, 116, 139);
-        pdf.text('Уровень: ' + currentLevelName + ' | ' + new Date().toLocaleDateString('ru-RU'), 10, 28);
-        pdf.text('Всего сделок: ' + statTotalDeals, 10, 36);
+        pdf.text('Уровень: ' + currentLevelName + ' | ' + new Date().toLocaleDateString('ru-RU') + ' | ' + new Date().toLocaleTimeString('ru-RU'), margin, y);
+        y += 10;
         
-        // Добавляем карту
-        pdf.addImage(mapImageData, 'JPEG', 10, 42, mapImgWidth, mapImgHeight);
+        // Фильтры
+        const filtersText = document.getElementById('active-filters-list')?.textContent || 'все';
+        pdf.setFontSize(9);
+        pdf.text('Фильтры: ' + filtersText, margin, y);
+        y += 12;
         
-        // ===== СТРАНИЦА 2+: ОТЧЕТ =====
+        // ЛИНИЯ
+        pdf.setDrawColor(14, 165, 233);
+        pdf.setLineWidth(1);
+        pdf.line(margin, y, pdfWidth - margin, y);
+        y += 8;
+        
+        // СТАТИСТИКА
+        pdf.setFontSize(14);
+        pdf.setTextColor(30, 41, 59);
+        pdf.text('📊 Статистика сделок', margin, y);
+        y += 8;
+        
+        pdf.setFontSize(10);
+        pdf.setTextColor(30, 41, 59);
+        
+        // Таблица статистики
+        const statsData = [
+            ['Медианная цена', statMedian],
+            ['Кад. стоимость (медиана)', statCadCost],
+            ['УПРС (медиана)', statUprs],
+            ['УПКС (медиана)', statUpks],
+            ['Всего сделок', statTotalDeals],
+            ['Мин / Макс', statMinMax],
+            ['Кварталов с данными', statWithDeals + ' / ' + statObjects]
+        ];
+        
+        const col1Width = 50;
+        const col2Width = 60;
+        const rowHeight = 7;
+        
+        statsData.forEach((row, index) => {
+            const x1 = margin;
+            const x2 = margin + col1Width;
+            
+            // Фон для четных строк
+            if (index % 2 === 0) {
+                pdf.setFillColor(248, 250, 252);
+                pdf.rect(margin, y - 4, col1Width + col2Width, rowHeight + 2, 'F');
+            }
+            
+            pdf.text(row[0], x1, y);
+            pdf.text(row[1], x2, y);
+            y += rowHeight;
+        });
+        
+        y += 5;
+        
+        // КВАРТАЛЫ
+        if (quartersText) {
+            pdf.setFontSize(12);
+            pdf.setTextColor(30, 41, 59);
+            pdf.text('🏘️ Кварталы со сделками', margin, y);
+            y += 6;
+            
+            pdf.setFontSize(8);
+            pdf.setTextColor(71, 85, 105);
+            
+            const lines = quartersText.split('\n').filter(l => l.trim());
+            lines.forEach(line => {
+                // Проверяем, не выходит ли за пределы страницы
+                if (y > pdfHeight - margin - 30) {
+                    pdf.addPage();
+                    y = margin + 10;
+                }
+                pdf.text(line, margin + 5, y);
+                y += 5;
+            });
+        }
+        
+        y += 5;
+        
+        // ЛИНИЯ
+        pdf.setDrawColor(203, 213, 225);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, pdfWidth - margin, y);
+        y += 8;
+        
+        // ============================================================
+        // ТАБЛИЦА СДЕЛОК (начинается на 1-й странице, продолжается на следующих)
+        // ============================================================
+        
+        pdf.setFontSize(12);
+        pdf.setTextColor(30, 41, 59);
+        pdf.text('📋 Список сделок', margin, y);
+        y += 6;
+        
+        if (tableData.length === 0) {
+            pdf.setFontSize(10);
+            pdf.setTextColor(148, 163, 184);
+            pdf.text('Нет данных для отображения', margin, y);
+        } else {
+            // Заголовки таблицы (сжатые)
+            const headers = ['Кад. квартал', 'Площадь', 'Кад. стоимость', 'УПКС', 'УПРС', 'Цена', 'Разница %'];
+            const colWidths = [28, 12, 22, 14, 14, 18, 16];
+            const headerHeight = 6;
+            const cellHeight = 5;
+            
+            let startY = y + 2;
+            let currentY = startY;
+            
+            // Функция для рисования строки таблицы
+            function drawTableRow(cells, isHeader = false, rowIndex = 0) {
+                let x = margin;
+                const rowColor = rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc';
+                
+                // Фон строки
+                if (!isHeader) {
+                    pdf.setFillColor(rowColor === '#ffffff' ? 255 : 248, rowColor === '#ffffff' ? 255 : 250, rowColor === '#ffffff' ? 255 : 252);
+                    pdf.rect(margin, currentY - 3, maxWidth, cellHeight + 1, 'F');
+                }
+                
+                cells.forEach((cell, i) => {
+                    const cellWidth = colWidths[i] || 15;
+                    pdf.setFontSize(isHeader ? 7 : 6);
+                    pdf.setTextColor(isHeader ? 71 : 30, isHeader ? 85 : 41, isHeader ? 105 : 59);
+                    pdf.text(cell || '', x + 1, currentY);
+                    x += cellWidth;
+                });
+                currentY += cellHeight;
+            }
+            
+            // Рисуем заголовки
+            drawTableRow(headers, true);
+            
+            // Рисуем данные
+            tableData.slice(0, 50).forEach((row, index) => {
+                // Проверяем, нужно ли добавить новую страницу
+                if (currentY > pdfHeight - margin - 15) {
+                    // Добавляем страницу
+                    pdf.addPage();
+                    y = margin + 10;
+                    currentY = y;
+                    startY = y;
+                    
+                    // Повторяем заголовки на новой странице
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(30, 41, 59);
+                    pdf.text('📋 Список сделок (продолжение)', margin, y);
+                    currentY += 6;
+                    
+                    // Рисуем заголовки на новой странице
+                    let tempY = currentY;
+                    let x = margin;
+                    headers.forEach((h, i) => {
+                        pdf.setFontSize(7);
+                        pdf.setTextColor(71, 85, 105);
+                        pdf.text(h, x + 1, tempY);
+                        x += colWidths[i] || 15;
+                    });
+                    currentY += cellHeight;
+                }
+                
+                const cells = [
+                    row.cad_number || '',
+                    row.area || '',
+                    row.cad_cost || '',
+                    row.upks || '',
+                    row.uprs || '',
+                    row.price || '',
+                    row.diff_percent || ''
+                ];
+                drawTableRow(cells, false, index);
+            });
+        }
+        
+        // ПОДВАЛ
+        y = pdfHeight - margin;
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра', margin, y);
+        pdf.text('Сгенерировано: ' + new Date().toLocaleString('ru-RU'), pdfWidth - margin - 50, y);
+
+        // ============================================================
+        // СТРАНИЦА 2: КАРТА (если есть место, делаем отдельную страницу)
+        // ============================================================
+        
+        // Добавляем страницу с картой
         pdf.addPage();
         
-        const reportImgWidth = pdfWidth - 20;
-        const reportImgHeight = (reportCanvas.height / reportCanvas.width) * reportImgWidth;
+        // Заголовок страницы с картой
+        pdf.setFontSize(16);
+        pdf.setTextColor(12, 74, 110);
+        pdf.text('🗺️ Карта сделок', margin, margin + 8);
         
-        let heightLeft = reportImgHeight;
-        let position = 10;
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text('Уровень: ' + currentLevelName + ' | ' + new Date().toLocaleDateString('ru-RU'), margin, margin + 16);
+        pdf.text('Всего сделок: ' + statTotalDeals, margin, margin + 24);
         
-        pdf.addImage(reportImageData, 'JPEG', 10, position, reportImgWidth, reportImgHeight);
-        heightLeft -= pdfHeight - 20;
-        
-        while (heightLeft > 0) {
-            position = heightLeft - reportImgHeight + 10;
-            pdf.addPage();
-            pdf.addImage(reportImageData, 'JPEG', 10, position, reportImgWidth, reportImgHeight);
-            heightLeft -= pdfHeight - 20;
+        // Захватываем карту как изображение
+        const mapContainer = document.getElementById('map-container');
+        if (mapContainer) {
+            try {
+                const mapCanvas = await html2canvas(mapContainer, {
+                    scale: 1.5,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#e8ecf0',
+                    logging: false,
+                    width: mapContainer.scrollWidth,
+                    height: mapContainer.scrollHeight,
+                });
+                const mapImageData = mapCanvas.toDataURL('image/jpeg', 0.9);
+                
+                const mapImgWidth = pdfWidth - margin * 2;
+                const mapImgHeight = (mapCanvas.height / mapCanvas.width) * mapImgWidth;
+                
+                pdf.addImage(mapImageData, 'JPEG', margin, margin + 30, mapImgWidth, Math.min(mapImgHeight, pdfHeight - margin * 2 - 30));
+            } catch (e) {
+                console.warn('⚠️ Не удалось добавить карту:', e);
+                pdf.setFontSize(10);
+                pdf.setTextColor(148, 163, 184);
+                pdf.text('⚠️ Карта не доступна для отображения', margin, margin + 40);
+            }
         }
 
         // Сохраняем PDF
@@ -5442,22 +5478,7 @@ async function generateReport() {
         console.error('❌ Ошибка генерации PDF:', error);
         showNotification('❌ Ошибка генерации PDF: ' + error.message, 'error');
     }
-
-    // ===== 9. ВОССТАНАВЛИВАЕМ КАРТУ =====
-    mapContainer.style.height = originalHeight || '';
-    mapContainer.style.width = originalWidth || '';
-    if (mapInstance) {
-        mapInstance.setView(originalCenter, originalZoom);
-        setTimeout(() => mapInstance.invalidateSize(), 100);
-    }
-
-    // ===== 10. УДАЛЯЕМ ВРЕМЕННЫЙ КОНТЕЙНЕР =====
-    document.body.removeChild(reportContainer);
 }
-
-// ============================================================
-// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ СКРИПТОВ
-// ============================================================
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
