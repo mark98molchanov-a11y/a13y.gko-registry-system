@@ -5109,7 +5109,6 @@ async function generateReport() {
 
     try {
         let docxModule = null;
-        
         try {
             docxModule = await import('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js');
         } catch(e) {
@@ -5128,11 +5127,10 @@ async function generateReport() {
         } = docxModule;
 
         // ============================================================
-        // 1. СОБИРАЕМ ДАННЫЕ
+        // ДАННЫЕ
         // ============================================================
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
         const currentLevelName = levelNames[currentLevel] || '—';
-
         const statMedian = document.getElementById('stat-median')?.textContent || '—';
         const statMinMax = document.getElementById('stat-minmax')?.textContent || '—';
         const statUprs = document.getElementById('stat-uprs')?.textContent || '—';
@@ -5144,15 +5142,8 @@ async function generateReport() {
         const filtersText = document.getElementById('active-filters-list')?.textContent || 'все';
         const filterDetails = filtersText !== '—' ? filtersText : 'нет';
 
-        const quartersList = document.getElementById('quarters-list');
-        let quarterItems = [];
-        if (quartersList) {
-            const items = quartersList.querySelectorAll('div');
-            quarterItems = Array.from(items).slice(0, 15);
-        }
-
         // ============================================================
-        // 2. ЗАГРУЗКА ИЗОБРАЖЕНИЯ ДЛЯ ФОНА
+        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ
         // ============================================================
         async function loadImageAsArrayBuffer(url) {
             return new Promise((resolve, reject) => {
@@ -5183,70 +5174,23 @@ async function generateReport() {
 
         const logoUrl = './images/logo-mfc.webp';
         let logoImageData = null;
-
         try {
             logoImageData = await loadImageAsArrayBuffer(logoUrl);
-            console.log('✅ Изображение загружено');
-        } catch(e) {
-            console.warn('⚠️ Изображение не загружено');
-        }
+        } catch(e) {}
 
         // ============================================================
-        // 3. ФУНКЦИИ ДЛЯ ТАБЛИЦ (ПРОСТЫЕ И ЧИТАЕМЫЕ)
+        // ФУНКЦИЯ ДЛЯ ЯЧЕЕК
         // ============================================================
-        function bigCell(text, options = {}) {
-            const { bold = false, align = AlignmentType.CENTER, bg = null } = options;
-            const p = new Paragraph({
-                children: [new TextRun({ text: String(text), size: 22, bold: bold, color: '1e293b', font: 'Arial' })],
-                alignment: align,
-                spacing: { after: 0 }
-            });
+        function makeCell(text, size = 18, bold = false, color = '1e293b', align = AlignmentType.CENTER, width = 25) {
             const cell = new TableCell({
-                children: [p],
-                width: { size: options.width || 25, type: WidthType.PERCENTAGE },
-                verticalAlign: 'center',
-            });
-            if (bg) {
-                cell.shading = { fill: bg };
-            }
-            cell.borders = {
-                top: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                left: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                right: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-            };
-            return cell;
-        }
-
-        function labelCell(text) {
-            const p = new Paragraph({
-                children: [new TextRun({ text: String(text), size: 18, color: '94a3b8', font: 'Arial' })],
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 4 }
-            });
-            const cell = new TableCell({
-                children: [p],
-                width: { size: 50, type: WidthType.PERCENTAGE },
-                verticalAlign: 'center',
-            });
-            cell.borders = {
-                top: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                left: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                right: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-            };
-            return cell;
-        }
-
-        function valueCell(text, bold = true) {
-            const p = new Paragraph({
-                children: [new TextRun({ text: String(text), size: 24, bold: bold, color: '0c4a6e', font: 'Arial' })],
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0 }
-            });
-            const cell = new TableCell({
-                children: [p],
-                width: { size: 50, type: WidthType.PERCENTAGE },
+                children: [
+                    new Paragraph({
+                        children: [new TextRun({ text: String(text), size, bold, color, font: 'Arial' })],
+                        alignment: align,
+                        spacing: { after: 0 }
+                    })
+                ],
+                width: { size: width, type: WidthType.PERCENTAGE },
                 verticalAlign: 'center',
             });
             cell.borders = {
@@ -5259,149 +5203,70 @@ async function generateReport() {
         }
 
         // ============================================================
-        // 4. ФОРМИРУЕМ ДОКУМЕНТ
+        // ДОКУМЕНТ
         // ============================================================
         const doc = new Document({
             sections: [{
                 properties: {
                     page: {
-                        margin: {
-                            top: 1440,
-                            bottom: 1440,
-                            left: 1440,
-                            right: 1440,
-                        }
+                        margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 }
                     }
                 },
                 headers: {
                     default: new Header({
                         children: [
                             new Paragraph({
-                                children: [
-                                    new TextRun({
-                                        text: 'Отдел ГКО • База знаний',
-                                        size: 16,
-                                        color: '94a3b8',
-                                        font: 'Arial',
-                                    }),
-                                ],
+                                children: [new TextRun({ text: 'Отдел ГКО • База знаний', size: 16, color: '94a3b8', font: 'Arial' })],
                                 alignment: AlignmentType.RIGHT,
                                 spacing: { after: 60 },
-                                border: {
-                                    bottom: {
-                                        style: BorderStyle.SINGLE,
-                                        size: 1,
-                                        color: 'e2e8f0',
-                                    }
-                                }
-                            }),
-                        ],
-                    }),
+                                border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } }
+                            })
+                        ]
+                    })
                 },
                 footers: {
                     default: new Footer({
                         children: [
                             new Paragraph({
                                 children: [
-                                    new TextRun({
-                                        text: `Страница `,
-                                        size: 14,
-                                        color: '94a3b8',
-                                        font: 'Arial',
-                                    }),
-                                    new TextRun({
-                                        children: [PageNumber.CURRENT],
-                                        size: 14,
-                                        color: '94a3b8',
-                                        font: 'Arial',
-                                    }),
-                                    new TextRun({
-                                        text: ` • ${new Date().toLocaleDateString('ru-RU')}`,
-                                        size: 14,
-                                        color: '94a3b8',
-                                        font: 'Arial',
-                                    }),
+                                    new TextRun({ text: 'Страница ', size: 12, color: '94a3b8', font: 'Arial' }),
+                                    new TextRun({ children: [PageNumber.CURRENT], size: 12, color: '94a3b8', font: 'Arial' }),
+                                    new TextRun({ text: ` • ${new Date().toLocaleDateString('ru-RU')}`, size: 12, color: '94a3b8', font: 'Arial' })
                                 ],
                                 alignment: AlignmentType.CENTER,
                                 spacing: { before: 60 },
-                                border: {
-                                    top: {
-                                        style: BorderStyle.SINGLE,
-                                        size: 1,
-                                        color: 'e2e8f0',
-                                    }
-                                }
-                            }),
-                        ],
-                    }),
+                                border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } }
+                            })
+                        ]
+                    })
                 },
                 children: [
                     // ==========================================================
-                    // 🔥 ИЗОБРАЖЕНИЕ-ПОДЛОЖКА (ФОН СТРАНИЦЫ)
+                    // ИЗОБРАЖЕНИЕ (ПОДЛОЖКА)
                     // ==========================================================
-                    ...(logoImageData && logoImageData.byteLength > 100 ? [
+                    ...(logoImageData ? [
                         new Paragraph({
-                            children: [
-                                new ImageRun({
-                                    data: logoImageData,
-                                    transformation: {
-                                        width: 600,
-                                        height: 200,
-                                    },
-                                    type: 'image/webp',
-                                })
-                            ],
+                            children: [new ImageRun({ data: logoImageData, transformation: { width: 500, height: 167 }, type: 'image/webp' })],
                             alignment: AlignmentType.CENTER,
-                            spacing: { before: 800, after: 400 },
+                            spacing: { before: 400, after: 200 }
                         })
                     ] : []),
 
                     // ==========================================================
-                    // 🔥 ЗАГОЛОВОК (КРУПНЫЙ, РАЗБОРЧИВЫЙ)
+                    // ЗАГОЛОВОК
                     // ==========================================================
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА',
-                                size: 36,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
+                        children: [new TextRun({ text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА', size: 32, bold: true, color: '0c4a6e', font: 'Arial' })],
                         alignment: AlignmentType.CENTER,
-                        spacing: { after: 80 },
-                    }),
-
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `по результатам ГКО ${new Date().getFullYear()}`,
-                                size: 20,
-                                bold: false,
-                                color: '475569',
-                                font: 'Arial',
-                                italics: true,
-                            }),
-                        ],
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 400 },
+                        spacing: { after: 300 }
                     }),
 
                     // ==========================================================
-                    // 🔥 1. ИНФОРМАЦИЯ
+                    // 1. ИНФОРМАЦИЯ
                     // ==========================================================
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: '1. Информация об отчёте',
-                                size: 22,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 150 },
+                        children: [new TextRun({ text: '1. Информация об отчете', size: 20, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        spacing: { after: 150 }
                     }),
 
                     new Table({
@@ -5409,18 +5274,18 @@ async function generateReport() {
                         rows: [
                             new TableRow({
                                 children: [
-                                    labelCell('Уровень'),
-                                    valueCell(currentLevelName),
-                                    labelCell('Фильтры'),
-                                    valueCell(filterDetails),
+                                    makeCell('Уровень', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(currentLevelName, 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Фильтры', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(filterDetails, 18, true, '0ea5e9', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
                                 children: [
-                                    labelCell('Дата'),
-                                    valueCell(new Date().toLocaleDateString('ru-RU')),
-                                    labelCell('Время'),
-                                    valueCell(new Date().toLocaleTimeString('ru-RU')),
+                                    makeCell('Дата', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(new Date().toLocaleDateString('ru-RU'), 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Время', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(new Date().toLocaleTimeString('ru-RU'), 20, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                         ]
@@ -5429,53 +5294,38 @@ async function generateReport() {
                     new Paragraph({ spacing: { after: 300 } }),
 
                     // ==========================================================
-                    // 🔥 2. СТАТИСТИКА (КРУПНЫЕ ЦИФРЫ)
+                    // 2. СТАТИСТИКА
                     // ==========================================================
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: '2. Статистика сделок',
-                                size: 22,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 150 },
+                        children: [new TextRun({ text: '2. Статистика сделок', size: 20, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        spacing: { after: 150 }
                     }),
 
-                    // Таблица статистики
                     new Table({
                         width: { size: 100, type: WidthType.PERCENTAGE },
                         rows: [
                             new TableRow({
                                 children: [
-                                    bigCell('Медианная цена', { width: 25, bg: 'f0f4f8' }),
-                                    bigCell(statMedian, { width: 25, bold: true }),
-                                    bigCell('УПРС (медиана)', { width: 25, bg: 'f0f4f8' }),
-                                    bigCell(statUprs, { width: 25, bold: true }),
+                                    makeCell('Медианная цена', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(statMedian, 22, true, '0c4a6e', AlignmentType.CENTER, 25),
+                                    makeCell('УПРС (медиана)', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(statUprs, 22, true, '0c4a6e', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
                                 children: [
-                                    bigCell('Кад. стоимость (медиана)', { width: 25, bg: 'f0f4f8' }),
-                                    bigCell(statCadCost, { width: 25, bold: true }),
-                                    bigCell('УПКС (медиана)', { width: 25, bg: 'f0f4f8' }),
-                                    bigCell(statUpks, { width: 25, bold: true }),
+                                    makeCell('Кад. стоимость (медиана)', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(statCadCost, 22, true, '0c4a6e', AlignmentType.CENTER, 25),
+                                    makeCell('УПКС (медиана)', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(statUpks, 22, true, '0c4a6e', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
                                 children: [
-                                    bigCell('Всего сделок', { width: 25, bg: 'f0f4f8' }),
-                                    bigCell(statTotalDeals, { width: 25, bold: true }),
-                                    bigCell('Мин / Макс', { width: 25, bg: 'f0f4f8' }),
-                                    bigCell(statMinMax, { width: 25, bold: true }),
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    bigCell('Кварталов с данными', { width: 50, bg: 'f0f4f8' }),
-                                    bigCell(`${statWithDeals} из ${statObjects}`, { width: 50, bold: true }),
+                                    makeCell('Всего сделок', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(statTotalDeals, 22, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Мин / Макс', 16, false, '94a3b8', AlignmentType.CENTER, 25),
+                                    makeCell(statMinMax, 20, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                         ]
@@ -5484,233 +5334,58 @@ async function generateReport() {
                     new Paragraph({ spacing: { after: 300 } }),
 
                     // ==========================================================
-                    // 🔥 3. КВАРТАЛЫ (ПРОСТОЙ СПИСОК)
+                    // РЕЗУЛЬТАТ
                     // ==========================================================
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: '3. Кварталы со сделками',
-                                size: 22,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 100 },
-                    }),
-
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `Всего: ${statWithDeals} из ${statObjects}`,
-                                size: 18,
-                                color: '64748b',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 150 },
-                    }),
-
-                    // Список кварталов (простой, 2 колонки)
-                    ...(quarterItems.length > 0 ? (() => {
-                        const items = [];
-                        const half = Math.ceil(quarterItems.length / 2);
-                        const col1 = quarterItems.slice(0, half);
-                        const col2 = quarterItems.slice(half);
-                        const maxRows = Math.max(col1.length, col2.length);
-
-                        for (let i = 0; i < maxRows; i++) {
-                            const text1 = col1[i]?.textContent?.trim() || '';
-                            const text2 = col2[i]?.textContent?.trim() || '';
-
-                            function fmt(t) {
-                                const m = t.match(/^([\d:]+)\s*(\d+)\s*сделок?/i);
-                                return m ? `${m[1]} (${m[2]})` : t;
-                            }
-
-                            const f1 = fmt(text1);
-                            const f2 = fmt(text2);
-
-                            items.push(
-                                new Paragraph({
-                                    children: [
-                                        new TextRun({
-                                            text: f1 ? `${i+1}. ${f1}` : '',
-                                            size: 18,
-                                            color: '1e293b',
-                                            font: 'Arial',
-                                        }),
-                                        new TextRun({
-                                            text: f1 && f2 ? '   |   ' : '',
-                                            size: 18,
-                                            color: '94a3b8',
-                                            font: 'Arial',
-                                        }),
-                                        new TextRun({
-                                            text: f2 ? `${col1.length + i + 1}. ${f2}` : '',
-                                            size: 18,
-                                            color: '1e293b',
-                                            font: 'Arial',
-                                        }),
-                                    ],
-                                    spacing: { after: 30 },
-                                })
-                            );
-                        }
-                        return items;
-                    })() : [
-                        new Paragraph({
-                            children: [new TextRun({ text: 'Нет данных', size: 18, color: '94a3b8', font: 'Arial' })],
-                            spacing: { after: 150 },
-                        })
-                    ]),
-
-                    new Paragraph({ spacing: { after: 300 } }),
-
-                    // ==========================================================
-                    // 🔥 4. КЛЮЧЕВОЙ РЕЗУЛЬТАТ (БОЛЬШИМИ БУКВАМИ)
-                    // ==========================================================
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: 'РЕЗУЛЬТАТ',
-                                size: 24,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 80 },
-                    }),
-
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `УПРС = ${statUprs}`,
-                                size: 32,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
+                        children: [new TextRun({ text: 'РЕЗУЛЬТАТ', size: 24, bold: true, color: '0c4a6e', font: 'Arial' })],
                         alignment: AlignmentType.CENTER,
-                        spacing: { after: 60 },
+                        spacing: { after: 80 }
                     }),
 
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `Сделок: ${statTotalDeals} | Кварталов: ${statWithDeals}`,
-                                size: 20,
-                                bold: false,
-                                color: '475569',
-                                font: 'Arial',
-                            }),
-                        ],
+                        children: [new TextRun({ text: `УПРС = ${statUprs}`, size: 28, bold: true, color: '0c4a6e', font: 'Arial' })],
                         alignment: AlignmentType.CENTER,
-                        spacing: { after: 300 },
-                    }),
-
-                    // ==========================================================
-                    // 🔥 5. ВЫВОД (КОРОТКО)
-                    // ==========================================================
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: 'Вывод',
-                                size: 22,
-                                bold: true,
-                                color: '0c4a6e',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 80 },
+                        spacing: { after: 40 }
                     }),
 
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: 'Данные достаточны для кадастровой оценки.',
-                                size: 18,
-                                color: '1e293b',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 60 },
-                    }),
-
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: 'Рекомендуется использовать рыночную информацию 2025 года без дополнительных корректировок.',
-                                size: 16,
-                                color: '64748b',
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { after: 300 },
+                        children: [new TextRun({ text: `УПКС = ${statUpks}`, size: 28, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 400 }
                     }),
 
                     // ==========================================================
                     // 🔥 ПОДПИСЬ
                     // ==========================================================
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: '____________________',
-                                size: 14,
-                                color: '94a3b8',
-                                font: 'Arial',
-                            })
-                        ],
+                        children: [new TextRun({ text: '____________________', size: 14, color: '94a3b8', font: 'Arial' })],
                         alignment: AlignmentType.CENTER,
-                        spacing: { after: 40 },
+                        spacing: { after: 60 }
                     }),
 
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: 'Начальник отдела ГКО',
-                                size: 16,
-                                color: '1e293b',
-                                font: 'Arial',
-                            })
-                        ],
+                        children: [new TextRun({ text: 'Начальник отдела ГКО', size: 16, bold: true, color: '1e293b', font: 'Arial' })],
                         alignment: AlignmentType.LEFT,
-                        spacing: { after: 20 },
+                        spacing: { after: 20 }
                     }),
 
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: '____________________ /____________________/',
-                                size: 16,
-                                color: '1e293b',
-                                font: 'Arial',
-                            })
-                        ],
+                        children: [new TextRun({ text: '____________________ /____________________/', size: 16, color: '1e293b', font: 'Arial' })],
                         alignment: AlignmentType.LEFT,
-                        spacing: { after: 40 },
+                        spacing: { after: 40 }
                     }),
 
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `${new Date().toLocaleDateString('ru-RU')}`,
-                                size: 14,
-                                color: '94a3b8',
-                                font: 'Arial',
-                            })
-                        ],
+                        children: [new TextRun({ text: new Date().toLocaleDateString('ru-RU'), size: 14, color: '94a3b8', font: 'Arial' })],
                         alignment: AlignmentType.LEFT,
-                        spacing: { after: 200 },
+                        spacing: { after: 200 }
                     }),
-                ],
-            }],
+                ]
+            }]
         });
 
         // ============================================================
-        // 5. СОХРАНЯЕМ
+        // СОХРАНЕНИЕ
         // ============================================================
         showNotification('📄 Формирование...', 'info');
         const blob = await Packer.toBlob(doc);
