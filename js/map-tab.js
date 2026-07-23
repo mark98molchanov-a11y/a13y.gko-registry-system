@@ -2401,7 +2401,6 @@ function updateQuartersStyle(targetObjects) {
             
             if (!cadNum) return;
             
-            // ✅ ПОЛУЧАЕМ СДЕЛКИ С УЧЕТОМ ВСЕХ ФИЛЬТРОВ
             const deals = dealsData[cadNum] || [];
             const filteredDeals = deals.filter(deal => {
                 if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
@@ -2417,7 +2416,6 @@ function updateQuartersStyle(targetObjects) {
             
             const dealsCount = filteredDeals.length;
             
-            // ✅ ПРИМЕНЯЕМ СТИЛЬ
             let fillColor = '#f1f5f9';
             let fillOpacity = 0.2;
             let borderColor = '#3b82f6';
@@ -2425,42 +2423,37 @@ function updateQuartersStyle(targetObjects) {
             let borderOpacity = 0.6;
             
             if (isHeatmapEnabled) {
-                // 🔥 РЕЖИМ HEATMAP: цвет по разнице УПРС и УПКС
                 if (filteredDeals.length > 0) {
                     let totalUprs = 0;
                     let totalUpks = 0;
                     let countWithData = 0;
                     
- filteredDeals.forEach(deal => {
-    // ✅ Берем uprs (из dealsData) или uprs_rub (из allDealsFlat) — что есть
-    const uprsValue = deal.uprs || deal.uprs_rub || 0;
-    const upksValue = deal.upks || 0;
-    
-    if (uprsValue > 0 && upksValue > 0) {
-        totalUprs += uprsValue;
-        totalUpks += upksValue;
-        countWithData++;
-    }
-});
+                    filteredDeals.forEach(deal => {
+                        const uprsValue = deal.uprs || deal.uprs_rub || 0;
+                        const upksValue = deal.upks || 0;
+                        if (uprsValue > 0 && upksValue > 0) {
+                            totalUprs += uprsValue;
+                            totalUpks += upksValue;
+                            countWithData++;
+                        }
+                    });
                     
                     if (countWithData > 0) {
                         const avgUprs = totalUprs / countWithData;
                         const avgUpks = totalUpks / countWithData;
-                        
-                        // Разница в процентах (УПРС vs УПКС)
                         const diffPercent = ((avgUprs - avgUpks) / avgUpks) * 100;
                         
-                        // Цветовая шкала
-                        if (diffPercent > 20) {
-                            fillColor = '#22c55e';      // зеленый — УПРС > УПКС (рынок дороже кадастра)
-                        } else if (diffPercent > 5) {
-                            fillColor = '#84cc16';      // салатовый — УПРС немного выше УПКС
-                        } else if (diffPercent >= -5) {
-                            fillColor = '#eab308';      // желтый — УПРС ≈ УПКС
-                        } else if (diffPercent > -30) {
-                            fillColor = '#f97316';      // оранжевый — УПРС ниже УПКС
+                        // 🎨 НОВАЯ ПРОСТАЯ ШКАЛА
+                        if (diffPercent >= -5 && diffPercent <= 5) {
+                            fillColor = '#22c55e';      // Зеленый — УПРС ≈ УПКС
                         } else {
-                            fillColor = '#ef4444';      // красный — УПРС сильно ниже УПКС
+                            // Все остальные — от светло-красного до темно-красного
+                            const absDiff = Math.abs(diffPercent);
+                            if (absDiff <= 20) {
+                                fillColor = '#f97316';  // Светло-красный (оранжевый)
+                            } else {
+                                fillColor = '#ef4444';  // Красный
+                            }
                         }
                         
                         fillOpacity = 0.35;
@@ -2482,7 +2475,6 @@ function updateQuartersStyle(targetObjects) {
                     borderOpacity = 0.4;
                 }
             } else {
-                // ❌ ОБЫЧНЫЙ РЕЖИМ: цвет по количеству сделок
                 const hasDeals = dealsCount > 0;
                 fillColor = hasDeals ? getMapColor(dealsCount) : '#f1f5f9';
                 fillOpacity = 0.2;
@@ -2504,7 +2496,6 @@ function updateQuartersStyle(targetObjects) {
     
     console.log('✅ Стили кварталов обновлены с учетом всех фильтров');
 }
-
 function initMapTab(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -2531,7 +2522,6 @@ function initMapTab(containerId) {
         attribution: '© OpenStreetMap'
     }).addTo(mapInstance);
 
-    // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ РАЗМЕРЫ КАРТЫ ПОСЛЕ ИНИЦИАЛИЗАЦИИ
     setTimeout(() => {
         if (mapInstance) {
             mapInstance.invalidateSize();
@@ -3904,7 +3894,7 @@ function addMapLegend() {
     if (isHeatmapEnabled) {
         legend.innerHTML = `
             <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                🌡️ УПРС vs УПКС
+                УПРС vs УПКС
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                 <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
