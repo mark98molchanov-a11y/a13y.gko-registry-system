@@ -5107,66 +5107,27 @@ function loadScript(src) {
 
 async function generateReport() {
     console.log('📄 Генерация отчета в DOCX...');
-    console.log('➡️ Шаг 1: Начало функции');
 
     try {
-        console.log('➡️ Шаг 2: Попытка загрузки docx...');
-        
+        console.log('➡️ Загрузка библиотеки docx...');
         let docxModule = null;
         
-        // Способ 1: через import с прямым URL
         try {
-            console.log('➡️ Способ 1: import cdn...');
             docxModule = await import('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js');
-            console.log('✅ Способ 1 сработал!');
-        } catch(e1) {
-            console.log('⚠️ Способ 1 не сработал:', e1.message);
-            
-            // Способ 2: через unpkg
+            console.log('✅ Библиотека загружена через CDN');
+        } catch(e) {
+            console.log('⚠️ CDN не сработал, пробуем unpkg...');
             try {
-                console.log('➡️ Способ 2: import unpkg...');
                 docxModule = await import('https://unpkg.com/docx@8.2.2/build/index.js');
-                console.log('✅ Способ 2 сработал!');
+                console.log('✅ Библиотека загружена через unpkg');
             } catch(e2) {
-                console.log('⚠️ Способ 2 не сработал:', e2.message);
-                
-                // Способ 3: через loadScript
-                console.log('➡️ Способ 3: loadScript...');
-                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/docx/8.2.2/docx.min.js');
-                if (typeof window.docx !== 'undefined') {
-                    docxModule = window.docx;
-                    console.log('✅ Способ 3 сработал!');
-                } else {
-                    console.log('⚠️ Способ 3 не сработал');
-                    // Способ 4: другой CDN
-                    console.log('➡️ Способ 4: другой CDN...');
-                    await loadScript('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.umd.min.js');
-                    if (typeof window.docx !== 'undefined') {
-                        docxModule = window.docx;
-                        console.log('✅ Способ 4 сработал!');
-                    }
-                }
+                console.error('❌ Ошибка загрузки библиотеки:', e2);
+                showNotification('❌ Не удалось загрузить библиотеку', 'error');
+                return;
             }
         }
         
-        if (!docxModule) {
-            console.log('❌ Все способы загрузки не сработали!');
-            showNotification('❌ Не удалось загрузить библиотеку docx', 'error');
-            return;
-        }
-        
-        console.log('➡️ Шаг 3: Библиотека загружена, извлекаем классы...');
-        console.log('Доступно в модуле:', Object.keys(docxModule));
-        
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = docxModule;
-        
-        if (!Document) {
-            console.log('❌ Класс Document не найден!');
-            showNotification('❌ Ошибка: Document не найден в библиотеке', 'error');
-            return;
-        }
-        
-        console.log('✅ Все классы получены!');
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, ImageRun, Header, Footer } = docxModule;
 
         // 2. Собираем данные
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
@@ -5192,112 +5153,275 @@ async function generateReport() {
             quarterItems = Array.from(items).slice(0, 15);
         }
 
-        console.log('➡️ Шаг 4: Создаём документ...');
+        // 3. Функция для загрузки изображения в base64
+        async function getImageAsBase64(url) {
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.warn('⚠️ Не удалось загрузить изображение:', e);
+                return null;
+            }
+        }
 
-        // 3. Создаём документ
+        // 4. Загружаем изображение для колонтитула
+        const logoUrl = 'https://mfc.yanao.ru/images/NewImages/4kvmEVkVGdM.jpg';
+        let logoImageData = null;
+        try {
+            const base64 = await getImageAsBase64(logoUrl);
+            if (base64) {
+                logoImageData = await fetch(base64).then(r => r.arrayBuffer());
+                console.log('✅ Изображение загружено для колонтитула');
+            }
+        } catch (e) {
+            console.warn('⚠️ Не удалось загрузить изображение для колонтитула:', e);
+        }
+
+        // 5. Создаём документ с колонтитулом
         const doc = new Document({
             sections: [{
                 properties: {
                     page: {
                         margin: {
-                            top: 1440,
+                            top: 1800,   // Больше отступ сверху для колонтитула
                             bottom: 1440,
                             left: 1440,
                             right: 1440,
                         }
                     }
                 },
+                headers: {
+                    default: new Header({
+                        children: [
+                            new Paragraph({
+                                children: [
+                                    ...(logoImageData ? [
+                                        new ImageRun({
+                                            data: logoImageData,
+                                            transformation: {
+                                                width: 120,
+                                                height: 40,
+                                            },
+                                            type: 'image/jpeg',
+                                        })
+                                    ] : []),
+                                    new TextRun({
+                                        text: '  Отдел ГКО • База знаний',
+                                        size: 18,
+                                        color: '94a3b8',
+                                        font: 'Arial',
+                                    }),
+                                ],
+                                alignment: AlignmentType.RIGHT,
+                                spacing: { after: 100 },
+                                border: {
+                                    bottom: {
+                                        style: BorderStyle.SINGLE,
+                                        size: 1,
+                                        color: 'e2e8f0',
+                                    }
+                                }
+                            }),
+                        ],
+                    }),
+                },
+                footers: {
+                    default: new Footer({
+                        children: [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Страница {PAGE} • Данные из открытых источников Росреестра • ${new Date().toLocaleDateString('ru-RU')}`,
+                                        size: 16,
+                                        color: '94a3b8',
+                                        font: 'Arial',
+                                    }),
+                                ],
+                                alignment: AlignmentType.CENTER,
+                                spacing: { before: 100 },
+                                border: {
+                                    top: {
+                                        style: BorderStyle.SINGLE,
+                                        size: 1,
+                                        color: 'e2e8f0',
+                                    }
+                                }
+                            }),
+                        ],
+                    }),
+                },
                 children: [
                     // ===== ЗАГОЛОВОК =====
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: 'Отчёт по кадастровой оценке',
-                                size: 28,
+                                text: 'ОТЧЁТ ПО КАДАСТРОВОЙ ОЦЕНКЕ',
+                                size: 32,
                                 bold: true,
                                 color: '0c4a6e',
+                                font: 'Arial',
                             }),
                         ],
+                        alignment: AlignmentType.CENTER,
                         spacing: { after: 200 },
                     }),
+                    
+                    // ===== ИНФОРМАЦИЯ ОТЧЁТА =====
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `Уровень: ${currentLevelName}`,
-                                size: 22,
-                                color: '475569',
-                            }),
-                        ],
-                        spacing: { after: 80 },
-                    }),
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `Фильтры: ${filterDetails}`,
+                                text: 'СВОДНАЯ СТАТИСТИКА',
                                 size: 20,
-                                color: '0ea5e9',
+                                bold: true,
+                                color: '1e293b',
+                                font: 'Arial',
                             }),
                         ],
-                        spacing: { after: 300 },
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 200 },
                     }),
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `Дата: ${new Date().toLocaleDateString('ru-RU')}  ${new Date().toLocaleTimeString('ru-RU')}`,
-                                size: 18,
-                                color: '64748b',
+
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: {
+                            insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                            insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                        },
+                        rows: [
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'Уровень детализации', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: currentLevelName, size: 22, bold: true, color: '1e293b', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 50, type: WidthType.PERCENTAGE },
+                                        borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+                                    }),
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'Активные фильтры', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: filterDetails, size: 18, color: '0ea5e9', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 50, type: WidthType.PERCENTAGE },
+                                        borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+                                    }),
+                                ],
+                            }),
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'Дата формирования', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: new Date().toLocaleDateString('ru-RU'), size: 20, bold: true, color: '1e293b', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 50, type: WidthType.PERCENTAGE },
+                                    }),
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'Время формирования', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: new Date().toLocaleTimeString('ru-RU'), size: 20, bold: true, color: '1e293b', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 50, type: WidthType.PERCENTAGE },
+                                    }),
+                                ],
                             }),
                         ],
-                        spacing: { after: 400 },
                     }),
+
+                    new Paragraph({ spacing: { after: 400 } }),
 
                     // ===== СТАТИСТИКА =====
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: '📊 Статистика сделок',
+                                text: '📊  СТАТИСТИКА СДЕЛОК',
                                 size: 24,
                                 bold: true,
                                 color: '1e293b',
+                                font: 'Arial',
                             }),
                         ],
                         spacing: { after: 200 },
                     }),
 
-                    // Таблица статистики (2x4)
+                    // Основные показатели
                     new Table({
                         width: { size: 100, type: WidthType.PERCENTAGE },
                         borders: {
                             insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                            insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
                         },
                         rows: [
                             new TableRow({
                                 children: [
                                     new TableCell({
                                         children: [
-                                            new Paragraph({ children: [new TextRun({ text: 'Медианная цена', size: 18, color: '94a3b8' })] }),
-                                            new Paragraph({ children: [new TextRun({ text: statMedian, size: 24, bold: true, color: '1e293b' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: 'Медианная цена', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: statMedian, size: 26, bold: true, color: '0c4a6e', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 25, type: WidthType.PERCENTAGE },
+                                        borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+                                    }),
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'Кад. стоимость (медиана)', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: statCadCost, size: 26, bold: true, color: '0c4a6e', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 25, type: WidthType.PERCENTAGE },
+                                        borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+                                    }),
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'УПРС (медиана)', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: statUprs, size: 26, bold: true, color: '0c4a6e', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 25, type: WidthType.PERCENTAGE },
+                                        borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+                                    }),
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'УПКС (медиана)', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: statUpks, size: 26, bold: true, color: '0c4a6e', font: 'Arial' })] }),
+                                        ],
+                                        width: { size: 25, type: WidthType.PERCENTAGE },
+                                        borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+                                    }),
+                                ],
+                            }),
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: 'Всего сделок', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: statTotalDeals, size: 26, bold: true, color: '1e293b', font: 'Arial' })] }),
                                         ],
                                         width: { size: 25, type: WidthType.PERCENTAGE },
                                     }),
                                     new TableCell({
                                         children: [
-                                            new Paragraph({ children: [new TextRun({ text: 'Кад. стоимость (медиана)', size: 18, color: '94a3b8' })] }),
-                                            new Paragraph({ children: [new TextRun({ text: statCadCost, size: 24, bold: true, color: '1e293b' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: 'Мин / Макс', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: statMinMax, size: 22, bold: true, color: '1e293b', font: 'Arial' })] }),
                                         ],
                                         width: { size: 25, type: WidthType.PERCENTAGE },
                                     }),
                                     new TableCell({
                                         children: [
-                                            new Paragraph({ children: [new TextRun({ text: 'УПРС (медиана)', size: 18, color: '94a3b8' })] }),
-                                            new Paragraph({ children: [new TextRun({ text: statUprs, size: 24, bold: true, color: '1e293b' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: 'Кварталов с данными', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: `${statWithDeals} из ${statObjects}`, size: 26, bold: true, color: '1e293b', font: 'Arial' })] }),
                                         ],
                                         width: { size: 25, type: WidthType.PERCENTAGE },
                                     }),
                                     new TableCell({
                                         children: [
-                                            new Paragraph({ children: [new TextRun({ text: 'УПКС (медиана)', size: 18, color: '94a3b8' })] }),
-                                            new Paragraph({ children: [new TextRun({ text: statUpks, size: 24, bold: true, color: '1e293b' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: ' ', size: 18, color: '94a3b8', font: 'Arial' })] }),
+                                            new Paragraph({ children: [new TextRun({ text: ' ', size: 26, bold: true, color: '1e293b', font: 'Arial' })] }),
                                         ],
                                         width: { size: 25, type: WidthType.PERCENTAGE },
                                     }),
@@ -5306,72 +5430,81 @@ async function generateReport() {
                         ],
                     }),
 
-                    new Paragraph({ spacing: { after: 200 } }),
-
-                    // Вторая строка статистики
-                    new Table({
-                        width: { size: 100, type: WidthType.PERCENTAGE },
-                        borders: {
-                            insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
-                        },
-                        rows: [
-                            new TableRow({
-                                children: [
-                                    new TableCell({
-                                        children: [
-                                            new Paragraph({ children: [new TextRun({ text: 'Всего сделок', size: 18, color: '94a3b8' })] }),
-                                            new Paragraph({ children: [new TextRun({ text: statTotalDeals, size: 24, bold: true, color: '1e293b' })] }),
-                                        ],
-                                        width: { size: 50, type: WidthType.PERCENTAGE },
-                                    }),
-                                    new TableCell({
-                                        children: [
-                                            new Paragraph({ children: [new TextRun({ text: 'Мин / Макс', size: 18, color: '94a3b8' })] }),
-                                            new Paragraph({ children: [new TextRun({ text: statMinMax, size: 24, bold: true, color: '1e293b' })] }),
-                                        ],
-                                        width: { size: 50, type: WidthType.PERCENTAGE },
-                                    }),
-                                ],
-                            }),
-                        ],
-                    }),
-
-                    new Paragraph({ spacing: { after: 300 } }),
+                    new Paragraph({ spacing: { after: 400 } }),
 
                     // ===== КВАРТАЛЫ =====
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `🏘️ Кварталы со сделками (${statWithDeals} из ${statObjects})`,
+                                text: '🏘️  КВАРТАЛЫ СО СДЕЛКАМИ',
                                 size: 24,
                                 bold: true,
                                 color: '1e293b',
+                                font: 'Arial',
                             }),
                         ],
                         spacing: { after: 200 },
                     }),
 
-                    // Список кварталов
-                    ...quarterItems.map((item, index) => {
-                        const text = item.textContent?.trim() || '';
-                        return new Paragraph({
-                            children: [
-                                new TextRun({
-                                    text: `${index + 1}. ${text}`,
-                                    size: 20,
-                                    color: '1e293b',
-                                }),
-                            ],
-                            spacing: { after: 80 },
-                        });
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: `Всего кварталов с данными: ${statWithDeals} из ${statObjects}`,
+                                size: 18,
+                                color: '64748b',
+                                font: 'Arial',
+                            }),
+                        ],
+                        spacing: { after: 150 },
                     }),
 
-                    ...(quarterItems.length === 0 ? [
+                    // Список кварталов (в 2 колонки)
+                    ...(quarterItems.length > 0 ? (() => {
+                        const items = [];
+                        const half = Math.ceil(quarterItems.length / 2);
+                        const col1 = quarterItems.slice(0, half);
+                        const col2 = quarterItems.slice(half);
+                        
+                        // Максимальное количество строк
+                        const maxRows = Math.max(col1.length, col2.length);
+                        
+                        for (let i = 0; i < maxRows; i++) {
+                            const text1 = col1[i]?.textContent?.trim() || '';
+                            const text2 = col2[i]?.textContent?.trim() || '';
+                            
+                            items.push(
+                                new Paragraph({
+                                    children: [
+                                        new TextRun({
+                                            text: text1 ? `${i+1}. ${text1}` : '',
+                                            size: 18,
+                                            color: '1e293b',
+                                            font: 'Arial',
+                                        }),
+                                        new TextRun({
+                                            text: text1 && text2 ? '  |  ' : '',
+                                            size: 18,
+                                            color: '94a3b8',
+                                            font: 'Arial',
+                                        }),
+                                        new TextRun({
+                                            text: text2 ? `${col1.length + i + 1}. ${text2}` : '',
+                                            size: 18,
+                                            color: '1e293b',
+                                            font: 'Arial',
+                                        }),
+                                    ],
+                                    spacing: { after: 60 },
+                                })
+                            );
+                        }
+                        return items;
+                    })() : [
                         new Paragraph({
-                            children: [new TextRun({ text: 'Нет данных', size: 20, color: '94a3b8' })],
+                            children: [new TextRun({ text: 'Нет данных о кварталах', size: 20, color: '94a3b8', font: 'Arial' })],
                             spacing: { after: 200 },
                         })
-                    ] : []),
+                    ]),
 
                     new Paragraph({ spacing: { after: 300 } }),
 
@@ -5379,34 +5512,31 @@ async function generateReport() {
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: '* В отчёте приведена сводная статистика. Полный список сделок доступен в интерфейсе.',
+                                text: 'Примечание:',
                                 size: 18,
-                                color: '64748b',
-                                italics: true,
+                                bold: true,
+                                color: '1e293b',
+                                font: 'Arial',
                             }),
                         ],
-                        spacing: { after: 300 },
+                        spacing: { after: 80 },
                     }),
-
-                    // ===== ПОДВАЛ =====
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: 'Отдел ГКО • База знаний • Данные из открытых источников Росреестра',
-                                size: 18,
-                                color: '94a3b8',
+                                text: 'В отчёте приведена сводная статистика по кадастровой оценке. Полный список сделок доступен в интерактивном интерфейсе. Данные получены из открытых источников Росреестра.',
+                                size: 16,
+                                color: '64748b',
+                                font: 'Arial',
                             }),
                         ],
-                        alignment: AlignmentType.CENTER,
-                        spacing: { before: 200, after: 100 },
+                        spacing: { after: 300 },
                     }),
                 ],
             }],
         });
 
-        console.log('➡️ Шаг 5: Документ создан, сохраняем...');
-
-        // 4. Сохраняем DOCX
+        // 6. Сохраняем DOCX
         showNotification('📄 Формирование DOCX...', 'info');
         const blob = await Packer.toBlob(doc);
         const link = document.createElement('a');
