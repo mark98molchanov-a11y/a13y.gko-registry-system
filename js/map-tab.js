@@ -5091,9 +5091,7 @@ async function generateReport() {
         showNotification('⏳ Загрузка библиотек для PDF...', 'info');
         
         try {
-            // Загружаем html2canvas
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-            // Загружаем jsPDF
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
             console.log('✅ Библиотеки загружены');
             showNotification('✅ Библиотеки загружены, формируем отчет...', 'success');
@@ -5104,16 +5102,29 @@ async function generateReport() {
         }
     }
 
-    // 2. Находим элементы для захвата
+    // 2. Находим контейнер карты
     const mapContainer = document.getElementById('map-container');
-    const statsPanel = document.querySelector('.flex.flex-col.gap-2[style*="min-width: 140px; max-width: 160px;"]');
-    
     if (!mapContainer) {
         showNotification('❌ Контейнер карты не найден', 'error');
         return;
     }
 
-    // 3. Создаем временный контейнер для отчета
+    // 3. Сохраняем текущий размер карты
+    const originalHeight = mapContainer.style.height;
+    const originalWidth = mapContainer.style.width;
+    
+    // Устанавливаем фиксированный размер для захвата
+    mapContainer.style.height = '700px';
+    mapContainer.style.width = '100%';
+    
+    // Принудительно обновляем размер карты
+    if (mapInstance) {
+        mapInstance.invalidateSize();
+        // Небольшая задержка для перерисовки
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // 4. Создаем временный контейнер для отчета (ТОЛЬКО ДЛЯ СТАТИСТИКИ И ТАБЛИЦЫ)
     const reportContainer = document.createElement('div');
     reportContainer.style.cssText = `
         position: fixed;
@@ -5129,7 +5140,7 @@ async function generateReport() {
     `;
     document.body.appendChild(reportContainer);
 
-    // 4. Формируем содержимое отчета
+    // 5. Формируем HTML отчета (БЕЗ КЛОНА КАРТЫ)
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
     const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
     
@@ -5140,38 +5151,25 @@ async function generateReport() {
     const statUpks = document.getElementById('stat-upks')?.textContent || '—';
     const statTotalDeals = document.getElementById('stat-total-deals')?.textContent || '0';
     const statCadCost = document.getElementById('stat-cadcost')?.textContent || '—';
-
-    // Копируем карту внутрь отчета
-    const mapClone = mapContainer.cloneNode(true);
-    mapClone.style.height = '500px';
-    mapClone.style.width = '100%';
-    mapClone.style.position = 'relative';
-    mapClone.style.overflow = 'hidden';
-    mapClone.style.borderRadius = '12px';
-    mapClone.style.border = '1px solid #e2e8f0';
-
-    // Копируем статистику
-    const statsClone = statsPanel ? statsPanel.cloneNode(true) : null;
-    if (statsClone) {
-        statsClone.style.cssText = `
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            padding: 16px;
-            background: #f8fafc;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            margin-top: 16px;
-        `;
+    
+    // Получаем список кварталов со сделками
+    const quartersList = document.getElementById('quarters-list');
+    let quartersHtml = '';
+    if (quartersList) {
+        quartersHtml = quartersList.innerHTML;
     }
 
-    // Собираем HTML отчета
+    // Собираем HTML отчета (БЕЗ КАРТЫ)
     const reportHTML = `
-        <div style="padding: 20px;">
+        <div style="padding: 20px; max-width: 1100px; margin: 0 auto;">
+            <!-- ЗАГОЛОВОК -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px;">
                 <div>
                     <h1 style="font-size: 24px; font-weight: 700; color: #0c4a6e; margin: 0;">Отчет по кадастровой оценке</h1>
                     <p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">Уровень: ${currentLevelName}</p>
+                    <p style="color: #64748b; font-size: 12px; margin: 2px 0 0 0;">
+                        Фильтры: ${document.getElementById('active-filters-list')?.textContent || 'все'}
+                    </p>
                 </div>
                 <div style="text-align: right;">
                     <p style="color: #64748b; font-size: 12px; margin: 0;">Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
@@ -5179,6 +5177,7 @@ async function generateReport() {
                 </div>
             </div>
             
+            <!-- СТАТИСТИКА -->
             <div style="margin-bottom: 20px;">
                 <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📊 Статистика сделок</h2>
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -5193,13 +5192,15 @@ async function generateReport() {
                 </div>
             </div>
 
+            <!-- КВАРТАЛЫ -->
             <div style="margin-bottom: 20px;">
-                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">🗺️ Карта</h2>
-                <div id="report-map-placeholder" style="height: 500px; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; background: #e8ecf0;">
-                    <!-- Сюда копируется карта -->
+                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">🏘️ Кварталы со сделками</h2>
+                <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 200px; overflow-y: auto;">
+                    ${quartersHtml || '<div style="color: #94a3b8;">Нет данных</div>'}
                 </div>
             </div>
 
+            <!-- ТАБЛИЦА СДЕЛОК -->
             <div style="margin-top: 20px;">
                 <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📋 Список сделок</h2>
                 <div id="report-table-placeholder" style="max-height: 400px; overflow: hidden; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -5207,6 +5208,7 @@ async function generateReport() {
                 </div>
             </div>
 
+            <!-- ПОДВАЛ -->
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px;">
                 Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
             </div>
@@ -5214,12 +5216,6 @@ async function generateReport() {
     `;
 
     reportContainer.innerHTML = reportHTML;
-
-    // Вставляем клон карты
-    const mapPlaceholder = reportContainer.querySelector('#report-map-placeholder');
-    if (mapPlaceholder) {
-        mapPlaceholder.appendChild(mapClone);
-    }
 
     // Вставляем клон таблицы
     const tablePlaceholder = reportContainer.querySelector('#report-table-placeholder');
@@ -5235,26 +5231,37 @@ async function generateReport() {
     }
 
     // Ждем рендеринга
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    // 5. Генерируем PDF
+    // 6. Делаем скриншот КАРТЫ (реальной, а не клона)
+    const mapCanvas = await html2canvas(mapContainer, {
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#e8ecf0',
+        logging: false,
+        width: mapContainer.scrollWidth,
+        height: mapContainer.scrollHeight,
+    });
+    const mapImageData = mapCanvas.toDataURL('image/jpeg', 0.9);
+
+    // 7. Делаем скриншот ОТЧЕТА (без карты)
+    const reportCanvas = await html2canvas(reportContainer, {
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: 1100,
+        height: reportContainer.scrollHeight,
+        windowHeight: reportContainer.scrollHeight,
+    });
+    const reportImageData = reportCanvas.toDataURL('image/jpeg', 0.95);
+
+    // 8. Создаем PDF
     try {
         showNotification('📄 Генерация PDF...', 'info');
         
-        const canvas = await html2canvas(reportContainer, {
-            scale: 1.5,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            width: 1200,
-            height: reportContainer.scrollHeight,
-            windowHeight: reportContainer.scrollHeight,
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        
-        // Создаем PDF
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({
             orientation: 'portrait',
@@ -5265,22 +5272,49 @@ async function generateReport() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
-        // Рассчитываем размеры
-        const imgWidth = pdfWidth - 20;
-        const imgHeight = (canvas.height / canvas.width) * imgWidth;
+        // ===== СТРАНИЦА 1: КАРТА =====
+        const mapImgWidth = pdfWidth - 20;
+        const mapImgHeight = (mapCanvas.height / mapCanvas.width) * mapImgWidth;
         
-        let heightLeft = imgHeight;
+        // Заголовок страницы
+        pdf.setFontSize(16);
+        pdf.setTextColor(12, 74, 110);
+        pdf.text('🗺️ Карта сделок', 10, 20);
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`Уровень: ${currentLevelName} | ${new Date().toLocaleDateString('ru-RU')}`, 10, 28);
+        
+        // Добавляем карту
+        pdf.addImage(mapImageData, 'JPEG', 10, 34, mapImgWidth, mapImgHeight);
+        
+        // Если карта не помещается на одной странице
+        let remainingHeight = mapImgHeight - (pdfHeight - 34 - 10);
+        if (remainingHeight > 0) {
+            let yOffset = pdfHeight - 34;
+            while (remainingHeight > 0) {
+                pdf.addPage();
+                pdf.addImage(mapImageData, 'JPEG', 10, -yOffset + 10, mapImgWidth, mapImgHeight);
+                remainingHeight -= pdfHeight - 20;
+                yOffset += pdfHeight - 20;
+            }
+        }
+
+        // ===== СТРАНИЦА 2+: ОТЧЕТ =====
+        pdf.addPage();
+        
+        const reportImgWidth = pdfWidth - 20;
+        const reportImgHeight = (reportCanvas.height / reportCanvas.width) * reportImgWidth;
+        
+        let heightLeft = reportImgHeight;
         let position = 10;
         
-        // Добавляем первую страницу
-        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+        pdf.addImage(reportImageData, 'JPEG', 10, position, reportImgWidth, reportImgHeight);
         heightLeft -= pdfHeight - 20;
         
-        // Добавляем следующие страницы, если нужно
         while (heightLeft > 0) {
-            position = heightLeft - imgHeight + 10;
+            position = heightLeft - reportImgHeight + 10;
             pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+            pdf.addImage(reportImageData, 'JPEG', 10, position, reportImgWidth, reportImgHeight);
             heightLeft -= pdfHeight - 20;
         }
 
@@ -5296,18 +5330,28 @@ async function generateReport() {
         showNotification('❌ Ошибка генерации PDF: ' + error.message, 'error');
     }
 
-    // 6. Удаляем временный контейнер
+    // 9. Восстанавливаем размер карты
+    mapContainer.style.height = originalHeight || '';
+    mapContainer.style.width = originalWidth || '';
+    if (mapInstance) {
+        setTimeout(() => mapInstance.invalidateSize(), 100);
+    }
+
+    // 10. Удаляем временный контейнер
     document.body.removeChild(reportContainer);
 }
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ СКРИПТОВ
+// ============================================================
+
 function loadScript(src) {
     return new Promise((resolve, reject) => {
-        // Проверяем, не загружен ли уже скрипт
         const existing = document.querySelector(`script[src="${src}"]`);
         if (existing) {
             resolve();
             return;
         }
-        
         const script = document.createElement('script');
         script.src = src;
         script.onload = resolve;
