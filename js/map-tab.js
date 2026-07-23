@@ -27,37 +27,37 @@ let isHeatmapEnabled = false;
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
-    // Меняем стиль кнопки (ищем новую кнопку в хедере)
     const btn = document.getElementById('heatmap-toggle-btn-header');
     if (btn) {
         if (isHeatmapEnabled) {
-            btn.style.background = '#7c3aed';
-            btn.style.color = 'white';
-            btn.style.borderColor = '#7c3aed';
-            btn.textContent = 'Heatmap включен';
+            btn.style.background = '#dcfce7';
+            btn.style.color = '#166534';
+            btn.style.borderColor = '#86efac';
+            btn.textContent = '🌡️ Heatmap';
         } else {
-            btn.style.background = '#f3e8ff';
-            btn.style.color = '#7c3aed';
-            btn.style.borderColor = '#d8b4fe';
-            btn.textContent = 'Тепловая карта';
+            btn.style.background = '#e0f2fe';
+            btn.style.color = '#0284c7';
+            btn.style.borderColor = '#bae6fd';
+            btn.textContent = '🌡️ Тепловая карта';
         }
     }
     
-    // Также обновляем кнопку в панели статистики (если она осталась)
     const btnOld = document.getElementById('heatmap-toggle-btn');
     if (btnOld) {
         if (isHeatmapEnabled) {
-            btnOld.style.background = '#8b5cf6';
-            btnOld.style.color = 'white';
-            btnOld.textContent = 'Heatmap включен';
+            btnOld.style.background = '#dcfce7';
+            btnOld.style.color = '#166534';
+            btnOld.textContent = '🌡️ Heatmap';
         } else {
             btnOld.style.background = '#f1f5f9';
             btnOld.style.color = '#475569';
-            btnOld.textContent = '🌡️ Heatmap';
+            btnOld.textContent = '🌡️ Тепловая карта';
         }
     }
     
     renderMapLevel(currentLevel, currentParentId);
+    
+    console.log(`🌡️ Тепловая карта ${isHeatmapEnabled ? 'ВКЛЮЧЕНА' : 'ВЫКЛЮЧЕНА'}`);
 }
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
@@ -3892,28 +3892,28 @@ function addMapLegend() {
     
     // ✅ Если включен Heatmap — показываем легенду УПРС vs УПКС
     if (isHeatmapEnabled) {
-     legend.innerHTML = `
-    <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-        УПРС vs УПКС
-    </div>
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-        <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
-        <span style="color:#475569;">УПРС ≈ УПКС (≤5%)</span>
-    </div>
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-        <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f97316;"></span>
-        <span style="color:#475569;">Отклонение 5-20%</span>
-    </div>
-    <div style="display:flex; align-items:center; gap:8px;">
-        <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
-        <span style="color:#475569;">Отклонение &gt;20%</span>
-    </div>
-`;
+        legend.innerHTML = `
+            <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
+                УПРС vs УПКС
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
+                <span style="color:#475569;">УПРС ≈ УПКС (≤5%)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#f97316;"></span>
+                <span style="color:#475569;">Отклонение 5-20%</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#ef4444;"></span>
+                <span style="color:#475569;">Отклонение &gt;20%</span>
+            </div>
+        `;
     } else {
         // ❌ Обычный режим: легенда по количеству сделок
         legend.innerHTML = `
             <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                📊 Сделки в квартале
+                Сделки в квартале
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                 <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
