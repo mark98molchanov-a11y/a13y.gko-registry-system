@@ -5107,10 +5107,66 @@ function loadScript(src) {
 
 async function generateReport() {
     console.log('📄 Генерация отчета в DOCX...');
+    console.log('➡️ Шаг 1: Начало функции');
 
     try {
-        // ✅ ИСПОЛЬЗУЕМ ПРЯМОЙ URL
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = await import('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js');
+        console.log('➡️ Шаг 2: Попытка загрузки docx...');
+        
+        let docxModule = null;
+        
+        // Способ 1: через import с прямым URL
+        try {
+            console.log('➡️ Способ 1: import cdn...');
+            docxModule = await import('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js');
+            console.log('✅ Способ 1 сработал!');
+        } catch(e1) {
+            console.log('⚠️ Способ 1 не сработал:', e1.message);
+            
+            // Способ 2: через unpkg
+            try {
+                console.log('➡️ Способ 2: import unpkg...');
+                docxModule = await import('https://unpkg.com/docx@8.2.2/build/index.js');
+                console.log('✅ Способ 2 сработал!');
+            } catch(e2) {
+                console.log('⚠️ Способ 2 не сработал:', e2.message);
+                
+                // Способ 3: через loadScript
+                console.log('➡️ Способ 3: loadScript...');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/docx/8.2.2/docx.min.js');
+                if (typeof window.docx !== 'undefined') {
+                    docxModule = window.docx;
+                    console.log('✅ Способ 3 сработал!');
+                } else {
+                    console.log('⚠️ Способ 3 не сработал');
+                    // Способ 4: другой CDN
+                    console.log('➡️ Способ 4: другой CDN...');
+                    await loadScript('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.umd.min.js');
+                    if (typeof window.docx !== 'undefined') {
+                        docxModule = window.docx;
+                        console.log('✅ Способ 4 сработал!');
+                    }
+                }
+            }
+        }
+        
+        if (!docxModule) {
+            console.log('❌ Все способы загрузки не сработали!');
+            showNotification('❌ Не удалось загрузить библиотеку docx', 'error');
+            return;
+        }
+        
+        console.log('➡️ Шаг 3: Библиотека загружена, извлекаем классы...');
+        console.log('Доступно в модуле:', Object.keys(docxModule));
+        
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = docxModule;
+        
+        if (!Document) {
+            console.log('❌ Класс Document не найден!');
+            showNotification('❌ Ошибка: Document не найден в библиотеке', 'error');
+            return;
+        }
+        
+        console.log('✅ Все классы получены!');
 
         // 2. Собираем данные
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
@@ -5135,6 +5191,8 @@ async function generateReport() {
             const items = quartersList.querySelectorAll('div');
             quarterItems = Array.from(items).slice(0, 15);
         }
+
+        console.log('➡️ Шаг 4: Создаём документ...');
 
         // 3. Создаём документ
         const doc = new Document({
@@ -5346,6 +5404,8 @@ async function generateReport() {
             }],
         });
 
+        console.log('➡️ Шаг 5: Документ создан, сохраняем...');
+
         // 4. Сохраняем DOCX
         showNotification('📄 Формирование DOCX...', 'info');
         const blob = await Packer.toBlob(doc);
@@ -5357,9 +5417,11 @@ async function generateReport() {
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
         showNotification('✅ Отчёт сформирован!', 'success');
+        console.log('✅ Готово!');
 
     } catch (error) {
         console.error('❌ Ошибка:', error);
+        console.error('❌ Стек ошибки:', error.stack);
         showNotification('❌ Ошибка: ' + error.message, 'error');
     }
 }
