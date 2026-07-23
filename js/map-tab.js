@@ -5109,8 +5109,8 @@ async function generateReport() {
     console.log('📄 Генерация отчета в DOCX...');
 
     try {
-        // Загружаем через import (работает с importmap)
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = await import('docx');
+        // ✅ ИСПОЛЬЗУЕМ ПРЯМОЙ URL
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } = await import('https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js');
 
         // 2. Собираем данные
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
