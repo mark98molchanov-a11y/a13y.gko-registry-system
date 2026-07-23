@@ -5141,9 +5141,32 @@ async function generateReport() {
         const statWithDeals = document.getElementById('stat-with-deals')?.textContent || '0';
         const filtersText = document.getElementById('active-filters-list')?.textContent || 'все';
         const filterDetails = filtersText !== '—' ? filtersText : 'нет';
+        
+        // ✅ ПОЛУЧАЕМ НАЗВАНИЕ РАЙОНА
+        let districtName = '—';
+        const breadcrumb = document.getElementById('map-breadcrumb');
+        if (breadcrumb) {
+            const spans = breadcrumb.querySelectorAll('span');
+            if (spans.length >= 2) {
+                districtName = spans[spans.length - 1].textContent.trim();
+            }
+        }
+
+        // ✅ ВЫЧИСЛЯЕМ РАЗНИЦУ МЕЖДУ УПРС И УПКС
+        let uprsNum = parseFloat(String(statUprs).replace(/[^\d.,-]/g, '').replace(',', '.'));
+        let upksNum = parseFloat(String(statUpks).replace(/[^\d.,-]/g, '').replace(',', '.'));
+        
+        let diffAbs = '—';
+        let diffPercent = '—';
+        
+        if (!isNaN(uprsNum) && !isNaN(upksNum) && uprsNum > 0 && upksNum > 0) {
+            const diff = uprsNum - upksNum;
+            diffAbs = diff.toFixed(2) + ' ₽/м²';
+            diffPercent = ((diff / upksNum) * 100).toFixed(1) + '%';
+        }
 
         // ============================================================
-        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (УВЕЛИЧЕННОЕ)
+        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ
         // ============================================================
         async function loadImageAsArrayBuffer(url) {
             return new Promise((resolve, reject) => {
@@ -5187,7 +5210,7 @@ async function generateReport() {
                     text: String(text), 
                     size: size, 
                     bold: bold, 
-                    color: color,  // <--- ЧЁРНЫЙ #1e293b
+                    color: color,
                     font: 'Arial' 
                 })],
                 alignment: align,
@@ -5222,13 +5245,10 @@ async function generateReport() {
                         children: [
                             new Paragraph({
                                 children: [
-                                    // ==========================================
-                                    // 🔥 ИЗОБРАЖЕНИЕ (180x60 - УВЕЛИЧЕНО)
-                                    // ==========================================
                                     ...(logoImageData ? [
                                         new ImageRun({ 
                                             data: logoImageData, 
-                                            transformation: { width: 100, height: 75 },  // <--- УВЕЛИЧЕНО!
+                                            transformation: { width: 100, height: 75 },
                                             type: 'image/webp' 
                                         })
                                     ] : []),
@@ -5270,7 +5290,7 @@ async function generateReport() {
                 },
                 children: [
                     // ==========================================================
-                    // ЗАГОЛОВОК (исправлено на ЧЕРНЫЙ)
+                    // ЗАГОЛОВОК
                     // ==========================================================
                     new Paragraph({
                         children: [new TextRun({ text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА', size: 32, bold: true, color: '1e293b', font: 'Arial' })],
@@ -5279,7 +5299,7 @@ async function generateReport() {
                     }),
 
                     // ==========================================================
-                    // 1. ИНФОРМАЦИЯ ОБ ОТЧЕТЕ (исправлено на ЧЕРНЫЙ)
+                    // 1. ИНФОРМАЦИЯ ОБ ОТЧЕТЕ
                     // ==========================================================
                     new Paragraph({
                         children: [new TextRun({ text: '1. Информация об отчете', size: 20, bold: true, color: '1e293b', font: 'Arial' })],
@@ -5299,10 +5319,10 @@ async function generateReport() {
                             }),
                             new TableRow({
                                 children: [
+                                    makeCell('Район', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(districtName, 20, true, '1e293b', AlignmentType.CENTER, 25),
                                     makeCell('Дата', 14, false, '1e293b', AlignmentType.CENTER, 25),
                                     makeCell(new Date().toLocaleDateString('ru-RU'), 20, true, '1e293b', AlignmentType.CENTER, 25),
-                                    makeCell('Время', 14, false, '1e293b', AlignmentType.CENTER, 25),
-                                    makeCell(new Date().toLocaleTimeString('ru-RU'), 20, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                         ]
@@ -5311,7 +5331,7 @@ async function generateReport() {
                     new Paragraph({ spacing: { after: 300 } }),
 
                     // ==========================================================
-                    // 2. СТАТИСТИКА СДЕЛОК (исправлено на ЧЕРНЫЙ)
+                    // 2. СТАТИСТИКА СДЕЛОК
                     // ==========================================================
                     new Paragraph({
                         children: [new TextRun({ text: '2. Статистика сделок', size: 20, bold: true, color: '1e293b', font: 'Arial' })],
@@ -5345,13 +5365,22 @@ async function generateReport() {
                                     makeCell(statMinMax, 20, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
+                            // ✅ НОВАЯ СТРОКА: РАЗНИЦА МЕЖДУ УПРС И УПКС
+                            new TableRow({
+                                children: [
+                                    makeCell('Разница УПРС - УПКС', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(diffAbs, 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Разница (%)', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(diffPercent, 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                ]
+                            }),
                         ]
                     }),
 
                     new Paragraph({ spacing: { after: 350 } }),
 
                     // ==========================================================
-                    // РЕЗУЛЬТАТ (исправлено на ЧЕРНЫЙ)
+                    // РЕЗУЛЬТАТ
                     // ==========================================================
                     new Paragraph({
                         children: [new TextRun({ text: 'РЕЗУЛЬТАТ', size: 24, bold: true, color: '1e293b', font: 'Arial' })],
@@ -5372,6 +5401,16 @@ async function generateReport() {
                         children: [
                             new TextRun({ text: '• ', size: 20, bold: false, color: '1e293b', font: 'Arial' }),
                             new TextRun({ text: `УПКС = ${statUpks}`, size: 20, bold: true, color: '1e293b', font: 'Arial' })
+                        ],
+                        alignment: AlignmentType.LEFT,
+                        spacing: { after: 20 }
+                    }),
+
+                    // ✅ НОВАЯ СТРОКА: РАЗНИЦА В РЕЗУЛЬТАТЕ
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: '• ', size: 20, bold: false, color: '1e293b', font: 'Arial' }),
+                            new TextRun({ text: `Разница = ${diffAbs} (${diffPercent})`, size: 20, bold: true, color: '1e293b', font: 'Arial' })
                         ],
                         alignment: AlignmentType.LEFT,
                         spacing: { after: 200 }
