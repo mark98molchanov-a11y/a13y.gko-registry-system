@@ -5082,6 +5082,241 @@ legend.innerHTML = `
         mapContainer.appendChild(legend);
     }
 }
+async function generateReport() {
+    console.log('📄 Генерация отчета...');
+
+    // 1. Проверяем, загружены ли библиотеки
+    if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+        console.log('⏳ Загрузка библиотек html2canvas и jsPDF...');
+        showNotification('⏳ Загрузка библиотек для PDF...', 'info');
+        
+        try {
+            // Загружаем html2canvas
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+            // Загружаем jsPDF
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+            console.log('✅ Библиотеки загружены');
+            showNotification('✅ Библиотеки загружены, формируем отчет...', 'success');
+        } catch (error) {
+            console.error('❌ Ошибка загрузки библиотек:', error);
+            showNotification('❌ Ошибка загрузки библиотек для PDF', 'error');
+            return;
+        }
+    }
+
+    // 2. Находим элементы для захвата
+    const mapContainer = document.getElementById('map-container');
+    const statsPanel = document.querySelector('.flex.flex-col.gap-2[style*="min-width: 140px; max-width: 160px;"]');
+    
+    if (!mapContainer) {
+        showNotification('❌ Контейнер карты не найден', 'error');
+        return;
+    }
+
+    // 3. Создаем временный контейнер для отчета
+    const reportContainer = document.createElement('div');
+    reportContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 1200px;
+        background: white;
+        padding: 30px;
+        z-index: -1000;
+        opacity: 0;
+        pointer-events: none;
+        font-family: 'Inter', sans-serif;
+    `;
+    document.body.appendChild(reportContainer);
+
+    // 4. Формируем содержимое отчета
+    const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
+    const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
+    
+    // Получаем данные из статистики
+    const statMedian = document.getElementById('stat-median')?.textContent || '—';
+    const statMinMax = document.getElementById('stat-minmax')?.textContent || '—';
+    const statUprs = document.getElementById('stat-uprs')?.textContent || '—';
+    const statUpks = document.getElementById('stat-upks')?.textContent || '—';
+    const statTotalDeals = document.getElementById('stat-total-deals')?.textContent || '0';
+    const statCadCost = document.getElementById('stat-cadcost')?.textContent || '—';
+
+    // Копируем карту внутрь отчета
+    const mapClone = mapContainer.cloneNode(true);
+    mapClone.style.height = '500px';
+    mapClone.style.width = '100%';
+    mapClone.style.position = 'relative';
+    mapClone.style.overflow = 'hidden';
+    mapClone.style.borderRadius = '12px';
+    mapClone.style.border = '1px solid #e2e8f0';
+
+    // Копируем статистику
+    const statsClone = statsPanel ? statsPanel.cloneNode(true) : null;
+    if (statsClone) {
+        statsClone.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-top: 16px;
+        `;
+    }
+
+    // Собираем HTML отчета
+    const reportHTML = `
+        <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px;">
+                <div>
+                    <h1 style="font-size: 24px; font-weight: 700; color: #0c4a6e; margin: 0;">Отчет по кадастровой оценке</h1>
+                    <p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">Уровень: ${currentLevelName}</p>
+                </div>
+                <div style="text-align: right;">
+                    <p style="color: #64748b; font-size: 12px; margin: 0;">Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
+                    <p style="color: #64748b; font-size: 12px; margin: 0;">Время: ${new Date().toLocaleTimeString('ru-RU')}</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📊 Статистика сделок</h2>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div><span style="color: #94a3b8; font-size: 11px;">Медианная цена</span><br><strong style="font-size: 16px;">${statMedian}</strong></div>
+                    <div><span style="color: #94a3b8; font-size: 11px;">Кад. стоимость (медиана)</span><br><strong style="font-size: 16px;">${statCadCost}</strong></div>
+                    <div><span style="color: #94a3b8; font-size: 11px;">УПРС (медиана)</span><br><strong style="font-size: 16px;">${statUprs}</strong></div>
+                    <div><span style="color: #94a3b8; font-size: 11px;">УПКС (медиана)</span><br><strong style="font-size: 16px;">${statUpks}</strong></div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; background: #f8fafc; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div><span style="color: #94a3b8; font-size: 11px;">Всего сделок</span><br><strong style="font-size: 16px;">${statTotalDeals}</strong></div>
+                    <div><span style="color: #94a3b8; font-size: 11px;">Мин / Макс</span><br><strong style="font-size: 16px;">${statMinMax}</strong></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">🗺️ Карта</h2>
+                <div id="report-map-placeholder" style="height: 500px; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; background: #e8ecf0;">
+                    <!-- Сюда копируется карта -->
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h2 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📋 Список сделок</h2>
+                <div id="report-table-placeholder" style="max-height: 400px; overflow: hidden; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <!-- Сюда копируется таблица -->
+                </div>
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px;">
+                Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
+            </div>
+        </div>
+    `;
+
+    reportContainer.innerHTML = reportHTML;
+
+    // Вставляем клон карты
+    const mapPlaceholder = reportContainer.querySelector('#report-map-placeholder');
+    if (mapPlaceholder) {
+        mapPlaceholder.appendChild(mapClone);
+    }
+
+    // Вставляем клон таблицы
+    const tablePlaceholder = reportContainer.querySelector('#report-table-placeholder');
+    if (tablePlaceholder) {
+        const tableContainer = document.getElementById('deals-table-container');
+        if (tableContainer) {
+            const tableClone = tableContainer.cloneNode(true);
+            tableClone.style.maxHeight = '400px';
+            tableClone.style.overflow = 'auto';
+            tableClone.style.borderRadius = '8px';
+            tablePlaceholder.appendChild(tableClone);
+        }
+    }
+
+    // Ждем рендеринга
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 5. Генерируем PDF
+    try {
+        showNotification('📄 Генерация PDF...', 'info');
+        
+        const canvas = await html2canvas(reportContainer, {
+            scale: 1.5,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            width: 1200,
+            height: reportContainer.scrollHeight,
+            windowHeight: reportContainer.scrollHeight,
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        
+        // Создаем PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        // Рассчитываем размеры
+        const imgWidth = pdfWidth - 20;
+        const imgHeight = (canvas.height / canvas.width) * imgWidth;
+        
+        let heightLeft = imgHeight;
+        let position = 10;
+        
+        // Добавляем первую страницу
+        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight - 20;
+        
+        // Добавляем следующие страницы, если нужно
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight + 10;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight - 20;
+        }
+
+        // Сохраняем PDF
+        const fileName = `Отчет_по_кадастровой_оценке_${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(fileName);
+        
+        showNotification('✅ Отчет успешно сформирован!', 'success');
+        console.log('✅ PDF сгенерирован и сохранен');
+        
+    } catch (error) {
+        console.error('❌ Ошибка генерации PDF:', error);
+        showNotification('❌ Ошибка генерации PDF: ' + error.message, 'error');
+    }
+
+    // 6. Удаляем временный контейнер
+    document.body.removeChild(reportContainer);
+}
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        // Проверяем, не загружен ли уже скрипт
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
+    });
+}
+window.generateReport = generateReport;
+window.loadScript = loadScript;
 console.log('✅ map-tab.js загружен');
 (function autoCenterOnLoad() {
     // Проверяем, что mapInstance существует
