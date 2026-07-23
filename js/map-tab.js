@@ -5109,22 +5109,24 @@ async function generateReport() {
         return;
     }
 
-    // 3. Сохраняем текущий размер карты
+    // 3. Сохраняем текущие настройки карты
     const originalHeight = mapContainer.style.height;
     const originalWidth = mapContainer.style.width;
+    const originalZoom = mapInstance ? mapInstance.getZoom() : 5;
+    const originalCenter = mapInstance ? mapInstance.getCenter() : [66.0, 76.0];
     
-    // Устанавливаем фиксированный размер для захвата
+    // Устанавливаем размер для захвата
     mapContainer.style.height = '700px';
     mapContainer.style.width = '100%';
     
-    // Принудительно обновляем размер карты
+    // Принудительно обновляем карту
     if (mapInstance) {
+        mapInstance.setView(originalCenter, Math.min(originalZoom, 7));
         mapInstance.invalidateSize();
-        // Небольшая задержка для перерисовки
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // 4. Создаем временный контейнер для отчета (ТОЛЬКО ДЛЯ СТАТИСТИКИ И ТАБЛИЦЫ)
+    // 4. Создаем временный контейнер для отчета
     const reportContainer = document.createElement('div');
     reportContainer.style.cssText = `
         position: fixed;
@@ -5140,7 +5142,7 @@ async function generateReport() {
     `;
     document.body.appendChild(reportContainer);
 
-    // 5. Формируем HTML отчета (БЕЗ КЛОНА КАРТЫ)
+    // 5. Формируем HTML отчета
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
     const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
     
@@ -5152,14 +5154,14 @@ async function generateReport() {
     const statTotalDeals = document.getElementById('stat-total-deals')?.textContent || '0';
     const statCadCost = document.getElementById('stat-cadcost')?.textContent || '—';
     
-    // Получаем список кварталов со сделками
+    // Получаем список кварталов
     const quartersList = document.getElementById('quarters-list');
     let quartersHtml = '';
     if (quartersList) {
         quartersHtml = quartersList.innerHTML;
     }
 
-    // Собираем HTML отчета (БЕЗ КАРТЫ)
+    // Собираем HTML отчета
     const reportHTML = `
         <div style="padding: 20px; max-width: 1100px; margin: 0 auto;">
             <!-- ЗАГОЛОВОК -->
@@ -5233,19 +5235,82 @@ async function generateReport() {
     // Ждем рендеринга
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    // 6. Делаем скриншот КАРТЫ (реальной, а не клона)
-    const mapCanvas = await html2canvas(mapContainer, {
-        scale: 1.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#e8ecf0',
-        logging: false,
-        width: mapContainer.scrollWidth,
-        height: mapContainer.scrollHeight,
-    });
-    const mapImageData = mapCanvas.toDataURL('image/jpeg', 0.9);
+    // ===== 6. ЗАХВАТ КАРТЫ ЧЕРЕЗ LEAFET-IMAGE =====
+    let mapImageData = null;
+    
+    // Пытаемся загрузить leaflet-image
+    if (typeof leafletImage === 'undefined') {
+        console.log('⏳ Загрузка leaflet-image...');
+        try {
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet-image/0.4.0/leaflet-image.min.js');
+            console.log('✅ leaflet-image загружен');
+        } catch (e) {
+            console.warn('⚠️ Не удалось загрузить leaflet-image:', e);
+        }
+    }
+    
+    // Используем leafletImage если доступен
+    if (typeof leafletImage !== 'undefined' && mapInstance) {
+        console.log('📸 Захват карты через leafletImage...');
+        try {
+            mapImageData = await new Promise((resolve, reject) => {
+                leafletImage(mapInstance, function(err, canvas) {
+                    if (err) {
+                        console.warn('⚠️ leafletImage ошибка:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ leafletImage успешно захватил карту');
+                        resolve(canvas.toDataURL('image/jpeg', 0.9));
+                    }
+                });
+            });
+        } catch (e) {
+            console.warn('⚠️ leafletImage не сработал, используем fallback:', e);
+            mapImageData = null;
+        }
+    }
+    
+    // Fallback: используем html2canvas для захвата карты
+    if (!mapImageData) {
+        console.log('📸 Fallback: захват карты через html2canvas...');
+        try {
+            // Делаем скриншот КАРТЫ
+            const mapCanvas = await html2canvas(mapContainer, {
+                scale: 1.5,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#e8ecf0',
+                logging: false,
+                width: mapContainer.scrollWidth,
+                height: mapContainer.scrollHeight,
+                onclone: function(clonedDoc) {
+                    // В clonedDoc карта уже должна быть отрендерена
+                    console.log('🔄 Клон документа создан для html2canvas');
+                }
+            });
+            mapImageData = mapCanvas.toDataURL('image/jpeg', 0.9);
+            console.log('✅ html2canvas захватил карту');
+        } catch (e) {
+            console.error('❌ Ошибка захвата карты через html2canvas:', e);
+            // Создаем заглушку
+            const fallbackCanvas = document.createElement('canvas');
+            fallbackCanvas.width = 1200;
+            fallbackCanvas.height = 800;
+            const ctx = fallbackCanvas.getContext('2d');
+            ctx.fillStyle = '#e8ecf0';
+            ctx.fillRect(0, 0, 1200, 800);
+            ctx.fillStyle = '#475569';
+            ctx.font = '24px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('⚠️ Карта не доступна для захвата', 600, 400);
+            ctx.font = '16px Inter, sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('Пожалуйста, повторите попытку или обновите страницу', 600, 440);
+            mapImageData = fallbackCanvas.toDataURL('image/jpeg', 0.9);
+        }
+    }
 
-    // 7. Делаем скриншот ОТЧЕТА (без карты)
+    // ===== 7. ЗАХВАТ ОТЧЕТА =====
     const reportCanvas = await html2canvas(reportContainer, {
         scale: 1.5,
         useCORS: true,
@@ -5258,7 +5323,7 @@ async function generateReport() {
     });
     const reportImageData = reportCanvas.toDataURL('image/jpeg', 0.95);
 
-    // 8. Создаем PDF
+    // ===== 8. СОЗДАНИЕ PDF =====
     try {
         showNotification('📄 Генерация PDF...', 'info');
         
@@ -5274,7 +5339,7 @@ async function generateReport() {
         
         // ===== СТРАНИЦА 1: КАРТА =====
         const mapImgWidth = pdfWidth - 20;
-        const mapImgHeight = (mapCanvas.height / mapCanvas.width) * mapImgWidth;
+        const mapImgHeight = (mapContainer.offsetHeight / mapContainer.offsetWidth) * mapImgWidth;
         
         // Заголовок страницы
         pdf.setFontSize(16);
@@ -5283,22 +5348,11 @@ async function generateReport() {
         pdf.setFontSize(10);
         pdf.setTextColor(100, 116, 139);
         pdf.text(`Уровень: ${currentLevelName} | ${new Date().toLocaleDateString('ru-RU')}`, 10, 28);
+        pdf.text(`Всего сделок: ${statTotalDeals}`, 10, 36);
         
         // Добавляем карту
-        pdf.addImage(mapImageData, 'JPEG', 10, 34, mapImgWidth, mapImgHeight);
+        pdf.addImage(mapImageData, 'JPEG', 10, 42, mapImgWidth, mapImgHeight);
         
-        // Если карта не помещается на одной странице
-        let remainingHeight = mapImgHeight - (pdfHeight - 34 - 10);
-        if (remainingHeight > 0) {
-            let yOffset = pdfHeight - 34;
-            while (remainingHeight > 0) {
-                pdf.addPage();
-                pdf.addImage(mapImageData, 'JPEG', 10, -yOffset + 10, mapImgWidth, mapImgHeight);
-                remainingHeight -= pdfHeight - 20;
-                yOffset += pdfHeight - 20;
-            }
-        }
-
         // ===== СТРАНИЦА 2+: ОТЧЕТ =====
         pdf.addPage();
         
@@ -5330,14 +5384,15 @@ async function generateReport() {
         showNotification('❌ Ошибка генерации PDF: ' + error.message, 'error');
     }
 
-    // 9. Восстанавливаем размер карты
+    // ===== 9. ВОССТАНАВЛИВАЕМ КАРТУ =====
     mapContainer.style.height = originalHeight || '';
     mapContainer.style.width = originalWidth || '';
     if (mapInstance) {
+        mapInstance.setView(originalCenter, originalZoom);
         setTimeout(() => mapInstance.invalidateSize(), 100);
     }
 
-    // 10. Удаляем временный контейнер
+    // ===== 10. УДАЛЯЕМ ВРЕМЕННЫЙ КОНТЕЙНЕР =====
     document.body.removeChild(reportContainer);
 }
 
@@ -5347,6 +5402,7 @@ async function generateReport() {
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
+        // Проверяем, не загружен ли уже скрипт
         const existing = document.querySelector(`script[src="${src}"]`);
         if (existing) {
             resolve();
@@ -5359,6 +5415,7 @@ function loadScript(src) {
         document.head.appendChild(script);
     });
 }
+
 window.generateReport = generateReport;
 window.loadScript = loadScript;
 console.log('✅ map-tab.js загружен');
