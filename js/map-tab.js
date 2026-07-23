@@ -27,34 +27,39 @@ let isHeatmapEnabled = false;
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
+    // ✅ НАХОДИМ КНОПКУ В ХЕДЕРЕ
     const btn = document.getElementById('heatmap-toggle-btn-header');
     if (btn) {
         if (isHeatmapEnabled) {
+            // ✅ ВКЛЮЧЕНА — зеленый фон (как у ценового фильтра)
+            btn.innerHTML = '🌡️ Тепловая карта';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
-            btn.textContent = '🌡️ Heatmap';
         } else {
+            // ✅ ВЫКЛЮЧЕНА — синий фон (как у ценового фильтра)
+            btn.innerHTML = '🌡️ Тепловая карта';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
             btn.style.borderColor = '#bae6fd';
-            btn.textContent = '🌡️ Тепловая карта';
         }
     }
     
+    // ✅ ОБНОВЛЯЕМ СТАРУЮ КНОПКУ (если осталась)
     const btnOld = document.getElementById('heatmap-toggle-btn');
     if (btnOld) {
         if (isHeatmapEnabled) {
+            btnOld.innerHTML = '🌡️ Тепловая карта';
             btnOld.style.background = '#dcfce7';
             btnOld.style.color = '#166534';
-            btnOld.textContent = '🌡️ Heatmap';
         } else {
+            btnOld.innerHTML = '🌡️ Тепловая карта';
             btnOld.style.background = '#f1f5f9';
             btnOld.style.color = '#475569';
-            btnOld.textContent = '🌡️ Тепловая карта';
         }
     }
     
+    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ С НОВЫМ РЕЖИМОМ
     renderMapLevel(currentLevel, currentParentId);
     
     console.log(`🌡️ Тепловая карта ${isHeatmapEnabled ? 'ВКЛЮЧЕНА' : 'ВЫКЛЮЧЕНА'}`);
@@ -3894,7 +3899,7 @@ function addMapLegend() {
     if (isHeatmapEnabled) {
         legend.innerHTML = `
             <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                УПРС vs УПКС
+                🌡️ УПРС vs УПКС
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                 <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
@@ -3913,7 +3918,7 @@ function addMapLegend() {
         // ❌ Обычный режим: легенда по количеству сделок
         legend.innerHTML = `
             <div style="font-weight:600; font-size:11px; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
-                Сделки в квартале
+                📊 Сделки в квартале
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                 <span style="display:inline-block; width:20px; height:14px; border-radius:4px; background:#22c55e;"></span>
