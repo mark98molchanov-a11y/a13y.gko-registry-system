@@ -5098,27 +5098,23 @@ function loadScript(src) {
 }
 
 async function generateReport() {
-    console.log('📄 Генерация отчета в Word...');
+    console.log('📄 Генерация компактного отчета в Word...');
 
-    // 1. Проверяем, загружена ли библиотека
+    // 1. Проверяем html2canvas
     if (typeof html2canvas === 'undefined') {
-        console.log('⏳ Загрузка html2canvas...');
         showNotification('⏳ Загрузка библиотек...', 'info');
-        
         try {
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-            console.log('✅ html2canvas загружен');
         } catch (error) {
-            console.error('❌ Ошибка загрузки:', error);
             showNotification('❌ Ошибка загрузки библиотек', 'error');
             return;
         }
     }
 
-    // 2. Получаем данные для отчета
+    // 2. Данные для отчёта (компактные)
     const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
     const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
-    
+
     const statMedian = document.getElementById('stat-median')?.textContent || '—';
     const statMinMax = document.getElementById('stat-minmax')?.textContent || '—';
     const statUprs = document.getElementById('stat-uprs')?.textContent || '—';
@@ -5127,454 +5123,233 @@ async function generateReport() {
     const statCadCost = document.getElementById('stat-cadcost')?.textContent || '—';
     const statObjects = document.getElementById('stat-objects')?.textContent || '0';
     const statWithDeals = document.getElementById('stat-with-deals')?.textContent || '0';
+
+    // Активные фильтры (текстом)
     const filtersText = document.getElementById('active-filters-list')?.textContent || 'все';
-    
-    // Получаем список кварталов
+    const filterDetails = filtersText !== '—' ? filtersText : 'нет';
+
+    // Список кварталов (только названия, без сделок)
     const quartersList = document.getElementById('quarters-list');
     let quartersHtml = '';
     if (quartersList) {
-        quartersHtml = quartersList.innerHTML;
+        const items = quartersList.querySelectorAll('div');
+        const limited = Array.from(items).slice(0, 15); // максимум 15 кварталов
+        quartersHtml = limited.map(el => el.innerHTML).join('');
+        if (items.length > 15) {
+            quartersHtml += `<div style="color:#94a3b8;">... и ещё ${items.length - 15} кварталов</div>`;
+        }
     }
 
-    // 3. Создаем контейнер для отчета
+    // 3. Контейнер для отчёта (скрытый)
     const reportContainer = document.createElement('div');
     reportContainer.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 1100px;
-        background: white;
-        padding: 30px;
-        z-index: -1000;
-        opacity: 0;
-        pointer-events: none;
-        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+        position: fixed; top:0; left:0; width:1100px;
+        background:white; padding:30px; z-index:-1000;
+        opacity:0; pointer-events:none;
+        font-family: 'Liberation Sans', 'Arial', sans-serif;
     `;
     document.body.appendChild(reportContainer);
 
-    // 4. Формируем HTML отчета
+    // 4. Захват карты
+    const mapContainer = document.getElementById('map-container');
+    let mapImageData = null;
+    if (mapContainer) {
+        try {
+            const origHeight = mapContainer.style.height;
+            mapContainer.style.height = '500px';
+            if (mapInstance) {
+                mapInstance.invalidateSize();
+                await new Promise(r => setTimeout(r, 300));
+            }
+            const mapCanvas = await html2canvas(mapContainer, {
+                scale: 1.5,
+                useCORS: true,
+                backgroundColor: '#e8ecf0',
+                logging: false,
+            });
+            mapImageData = mapCanvas.toDataURL('image/png');
+            mapContainer.style.height = origHeight || '';
+            if (mapInstance) setTimeout(() => mapInstance.invalidateSize(), 100);
+        } catch (e) {
+            console.warn('⚠️ Карта не захвачена:', e);
+        }
+    }
+
+    // 5. Формируем компактный HTML-отчёт
     const reportHTML = `
-        <!DOCTYPE html>
-        <html>
+        <html xmlns:o="urn:schemas-microsoft-com:office:office"
+              xmlns:w="urn:schemas-microsoft-com:office:word"
+              xmlns="http://www.w3.org/TR/REC-html40">
         <head>
             <meta charset="UTF-8">
+            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+            <!--[if gte mso 9]>
+            <xml>
+                <w:WordDocument>
+                    <w:View>Print</w:View>
+                    <w:Zoom>100</w:Zoom>
+                </w:WordDocument>
+            </xml>
+            <![endif]-->
             <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                body { 
-                    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; 
-                    color: #1e293b; 
-                    background: white;
+                body {
+                    font-family: 'Liberation Sans', 'Arial', sans-serif;
+                    font-size: 14pt;
+                    color: #1e293b;
                     padding: 30px;
+                    line-height: 1.5;
                 }
-                .header { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: center; 
-                    border-bottom: 2px solid #0ea5e9; 
-                    padding-bottom: 16px; 
-                    margin-bottom: 20px; 
+                h1 { font-size: 20pt; font-weight: 700; color: #0c4a6e; margin: 0 0 6px 0; }
+                h2 { font-size: 16pt; font-weight: 600; color: #1e293b; margin: 12px 0 6px 0; }
+                .subtitle { color: #475569; font-size: 13pt; margin: 0 0 4px 0; }
+                .filters { color: #0ea5e9; font-size: 12pt; margin: 0 0 12px 0; }
+                .stat-row {
+                    display: table;
+                    width: 100%;
+                    background: #f8fafc;
+                    padding: 10px 14px;
+                    border: 1px solid #e2e8f0;
+                    margin: 6px 0 10px 0;
+                    border-radius: 4px;
                 }
-                .report-title { font-size: 24px; font-weight: 700; color: #0c4a6e; }
-                .report-subtitle { color: #64748b; font-size: 14px; margin-top: 4px; }
-                .stat-grid { 
-                    display: grid; 
-                    grid-template-columns: repeat(4, 1fr); 
-                    gap: 12px; 
-                    background: #f8fafc; 
-                    padding: 12px 16px; 
-                    border-radius: 8px; 
-                    border: 1px solid #e2e8f0; 
-                    margin-top: 8px; 
+                .stat-cell {
+                    display: table-cell;
+                    width: 25%;
+                    padding: 4px 8px;
                 }
-                .stat-label { color: #94a3b8; font-size: 11px; }
-                .stat-value { font-size: 16px; font-weight: 700; }
-                .section-title { font-size: 16px; font-weight: 600; color: #1e293b; margin: 16px 0 8px 0; }
-                .quarters-box { 
-                    background: #f8fafc; 
-                    padding: 12px 16px; 
-                    border-radius: 8px; 
-                    border: 1px solid #e2e8f0; 
-                    max-height: 200px; 
-                    overflow-y: auto; 
+                .stat-label { color: #94a3b8; font-size: 11pt; }
+                .stat-value { font-size: 16pt; font-weight: 700; }
+                .stat-row2 {
+                    display: table;
+                    width: 100%;
+                    background: #f8fafc;
+                    padding: 6px 14px;
+                    border: 1px solid #e2e8f0;
+                    margin: 6px 0 10px 0;
+                    border-radius: 4px;
+                }
+                .stat-cell2 {
+                    display: table-cell;
+                    width: 50%;
+                    padding: 4px 8px;
+                }
+                .quarters-box {
+                    background: #f8fafc;
+                    padding: 8px 14px;
+                    border: 1px solid #e2e8f0;
+                    margin: 6px 0 10px 0;
+                    border-radius: 4px;
+                    max-height: 180px;
+                    overflow: hidden;
                 }
                 .quarters-box div {
-                    padding: 4px 0;
+                    padding: 3px 0;
                     border-bottom: 1px solid #f1f5f9;
-                    font-size: 12px;
+                    font-size: 12pt;
                 }
-                .quarters-box div:last-child {
-                    border-bottom: none;
-                }
-                .table-box { 
-                    max-height: 400px; 
-                    overflow: auto; 
-                    border-radius: 8px; 
-                    border: 1px solid #e2e8f0; 
-                }
-                .table-box table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 9px;
-                }
-                .table-box th {
-                    background: #f1f5f9;
-                    padding: 6px 6px;
-                    text-align: center;
-                    font-weight: 600;
-                    color: #475569;
-                    border-bottom: 2px solid #e2e8f0;
-                    position: sticky;
-                    top: 0;
-                    z-index: 10;
-                    font-size: 8px;
-                }
-                .table-box td {
-                    padding: 4px 6px;
-                    text-align: center;
-                    border-bottom: 1px solid #f1f5f9;
-                    font-size: 8px;
-                }
-                .table-box tr:nth-child(even) { background: #f8fafc; }
-                .footer { 
-                    margin-top: 24px; 
-                    padding-top: 16px; 
-                    border-top: 1px solid #e2e8f0; 
-                    text-align: center; 
-                    color: #94a3b8; 
-                    font-size: 11px; 
-                }
-                .stat-row2 {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 12px;
-                    margin-top: 8px;
-                    background: #f8fafc;
-                    padding: 8px 16px;
-                    border-radius: 8px;
-                    border: 1px solid #e2e8f0;
-                }
-                .filter-text { color: #64748b; font-size: 12px; margin-top: 2px; }
+                .quarters-box div:last-child { border-bottom: none; }
                 .map-container {
-                    margin: 16px 0;
-                    border-radius: 8px;
-                    overflow: hidden;
+                    margin: 10px 0;
                     border: 1px solid #e2e8f0;
+                    border-radius: 4px;
+                    overflow: hidden;
                 }
-                .map-container img {
+                .map-container img { width: 100%; height: auto; }
+                .footer {
+                    margin-top: 16px;
+                    padding-top: 10px;
+                    border-top: 1px solid #e2e8f0;
+                    text-align: center;
+                    color: #94a3b8;
+                    font-size: 11pt;
+                }
+                .header-table {
                     width: 100%;
-                    height: auto;
-                    display: block;
+                    border-bottom: 2px solid #0ea5e9;
+                    padding-bottom: 10px;
+                    margin-bottom: 14px;
                 }
+                .header-left { text-align: left; }
+                .header-right { text-align: right; font-size: 12pt; color: #64748b; }
+                .note { color: #64748b; font-size: 11pt; margin-top: 4px; }
             </style>
         </head>
         <body>
-            <!-- ЗАГОЛОВОК -->
-            <div class="header">
-                <div>
-                    <h1 class="report-title">Отчет по кадастровой оценке</h1>
-                    <p class="report-subtitle">Уровень: ${currentLevelName}</p>
-                    <p class="filter-text">Фильтры: ${filtersText}</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="color: #64748b; font-size: 12px;">Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
-                    <p style="color: #64748b; font-size: 12px;">Время: ${new Date().toLocaleTimeString('ru-RU')}</p>
-                </div>
-            </div>
-            
-            <!-- СТАТИСТИКА -->
-            <h2 class="section-title">📊 Статистика сделок</h2>
-            <div class="stat-grid">
-                <div><span class="stat-label">Медианная цена</span><br><span class="stat-value">${statMedian}</span></div>
-                <div><span class="stat-label">Кад. стоимость (медиана)</span><br><span class="stat-value">${statCadCost}</span></div>
-                <div><span class="stat-label">УПРС (медиана)</span><br><span class="stat-value">${statUprs}</span></div>
-                <div><span class="stat-label">УПКС (медиана)</span><br><span class="stat-value">${statUpks}</span></div>
+            <table class="header-table">
+                <tr>
+                    <td class="header-left" style="width:70%;">
+                        <h1>Отчёт по кадастровой оценке</h1>
+                        <p class="subtitle">Уровень: ${currentLevelName}</p>
+                        <p class="filters">Фильтры: ${filterDetails}</p>
+                    </td>
+                    <td class="header-right" style="width:30%;">
+                        <p>${new Date().toLocaleDateString('ru-RU')}</p>
+                        <p>${new Date().toLocaleTimeString('ru-RU')}</p>
+                    </td>
+                </tr>
+            </table>
+
+            <h2>📊 Статистика сделок</h2>
+            <div class="stat-row">
+                <div class="stat-cell"><span class="stat-label">Медианная цена</span><br><span class="stat-value">${statMedian}</span></div>
+                <div class="stat-cell"><span class="stat-label">Кад. стоимость (медиана)</span><br><span class="stat-value">${statCadCost}</span></div>
+                <div class="stat-cell"><span class="stat-label">УПРС (медиана)</span><br><span class="stat-value">${statUprs}</span></div>
+                <div class="stat-cell"><span class="stat-label">УПКС (медиана)</span><br><span class="stat-value">${statUpks}</span></div>
             </div>
             <div class="stat-row2">
-                <div><span class="stat-label">Всего сделок</span><br><span class="stat-value">${statTotalDeals}</span></div>
-                <div><span class="stat-label">Мин / Макс</span><br><span class="stat-value">${statMinMax}</span></div>
+                <div class="stat-cell2"><span class="stat-label">Всего сделок</span><br><span class="stat-value">${statTotalDeals}</span></div>
+                <div class="stat-cell2"><span class="stat-label">Мин / Макс</span><br><span class="stat-value">${statMinMax}</span></div>
             </div>
 
-            <!-- КВАРТАЛЫ -->
-            <h2 class="section-title">🏘️ Кварталы со сделками</h2>
+            <h2>🏘️ Кварталы со сделками (${statWithDeals} из ${statObjects})</h2>
             <div class="quarters-box">
-                ${quartersHtml || '<div style="color: #94a3b8;">Нет данных</div>'}
+                ${quartersHtml || '<div style="color:#94a3b8;">Нет данных</div>'}
             </div>
 
-            <!-- ТАБЛИЦА СДЕЛОК -->
-            <h2 class="section-title">📋 Список сделок</h2>
-            <div class="table-box">
-                ${document.getElementById('deals-table-container')?.innerHTML || '<div style="padding: 20px; color: #94a3b8;">Нет данных</div>'}
+            ${mapImageData ? `
+            <h2>🗺️ Карта сделок</h2>
+            <div class="map-container">
+                <img src="${mapImageData}" alt="Карта сделок">
             </div>
+            ` : ''}
 
-            <!-- ПОДВАЛ -->
+            <p class="note">* В отчёте приведена сводная статистика. Полный список сделок доступен в интерфейсе.</p>
+
             <div class="footer">
-                Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
+                Отдел ГКО • База знаний • Данные из открытых источников Росреестра
             </div>
         </body>
         </html>
     `;
 
     reportContainer.innerHTML = reportHTML;
-
-    // 5. Захватываем карту
-    const mapContainer = document.getElementById('map-container');
-    let mapImageData = null;
-    
-    if (mapContainer) {
-        try {
-            // Сохраняем размер
-            const origHeight = mapContainer.style.height;
-            mapContainer.style.height = '600px';
-            if (mapInstance) {
-                mapInstance.invalidateSize();
-                await new Promise(r => setTimeout(r, 300));
-            }
-            
-            const mapCanvas = await html2canvas(mapContainer, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#e8ecf0',
-                logging: false,
-            });
-            mapImageData = mapCanvas.toDataURL('image/png');
-            
-            // Восстанавливаем размер
-            mapContainer.style.height = origHeight || '';
-            if (mapInstance) {
-                setTimeout(() => mapInstance.invalidateSize(), 100);
-            }
-        } catch (e) {
-            console.warn('⚠️ Не удалось захватить карту:', e);
-        }
-    }
-
-    // 6. Вставляем карту в отчет (если есть)
-    if (mapImageData) {
-        const mapPlaceholder = reportContainer.querySelector('.stat-row2');
-        if (mapPlaceholder) {
-            const mapDiv = document.createElement('div');
-            mapDiv.style.cssText = 'grid-column: 1 / -1; margin-top: 12px;';
-            mapDiv.innerHTML = `
-                <h2 class="section-title" style="margin-top:0;">🗺️ Карта сделок</h2>
-                <div class="map-container">
-                    <img src="${mapImageData}" alt="Карта сделок">
-                </div>
-            `;
-            mapPlaceholder.parentNode.insertBefore(mapDiv, mapPlaceholder.nextSibling);
-        }
-    }
-
-    // Ждем рендеринга
     await new Promise(r => setTimeout(r, 300));
 
-    // 7. Создаем Word-документ
+    // 6. Экспорт в Word
     try {
         showNotification('📄 Формирование Word-документа...', 'info');
-        
-        // Собираем полный HTML для Word
-        const fullHtml = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" 
-                  xmlns:w="urn:schemas-microsoft-com:office:word" 
-                  xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-                <meta charset="UTF-8">
-                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-                <!--[if gte mso 9]>
-                <xml>
-                    <w:WordDocument>
-                        <w:View>Print</w:View>
-                        <w:Zoom>100</w:Zoom>
-                    </w:WordDocument>
-                </xml>
-                <![endif]-->
-                <style>
-                    /* Стили для Word */
-                    body { 
-                        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; 
-                        font-size: 11pt;
-                        color: #1e293b;
-                        padding: 40px;
-                        line-height: 1.6;
-                    }
-                    h1 { font-size: 22pt; font-weight: 700; color: #0c4a6e; margin: 0 0 8px 0; }
-                    h2 { font-size: 14pt; font-weight: 600; color: #1e293b; margin: 16px 0 8px 0; }
-                    .subtitle { color: #64748b; font-size: 11pt; margin: 0 0 4px 0; }
-                    .filter-text { color: #64748b; font-size: 10pt; margin: 0 0 16px 0; }
-                    .header-right { text-align: right; font-size: 10pt; color: #64748b; }
-                    .stat-grid { 
-                        display: table;
-                        width: 100%;
-                        background: #f8fafc;
-                        padding: 12px 16px;
-                        border: 1px solid #e2e8f0;
-                        margin: 8px 0;
-                        border-radius: 4px;
-                    }
-                    .stat-cell { 
-                        display: table-cell;
-                        width: 25%;
-                        padding: 4px 8px;
-                    }
-                    .stat-label { color: #94a3b8; font-size: 9pt; }
-                    .stat-value { font-size: 14pt; font-weight: 700; }
-                    .stat-row2 {
-                        display: table;
-                        width: 100%;
-                        background: #f8fafc;
-                        padding: 8px 16px;
-                        border: 1px solid #e2e8f0;
-                        margin: 8px 0;
-                        border-radius: 4px;
-                    }
-                    .stat-cell2 {
-                        display: table-cell;
-                        width: 50%;
-                        padding: 4px 8px;
-                    }
-                    .quarters-box {
-                        background: #f8fafc;
-                        padding: 8px 16px;
-                        border: 1px solid #e2e8f0;
-                        margin: 8px 0;
-                        border-radius: 4px;
-                    }
-                    .quarters-box div {
-                        padding: 4px 0;
-                        border-bottom: 1px solid #f1f5f9;
-                    }
-                    .quarters-box div:last-child { border-bottom: none; }
-                    
-                    .table-box {
-                        border: 1px solid #e2e8f0;
-                        margin: 8px 0;
-                        border-radius: 4px;
-                        overflow-x: auto;
-                    }
-                    table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        font-size: 8pt;
-                    }
-                    th {
-                        background: #f1f5f9;
-                        padding: 6px 8px;
-                        text-align: center;
-                        font-weight: 600;
-                        color: #475569;
-                        border-bottom: 2px solid #e2e8f0;
-                    }
-                    td {
-                        padding: 4px 8px;
-                        text-align: center;
-                        border-bottom: 1px solid #f1f5f9;
-                    }
-                    tr:nth-child(even) { background: #f8fafc; }
-                    .footer {
-                        margin-top: 24px;
-                        padding-top: 16px;
-                        border-top: 1px solid #e2e8f0;
-                        text-align: center;
-                        color: #94a3b8;
-                        font-size: 9pt;
-                    }
-                    .map-container {
-                        margin: 16px 0;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 4px;
-                        overflow: hidden;
-                    }
-                    .map-container img {
-                        width: 100%;
-                        height: auto;
-                    }
-                    .header-table {
-                        width: 100%;
-                        border-bottom: 2px solid #0ea5e9;
-                        padding-bottom: 12px;
-                        margin-bottom: 16px;
-                    }
-                    .header-left { text-align: left; }
-                    .header-right { text-align: right; }
-                </style>
-            </head>
-            <body>
-                <table class="header-table">
-                    <tr>
-                        <td class="header-left" style="width: 70%;">
-                            <h1>Отчет по кадастровой оценке</h1>
-                            <p class="subtitle">Уровень: ${currentLevelName}</p>
-                            <p class="filter-text">Фильтры: ${filtersText}</p>
-                        </td>
-                        <td class="header-right" style="width: 30%;">
-                            <p>Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
-                            <p>Время: ${new Date().toLocaleTimeString('ru-RU')}</p>
-                        </td>
-                    </tr>
-                </table>
-                
-                <h2>📊 Статистика сделок</h2>
-                <div class="stat-grid">
-                    <div class="stat-cell"><span class="stat-label">Медианная цена</span><br><span class="stat-value">${statMedian}</span></div>
-                    <div class="stat-cell"><span class="stat-label">Кад. стоимость (медиана)</span><br><span class="stat-value">${statCadCost}</span></div>
-                    <div class="stat-cell"><span class="stat-label">УПРС (медиана)</span><br><span class="stat-value">${statUprs}</span></div>
-                    <div class="stat-cell"><span class="stat-label">УПКС (медиана)</span><br><span class="stat-value">${statUpks}</span></div>
-                </div>
-                <div class="stat-row2">
-                    <div class="stat-cell2"><span class="stat-label">Всего сделок</span><br><span class="stat-value">${statTotalDeals}</span></div>
-                    <div class="stat-cell2"><span class="stat-label">Мин / Макс</span><br><span class="stat-value">${statMinMax}</span></div>
-                </div>
 
-                <h2>🏘️ Кварталы со сделками</h2>
-                <div class="quarters-box">
-                    ${quartersHtml || '<div style="color: #94a3b8;">Нет данных</div>'}
-                </div>
-
-                ${mapImageData ? `
-                <h2>🗺️ Карта сделок</h2>
-                <div class="map-container">
-                    <img src="${mapImageData}" alt="Карта сделок">
-                </div>
-                ` : ''}
-
-                <h2>📋 Список сделок</h2>
-                <div class="table-box">
-                    ${document.getElementById('deals-table-container')?.innerHTML || '<div style="padding: 20px; color: #94a3b8;">Нет данных</div>'}
-                </div>
-
-                <div class="footer">
-                    Отдел ГКО • База знаний • Данные получены из открытых источников Росреестра
-                </div>
-            </body>
-            </html>
-        `;
-
-        // Создаем Blob с HTML
+        const fullHtml = reportContainer.innerHTML;
         const blob = new Blob([fullHtml], {
             type: 'application/msword;charset=utf-8'
         });
 
-        // Скачиваем файл
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `Отчет_по_кадастровой_оценке_${new Date().toISOString().split('T')[0]}.doc`;
+        link.download = `Отчёт_по_кадастровой_оценке_${new Date().toISOString().split('T')[0]}.doc`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
-        
-        showNotification('✅ Отчет успешно сформирован в Word!', 'success');
-        console.log('✅ Word-документ создан и скачан');
-        
+
+        showNotification('✅ Отчёт сформирован!', 'success');
     } catch (error) {
-        console.error('❌ Ошибка генерации отчета:', error);
+        console.error('❌ Ошибка:', error);
         showNotification('❌ Ошибка: ' + error.message, 'error');
     }
 
-    // 8. Удаляем временный контейнер
     document.body.removeChild(reportContainer);
 }
-
 
 window.generateReport = generateReport;
 window.loadScript = loadScript;
