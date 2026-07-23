@@ -5143,7 +5143,7 @@ async function generateReport() {
         const filterDetails = filtersText !== '—' ? filtersText : 'нет';
 
         // ============================================================
-        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (УВЕЛИЧЕННОЕ В ДЛИНУ)
+        // ЗАГРУЗКА ИЗОБРАЖЕНИЯ (УВЕЛИЧЕННОЕ)
         // ============================================================
         async function loadImageAsArrayBuffer(url) {
             return new Promise((resolve, reject) => {
@@ -5179,7 +5179,7 @@ async function generateReport() {
         } catch(e) {}
 
         // ============================================================
-        // ФУНКЦИИ ДЛЯ ЯЧЕЕК ТАБЛИЦ (Arial, ЧЁРНЫЙ)
+        // ФУНКЦИЯ ДЛЯ ЯЧЕЕК (ЧЁРНЫЙ ЦВЕТ)
         // ============================================================
         function makeCell(text, size = 14, bold = false, color = '1e293b', align = AlignmentType.CENTER, width = 25) {
             const p = new Paragraph({
@@ -5187,7 +5187,7 @@ async function generateReport() {
                     text: String(text), 
                     size: size, 
                     bold: bold, 
-                    color: color,  // ЧЁРНЫЙ (#1e293b)
+                    color: color,  // <--- ЧЁРНЫЙ #1e293b
                     font: 'Arial' 
                 })],
                 alignment: align,
@@ -5223,12 +5223,12 @@ async function generateReport() {
                             new Paragraph({
                                 children: [
                                     // ==========================================
-                                    // 🔥 ИЗОБРАЖЕНИЕ СПРАВА СВЕРХУ (УВЕЛИЧЕННОЕ)
+                                    // 🔥 ИЗОБРАЖЕНИЕ (140x47 -> УВЕЛИЧЕНО)
                                     // ==========================================
                                     ...(logoImageData ? [
                                         new ImageRun({ 
                                             data: logoImageData, 
-                                            transformation: { width: 140, height: 47 }, 
+                                            transformation: { width: 180, height: 60 },  // <--- УВЕЛИЧЕНО!
                                             type: 'image/webp' 
                                         })
                                     ] : []),
@@ -5257,50 +5257,23 @@ async function generateReport() {
                         children: [
                             new Paragraph({
                                 children: [
-                                    new TextRun({ 
-                                        text: 'Страница ', 
-                                        size: 12, 
-                                        color: '94a3b8', 
-                                        font: 'Arial' 
-                                    }),
-                                    new TextRun({ 
-                                        children: [PageNumber.CURRENT], 
-                                        size: 12, 
-                                        color: '94a3b8', 
-                                        font: 'Arial' 
-                                    }),
-                                    new TextRun({ 
-                                        text: ` • ${new Date().toLocaleDateString('ru-RU')}`, 
-                                        size: 12, 
-                                        color: '94a3b8', 
-                                        font: 'Arial' 
-                                    })
+                                    new TextRun({ text: 'Страница ', size: 12, color: '94a3b8', font: 'Arial' }),
+                                    new TextRun({ children: [PageNumber.CURRENT], size: 12, color: '94a3b8', font: 'Arial' }),
+                                    new TextRun({ text: ` • ${new Date().toLocaleDateString('ru-RU')}`, size: 12, color: '94a3b8', font: 'Arial' })
                                 ],
                                 alignment: AlignmentType.CENTER,
                                 spacing: { before: 60 },
-                                border: { 
-                                    top: { 
-                                        style: BorderStyle.SINGLE, 
-                                        size: 1, 
-                                        color: 'e2e8f0' 
-                                    } 
-                                }
+                                border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } }
                             })
                         ]
                     })
                 },
                 children: [
                     // ==========================================================
-                    // ЗАГОЛОВОК (БЕЗ ДЕФИСА, ПО ЦЕНТРУ, ЖИРНЫЙ)
+                    // ЗАГОЛОВОК
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ 
-                            text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА', 
-                            size: 32, 
-                            bold: true, 
-                            color: '0c4a6e', 
-                            font: 'Arial' 
-                        })],
+                        children: [new TextRun({ text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА', size: 32, bold: true, color: '0c4a6e', font: 'Arial' })],
                         alignment: AlignmentType.CENTER,
                         spacing: { after: 250 }
                     }),
@@ -5309,13 +5282,7 @@ async function generateReport() {
                     // 1. ИНФОРМАЦИЯ ОБ ОТЧЕТЕ
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ 
-                            text: '1. Информация об отчете', 
-                            size: 20, 
-                            bold: true, 
-                            color: '0c4a6e', 
-                            font: 'Arial' 
-                        })],
+                        children: [new TextRun({ text: '1. Информация об отчете', size: 20, bold: true, color: '0c4a6e', font: 'Arial' })],
                         spacing: { after: 150 }
                     }),
 
@@ -5324,10 +5291,10 @@ async function generateReport() {
                         rows: [
                             new TableRow({
                                 children: [
-                                    makeCell('Уровень', 14, false, '1e293b', AlignmentType.CENTER, 25),
-                                    makeCell(currentLevelName, 20, true, '1e293b', AlignmentType.CENTER, 25),
-                                    makeCell('Фильтры', 14, false, '1e293b', AlignmentType.CENTER, 25),
-                                    makeCell(filterDetails, 18, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Уровень', 14, false, '1e293b', AlignmentType.CENTER, 25),   // <--- ЧЁРНЫЙ
+                                    makeCell(currentLevelName, 20, true, '1e293b', AlignmentType.CENTER, 25), // <--- ЧЁРНЫЙ
+                                    makeCell('Фильтры', 14, false, '1e293b', AlignmentType.CENTER, 25),      // <--- ЧЁРНЫЙ
+                                    makeCell(filterDetails, 18, true, '1e293b', AlignmentType.CENTER, 25),   // <--- ЧЁРНЫЙ
                                 ]
                             }),
                             new TableRow({
@@ -5347,13 +5314,7 @@ async function generateReport() {
                     // 2. СТАТИСТИКА СДЕЛОК
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ 
-                            text: '2. Статистика сделок', 
-                            size: 20, 
-                            bold: true, 
-                            color: '0c4a6e', 
-                            font: 'Arial' 
-                        })],
+                        children: [new TextRun({ text: '2. Статистика сделок', size: 20, bold: true, color: '0c4a6e', font: 'Arial' })],
                         spacing: { after: 150 }
                     }),
 
@@ -5393,33 +5354,15 @@ async function generateReport() {
                     // РЕЗУЛЬТАТ (СЛЕВА, ЖИРНЫЙ)
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ 
-                            text: 'РЕЗУЛЬТАТ', 
-                            size: 24, 
-                            bold: true, 
-                            color: '0c4a6e', 
-                            font: 'Arial' 
-                        })],
+                        children: [new TextRun({ text: 'РЕЗУЛЬТАТ', size: 24, bold: true, color: '0c4a6e', font: 'Arial' })],
                         alignment: AlignmentType.LEFT,
                         spacing: { after: 80 }
                     }),
 
                     new Paragraph({
                         children: [
-                            new TextRun({ 
-                                text: '• ', 
-                                size: 20, 
-                                bold: false, 
-                                color: '1e293b', 
-                                font: 'Arial' 
-                            }),
-                            new TextRun({ 
-                                text: `УПРС = ${statUprs}`, 
-                                size: 20, 
-                                bold: true,
-                                color: '1e293b', 
-                                font: 'Arial' 
-                            })
+                            new TextRun({ text: '• ', size: 20, bold: false, color: '1e293b', font: 'Arial' }),
+                            new TextRun({ text: `УПРС = ${statUprs}`, size: 20, bold: true, color: '1e293b', font: 'Arial' })
                         ],
                         alignment: AlignmentType.LEFT,
                         spacing: { after: 20 }
@@ -5427,20 +5370,8 @@ async function generateReport() {
 
                     new Paragraph({
                         children: [
-                            new TextRun({ 
-                                text: '• ', 
-                                size: 20, 
-                                bold: false, 
-                                color: '1e293b', 
-                                font: 'Arial' 
-                            }),
-                            new TextRun({ 
-                                text: `УПКС = ${statUpks}`, 
-                                size: 20, 
-                                bold: true,
-                                color: '1e293b', 
-                                font: 'Arial' 
-                            })
+                            new TextRun({ text: '• ', size: 20, bold: false, color: '1e293b', font: 'Arial' }),
+                            new TextRun({ text: `УПКС = ${statUpks}`, size: 20, bold: true, color: '1e293b', font: 'Arial' })
                         ],
                         alignment: AlignmentType.LEFT,
                         spacing: { after: 200 }
