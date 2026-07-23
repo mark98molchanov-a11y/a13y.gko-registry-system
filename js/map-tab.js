@@ -5126,9 +5126,16 @@ async function generateReport() {
             }
         }
         
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, ImageRun, Header, Footer } = docxModule;
+        const { 
+            Document, Packer, Paragraph, TextRun, AlignmentType, 
+            Table, TableRow, TableCell, BorderStyle, WidthType, 
+            ImageRun, Header, Footer, PageNumber, 
+            convertInchesToTwip 
+        } = docxModule;
 
-        // 2. Собираем данные
+        // ============================================================
+        // 1. СОБИРАЕМ ДАННЫЕ
+        // ============================================================
         const levelNames = { 0: 'Округ', 1: 'Район', 2: 'Кварталы' };
         const currentLevelName = levelNames[currentLevel] || 'Неизвестно';
 
@@ -5152,7 +5159,9 @@ async function generateReport() {
             quarterItems = Array.from(items).slice(0, 15);
         }
 
-        // 3. Функция загрузки изображения через Image (обход CORS)
+        // ============================================================
+        // 2. ФУНКЦИЯ ЗАГРУЗКИ ИЗОБРАЖЕНИЯ
+        // ============================================================
         async function loadImageAsArrayBuffer(url) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -5180,9 +5189,10 @@ async function generateReport() {
             });
         }
 
-        // 4. Загружаем изображение из локальной папки
-        // ✅ ИЗМЕНИТЕ ПУТЬ НА ВАШ (если файл .jpg или .png)
-        const logoUrl = './images/logo-mfc.webp';  // или ./images/logo-mfc.jpg
+        // ============================================================
+        // 3. ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ
+        // ============================================================
+        const logoUrl = './images/logo-mfc.webp';  // или .jpg / .png
         let logoImageData = null;
 
         try {
@@ -5191,10 +5201,11 @@ async function generateReport() {
             console.log('✅ Изображение загружено! Размер:', logoImageData.byteLength);
         } catch(e) {
             console.warn('⚠️ Не удалось загрузить изображение:', e.message);
-            // Продолжаем без изображения
         }
 
-        // 5. Создаём элементы для заголовка (с изображением или без)
+        // ============================================================
+        // 4. ФОРМИРУЕМ КОЛОНТИТУЛ (Header)
+        // ============================================================
         const headerChildren = [];
 
         if (logoImageData && logoImageData.byteLength > 100) {
@@ -5206,7 +5217,7 @@ async function generateReport() {
                             width: 120,
                             height: 40,
                         },
-                        type: 'image/webp',  // если .jpg — image/jpeg, если .png — image/png
+                        type: 'image/webp',
                     })
                 );
                 console.log('✅ Изображение добавлено в колонтитул');
@@ -5223,7 +5234,6 @@ async function generateReport() {
                 );
             }
         } else {
-            // Запасной вариант — текст вместо изображения
             headerChildren.push(
                 new TextRun({
                     text: '📋 ГКО',
@@ -5233,7 +5243,7 @@ async function generateReport() {
                     font: 'Arial',
                 })
             );
-            console.log('ℹ️ Используем текстовый логотип (изображение не загружено)');
+            console.log('ℹ️ Используем текстовый логотип');
         }
 
         headerChildren.push(
@@ -5245,7 +5255,236 @@ async function generateReport() {
             })
         );
 
-        // 6. Создаём документ с колонтитулом
+        // ============================================================
+        // 5. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ТАБЛИЦ
+        // ============================================================
+        function createCell(text, options = {}) {
+            const { 
+                bold = false, 
+                size = 18, 
+                color = '1e293b', 
+                align = AlignmentType.LEFT,
+                width = 25,
+                bgColor = null,
+                border = true
+            } = options;
+
+            const paragraphs = [];
+            
+            // Если текст — массив, создаем несколько параграфов
+            if (Array.isArray(text)) {
+                text.forEach((t, index) => {
+                    const p = new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: t.text || '',
+                                size: t.size || size,
+                                bold: t.bold !== undefined ? t.bold : bold,
+                                color: t.color || color,
+                                font: t.font || 'Arial',
+                            })
+                        ],
+                        alignment: t.align || align,
+                        spacing: { after: index < text.length - 1 ? 40 : 0 },
+                    });
+                    paragraphs.push(p);
+                });
+            } else {
+                paragraphs.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: text,
+                                size: size,
+                                bold: bold,
+                                color: color,
+                                font: 'Arial',
+                            })
+                        ],
+                        alignment: align,
+                    })
+                );
+            }
+
+            const cell = new TableCell({
+                children: paragraphs,
+                width: { size: width, type: WidthType.PERCENTAGE },
+            });
+
+            // Настраиваем границы
+            if (border) {
+                cell.borders = {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                };
+            }
+
+            if (bgColor) {
+                cell.shading = {
+                    fill: bgColor,
+                };
+            }
+
+            return cell;
+        }
+
+        function createRow(cells) {
+            return new TableRow({
+                children: cells,
+            });
+        }
+
+        // ============================================================
+        // 6. ФОРМИРУЕМ ТАБЛИЦУ СО СДЕЛКАМИ
+        // ============================================================
+        function buildDealsTable(deals) {
+            if (!deals || deals.length === 0) {
+                return [
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: 'Нет данных о сделках',
+                                size: 18,
+                                color: '94a3b8',
+                                font: 'Arial',
+                            })
+                        ],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 200 },
+                    })
+                ];
+            }
+
+            // Берем первые 15 сделок
+            const displayDeals = deals.slice(0, 15);
+            
+            const rows = [];
+            
+            // Заголовок таблицы
+            const headerCells = [
+                createCell('Кад. номер', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 12, bgColor: 'f8fafc' }),
+                createCell('Площадь', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 6, bgColor: 'f8fafc' }),
+                createCell('Назначение', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 8, bgColor: 'f8fafc' }),
+                createCell('Кад. стоимость', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 8, bgColor: 'f8fafc' }),
+                createCell('УПКС', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 6, bgColor: 'f8fafc' }),
+                createCell('Город', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 8, bgColor: 'f8fafc' }),
+                createCell('Тип сделки', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 8, bgColor: 'f8fafc' }),
+                createCell('Цена', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 8, bgColor: 'f8fafc' }),
+                createCell('УПРС', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 6, bgColor: 'f8fafc' }),
+                createCell('Разница, %', { bold: true, size: 14, color: '475569', align: AlignmentType.CENTER, width: 6, bgColor: 'f8fafc' }),
+            ];
+            rows.push(createRow(headerCells));
+
+            // Данные
+            displayDeals.forEach((deal, index) => {
+                const bgColor = index % 2 === 0 ? 'ffffff' : 'fafafa';
+                
+                const cadCost = deal.cad_cost || 0;
+                const price = deal.deal_price_rub || 0;
+                const diffPercent = cadCost > 0 ? ((cadCost - price) / cadCost * 100) : null;
+                
+                const diffColor = diffPercent !== null 
+                    ? (diffPercent > 0 ? '#22c55e' : diffPercent < 0 ? '#ef4444' : '#64748b')
+                    : '#64748b';
+                
+                const diffText = diffPercent !== null 
+                    ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%'
+                    : '—';
+
+                const cells = [
+                    createCell(deal.cad_number || 'nan', { size: 12, align: AlignmentType.CENTER, width: 12 }),
+                    createCell(deal.area ? deal.area.toFixed(1) : 'nan', { size: 12, align: AlignmentType.CENTER, width: 6 }),
+                    createCell((deal.purpose_text || 'nan').substring(0, 20), { size: 12, align: AlignmentType.CENTER, width: 8 }),
+                    createCell(deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan', { size: 12, align: AlignmentType.CENTER, width: 8 }),
+                    createCell(deal.upks ? deal.upks.toFixed(2) : 'nan', { size: 12, align: AlignmentType.CENTER, width: 6 }),
+                    createCell(deal.city || 'nan', { size: 12, align: AlignmentType.CENTER, width: 8 }),
+                    createCell((deal.deal_kind_text || 'nan').substring(0, 15), { size: 12, align: AlignmentType.CENTER, width: 8 }),
+                    createCell(deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan', { size: 12, align: AlignmentType.CENTER, width: 8 }),
+                    createCell(deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan', { size: 12, align: AlignmentType.CENTER, width: 6 }),
+                    createCell(diffText, { size: 12, align: AlignmentType.CENTER, color: diffColor.replace('#', ''), width: 6 }),
+                ];
+                rows.push(createRow(cells));
+            });
+
+            // Если сделок больше 15 — добавляем примечание
+            if (deals.length > 15) {
+                const noteCells = [
+                    createCell(`Показано первых 15 из ${deals.length} сделок`, { 
+                        size: 12, 
+                        color: '94a3b8', 
+                        align: AlignmentType.CENTER, 
+                        width: 100,
+                        bgColor: 'fafafa'
+                    }),
+                ];
+                rows.push(createRow(noteCells));
+            }
+
+            const table = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: rows,
+                borders: {
+                    insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                    insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' },
+                },
+            });
+
+            return [table];
+        }
+
+        // ============================================================
+        // 7. СОБИРАЕМ СДЕЛКИ ДЛЯ ТАБЛИЦЫ
+        // ============================================================
+        const selectedQuarter = window.selectedQuarterCadNumber || null;
+        
+        let filteredDeals = allDealsFlat.filter(deal => {
+            const isWrapperSelected = selectedQuarter ? (
+                selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
+            ) : false;
+            
+            if (selectedQuarter) {
+                if (isWrapperSelected) {
+                    if (deal.cad_number !== selectedQuarter) return false;
+                } else {
+                    if (deal.cad_number !== selectedQuarter) return false;
+                }
+            } else if (currentDistrictFilter) {
+                const prefix = String(currentDistrictFilter).substring(0, 5);
+                if (!deal.cad_number.startsWith(prefix)) return false;
+            }
+            
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            return true;
+        });
+
+        // Сортируем по разнице (от самой низкой к самой высокой)
+        filteredDeals.sort((a, b) => {
+            const cadCostA = a.cad_cost || 0;
+            const priceA = a.deal_price_rub || 0;
+            const diffA = cadCostA > 0 ? cadCostA - priceA : null;
+            
+            const cadCostB = b.cad_cost || 0;
+            const priceB = b.deal_price_rub || 0;
+            const diffB = cadCostB > 0 ? cadCostB - priceB : null;
+            
+            if (diffA === null && diffB === null) return 0;
+            if (diffA === null) return 1;
+            if (diffB === null) return -1;
+            return diffA - diffB;
+        });
+
+        // ============================================================
+        // 8. ФОРМИРУЕМ ДОКУМЕНТ
+        // ============================================================
         const doc = new Document({
             sections: [{
                 properties: {
@@ -5282,7 +5521,19 @@ async function generateReport() {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: `Страница {PAGE} • Данные из открытых источников Росреестра • ${new Date().toLocaleDateString('ru-RU')}`,
+                                        text: `Страница `,
+                                        size: 16,
+                                        color: '94a3b8',
+                                        font: 'Arial',
+                                    }),
+                                    new TextRun({
+                                        children: [PageNumber.CURRENT],
+                                        size: 16,
+                                        color: '94a3b8',
+                                        font: 'Arial',
+                                    }),
+                                    new TextRun({
+                                        text: ` • Данные из открытых источников Росреестра • ${new Date().toLocaleDateString('ru-RU')}`,
                                         size: 16,
                                         color: '94a3b8',
                                         font: 'Arial',
@@ -5302,7 +5553,9 @@ async function generateReport() {
                     }),
                 },
                 children: [
-                    // ===== ЗАГОЛОВОК =====
+                    // ==========================================================
+                    // ЗАГОЛОВОК
+                    // ==========================================================
                     new Paragraph({
                         children: [
                             new TextRun({
@@ -5317,7 +5570,9 @@ async function generateReport() {
                         spacing: { after: 200 },
                     }),
                     
-                    // ===== ИНФОРМАЦИЯ ОТЧЁТА =====
+                    // ==========================================================
+                    // ИНФОРМАЦИЯ ОТЧЁТА
+                    // ==========================================================
                     new Paragraph({
                         children: [
                             new TextRun({
@@ -5332,6 +5587,7 @@ async function generateReport() {
                         spacing: { after: 200 },
                     }),
 
+                    // Таблица 1: Информация об отчете
                     new Table({
                         width: { size: 100, type: WidthType.PERCENTAGE },
                         borders: {
@@ -5380,9 +5636,11 @@ async function generateReport() {
                         ],
                     }),
 
-                    new Paragraph({ spacing: { after: 400 } }),
+                    new Paragraph({ spacing: { after: 300 } }),
 
-                    // ===== СТАТИСТИКА =====
+                    // ==========================================================
+                    // СТАТИСТИКА
+                    // ==========================================================
                     new Paragraph({
                         children: [
                             new TextRun({
@@ -5396,7 +5654,7 @@ async function generateReport() {
                         spacing: { after: 200 },
                     }),
 
-                    // Основные показатели
+                    // Таблица 2: Основные показатели
                     new Table({
                         width: { size: 100, type: WidthType.PERCENTAGE },
                         borders: {
@@ -5475,9 +5733,11 @@ async function generateReport() {
                         ],
                     }),
 
-                    new Paragraph({ spacing: { after: 400 } }),
+                    new Paragraph({ spacing: { after: 300 } }),
 
-                    // ===== КВАРТАЛЫ =====
+                    // ==========================================================
+                    // КВАРТАЛЫ
+                    // ==========================================================
                     new Paragraph({
                         children: [
                             new TextRun({
@@ -5552,7 +5812,41 @@ async function generateReport() {
 
                     new Paragraph({ spacing: { after: 300 } }),
 
-                    // ===== ПРИМЕЧАНИЕ =====
+                    // ==========================================================
+                    // ТАБЛИЦА СО СДЕЛКАМИ (НОВАЯ)
+                    // ==========================================================
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: '📋  СПИСОК СДЕЛОК',
+                                size: 24,
+                                bold: true,
+                                color: '1e293b',
+                                font: 'Arial',
+                            }),
+                        ],
+                        spacing: { after: 200 },
+                    }),
+
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: `Всего сделок: ${filteredDeals.length}`,
+                                size: 18,
+                                color: '64748b',
+                                font: 'Arial',
+                            }),
+                        ],
+                        spacing: { after: 150 },
+                    }),
+
+                    ...buildDealsTable(filteredDeals),
+
+                    new Paragraph({ spacing: { after: 300 } }),
+
+                    // ==========================================================
+                    // ПРИМЕЧАНИЕ
+                    // ==========================================================
                     new Paragraph({
                         children: [
                             new TextRun({
@@ -5580,7 +5874,9 @@ async function generateReport() {
             }],
         });
 
-        // 7. Сохраняем DOCX
+        // ============================================================
+        // 9. СОХРАНЯЕМ DOCX
+        // ============================================================
         showNotification('📄 Формирование DOCX...', 'info');
         const blob = await Packer.toBlob(doc);
         const link = document.createElement('a');
