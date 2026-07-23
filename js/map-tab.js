@@ -5082,6 +5082,35 @@ legend.innerHTML = `
         mapContainer.appendChild(legend);
     }
 }
+async function loadCyrillicFont() {
+    if (window._cyrillicFontLoaded) return;
+    
+    try {
+        console.log('⏳ Загрузка шрифта с поддержкой кириллицы...');
+        
+        // Загружаем шрифт Roboto с поддержкой кириллицы
+        const fontUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/fonts/Roboto-Regular.ttf';
+        const response = await fetch(fontUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Конвертируем в base64
+        const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
+        const fontBase64 = btoa(binary);
+        
+        // Добавляем шрифт в jsPDF
+        const { jsPDF } = window.jspdf;
+        if (jsPDF && jsPDF.API) {
+            jsPDF.API.addFileToVFS('Roboto-Regular.ttf', fontBase64);
+            jsPDF.API.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+            window._cyrillicFontLoaded = true;
+            console.log('✅ Шрифт Roboto загружен');
+        }
+    } catch (e) {
+        console.warn('⚠️ Не удалось загрузить шрифт:', e);
+        window._cyrillicFontLoaded = false;
+    }
+}
+
 async function generateReport() {
     console.log('📄 Генерация отчета...');
 
@@ -5094,11 +5123,20 @@ async function generateReport() {
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
             console.log('✅ Библиотеки загружены');
+            
+            // Загружаем шрифт после jsPDF
+            await loadCyrillicFont();
+            
             showNotification('✅ Библиотеки загружены, формируем отчет...', 'success');
         } catch (error) {
             console.error('❌ Ошибка загрузки библиотек:', error);
             showNotification('❌ Ошибка загрузки библиотек для PDF', 'error');
             return;
+        }
+    } else {
+        // Если библиотеки уже загружены, проверяем шрифт
+        if (!window._cyrillicFontLoaded) {
+            await loadCyrillicFont();
         }
     }
 
@@ -5161,7 +5199,7 @@ async function generateReport() {
         quartersHtml = quartersList.innerHTML;
     }
 
-    // Собираем HTML отчета (с явным указанием кодировки)
+    // Собираем HTML отчета
     const reportHTML = `
         <!DOCTYPE html>
         <html>
@@ -5342,12 +5380,11 @@ async function generateReport() {
         
         const { jsPDF } = window.jspdf;
         
-        // Создаем PDF с поддержкой UTF-8
+        // Создаем PDF
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4',
-            // Используем стандартный шрифт, но с заменой проблемных символов
+            format: 'a4'
         });
 
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -5357,10 +5394,12 @@ async function generateReport() {
         const mapImgWidth = pdfWidth - 20;
         const mapImgHeight = (mapContainer.offsetHeight / mapContainer.offsetWidth) * mapImgWidth;
         
-        // ✅ ИСПОЛЬЗУЕМ ОБЫЧНЫЙ ТЕКСТ С ПРАВИЛЬНОЙ КОДИРОВКОЙ
-        // jsPDF поддерживает UTF-8 через метод text
+        // ✅ ИСПОЛЬЗУЕМ ШРИФТ С ПОДДЕРЖКОЙ КИРИЛЛИЦЫ
+        if (window._cyrillicFontLoaded) {
+            pdf.setFont('Roboto', 'normal');
+        }
         
-        // Заголовок страницы (используем текст с правильной кодировкой)
+        // Заголовок страницы
         pdf.setFontSize(16);
         pdf.setTextColor(12, 74, 110);
         pdf.text('Карта сделок', 10, 20);
@@ -5422,7 +5461,6 @@ async function generateReport() {
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
-        // Проверяем, не загружен ли уже скрипт
         const existing = document.querySelector(`script[src="${src}"]`);
         if (existing) {
             resolve();
@@ -5436,8 +5474,10 @@ function loadScript(src) {
     });
 }
 
+
 window.generateReport = generateReport;
 window.loadScript = loadScript;
+window.loadCyrillicFont = loadCyrillicFont;
 console.log('✅ map-tab.js загружен');
 (function autoCenterOnLoad() {
     // Проверяем, что mapInstance существует
