@@ -5223,7 +5223,7 @@ async function generateReport() {
                             new Paragraph({
                                 children: [
                                     // ==========================================
-                                    // 🔥 ИЗОБРАЖЕНИЕ (140x47 -> УВЕЛИЧЕНО)
+                                    // 🔥 ИЗОБРАЖЕНИЕ (180x60 - УВЕЛИЧЕНО)
                                     // ==========================================
                                     ...(logoImageData ? [
                                         new ImageRun({ 
@@ -5270,19 +5270,19 @@ async function generateReport() {
                 },
                 children: [
                     // ==========================================================
-                    // ЗАГОЛОВОК
+                    // ЗАГОЛОВОК (исправлено на ЧЕРНЫЙ)
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА', size: 32, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        children: [new TextRun({ text: 'АНАЛИТИЧЕСКАЯ ЗАПИСКА', size: 32, bold: true, color: '1e293b', font: 'Arial' })],
                         alignment: AlignmentType.CENTER,
                         spacing: { after: 250 }
                     }),
 
                     // ==========================================================
-                    // 1. ИНФОРМАЦИЯ ОБ ОТЧЕТЕ
+                    // 1. ИНФОРМАЦИЯ ОБ ОТЧЕТЕ (исправлено на ЧЕРНЫЙ)
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ text: '1. Информация об отчете', size: 20, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        children: [new TextRun({ text: '1. Информация об отчете', size: 20, bold: true, color: '1e293b', font: 'Arial' })],
                         spacing: { after: 150 }
                     }),
 
@@ -5291,10 +5291,10 @@ async function generateReport() {
                         rows: [
                             new TableRow({
                                 children: [
-                                    makeCell('Уровень', 14, false, '1e293b', AlignmentType.CENTER, 25),   // <--- ЧЁРНЫЙ
-                                    makeCell(currentLevelName, 20, true, '1e293b', AlignmentType.CENTER, 25), // <--- ЧЁРНЫЙ
-                                    makeCell('Фильтры', 14, false, '1e293b', AlignmentType.CENTER, 25),      // <--- ЧЁРНЫЙ
-                                    makeCell(filterDetails, 18, true, '1e293b', AlignmentType.CENTER, 25),   // <--- ЧЁРНЫЙ
+                                    makeCell('Уровень', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(currentLevelName, 20, true, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell('Фильтры', 14, false, '1e293b', AlignmentType.CENTER, 25),
+                                    makeCell(filterDetails, 18, true, '1e293b', AlignmentType.CENTER, 25),
                                 ]
                             }),
                             new TableRow({
@@ -5311,10 +5311,10 @@ async function generateReport() {
                     new Paragraph({ spacing: { after: 300 } }),
 
                     // ==========================================================
-                    // 2. СТАТИСТИКА СДЕЛОК
+                    // 2. СТАТИСТИКА СДЕЛОК (исправлено на ЧЕРНЫЙ)
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ text: '2. Статистика сделок', size: 20, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        children: [new TextRun({ text: '2. Статистика сделок', size: 20, bold: true, color: '1e293b', font: 'Arial' })],
                         spacing: { after: 150 }
                     }),
 
@@ -5351,10 +5351,10 @@ async function generateReport() {
                     new Paragraph({ spacing: { after: 350 } }),
 
                     // ==========================================================
-                    // РЕЗУЛЬТАТ (СЛЕВА, ЖИРНЫЙ)
+                    // РЕЗУЛЬТАТ (исправлено на ЧЕРНЫЙ)
                     // ==========================================================
                     new Paragraph({
-                        children: [new TextRun({ text: 'РЕЗУЛЬТАТ', size: 24, bold: true, color: '0c4a6e', font: 'Arial' })],
+                        children: [new TextRun({ text: 'РЕЗУЛЬТАТ', size: 24, bold: true, color: '1e293b', font: 'Arial' })],
                         alignment: AlignmentType.LEFT,
                         spacing: { after: 80 }
                     }),
