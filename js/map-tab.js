@@ -5153,35 +5153,84 @@ async function generateReport() {
             quarterItems = Array.from(items).slice(0, 15);
         }
 
-        // 3. Функция для загрузки изображения в base64
-        async function getImageAsBase64(url) {
-            try {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) {
-                console.warn('⚠️ Не удалось загрузить изображение:', e);
-                return null;
-            }
-        }
-
-        // 4. Загружаем изображение для колонтитула
+        // 3. Загружаем изображение для колонтитула через CORS-прокси
         const logoUrl = 'https://mfc.yanao.ru/images/NewImages/4kvmEVkVGdM.jpg';
         let logoImageData = null;
+        
         try {
-            const base64 = await getImageAsBase64(logoUrl);
-            if (base64) {
-                logoImageData = await fetch(base64).then(r => r.arrayBuffer());
-                console.log('✅ Изображение загружено для колонтитула');
+            console.log('➡️ Загрузка изображения через CORS-прокси...');
+            
+            // Используем бесплатный CORS-прокси
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(logoUrl);
+            const response = await fetch(proxyUrl);
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                if (blob.type.startsWith('image/')) {
+                    logoImageData = await blob.arrayBuffer();
+                    console.log('✅ Изображение загружено! Размер:', logoImageData.byteLength);
+                } else {
+                    console.warn('⚠️ Загруженный файл не изображение:', blob.type);
+                }
+            } else {
+                console.warn('⚠️ Не удалось загрузить изображение (HTTP ' + response.status + ')');
             }
         } catch (e) {
-            console.warn('⚠️ Не удалось загрузить изображение для колонтитула:', e);
+            console.warn('⚠️ Ошибка загрузки изображения:', e.message);
+            // Продолжаем без изображения
         }
+
+        // 4. Создаём элементы для заголовка (с изображением или без)
+        const headerChildren = [];
+
+        if (logoImageData && logoImageData.byteLength > 100) {
+            try {
+                headerChildren.push(
+                    new ImageRun({
+                        data: logoImageData,
+                        transformation: {
+                            width: 120,
+                            height: 40,
+                        },
+                        type: 'image/jpeg',
+                    })
+                );
+                console.log('✅ Изображение добавлено в колонтитул');
+            } catch (e) {
+                console.warn('⚠️ Ошибка вставки изображения:', e);
+                // Запасной вариант
+                headerChildren.push(
+                    new TextRun({
+                        text: '🏛️ ГКО',
+                        size: 24,
+                        bold: true,
+                        color: '0c4a6e',
+                        font: 'Arial',
+                    })
+                );
+            }
+        } else {
+            // Запасной вариант — текст вместо изображения
+            headerChildren.push(
+                new TextRun({
+                    text: '🏛️ ГКО',
+                    size: 24,
+                    bold: true,
+                    color: '0c4a6e',
+                    font: 'Arial',
+                })
+            );
+            console.log('ℹ️ Используем текстовый логотип (изображение не загружено)');
+        }
+
+        headerChildren.push(
+            new TextRun({
+                text: '  Отдел ГКО • База знаний',
+                size: 18,
+                color: '94a3b8',
+                font: 'Arial',
+            })
+        );
 
         // 5. Создаём документ с колонтитулом
         const doc = new Document({
@@ -5189,7 +5238,7 @@ async function generateReport() {
                 properties: {
                     page: {
                         margin: {
-                            top: 1800,   // Больше отступ сверху для колонтитула
+                            top: 1800,
                             bottom: 1440,
                             left: 1440,
                             right: 1440,
@@ -5200,24 +5249,7 @@ async function generateReport() {
                     default: new Header({
                         children: [
                             new Paragraph({
-                                children: [
-                                    ...(logoImageData ? [
-                                        new ImageRun({
-                                            data: logoImageData,
-                                            transformation: {
-                                                width: 120,
-                                                height: 40,
-                                            },
-                                            type: 'image/jpeg',
-                                        })
-                                    ] : []),
-                                    new TextRun({
-                                        text: '  Отдел ГКО • База знаний',
-                                        size: 18,
-                                        color: '94a3b8',
-                                        font: 'Arial',
-                                    }),
-                                ],
+                                children: headerChildren,
                                 alignment: AlignmentType.RIGHT,
                                 spacing: { after: 100 },
                                 border: {
@@ -5465,7 +5497,6 @@ async function generateReport() {
                         const col1 = quarterItems.slice(0, half);
                         const col2 = quarterItems.slice(half);
                         
-                        // Максимальное количество строк
                         const maxRows = Math.max(col1.length, col2.length);
                         
                         for (let i = 0; i < maxRows; i++) {
