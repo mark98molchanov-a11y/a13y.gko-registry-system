@@ -409,10 +409,10 @@ function renderPriceChart() {
         const avgUpks = sortedData.reduce((sum, d) => sum + d.upksMedian, 0) / sortedData.length;
         
         statsDiv.innerHTML = `
-            <span>🏙️ Городов: <strong>${chartData.cities.length}</strong></span>
-            <span>📊 Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
-            <span>📈 Средний УПРС: <strong>${avgUprs > 0 ? avgUprs.toFixed(0) : '—'} ₽/м²</strong></span>
-            <span>📊 Средний УПКС: <strong>${avgUpks > 0 ? avgUpks.toFixed(0) : '—'} ₽/м²</strong></span>
+            <span>Городов: <strong>${chartData.cities.length}</strong></span>
+            <span>Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
+            <span>Средний УПРС: <strong>${avgUprs > 0 ? avgUprs.toFixed(0) : '—'} ₽/м²</strong></span>
+            <span>Средний УПКС: <strong>${avgUpks > 0 ? avgUpks.toFixed(0) : '—'} ₽/м²</strong></span>
         `;
     }
 }
