@@ -384,19 +384,23 @@ function renderPriceChart() {
     });
     
     // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
-    const statsDiv = document.getElementById('price-chart-stats');
-    if (statsDiv) {
-        const totalDeals = sortedData.reduce((sum, d) => sum + d.count, 0);
-        const avgUprs = sortedData.reduce((sum, d) => sum + d.uprsMedian, 0) / sortedData.length;
-        const avgUpks = sortedData.reduce((sum, d) => sum + d.upksMedian, 0) / sortedData.length;
-        
-        statsDiv.innerHTML = `
-            <span>Городов: <strong>${chartData.cities.length}</strong></span>
-            <span>Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
-            <span>Средний УПРС: <strong>${avgUprs > 0 ? avgUprs.toFixed(0) : '—'} ₽/м²</strong></span>
-            <span>Средний УПКС: <strong>${avgUpks > 0 ? avgUpks.toFixed(0) : '—'} ₽/м²</strong></span>
-        `;
-    }
+const statsDiv = document.getElementById('price-chart-stats');
+if (statsDiv) {
+    // ✅ СОБИРАЕМ ВСЕ МЕДИАНЫ ПО ГОРОДАМ
+    const allUprsMedians = sortedData.map(d => d.uprsMedian).filter(v => v > 0);
+    const allUpksMedians = sortedData.map(d => d.upksMedian).filter(v => v > 0);
+    
+    // ✅ ВЫЧИСЛЯЕМ МЕДИАНУ МЕДИАН
+    const medianOfUprs = allUprsMedians.length > 0 ? getMedianSync(allUprsMedians) : 0;
+    const medianOfUpks = allUpksMedians.length > 0 ? getMedianSync(allUpksMedians) : 0;
+    
+    statsDiv.innerHTML = `
+        <span>Городов: <strong>${chartData.cities.length}</strong></span>
+        <span>Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
+        <span>Медиана УПРС: <strong>${medianOfUprs > 0 ? medianOfUprs.toFixed(0) : '—'} ₽/м²</strong></span>
+        <span>Медиана УПКС: <strong>${medianOfUpks > 0 ? medianOfUpks.toFixed(0) : '—'} ₽/м²</strong></span>
+    `;
+}
 }
 
 function refreshPriceChart() {
