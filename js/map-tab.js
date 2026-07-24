@@ -281,56 +281,26 @@ function renderPriceChart() {
                 intersect: false,
                 mode: 'index',
             },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20,
-                        font: {
-                            size: 11,
-                            family: 'Inter, sans-serif',
-                            weight: '500'
-                        },
-                        color: '#475569',
-                        boxWidth: 12,
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(255,255,255,0.95)',
-                    titleColor: '#1e293b',
-                    bodyColor: '#475569',
-                    borderColor: '#e2e8f0',
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            if (context.parsed.y !== null && context.parsed.y !== undefined) {
-                                label += context.parsed.y.toFixed(2) + ' ₽/м²';
-                            }
-                            return label;
-                        },
-                        afterBody: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex;
-                            const city = sortedData[index];
-                            if (city && city.count > 0) {
-                                return [
-                                    `Сделок: ${city.count}`,
-                                    `УПРС: ${city.uprsMin > 0 ? city.uprsMin.toFixed(2) : '—'} – ${city.uprsMax > 0 ? city.uprsMax.toFixed(2) : '—'} ₽/м²`,
-                                    `УПКС: ${city.upksMin > 0 ? city.upksMin.toFixed(2) : '—'} – ${city.upksMax > 0 ? city.upksMax.toFixed(2) : '—'} ₽/м²`
-                                ];
-                            }
-                            return [];
-                        }
-                    }
-                }
+           plugins: {
+    legend: {
+        display: true,
+        position: 'top',
+        labels: {
+            usePointStyle: true,
+            padding: 20,
+            font: {
+                size: 11,
+                family: 'Inter, sans-serif',
+                weight: '500'
             },
+            color: '#475569',
+            boxWidth: 12,
+        }
+    },
+    tooltip: {
+        enabled: false  
+    }
+},
             scales: {
                 y: {
                     beginAtZero: true,
