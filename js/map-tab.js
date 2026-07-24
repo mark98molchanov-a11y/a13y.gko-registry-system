@@ -85,7 +85,7 @@ let chartDataCache = null;
 function calculateCityPrices() {
     console.log('📊 Расчет УПРС и УПКС по городам...');
     
-    // ✅ ПОЛУЧАЕМ ПРЕФИКС РАЙОНА, ЕСЛИ ОН ВЫБРАН
+    // ✅ ПОЛУЧАЕМ ПРЕФИКС РАЙОНА
     let districtPrefix = null;
     if (currentDistrictFilter) {
         districtPrefix = String(currentDistrictFilter).substring(0, 5);
@@ -94,12 +94,8 @@ function calculateCityPrices() {
     // Группируем сделки по городам
     const groupedByCity = {};
     allDealsFlat.forEach(deal => {
-        // Применяем все активные фильтры
-        
-        // ✅ НОВЫЙ ФИЛЬТР ПО РАЙОНУ (по префиксу кадастрового номера)
-        if (districtPrefix && !deal.cad_number.startsWith(districtPrefix)) {
-            return;
-        }
+        // ✅ ФИЛЬТР ПО РАЙОНУ
+        if (districtPrefix && !deal.cad_number.startsWith(districtPrefix)) return;
         
         // Фильтр по типу сделки
         if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return;
@@ -124,9 +120,13 @@ function calculateCityPrices() {
         if (!groupedByCity[city]) {
             groupedByCity[city] = {
                 uprs: [],
-                upks: []
+                upks: [],
+                allDeals: []  // ✅ ВСЕ СДЕЛКИ
             };
         }
+        
+        // ✅ СОХРАНЯЕМ ВСЕ СДЕЛКИ
+        groupedByCity[city].allDeals.push(deal);
         
         if (deal.uprs > 0) groupedByCity[city].uprs.push(deal.uprs);
         if (deal.upks > 0) groupedByCity[city].upks.push(deal.upks);
@@ -134,13 +134,15 @@ function calculateCityPrices() {
     
     const cityData = {};
     Object.keys(groupedByCity).forEach(city => {
-        const uprs = groupedByCity[city].uprs;
-        const upks = groupedByCity[city].upks;
+        const data = groupedByCity[city];
+        const uprs = data.uprs;
+        const upks = data.upks;
+        const allDeals = data.allDeals;
         
-        if (uprs.length === 0 && upks.length === 0) return;
+        if (allDeals.length === 0) return;
         
         cityData[city] = {
-            count: allDeals.length,
+            count: allDeals.length,  // ✅ ВСЕ СДЕЛКИ В ГОРОДЕ (НЕ Math.max!)
             uprsMedian: uprs.length > 0 ? getMedianSync(uprs) : 0,
             upksMedian: upks.length > 0 ? getMedianSync(upks) : 0,
             uprsMin: uprs.length > 0 ? Math.min(...uprs) : 0,
@@ -150,29 +152,28 @@ function calculateCityPrices() {
         };
     });
     
-    // Сортируем города по количеству сделок (от большего к меньшему)
+    // Сортируем города по количеству сделок
     const sortedCities = Object.keys(cityData).sort((a, b) => {
         return cityData[b].count - cityData[a].count;
     });
     
-    // Берем топ-15 городов для читаемости
     const topCities = sortedCities.slice(0, 15);
     
-const result = {
-    cities: topCities,
-    data: topCities.map(city => ({
-        city: city,
-        count: cityData[city].count,
-        uprsMedian: cityData[city].uprsMedian,
-        upksMedian: cityData[city].upksMedian,
-        uprsMin: cityData[city].uprsMin,
-        uprsMax: cityData[city].uprsMax,
-        upksMin: cityData[city].upksMin,
-        upksMax: cityData[city].upksMax
-    })),
-    allData: cityData,
-    totalDeals: topCities.reduce((sum, city) => sum + cityData[city].count, 0)  
-};
+    const result = {
+        cities: topCities,
+        data: topCities.map(city => ({
+            city: city,
+            count: cityData[city].count,
+            uprsMedian: cityData[city].uprsMedian,
+            upksMedian: cityData[city].upksMedian,
+            uprsMin: cityData[city].uprsMin,
+            uprsMax: cityData[city].uprsMax,
+            upksMin: cityData[city].upksMin,
+            upksMax: cityData[city].upksMax
+        })),
+        allData: cityData,
+        totalDeals: topCities.reduce((sum, city) => sum + cityData[city].count, 0)
+    };
     
     console.log(`✅ Данные по городам: ${result.cities.length} городов`);
     if (result.data.length > 0) {
@@ -180,7 +181,6 @@ const result = {
     }
     return result;
 }
-
 function renderPriceChart() {
     const container = document.getElementById('price-chart-container');
     if (!container) {
