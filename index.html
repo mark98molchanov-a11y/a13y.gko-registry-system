@@ -1983,6 +1983,43 @@
         </div>
 
     </div>
+            <div id="price-analysis-section" style="
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid #e2e8f0;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px;">📈</span>
+                    <span style="font-weight: 600; font-size: 14px; color: #1e293b;">Исторический анализ цен</span>
+                    <span style="font-size: 10px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 12px;">
+                        все периоды
+                    </span>
+                </div>
+                <button onclick="refreshPriceChart()" style="
+                    background: #e0f2fe;
+                    border: none;
+                    color: #0284c7;
+                    padding: 4px 12px;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    font-family: 'Inter', sans-serif;
+                " onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'">
+                    🔄 Обновить
+                </button>
+            </div>
+            <div id="price-chart-container" style="
+                min-height: 250px;
+                position: relative;
+            ">
+                <!-- График будет отрисован здесь -->
+            </div>
+        </div>
 </div>
         </main>
     </div>
