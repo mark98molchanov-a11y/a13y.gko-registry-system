@@ -189,7 +189,7 @@ function renderPriceChart() {
     }
     
     // Убеждаемся, что контейнер имеет фиксированную высоту
-    container.style.minHeight = '350px';
+    container.style.minHeight = '450px';
     container.style.height = 'auto';
     container.style.position = 'relative';
     container.style.overflow = 'visible';
@@ -227,7 +227,7 @@ function renderPriceChart() {
     
     // ✅ ВАЖНО: создаем canvas с ЧЕТКОЙ высотой и помещаем в wrapper
    container.innerHTML = `
-    <div id="chart-wrapper" style="width:100%; height:350px; position:relative;">
+    <div id="chart-wrapper" style="width:100%; height:450px; position:relative;">
         <canvas id="price-chart-canvas" style="width:100%; height:100%;"></canvas>
     </div>
         <div id="price-chart-stats" style="display:flex; justify-content:space-around; margin-top:12px; padding:8px 12px; background:#f8fafc; border-radius:8px; font-size:11px; color:#475569; flex-wrap:wrap; gap:6px;"></div>
