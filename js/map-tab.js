@@ -94,8 +94,10 @@ function calculateCityPrices() {
         if (!groupedByCity[city]) {
             groupedByCity[city] = [];
         }
-        if (deal.uprs_rub > 0) { // ✅ Собираем УПРС (не цены)
-            groupedByCity[city].push(deal.uprs_rub);
+        // ✅ ИСПРАВЛЕНО: используем uprs (без _rub)
+        const uprsValue = deal.uprs || 0;
+        if (uprsValue > 0) {
+            groupedByCity[city].push(uprsValue);
         }
     });
     
@@ -130,10 +132,11 @@ function calculateCityPrices() {
             max: cityData[city].max
         })),
         allData: cityData,
-        totalDeals: allDealsFlat.filter(d => d.uprs_rub > 0).length
+        totalDeals: allDealsFlat.filter(d => d.uprs > 0).length
     };
     
     console.log(`✅ Данные по городам: ${result.cities.length} городов, ${result.totalDeals} сделок`);
+    console.log('📊 Пример данных:', result.data.slice(0, 3));
     return result;
 }
 
