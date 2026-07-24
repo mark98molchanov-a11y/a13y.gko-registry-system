@@ -5438,7 +5438,7 @@ async function generateReport() {
         const blob = await Packer.toBlob(doc);
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `Аналитическая_записка_${new Date().toISOString().split('T')[0]}.docx`;
+        link.download = `Отчет_${new Date().toISOString().split('T')[0]}.docx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
