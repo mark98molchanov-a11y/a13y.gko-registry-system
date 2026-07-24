@@ -3426,6 +3426,9 @@ layer.on('mouseover', function(e) {
         
         let fillColor = '#f1f5f9';
         let fillOpacity = 0.35;
+        let borderColor = '#60a5fa';
+        let borderWeight = 2;
+        let borderOpacity = 0.8;
         
         if (isHeatmapEnabled) {
             // 🔥 РЕЖИМ HEATMAP: цвет по УПРС/УПКС
@@ -3444,12 +3447,22 @@ layer.on('mouseover', function(e) {
                     const avgUprs = totalUprs / count;
                     const avgUpks = totalUpks / count;
                     const diff = ((avgUprs - avgUpks) / avgUpks) * 100;
-                    if (diff > 20) fillColor = '#22c55e';
-                    else if (diff > 5) fillColor = '#84cc16';
-                    else if (diff >= -5) fillColor = '#eab308';
-                    else if (diff > -30) fillColor = '#f97316';
-                    else fillColor = '#ef4444';
+                    
+                    // 🎨 Та же шкала, что и в updateQuartersStyle
+                    if (diff >= -5 && diff <= 5) {
+                        fillColor = '#22c55e';      // Зеленый — УПРС ≈ УПКС
+                    } else {
+                        const absDiff = Math.abs(diff);
+                        if (absDiff <= 20) {
+                            fillColor = '#f97316';  // Оранжевый
+                        } else {
+                            fillColor = '#ef4444';  // Красный
+                        }
+                    }
                     fillOpacity = 0.5;
+                    borderColor = '#60a5fa';
+                    borderWeight = 2;
+                    borderOpacity = 0.8;
                 }
             }
         } else {
@@ -3457,14 +3470,17 @@ layer.on('mouseover', function(e) {
             const count = filteredDeals.length;
             fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
             fillOpacity = 0.35;
+            borderColor = '#60a5fa';
+            borderWeight = 2;
+            borderOpacity = 0.8;
         }
         
         this.setStyle({
             fillColor: fillColor,
             fillOpacity: fillOpacity,
-            weight: 2,
-            color: '#60a5fa',
-            opacity: 0.8
+            weight: borderWeight,
+            color: borderColor,
+            opacity: borderOpacity
         });
     }
     
@@ -3502,7 +3518,7 @@ layer.on('mouseout', function(e) {
         let borderOpacity = 0.6;
         
         if (isHeatmapEnabled) {
-            // 🔥 ВОССТАНАВЛИВАЕМ HEATMAP СТИЛЬ
+            // 🔥 ВОССТАНАВЛИВАЕМ HEATMAP СТИЛЬ (ТА ЖЕ ЛОГИКА, ЧТО В updateQuartersStyle)
             if (filteredDeals.length > 0) {
                 let totalUprs = 0, totalUpks = 0, count = 0;
                 filteredDeals.forEach(deal => {
@@ -3518,16 +3534,29 @@ layer.on('mouseout', function(e) {
                     const avgUprs = totalUprs / count;
                     const avgUpks = totalUpks / count;
                     const diff = ((avgUprs - avgUpks) / avgUpks) * 100;
-                    if (diff > 20) fillColor = '#22c55e';
-                    else if (diff > 5) fillColor = '#84cc16';
-                    else if (diff >= -5) fillColor = '#eab308';
-                    else if (diff > -30) fillColor = '#f97316';
-                    else fillColor = '#ef4444';
+                    
+                    // 🎨 Та же шкала, что и в updateQuartersStyle
+                    if (diff >= -5 && diff <= 5) {
+                        fillColor = '#22c55e';      // Зеленый — УПРС ≈ УПКС
+                    } else {
+                        const absDiff = Math.abs(diff);
+                        if (absDiff <= 20) {
+                            fillColor = '#f97316';  // Оранжевый
+                        } else {
+                            fillColor = '#ef4444';  // Красный
+                        }
+                    }
                     fillOpacity = 0.35;
                     borderColor = '#475569';
                     borderWeight = 2;
                     borderOpacity = 0.7;
                 }
+            } else {
+                fillColor = '#f1f5f9';
+                fillOpacity = 0.15;
+                borderColor = '#94a3b8';
+                borderWeight = 1.5;
+                borderOpacity = 0.4;
             }
         } else {
             // ❌ ОБЫЧНЫЙ РЕЖИМ
