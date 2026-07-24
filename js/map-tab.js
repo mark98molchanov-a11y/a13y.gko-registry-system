@@ -176,6 +176,12 @@ function renderPriceChart() {
         return;
     }
     
+    // Убеждаемся, что контейнер имеет фиксированную высоту
+    container.style.minHeight = '250px';
+    container.style.height = 'auto';
+    container.style.position = 'relative';
+    container.style.overflow = 'visible';
+    
     // Показываем загрузку
     container.innerHTML = `
         <div style="display:flex;justify-content:center;align-items:center;height:250px;color:#94a3b8;">
@@ -207,12 +213,20 @@ function renderPriceChart() {
     const allValues = [...uprsData, ...upksData].filter(v => v > 0);
     const maxVal = allValues.length > 0 ? Math.max(...allValues) * 1.15 : 100;
     
+    // ✅ ВАЖНО: создаем canvas с ЧЕТКОЙ высотой и помещаем в wrapper
     container.innerHTML = `
-        <canvas id="price-chart-canvas" style="width:100%; height:250px;"></canvas>
+        <div id="chart-wrapper" style="width:100%; height:250px; position:relative;">
+            <canvas id="price-chart-canvas" style="width:100%; height:100%;"></canvas>
+        </div>
         <div id="price-chart-stats" style="display:flex; justify-content:space-around; margin-top:12px; padding:8px 12px; background:#f8fafc; border-radius:8px; font-size:11px; color:#475569; flex-wrap:wrap; gap:6px;"></div>
     `;
     
     const canvas = document.getElementById('price-chart-canvas');
+    if (!canvas) {
+        console.error('❌ Canvas не найден');
+        return;
+    }
+    
     const ctx = canvas.getContext('2d');
     
     if (priceChartInstance) {
