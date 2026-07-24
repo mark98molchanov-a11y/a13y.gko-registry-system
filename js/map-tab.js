@@ -85,10 +85,22 @@ let chartDataCache = null;
 function calculateCityPrices() {
     console.log('📊 Расчет УПРС и УПКС по городам...');
     
+    // ✅ ПОЛУЧАЕМ ПРЕФИКС РАЙОНА, ЕСЛИ ОН ВЫБРАН
+    let districtPrefix = null;
+    if (currentDistrictFilter) {
+        districtPrefix = String(currentDistrictFilter).substring(0, 5);
+    }
+    
     // Группируем сделки по городам
     const groupedByCity = {};
     allDealsFlat.forEach(deal => {
         // Применяем все активные фильтры
+        
+        // ✅ НОВЫЙ ФИЛЬТР ПО РАЙОНУ (по префиксу кадастрового номера)
+        if (districtPrefix && !deal.cad_number.startsWith(districtPrefix)) {
+            return;
+        }
+        
         // Фильтр по типу сделки
         if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return;
         // Фильтр по городу
