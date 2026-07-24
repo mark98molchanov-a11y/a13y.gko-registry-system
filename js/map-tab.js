@@ -94,8 +94,8 @@ function calculateCityPrices() {
         if (!groupedByCity[city]) {
             groupedByCity[city] = [];
         }
-        if (deal.deal_price_rub > 0) {
-            groupedByCity[city].push(deal.deal_price_rub);
+        if (deal.uprs_rub > 0) { // ✅ Собираем УПРС (не цены)
+            groupedByCity[city].push(deal.uprs_rub);
         }
     });
     
@@ -130,7 +130,7 @@ function calculateCityPrices() {
             max: cityData[city].max
         })),
         allData: cityData,
-        totalDeals: allDealsFlat.filter(d => d.deal_price_rub > 0).length
+        totalDeals: allDealsFlat.filter(d => d.uprs_rub > 0).length
     };
     
     console.log(`✅ Данные по городам: ${result.cities.length} городов, ${result.totalDeals} сделок`);
@@ -144,8 +144,9 @@ function renderPriceChart() {
         return;
     }
     
+    // Показываем загрузку
     container.innerHTML = `
-        <div style="display:flex;justify-content:center;align-items:center;height:200px;color:#94a3b8;">
+        <div style="display:flex;justify-content:center;align-items:center;height:250px;color:#94a3b8;">
             <span>⏳ Загрузка данных...</span>
         </div>
     `;
@@ -153,10 +154,10 @@ function renderPriceChart() {
     const chartData = calculateCityPrices();
     if (!chartData || chartData.data.length < 2) {
         container.innerHTML = `
-            <div style="display:flex;justify-content:center;align-items:center;height:200px;color:#94a3b8;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:center;align-items:center;height:250px;color:#94a3b8;flex-direction:column;gap:8px;">
                 <span style="font-size:32px;">📊</span>
                 <span>Недостаточно данных для анализа</span>
-                <span style="font-size:12px;">Требуется минимум 2 города с данными</span>
+                <span style="font-size:12px;">Требуется минимум 2 города с данными по УПРС</span>
             </div>
         `;
         return;
@@ -164,157 +165,259 @@ function renderPriceChart() {
     
     chartDataCache = chartData;
     
-    const canvas = document.createElement('canvas');
-    canvas.id = 'price-chart-canvas';
-    canvas.width = container.clientWidth || 600;
-    canvas.height = 300;
-    canvas.style.width = '100%';
-    canvas.style.height = 'auto';
-    canvas.style.aspectRatio = '600/300';
+    // Создаем canvas для графика
+    container.innerHTML = `
+        <canvas id="price-chart-canvas" style="width:100%; height:250px;"></canvas>
+        <div id="price-chart-stats" style="display:flex; justify-content:space-around; margin-top:12px; padding:8px 12px; background:#f8fafc; border-radius:8px; font-size:11px; color:#475569; flex-wrap:wrap; gap:6px;"></div>
+    `;
     
-    container.innerHTML = '';
-    container.appendChild(canvas);
-    
+    const canvas = document.getElementById('price-chart-canvas');
     const ctx = canvas.getContext('2d');
-    drawCityChart(ctx, canvas.width, canvas.height, chartData);
     
-    // Статистика
-    const statsDiv = document.createElement('div');
-    statsDiv.style.cssText = `
-        display: flex;
-        justify-content: space-around;
-        margin-top: 12px;
-        padding: 8px 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-        font-size: 11px;
-        color: #475569;
-        flex-wrap: wrap;
-        gap: 6px;
-    `;
-    
-    const maxCity = chartData.data.reduce((a, b) => a.median > b.median ? a : b);
-    const minCity = chartData.data.reduce((a, b) => a.median < b.median ? a : b);
-    
-    statsDiv.innerHTML = `
-        <span>🏙️ Городов: <strong>${chartData.cities.length}</strong></span>
-        <span>📊 Всего сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
-        <span>📈 Макс: <strong>${formatPriceShort(maxCity.median)}</strong> (${maxCity.city})</span>
-        <span>📉 Мин: <strong>${formatPriceShort(minCity.median)}</strong> (${minCity.city})</span>
-    `;
-    
-    container.appendChild(statsDiv);
-}
-
-function drawCityChart(ctx, width, height, chartData) {
-    const padding = { top: 20, bottom: 40, left: 80, right: 20 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    
-    const data = chartData.data;
-    const values = data.map(d => d.median);
-    const maxVal = Math.max(...values) * 1.1;
-    const minVal = 0;
-    const range = maxVal - minVal || 1;
-    
-    ctx.clearRect(0, 0, width, height);
-    
-    // Сетка
-    ctx.strokeStyle = '#f1f5f9';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-        const y = padding.top + chartHeight - (chartHeight / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(width - padding.right, y);
-        ctx.stroke();
-        
-        const val = (range / 4) * i;
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '9px Inter, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(formatPriceShort(val), padding.left - 6, y + 3);
+    // Если уже есть экземпляр графика — уничтожаем
+    if (priceChartInstance) {
+        priceChartInstance.destroy();
+        priceChartInstance = null;
     }
     
-    // Столбцы
-    const barWidth = Math.min(chartWidth / data.length * 0.6, 40);
-    const gap = (chartWidth - barWidth * data.length) / (data.length + 1);
+    // ✅ СОЗДАЕМ КРАСИВЫЙ ГРАФИК С ОБЛАСТЯМИ
+    const sortedData = [...chartData.data].sort((a, b) => a.median - b.median);
+    const cities = sortedData.map(d => d.city);
+    const medians = sortedData.map(d => d.median);
+    const minValues = sortedData.map(d => d.min);
+    const maxValues = sortedData.map(d => d.max);
     
-    data.forEach((d, i) => {
-        const x = padding.left + gap + i * (barWidth + gap);
-        const barHeight = (d.median / range) * chartHeight;
-        const y = padding.top + chartHeight - barHeight;
-        
-        // Цвет столбца (градиент от зеленого к красному)
-        const ratio = d.median / maxVal;
-        const r = Math.round(34 + (220 - 34) * ratio);
-        const g = Math.round(197 - (197 - 50) * ratio);
-        const b = Math.round(84 - (84 - 50) * ratio);
-        const color = `rgb(${r}, ${g}, ${b})`;
-        
-        // Тень
-        ctx.shadowColor = 'rgba(0,0,0,0.05)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetY = 2;
-        
-        // Столбец
-        ctx.fillStyle = color;
-        ctx.shadowColor = 'rgba(0,0,0,0.1)';
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetY = 2;
-        
-        const radius = 4;
-        const bw = barWidth;
-        const bh = barHeight;
-        const bx = x;
-        const by = y;
-        
-        ctx.beginPath();
-        ctx.moveTo(bx + radius, by);
-        ctx.lineTo(bx + bw - radius, by);
-        ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + radius);
-        ctx.lineTo(bx + bw, by + bh);
-        ctx.lineTo(bx, by + bh);
-        ctx.lineTo(bx, by + radius);
-        ctx.quadraticCurveTo(bx, by, bx + radius, by);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        
-        // Количество сделок над столбцом
-        ctx.fillStyle = '#64748b';
-        ctx.font = '8px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(d.count, x + barWidth / 2, y - 4);
-        
-        // Название города (сокращенное)
-        ctx.fillStyle = '#475569';
-        ctx.font = '9px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        const shortName = d.city.length > 12 ? d.city.substring(0, 10) + '…' : d.city;
-        ctx.fillText(shortName, x + barWidth / 2, height - 12);
-        
-        // Значение на столбце (если есть место)
-        if (barHeight > 30) {
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 9px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(formatPriceShort(d.median), x + barWidth / 2, y + 14);
-        }
+    // Находим город с максимальным УПРС для подписи
+    const maxItem = sortedData.reduce((a, b) => a.median > b.median ? a : b);
+    
+    priceChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: cities,
+            datasets: [
+                {
+                    label: 'УПРС (медиана)',
+                    data: medians,
+                    fill: true,
+                    backgroundColor: function(context) {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return 'rgba(14, 165, 233, 0.3)';
+                        
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, 'rgba(14, 165, 233, 0.6)');
+                        gradient.addColorStop(0.5, 'rgba(14, 165, 233, 0.25)');
+                        gradient.addColorStop(1, 'rgba(14, 165, 233, 0.05)');
+                        return gradient;
+                    },
+                    borderColor: '#0ea5e9',
+                    borderWidth: 3,
+                    tension: 0.4, // ✅ ПЛАВНАЯ КРИВАЯ
+                    pointRadius: 5,
+                    pointBackgroundColor: '#0284c7',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 8,
+                    pointHoverBackgroundColor: '#0369a1',
+                },
+                {
+                    label: 'Мин / Макс (диапазон)',
+                    data: maxValues,
+                    fill: '1',
+                    backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                    borderColor: 'rgba(14, 165, 233, 0.2)',
+                    borderWidth: 0,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    borderDash: [5, 5],
+                    showLine: true,
+                    borderColor: 'rgba(14, 165, 233, 0.15)',
+                    borderWidth: 1,
+                },
+                {
+                    label: 'Мин / Макс (диапазон)',
+                    data: minValues,
+                    fill: false,
+                    backgroundColor: 'rgba(14, 165, 233, 0.05)',
+                    borderColor: 'rgba(14, 165, 233, 0.15)',
+                    borderWidth: 1,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    borderDash: [5, 5],
+                    showLine: true,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 11,
+                            family: 'Inter, sans-serif',
+                            weight: '500'
+                        },
+                        color: '#475569',
+                        boxWidth: 12,
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255,255,255,0.95)',
+                    titleColor: '#1e293b',
+                    bodyColor: '#475569',
+                    borderColor: '#e2e8f0',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(2) + ' ₽/м²';
+                            }
+                            return label;
+                        },
+                        afterBody: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex;
+                            const city = sortedData[index];
+                            if (city) {
+                                return [
+                                    `Сделок: ${city.count}`,
+                                    `Мин: ${city.min.toFixed(2)} ₽/м²`,
+                                    `Макс: ${city.max.toFixed(2)} ₽/м²`
+                                ];
+                            }
+                            return [];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.05)',
+                        drawBorder: false,
+                    },
+                    ticks: {
+                        font: {
+                            size: 10,
+                            family: 'Inter, sans-serif'
+                        },
+                        color: '#94a3b8',
+                        callback: function(value) {
+                            if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                            return value.toFixed(0);
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: '₽/м²',
+                        color: '#94a3b8',
+                        font: {
+                            size: 10,
+                            family: 'Inter, sans-serif',
+                            weight: '500'
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 10,
+                            family: 'Inter, sans-serif'
+                        },
+                        color: '#94a3b8',
+                        maxRotation: 45,
+                        minRotation: 30,
+                    }
+                }
+            },
+            // ✅ АНИМАЦИЯ ДЛЯ ДИНАМИЧНОСТИ
+            animation: {
+                duration: 1200,
+                easing: 'easeOutQuart',
+            },
+            // ✅ ПРИ ХОВЕРЕ ПОКАЗЫВАЕМ КАРТИНКУ
+            hover: {
+                mode: 'index',
+                intersect: false,
+                animationDuration: 200,
+            },
+        },
+        plugins: [{
+            // ✅ ПЛАГИН ДЛЯ ПОДПИСИ МАКСИМАЛЬНОГО ЗНАЧЕНИЯ
+            afterDraw: function(chart) {
+                const ctx = chart.ctx;
+                chart.data.datasets.forEach(function(dataset, i) {
+                    const meta = chart.getDatasetMeta(i);
+                    if (i === 0) { // Только для основного датасета (УПРС)
+                        const maxIndex = dataset.data.reduce((maxIdx, val, idx, arr) => 
+                            val > arr[maxIdx] ? idx : maxIdx, 0
+                        );
+                        const maxValue = dataset.data[maxIndex];
+                        const point = meta.data[maxIndex];
+                        
+                        if (point && maxValue > 0) {
+                            ctx.save();
+                            ctx.font = '600 11px Inter, sans-serif';
+                            ctx.fillStyle = '#0ea5e9';
+                            ctx.textAlign = 'center';
+                            ctx.shadowColor = 'rgba(255,255,255,0.8)';
+                            ctx.shadowBlur = 6;
+                            ctx.fillText('▲ ' + maxValue.toFixed(0) + ' ₽/м²', point.x, point.y - 14);
+                            ctx.restore();
+                        }
+                    }
+                });
+            }
+        }]
     });
+    
+    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ ПОД ГРАФИКОМ
+    const statsDiv = document.getElementById('price-chart-stats');
+    if (statsDiv) {
+        const maxCity = sortedData.reduce((a, b) => a.median > b.median ? a : b);
+        const minCity = sortedData.reduce((a, b) => a.median < b.median ? a : b);
+        
+        statsDiv.innerHTML = `
+            <span>🏙️ Городов: <strong>${chartData.cities.length}</strong></span>
+            <span>📊 Всего сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
+            <span>📈 Макс УПРС: <strong>${maxCity.median.toFixed(2)} ₽/м²</strong> (${maxCity.city})</span>
+            <span>📉 Мин УПРС: <strong>${minCity.median.toFixed(2)} ₽/м²</strong> (${minCity.city})</span>
+        `;
+    }
 }
 
+function refreshPriceChart() {
+    renderPriceChart();
+}
+
+// ===== ДЛЯ СОВМЕСТИМОСТИ С ОСТАЛЬНЫМ КОДОМ =====
 function formatPriceShort(num) {
     if (!num || num === 0) return '—';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M ₽';
     if (num >= 1000) return (num / 1000).toFixed(0) + 'K ₽';
     return num.toFixed(0) + ' ₽';
-}
-
-function refreshPriceChart() {
-    renderPriceChart();
 }
 const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
 async function loadDealsCSV() {
