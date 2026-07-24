@@ -2428,27 +2428,24 @@ function updateQuartersStyle(targetObjects) {
             let borderWeight = 2.5;
             let borderOpacity = 0.6;
             
-            if (isHeatmapEnabled) {
-                if (filteredDeals.length > 0) {
-                    let totalUprs = 0;
-                    let totalUpks = 0;
-                    let countWithData = 0;
-                    
-                  filteredDeals.forEach(deal => {
-    // ✅ Используем uprs (без _rub), потому что в dealsData поле называется uprs
-    const uprsValue = deal.uprs || 0;
-    const upksValue = deal.upks || 0;
-    if (uprsValue > 0 && upksValue > 0) {
-        totalUprs += uprsValue;
-        totalUpks += upksValue;
-        countWithData++;
-    }
-});
-                    
-                    if (countWithData > 0) {
-                        const avgUprs = totalUprs / countWithData;
-                        const avgUpks = totalUpks / countWithData;
-                        const diffPercent = ((avgUprs - avgUpks) / avgUpks) * 100;
+         if (isHeatmapEnabled) {
+    if (filteredDeals.length > 0) {
+        const uprsValues = [];
+        const upksValues = [];
+        
+        filteredDeals.forEach(deal => {
+            const uprsValue = deal.uprs || 0;
+            const upksValue = deal.upks || 0;
+            if (uprsValue > 0 && upksValue > 0) {
+                uprsValues.push(uprsValue);
+                upksValues.push(upksValue);
+            }
+        });
+        
+        if (uprsValues.length > 0 && upksValues.length > 0) {
+            const medianUprs = getMedianSync(uprsValues);
+            const medianUpks = getMedianSync(upksValues);
+            const diffPercent = ((medianUprs - medianUpks) / medianUpks) * 100;
                         
                         // 🎨 НОВАЯ ПРОСТАЯ ШКАЛА
                         if (diffPercent >= -5 && diffPercent <= 5) {
@@ -3452,19 +3449,20 @@ layer.on('mouseover', function(e) {
             if (filteredDeals.length > 0) {
                 let totalUprs = 0, totalUpks = 0, count = 0;
            
+const uprsValues = [];
+const upksValues = [];
 filteredDeals.forEach(deal => {
-    const uprsValue = deal.uprs || 0;  // ✅ Убрал uprs_rub
+    const uprsValue = deal.uprs || 0;
     const upksValue = deal.upks || 0;
     if (uprsValue > 0 && upksValue > 0) {
-        totalUprs += uprsValue;
-        totalUpks += upksValue;
-        count++;
+        uprsValues.push(uprsValue);
+        upksValues.push(upksValue);
     }
 });
-                if (count > 0) {
-                    const avgUprs = totalUprs / count;
-                    const avgUpks = totalUpks / count;
-                    const diff = ((avgUprs - avgUpks) / avgUpks) * 100;
+if (uprsValues.length > 0 && upksValues.length > 0) {
+    const medianUprs = getMedianSync(uprsValues);
+    const medianUpks = getMedianSync(upksValues);
+    const diff = ((medianUprs - medianUpks) / medianUpks) * 100;
                     
                     // 🎨 Та же шкала, что и в updateQuartersStyle
                     if (diff >= -5 && diff <= 5) {
@@ -3539,19 +3537,20 @@ layer.on('mouseout', function(e) {
             // 🔥 ВОССТАНАВЛИВАЕМ HEATMAP СТИЛЬ (ТА ЖЕ ЛОГИКА, ЧТО В updateQuartersStyle)
             if (filteredDeals.length > 0) {
                 let totalUprs = 0, totalUpks = 0, count = 0;
+const uprsValues = [];
+const upksValues = [];
 filteredDeals.forEach(deal => {
     const uprsValue = deal.uprs || 0;
     const upksValue = deal.upks || 0;
     if (uprsValue > 0 && upksValue > 0) {
-        totalUprs += uprsValue;
-        totalUpks += upksValue;
-        count++;
+        uprsValues.push(uprsValue);
+        upksValues.push(upksValue);
     }
 });
-                if (count > 0) {
-                    const avgUprs = totalUprs / count;
-                    const avgUpks = totalUpks / count;
-                    const diff = ((avgUprs - avgUpks) / avgUpks) * 100;
+if (uprsValues.length > 0 && upksValues.length > 0) {
+    const medianUprs = getMedianSync(uprsValues);
+    const medianUpks = getMedianSync(upksValues);
+    const diff = ((medianUprs - medianUpks) / medianUpks) * 100;
                     
                     // 🎨 Та же шкала, что и в updateQuartersStyle
                     if (diff >= -5 && diff <= 5) {
