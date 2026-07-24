@@ -146,21 +146,21 @@ function calculateCityPrices() {
     // Берем топ-15 городов для читаемости
     const topCities = sortedCities.slice(0, 15);
     
-    const result = {
-        cities: topCities,
-        data: topCities.map(city => ({
-            city: city,
-            count: cityData[city].count,
-            uprsMedian: cityData[city].uprsMedian,
-            upksMedian: cityData[city].upksMedian,
-            uprsMin: cityData[city].uprsMin,
-            uprsMax: cityData[city].uprsMax,
-            upksMin: cityData[city].upksMin,
-            upksMax: cityData[city].upksMax
-        })),
-        allData: cityData,
-        totalDeals: allDealsFlat.filter(d => d.uprs > 0 || d.upks > 0).length
-    };
+const result = {
+    cities: topCities,
+    data: topCities.map(city => ({
+        city: city,
+        count: cityData[city].count,
+        uprsMedian: cityData[city].uprsMedian,
+        upksMedian: cityData[city].upksMedian,
+        uprsMin: cityData[city].uprsMin,
+        uprsMax: cityData[city].uprsMax,
+        upksMin: cityData[city].upksMin,
+        upksMax: cityData[city].upksMax
+    })),
+    allData: cityData,
+    totalDeals: topCities.reduce((sum, city) => sum + cityData[city].count, 0)  
+};
     
     console.log(`✅ Данные по городам: ${result.cities.length} городов`);
     if (result.data.length > 0) {
