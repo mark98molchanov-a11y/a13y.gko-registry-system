@@ -797,13 +797,11 @@ function togglePriceFilter() {
     const btn = document.getElementById('priceFilterToggle');
     if (btn) {
         if (isPriceFilterEnabled) {
-            // ВКЛЮЧЕН — зеленый
             btn.innerHTML = 'Ценовой фильтр';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            // ВЫКЛЮЧЕН — синий (как по умолчанию)
             btn.innerHTML = 'Ценовой фильтр';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
@@ -813,18 +811,15 @@ function togglePriceFilter() {
     
     console.log(`🔄 Фильтр по ценам ${isPriceFilterEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`);
     
-    // Восстанавливаем исходные данные
     if (!isPriceFilterEnabled) {
         allDealsFlat = [...originalAllDealsFlat];
         rebuildDealsData(allDealsFlat);
     } else {
-        // Применяем фильтр
         const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
         allDealsFlat = filteredDeals;
         rebuildDealsData(filteredDeals);
     }
     
-    // Перерисовываем все
     renderDealTypeFilters();
     renderCityFilters();
     renderObjectTypeFilters();
@@ -833,10 +828,17 @@ function togglePriceFilter() {
     renderYearBuildFilters();
     renderDealsTable();
     
-    // Обновляем карту
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
     }
+    
+    // ✅ ДОБАВЬТЕ ЭТОТ БЛОК:
+    setTimeout(function() {
+        if (typeof renderPriceChart === 'function') {
+            console.log('📊 Обновление графика после переключения ценового фильтра');
+            renderPriceChart();
+        }
+    }, 400);
 }
 function renderDealTypeFilters() {
     const container = document.getElementById('deal-type-filters');
@@ -1543,17 +1545,79 @@ function applyFiltersAndUpdate() {
             }
         });
     }
-}
-const originalApplyFiltersAndUpdate = applyFiltersAndUpdate;
-
-applyFiltersAndUpdate = function() {
-    originalApplyFiltersAndUpdate.call(this);
-    setTimeout(() => {
+    
+    // ✅ ДОБАВЬТЕ ЭТОТ БЛОК - ОБНОВЛЕНИЕ ГРАФИКА
+    setTimeout(function() {
         if (typeof renderPriceChart === 'function') {
+            console.log('📊 Обновление графика из applyFiltersAndUpdate');
             renderPriceChart();
         }
-    }, 500);
+    }, 300);
+}
+const originalApplyFiltersAndUpdate = window.applyFiltersAndUpdate || function() {
+    // Запасная реализация, если оригинал не найден
+    console.warn('⚠️ Оригинальная applyFiltersAndUpdate не найдена, используем заглушку');
+    renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderPurposeFilters();
+    renderVriFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData ? mapData.features.filter(f => f.properties.level === 2) : [];
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    if (typeof updateQuartersStyle === 'function') updateQuartersStyle(targetObjects);
+    if (typeof updateMapStatsFromDeals === 'function') updateMapStatsFromDeals(level, parentId);
+    if (typeof updatePopupsAndTooltips === 'function') updatePopupsAndTooltips(level);
+    if (typeof updateQuartersListWithFilteredObjects === 'function') updateQuartersListWithFilteredObjects(null);
+    if (typeof addMapLegend === 'function') addMapLegend();
+    if (typeof updateActiveFiltersDisplay === 'function') updateActiveFiltersDisplay();
+    if (typeof renderDealsTable === 'function') renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 };
+
+// Переопределяем applyFiltersAndUpdate
+window.applyFiltersAndUpdate = function() {
+    console.log('🔄 applyFiltersAndUpdate вызвана (переопределенная)');
+    
+    // 1. Вызываем оригинальную логику
+    originalApplyFiltersAndUpdate.call(this);
+    
+    // 2. Обновляем график с задержкой для гарантии
+    if (typeof renderPriceChart === 'function') {
+        // Используем setTimeout для гарантии, что DOM обновился
+        setTimeout(function() {
+            console.log('📊 Обновление графика после фильтров');
+            renderPriceChart();
+        }, 300);
+    } else {
+        console.warn('⚠️ renderPriceChart не определена');
+    }
+};
+
+console.log('✅ applyFiltersAndUpdate переопределена с поддержкой графика');
 function applyDealTypeFilter(kind) {
     // ✅ МНОЖЕСТВЕННЫЙ ВЫБОР: добавляем или удаляем значение
     const index = currentDealTypeFilter.indexOf(kind);
@@ -4346,7 +4410,7 @@ function resetAllFiltersMap() {
     renderWallMaterialFilters();
     renderQuarterFilters(); 
     renderYearBuildFilters();
-      renderPurposeFilters();     
+    renderPurposeFilters();     
     renderVriFilters();      
     
     renderMapLevel(currentLevel, currentParentId);
@@ -4354,8 +4418,17 @@ function resetAllFiltersMap() {
     updateActiveFiltersDisplay();
     renderDealsTable();
     
+    // ✅ ДОБАВЬТЕ ЭТОТ БЛОК:
+    setTimeout(function() {
+        if (typeof renderPriceChart === 'function') {
+            console.log('📊 Обновление графика после сброса фильтров');
+            renderPriceChart();
+        }
+    }, 400);
+    
     console.log('✅ Все фильтры сброшены');
 }
+
 
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-list');
