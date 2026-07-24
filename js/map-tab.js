@@ -82,72 +82,58 @@ function getMedianSync(arr) {
 let priceChartInstance = null;
 let chartDataCache = null;
 
-function calculateHistoricalPrices() {
-    console.log('📊 Расчет исторических цен...');
+function calculateCityPrices() {
+    console.log('📊 Расчет цен по городам...');
     
-    const dealsWithDates = allDealsFlat.filter(deal => {
-        const quarter = deal.quarter;
-        if (!quarter || quarter === 'nan') return false;
+    // Группируем сделки по городам
+    const groupedByCity = {};
+    allDealsFlat.forEach(deal => {
+        const city = deal.city || 'unknown';
+        if (city === 'unknown' || city === 'nan') return;
         
-        const parts = quarter.split('/');
-        if (parts.length !== 2) return false;
-        
-        const year = parseInt(parts[0]);
-        const q = parseInt(parts[1].replace('Q', ''));
-        if (isNaN(year) || isNaN(q) || q < 1 || q > 4) return false;
-        
-        return deal.deal_price_rub > 0;
-    });
-    
-    if (dealsWithDates.length === 0) {
-        console.warn('⚠️ Нет данных для исторического анализа');
-        return null;
-    }
-    
-    const groupedByQuarter = {};
-    dealsWithDates.forEach(deal => {
-        const quarter = deal.quarter;
-        if (!groupedByQuarter[quarter]) {
-            groupedByQuarter[quarter] = [];
+        if (!groupedByCity[city]) {
+            groupedByCity[city] = [];
         }
-        groupedByQuarter[quarter].push(deal.deal_price_rub);
+        if (deal.deal_price_rub > 0) {
+            groupedByCity[city].push(deal.deal_price_rub);
+        }
     });
     
-    const quarterData = {};
-    Object.keys(groupedByQuarter).forEach(quarter => {
-        const prices = groupedByQuarter[quarter];
-        const median = getMedianSync(prices);
-        quarterData[quarter] = {
+    const cityData = {};
+    Object.keys(groupedByCity).forEach(city => {
+        const prices = groupedByCity[city];
+        if (prices.length === 0) return;
+        
+        cityData[city] = {
             count: prices.length,
-            median: median,
+            median: getMedianSync(prices),
             min: Math.min(...prices),
             max: Math.max(...prices)
         };
     });
     
-    const sortedQuarters = Object.keys(quarterData).sort((a, b) => {
-        const [yearA, qA] = a.split('/');
-        const [yearB, qB] = b.split('/');
-        return (parseInt(yearA) * 4 + parseInt(qA.replace('Q', ''))) - 
-               (parseInt(yearB) * 4 + parseInt(qB.replace('Q', '')));
+    // Сортируем города по количеству сделок (от большего к меньшему)
+    const sortedCities = Object.keys(cityData).sort((a, b) => {
+        return cityData[b].count - cityData[a].count;
     });
     
-    const allQuarters = sortedQuarters;
+    // Берем топ-15 городов для читаемости
+    const topCities = sortedCities.slice(0, 15);
     
     const result = {
-        quarters: allQuarters,
-        data: allQuarters.map(q => ({
-            quarter: q,
-            median: quarterData[q].median,
-            count: quarterData[q].count,
-            min: quarterData[q].min,
-            max: quarterData[q].max
+        cities: topCities,
+        data: topCities.map(city => ({
+            city: city,
+            median: cityData[city].median,
+            count: cityData[city].count,
+            min: cityData[city].min,
+            max: cityData[city].max
         })),
-        allData: quarterData,
-        totalDeals: dealsWithDates.length
+        allData: cityData,
+        totalDeals: allDealsFlat.filter(d => d.deal_price_rub > 0).length
     };
     
-    console.log(`✅ Исторические данные: ${result.quarters.length} кварталов, ${result.totalDeals} сделок`);
+    console.log(`✅ Данные по городам: ${result.cities.length} городов, ${result.totalDeals} сделок`);
     return result;
 }
 
@@ -164,13 +150,13 @@ function renderPriceChart() {
         </div>
     `;
     
-    const chartData = calculateHistoricalPrices();
+    const chartData = calculateCityPrices();
     if (!chartData || chartData.data.length < 2) {
         container.innerHTML = `
             <div style="display:flex;justify-content:center;align-items:center;height:200px;color:#94a3b8;flex-direction:column;gap:8px;">
                 <span style="font-size:32px;">📊</span>
                 <span>Недостаточно данных для анализа</span>
-                <span style="font-size:12px;">Требуется минимум 2 квартала с данными</span>
+                <span style="font-size:12px;">Требуется минимум 2 города с данными</span>
             </div>
         `;
         return;
@@ -181,17 +167,18 @@ function renderPriceChart() {
     const canvas = document.createElement('canvas');
     canvas.id = 'price-chart-canvas';
     canvas.width = container.clientWidth || 600;
-    canvas.height = 250;
+    canvas.height = 300;
     canvas.style.width = '100%';
     canvas.style.height = 'auto';
-    canvas.style.aspectRatio = '600/250';
+    canvas.style.aspectRatio = '600/300';
     
     container.innerHTML = '';
     container.appendChild(canvas);
     
     const ctx = canvas.getContext('2d');
-    drawPriceChart(ctx, canvas.width, canvas.height, chartData);
+    drawCityChart(ctx, canvas.width, canvas.height, chartData);
     
+    // Статистика
     const statsDiv = document.createElement('div');
     statsDiv.style.cssText = `
         display: flex;
@@ -206,182 +193,117 @@ function renderPriceChart() {
         gap: 6px;
     `;
     
-    const latest = chartData.data[chartData.data.length - 1];
-    const oldest = chartData.data[0];
-    const change = latest ? ((latest.median - oldest.median) / oldest.median * 100) : 0;
+    const maxCity = chartData.data.reduce((a, b) => a.median > b.median ? a : b);
+    const minCity = chartData.data.reduce((a, b) => a.median < b.median ? a : b);
     
     statsDiv.innerHTML = `
-        <span>📅 Период: <strong>${chartData.quarters[0]} — ${chartData.quarters[chartData.quarters.length - 1]}</strong></span>
+        <span>🏙️ Городов: <strong>${chartData.cities.length}</strong></span>
         <span>📊 Всего сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
-        <span>📈 Изменение: <strong style="color: ${change >= 0 ? '#22c55e' : '#ef4444'};">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</strong></span>
+        <span>📈 Макс: <strong>${formatPriceShort(maxCity.median)}</strong> (${maxCity.city})</span>
+        <span>📉 Мин: <strong>${formatPriceShort(minCity.median)}</strong> (${minCity.city})</span>
     `;
     
     container.appendChild(statsDiv);
-    renderSeasonality(container, chartData);
 }
 
-function drawPriceChart(ctx, width, height, chartData) {
-    const padding = { top: 20, bottom: 30, left: 50, right: 20 };
+function drawCityChart(ctx, width, height, chartData) {
+    const padding = { top: 20, bottom: 40, left: 80, right: 20 };
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
     
     const data = chartData.data;
     const values = data.map(d => d.median);
-    const minVal = Math.min(...values) * 0.95;
-    const maxVal = Math.max(...values) * 1.05;
+    const maxVal = Math.max(...values) * 1.1;
+    const minVal = 0;
     const range = maxVal - minVal || 1;
     
     ctx.clearRect(0, 0, width, height);
     
+    // Сетка
     ctx.strokeStyle = '#f1f5f9';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
-        const y = padding.top + (chartHeight / 4) * i;
+        const y = padding.top + chartHeight - (chartHeight / 4) * i;
         ctx.beginPath();
         ctx.moveTo(padding.left, y);
         ctx.lineTo(width - padding.right, y);
         ctx.stroke();
         
-        const val = maxVal - (range / 4) * i;
+        const val = (range / 4) * i;
         ctx.fillStyle = '#94a3b8';
         ctx.font = '9px Inter, sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText(formatPriceShort(val), padding.left - 6, y + 3);
     }
     
-    ctx.beginPath();
-    ctx.strokeStyle = '#0ea5e9';
-    ctx.lineWidth = 2.5;
+    // Столбцы
+    const barWidth = Math.min(chartWidth / data.length * 0.6, 40);
+    const gap = (chartWidth - barWidth * data.length) / (data.length + 1);
     
     data.forEach((d, i) => {
-        const x = padding.left + (i / (data.length - 1)) * chartWidth;
-        const y = padding.top + chartHeight - ((d.median - minVal) / range) * chartHeight;
+        const x = padding.left + gap + i * (barWidth + gap);
+        const barHeight = (d.median / range) * chartHeight;
+        const y = padding.top + chartHeight - barHeight;
         
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    
-    const lastX = padding.left + chartWidth;
-    const lastY = padding.top + chartHeight;
-    ctx.lineTo(lastX, lastY);
-    ctx.lineTo(padding.left, lastY);
-    ctx.closePath();
-    
-    const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
-    gradient.addColorStop(0, 'rgba(14, 165, 233, 0.15)');
-    gradient.addColorStop(1, 'rgba(14, 165, 233, 0.01)');
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    
-    data.forEach((d, i) => {
-        const x = padding.left + (i / (data.length - 1)) * chartWidth;
-        const y = padding.top + chartHeight - ((d.median - minVal) / range) * chartHeight;
+        // Цвет столбца (градиент от зеленого к красному)
+        const ratio = d.median / maxVal;
+        const r = Math.round(34 + (220 - 34) * ratio);
+        const g = Math.round(197 - (197 - 50) * ratio);
+        const b = Math.round(84 - (84 - 50) * ratio);
+        const color = `rgb(${r}, ${g}, ${b})`;
+        
+        // Тень
+        ctx.shadowColor = 'rgba(0,0,0,0.05)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 2;
+        
+        // Столбец
+        ctx.fillStyle = color;
+        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        
+        const radius = 4;
+        const bw = barWidth;
+        const bh = barHeight;
+        const bx = x;
+        const by = y;
         
         ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#0ea5e9';
+        ctx.moveTo(bx + radius, by);
+        ctx.lineTo(bx + bw - radius, by);
+        ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + radius);
+        ctx.lineTo(bx + bw, by + bh);
+        ctx.lineTo(bx, by + bh);
+        ctx.lineTo(bx, by + radius);
+        ctx.quadraticCurveTo(bx, by, bx + radius, by);
+        ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
         
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        
+        // Количество сделок над столбцом
         ctx.fillStyle = '#64748b';
         ctx.font = '8px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(d.quarter, x, height - 6);
-    });
-}
-
-function renderSeasonality(container, chartData) {
-    const seasons = {};
-    Object.keys(chartData.allData).forEach(quarter => {
-        const q = parseInt(quarter.split('/')[1].replace('Q', ''));
-        if (!seasons[q]) seasons[q] = [];
-        seasons[q].push(chartData.allData[quarter].median);
-    });
-    
-    const seasonNames = {
-        1: 'Q1 (Янв-Мар)',
-        2: 'Q2 (Апр-Июн)',
-        3: 'Q3 (Июл-Сен)',
-        4: 'Q4 (Окт-Дек)'
-    };
-    
-    const seasonAverages = {};
-    Object.keys(seasons).forEach(q => {
-        const values = seasons[q];
-        seasonAverages[q] = getMedianSync(values);
-    });
-    
-    const seasonValues = Object.values(seasonAverages);
-    if (seasonValues.length < 2) return;
-    
-    const maxVal = Math.max(...seasonValues);
-    const minVal = Math.min(...seasonValues);
-    
-    const seasonDiv = document.createElement('div');
-    seasonDiv.style.cssText = `
-        margin-top: 12px;
-        padding: 10px 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-    `;
-    
-    let seasonHtml = `
-        <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 8px;">
-            📅 Сезонность (медианная цена по кварталам)
-        </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-    `;
-    
-    const sortedSeasons = Object.keys(seasonAverages).sort((a, b) => parseInt(a) - parseInt(b));
-    
-    sortedSeasons.forEach(q => {
-        const value = seasonAverages[q];
-        const isMax = value === maxVal;
-        const isMin = value === minVal;
+        ctx.fillText(d.count, x + barWidth / 2, y - 4);
         
-        let color = '#94a3b8';
-        let label = 'Средний';
-        if (isMax && maxVal !== minVal) {
-            color = '#22c55e';
-            label = '📈 Высокий';
-        } else if (isMin && maxVal !== minVal) {
-            color = '#ef4444';
-            label = '📉 Низкий';
+        // Название города (сокращенное)
+        ctx.fillStyle = '#475569';
+        ctx.font = '9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        const shortName = d.city.length > 12 ? d.city.substring(0, 10) + '…' : d.city;
+        ctx.fillText(shortName, x + barWidth / 2, height - 12);
+        
+        // Значение на столбце (если есть место)
+        if (barHeight > 30) {
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 9px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(formatPriceShort(d.median), x + barWidth / 2, y + 14);
         }
-        
-        seasonHtml += `
-            <div style="
-                flex: 1;
-                min-width: 60px;
-                text-align: center;
-                padding: 6px 8px;
-                background: white;
-                border-radius: 6px;
-                border: 1px solid ${isMax && maxVal !== minVal ? '#86efac' : isMin && maxVal !== minVal ? '#fca5a5' : '#e2e8f0'};
-                box-shadow: ${isMax && maxVal !== minVal ? '0 0 0 2px #dcfce7' : 'none'};
-            ">
-                <div style="font-size: 10px; font-weight: 600; color: #1e293b;">${seasonNames[q] || q}</div>
-                <div style="font-size: 14px; font-weight: 700; color: ${color}; margin: 2px 0;">
-                    ${formatPriceShort(value)}
-                </div>
-                <div style="font-size: 8px; color: #94a3b8;">${label}</div>
-            </div>
-        `;
     });
-    
-    seasonHtml += `
-        </div>
-        <div style="font-size: 9px; color: #94a3b8; margin-top: 6px; text-align: center;">
-            ${maxVal !== minVal ? '🟢 Зеленый — самый дорогой квартал, 🔴 Красный — самый дешевый' : '📊 Все кварталы имеют одинаковую медианную цену'}
-        </div>
-    `;
-    
-    seasonDiv.innerHTML = seasonHtml;
-    container.appendChild(seasonDiv);
 }
 
 function formatPriceShort(num) {
