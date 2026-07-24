@@ -3983,31 +3983,40 @@ function updateActiveFiltersDisplay() {
     
     const activeFilters = [];
     
-    // ✅ Проверяем, есть ли выбранные значения в каждом фильтре
+    // ✅ Собираем ВСЕ выбранные значения с их категориями
     if (currentCityFilter.length > 0) {
-        activeFilters.push('Город');
+        const values = currentCityFilter.join(', ');
+        activeFilters.push(`Районы: ${values}`);
     }
     if (currentObjectTypeFilter.length > 0) {
-        activeFilters.push('Тип объекта');
+        const values = currentObjectTypeFilter.join(', ');
+        activeFilters.push(`Тип объекта: ${values}`);
     }
     if (currentDealTypeFilter.length > 0) {
-        activeFilters.push('Тип сделки');
+        const values = currentDealTypeFilter.join(', ');
+        activeFilters.push(`Тип сделки: ${values}`);
     }
     if (currentQuarterFilter.length > 0) {
-        activeFilters.push('Квартал');
+        const values = currentQuarterFilter.join(', ');
+        activeFilters.push(`Квартал: ${values}`);
     }
     if (currentWallMaterialFilter.length > 0) {
-        activeFilters.push('Материал стен');
+        const values = currentWallMaterialFilter.join(', ');
+        activeFilters.push(`Материал стен: ${values}`);
     }
     if (currentYearBuildFilter.length > 0) {
-        activeFilters.push('Год постройки');
+        const values = currentYearBuildFilter.join(', ');
+        activeFilters.push(`Год постройки: ${values}`);
     }
     if (currentPurposeFilter.length > 0) {
-    activeFilters.push('Назначение');
-}
-if (currentVriFilter.length > 0) {
-    activeFilters.push('ВРИ');
-}
+        const values = currentPurposeFilter.join(', ');
+        activeFilters.push(`Назначение: ${values}`);
+    }
+    if (currentVriFilter.length > 0) {
+        const values = currentVriFilter.join(', ');
+        activeFilters.push(`ВРИ: ${values}`);
+    }
+    
     if (activeFilters.length === 0) {
         container.textContent = '—';
         container.style.color = '#94a3b8';
@@ -4016,17 +4025,20 @@ if (currentVriFilter.length > 0) {
             `<span style="
                 background: #e0f2fe; 
                 color: #0284c7; 
-                padding: 1px 10px; 
+                padding: 2px 10px; 
                 border-radius: 12px; 
                 font-weight: 500;
                 font-size: 10px;
                 border: 1px solid #bae6fd;
                 white-space: nowrap;
+                display: inline-block;
+                margin: 1px 2px;
             ">${f}</span>`
         ).join(' ');
         container.style.color = '#1e293b';
     }
 }
+
 function renderDealsTable() {
     const container = document.getElementById('deals-table-container');
     if (!container) return;
