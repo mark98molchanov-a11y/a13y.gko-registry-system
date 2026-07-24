@@ -83,34 +83,58 @@ let priceChartInstance = null;
 let chartDataCache = null;
 
 function calculateCityPrices() {
-    console.log('📊 Расчет цен по городам...');
+    console.log('📊 Расчет УПРС и УПКС по городам...');
     
     // Группируем сделки по городам
     const groupedByCity = {};
     allDealsFlat.forEach(deal => {
+        // Применяем все активные фильтры
+        // Фильтр по типу сделки
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return;
+        // Фильтр по городу
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return;
+        // Фильтр по типу объекта
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return;
+        // Фильтр по материалу стен
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return;
+        // Фильтр по кварталу сделки
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return;
+        // Фильтр по году постройки
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return;
+        // Фильтр по назначению
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return;
+        // Фильтр по ВРИ
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return;
+        
         const city = deal.city || 'unknown';
         if (city === 'unknown' || city === 'nan') return;
         
         if (!groupedByCity[city]) {
-            groupedByCity[city] = [];
+            groupedByCity[city] = {
+                uprs: [],
+                upks: []
+            };
         }
-        // ✅ ИСПРАВЛЕНО: используем uprs (без _rub)
-        const uprsValue = deal.uprs || 0;
-        if (uprsValue > 0) {
-            groupedByCity[city].push(uprsValue);
-        }
+        
+        if (deal.uprs > 0) groupedByCity[city].uprs.push(deal.uprs);
+        if (deal.upks > 0) groupedByCity[city].upks.push(deal.upks);
     });
     
     const cityData = {};
     Object.keys(groupedByCity).forEach(city => {
-        const prices = groupedByCity[city];
-        if (prices.length === 0) return;
+        const uprs = groupedByCity[city].uprs;
+        const upks = groupedByCity[city].upks;
+        
+        if (uprs.length === 0 && upks.length === 0) return;
         
         cityData[city] = {
-            count: prices.length,
-            median: getMedianSync(prices),
-            min: Math.min(...prices),
-            max: Math.max(...prices)
+            count: Math.max(uprs.length, upks.length),
+            uprsMedian: uprs.length > 0 ? getMedianSync(uprs) : 0,
+            upksMedian: upks.length > 0 ? getMedianSync(upks) : 0,
+            uprsMin: uprs.length > 0 ? Math.min(...uprs) : 0,
+            uprsMax: uprs.length > 0 ? Math.max(...uprs) : 0,
+            upksMin: upks.length > 0 ? Math.min(...upks) : 0,
+            upksMax: upks.length > 0 ? Math.max(...upks) : 0
         };
     });
     
@@ -126,17 +150,22 @@ function calculateCityPrices() {
         cities: topCities,
         data: topCities.map(city => ({
             city: city,
-            median: cityData[city].median,
             count: cityData[city].count,
-            min: cityData[city].min,
-            max: cityData[city].max
+            uprsMedian: cityData[city].uprsMedian,
+            upksMedian: cityData[city].upksMedian,
+            uprsMin: cityData[city].uprsMin,
+            uprsMax: cityData[city].uprsMax,
+            upksMin: cityData[city].upksMin,
+            upksMax: cityData[city].upksMax
         })),
         allData: cityData,
-        totalDeals: allDealsFlat.filter(d => d.uprs > 0).length
+        totalDeals: allDealsFlat.filter(d => d.uprs > 0 || d.upks > 0).length
     };
     
-    console.log(`✅ Данные по городам: ${result.cities.length} городов, ${result.totalDeals} сделок`);
-    console.log('📊 Пример данных:', result.data.slice(0, 3));
+    console.log(`✅ Данные по городам: ${result.cities.length} городов`);
+    if (result.data.length > 0) {
+        console.log('📊 Пример:', result.data[0]);
+    }
     return result;
 }
 
@@ -155,12 +184,12 @@ function renderPriceChart() {
     `;
     
     const chartData = calculateCityPrices();
-    if (!chartData || chartData.data.length < 2) {
+    if (!chartData || chartData.data.length === 0) {
         container.innerHTML = `
             <div style="display:flex;justify-content:center;align-items:center;height:250px;color:#94a3b8;flex-direction:column;gap:8px;">
                 <span style="font-size:32px;">📊</span>
-                <span>Недостаточно данных для анализа</span>
-                <span style="font-size:12px;">Требуется минимум 2 города с данными по УПРС</span>
+                <span>Нет данных для отображения</span>
+                <span style="font-size:12px;">Попробуйте изменить фильтры</span>
             </div>
         `;
         return;
@@ -168,7 +197,16 @@ function renderPriceChart() {
     
     chartDataCache = chartData;
     
-    // Создаем canvas для графика
+    // Сортируем по УПРС для красивого отображения
+    const sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
+    const cities = sortedData.map(d => d.city);
+    const uprsData = sortedData.map(d => d.uprsMedian);
+    const upksData = sortedData.map(d => d.upksMedian);
+    
+    // Находим максимум для шкалы
+    const allValues = [...uprsData, ...upksData].filter(v => v > 0);
+    const maxVal = allValues.length > 0 ? Math.max(...allValues) * 1.15 : 100;
+    
     container.innerHTML = `
         <canvas id="price-chart-canvas" style="width:100%; height:250px;"></canvas>
         <div id="price-chart-stats" style="display:flex; justify-content:space-around; margin-top:12px; padding:8px 12px; background:#f8fafc; border-radius:8px; font-size:11px; color:#475569; flex-wrap:wrap; gap:6px;"></div>
@@ -177,79 +215,36 @@ function renderPriceChart() {
     const canvas = document.getElementById('price-chart-canvas');
     const ctx = canvas.getContext('2d');
     
-    // Если уже есть экземпляр графика — уничтожаем
     if (priceChartInstance) {
         priceChartInstance.destroy();
         priceChartInstance = null;
     }
     
-    // ✅ СОЗДАЕМ КРАСИВЫЙ ГРАФИК С ОБЛАСТЯМИ
-    const sortedData = [...chartData.data].sort((a, b) => a.median - b.median);
-    const cities = sortedData.map(d => d.city);
-    const medians = sortedData.map(d => d.median);
-    const minValues = sortedData.map(d => d.min);
-    const maxValues = sortedData.map(d => d.max);
-    
-    // Находим город с максимальным УПРС для подписи
-    const maxItem = sortedData.reduce((a, b) => a.median > b.median ? a : b);
-    
+    // ✅ СОЗДАЕМ ГРУППИРОВАННУЮ СТОЛБЧАТУЮ ДИАГРАММУ
     priceChartInstance = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: cities,
             datasets: [
                 {
                     label: 'УПРС (медиана)',
-                    data: medians,
-                    fill: true,
-                    backgroundColor: function(context) {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) return 'rgba(14, 165, 233, 0.3)';
-                        
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, 'rgba(14, 165, 233, 0.6)');
-                        gradient.addColorStop(0.5, 'rgba(14, 165, 233, 0.25)');
-                        gradient.addColorStop(1, 'rgba(14, 165, 233, 0.05)');
-                        return gradient;
-                    },
+                    data: uprsData,
+                    backgroundColor: 'rgba(14, 165, 233, 0.8)',
                     borderColor: '#0ea5e9',
-                    borderWidth: 3,
-                    tension: 0.4, // ✅ ПЛАВНАЯ КРИВАЯ
-                    pointRadius: 5,
-                    pointBackgroundColor: '#0284c7',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointHoverRadius: 8,
-                    pointHoverBackgroundColor: '#0369a1',
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    barPercentage: 0.35,
+                    categoryPercentage: 0.7,
                 },
                 {
-                    label: 'Мин / Макс (диапазон)',
-                    data: maxValues,
-                    fill: '1',
-                    backgroundColor: 'rgba(14, 165, 233, 0.08)',
-                    borderColor: 'rgba(14, 165, 233, 0.2)',
-                    borderWidth: 0,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    borderDash: [5, 5],
-                    showLine: true,
-                    borderColor: 'rgba(14, 165, 233, 0.15)',
-                    borderWidth: 1,
-                },
-                {
-                    label: 'Мин / Макс (диапазон)',
-                    data: minValues,
-                    fill: false,
-                    backgroundColor: 'rgba(14, 165, 233, 0.05)',
-                    borderColor: 'rgba(14, 165, 233, 0.15)',
-                    borderWidth: 1,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    borderDash: [5, 5],
-                    showLine: true,
+                    label: 'УПКС (медиана)',
+                    data: upksData,
+                    backgroundColor: 'rgba(251, 146, 60, 0.8)',
+                    borderColor: '#f97316',
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    barPercentage: 0.35,
+                    categoryPercentage: 0.7,
                 }
             ]
         },
@@ -283,7 +278,6 @@ function renderPriceChart() {
                     borderColor: '#e2e8f0',
                     borderWidth: 1,
                     cornerRadius: 8,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                     padding: 12,
                     callbacks: {
                         label: function(context) {
@@ -291,7 +285,7 @@ function renderPriceChart() {
                             if (label) {
                                 label += ': ';
                             }
-                            if (context.parsed.y !== null) {
+                            if (context.parsed.y !== null && context.parsed.y !== undefined) {
                                 label += context.parsed.y.toFixed(2) + ' ₽/м²';
                             }
                             return label;
@@ -299,11 +293,11 @@ function renderPriceChart() {
                         afterBody: function(tooltipItems) {
                             const index = tooltipItems[0].dataIndex;
                             const city = sortedData[index];
-                            if (city) {
+                            if (city && city.count > 0) {
                                 return [
                                     `Сделок: ${city.count}`,
-                                    `Мин: ${city.min.toFixed(2)} ₽/м²`,
-                                    `Макс: ${city.max.toFixed(2)} ₽/м²`
+                                    `УПРС: ${city.uprsMin > 0 ? city.uprsMin.toFixed(2) : '—'} – ${city.uprsMax > 0 ? city.uprsMax.toFixed(2) : '—'} ₽/м²`,
+                                    `УПКС: ${city.upksMin > 0 ? city.upksMin.toFixed(2) : '—'} – ${city.upksMax > 0 ? city.upksMax.toFixed(2) : '—'} ₽/м²`
                                 ];
                             }
                             return [];
@@ -314,6 +308,7 @@ function renderPriceChart() {
             scales: {
                 y: {
                     beginAtZero: true,
+                    max: maxVal,
                     grid: {
                         color: 'rgba(0,0,0,0.05)',
                         drawBorder: false,
@@ -355,12 +350,10 @@ function renderPriceChart() {
                     }
                 }
             },
-            // ✅ АНИМАЦИЯ ДЛЯ ДИНАМИЧНОСТИ
             animation: {
-                duration: 1200,
+                duration: 800,
                 easing: 'easeOutQuart',
             },
-            // ✅ ПРИ ХОВЕРЕ ПОКАЗЫВАЕМ КАРТИНКУ
             hover: {
                 mode: 'index',
                 intersect: false,
@@ -368,45 +361,44 @@ function renderPriceChart() {
             },
         },
         plugins: [{
-            // ✅ ПЛАГИН ДЛЯ ПОДПИСИ МАКСИМАЛЬНОГО ЗНАЧЕНИЯ
+            // ✅ ПЛАГИН ДЛЯ ПОДПИСИ ЗНАЧЕНИЙ НА СТОЛБЦАХ
             afterDraw: function(chart) {
                 const ctx = chart.ctx;
-                chart.data.datasets.forEach(function(dataset, i) {
-                    const meta = chart.getDatasetMeta(i);
-                    if (i === 0) { // Только для основного датасета (УПРС)
-                        const maxIndex = dataset.data.reduce((maxIdx, val, idx, arr) => 
-                            val > arr[maxIdx] ? idx : maxIdx, 0
-                        );
-                        const maxValue = dataset.data[maxIndex];
-                        const point = meta.data[maxIndex];
-                        
-                        if (point && maxValue > 0) {
+                chart.data.datasets.forEach(function(dataset, datasetIndex) {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (!meta.data) return;
+                    
+                    meta.data.forEach(function(bar, index) {
+                        const dataValue = dataset.data[index];
+                        if (dataValue > 0) {
                             ctx.save();
-                            ctx.font = '600 11px Inter, sans-serif';
-                            ctx.fillStyle = '#0ea5e9';
+                            ctx.font = '500 9px Inter, sans-serif';
+                            ctx.fillStyle = '#475569';
                             ctx.textAlign = 'center';
-                            ctx.shadowColor = 'rgba(255,255,255,0.8)';
-                            ctx.shadowBlur = 6;
-                            ctx.fillText('▲ ' + maxValue.toFixed(0) + ' ₽/м²', point.x, point.y - 14);
+                            ctx.textBaseline = 'bottom';
+                            
+                            const yPos = bar.y - 4;
+                            ctx.fillText(dataValue.toFixed(0), bar.x, yPos);
                             ctx.restore();
                         }
-                    }
+                    });
                 });
             }
         }]
     });
     
-    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ ПОД ГРАФИКОМ
+    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
     const statsDiv = document.getElementById('price-chart-stats');
     if (statsDiv) {
-        const maxCity = sortedData.reduce((a, b) => a.median > b.median ? a : b);
-        const minCity = sortedData.reduce((a, b) => a.median < b.median ? a : b);
+        const totalDeals = sortedData.reduce((sum, d) => sum + d.count, 0);
+        const avgUprs = sortedData.reduce((sum, d) => sum + d.uprsMedian, 0) / sortedData.length;
+        const avgUpks = sortedData.reduce((sum, d) => sum + d.upksMedian, 0) / sortedData.length;
         
         statsDiv.innerHTML = `
             <span>🏙️ Городов: <strong>${chartData.cities.length}</strong></span>
-            <span>📊 Всего сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
-            <span>📈 Макс УПРС: <strong>${maxCity.median.toFixed(2)} ₽/м²</strong> (${maxCity.city})</span>
-            <span>📉 Мин УПРС: <strong>${minCity.median.toFixed(2)} ₽/м²</strong> (${minCity.city})</span>
+            <span>📊 Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
+            <span>📈 Средний УПРС: <strong>${avgUprs > 0 ? avgUprs.toFixed(0) : '—'} ₽/м²</strong></span>
+            <span>📊 Средний УПКС: <strong>${avgUpks > 0 ? avgUpks.toFixed(0) : '—'} ₽/м²</strong></span>
         `;
     }
 }
