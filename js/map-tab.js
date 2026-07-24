@@ -2434,15 +2434,16 @@ function updateQuartersStyle(targetObjects) {
                     let totalUpks = 0;
                     let countWithData = 0;
                     
-                    filteredDeals.forEach(deal => {
-                        const uprsValue = deal.uprs || deal.uprs_rub || 0;
-                        const upksValue = deal.upks || 0;
-                        if (uprsValue > 0 && upksValue > 0) {
-                            totalUprs += uprsValue;
-                            totalUpks += upksValue;
-                            countWithData++;
-                        }
-                    });
+                  filteredDeals.forEach(deal => {
+    // ✅ Используем uprs (без _rub), потому что в dealsData поле называется uprs
+    const uprsValue = deal.uprs || 0;
+    const upksValue = deal.upks || 0;
+    if (uprsValue > 0 && upksValue > 0) {
+        totalUprs += uprsValue;
+        totalUpks += upksValue;
+        countWithData++;
+    }
+});
                     
                     if (countWithData > 0) {
                         const avgUprs = totalUprs / countWithData;
@@ -2861,6 +2862,22 @@ function renderMapLevel(level, parentId = null) {
     console.log('📏 invalidateSize() выполнен после добавления слоев');
   }
 }
+    if (window.mapLayer) {
+    let targetObjects = [];
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return fParentId === parentId;
+        });
+    }
+    updateQuartersStyle(targetObjects);
+    console.log('🔥 Стили обновлены сразу после добавления слоев, isHeatmapEnabled =', isHeatmapEnabled);
+}
+
 
     // ✅ КАРДИНАЛЬНОЕ РЕШЕНИЕ ДЛЯ ЦЕНТРИРОВАНИЯ С ПРИНУДИТЕЛЬНЫМИ ПОПЫТКАМИ
     function centerMap(attempt) {
@@ -3434,15 +3451,16 @@ layer.on('mouseover', function(e) {
             // 🔥 РЕЖИМ HEATMAP: цвет по УПРС/УПКС
             if (filteredDeals.length > 0) {
                 let totalUprs = 0, totalUpks = 0, count = 0;
-                filteredDeals.forEach(deal => {
-                    const uprsValue = deal.uprs || deal.uprs_rub || 0;
-                    const upksValue = deal.upks || 0;
-                    if (uprsValue > 0 && upksValue > 0) {
-                        totalUprs += uprsValue;
-                        totalUpks += upksValue;
-                        count++;
-                    }
-                });
+           
+filteredDeals.forEach(deal => {
+    const uprsValue = deal.uprs || 0;  // ✅ Убрал uprs_rub
+    const upksValue = deal.upks || 0;
+    if (uprsValue > 0 && upksValue > 0) {
+        totalUprs += uprsValue;
+        totalUpks += upksValue;
+        count++;
+    }
+});
                 if (count > 0) {
                     const avgUprs = totalUprs / count;
                     const avgUpks = totalUpks / count;
@@ -3521,15 +3539,15 @@ layer.on('mouseout', function(e) {
             // 🔥 ВОССТАНАВЛИВАЕМ HEATMAP СТИЛЬ (ТА ЖЕ ЛОГИКА, ЧТО В updateQuartersStyle)
             if (filteredDeals.length > 0) {
                 let totalUprs = 0, totalUpks = 0, count = 0;
-                filteredDeals.forEach(deal => {
-                    const uprsValue = deal.uprs || deal.uprs_rub || 0;
-                    const upksValue = deal.upks || 0;
-                    if (uprsValue > 0 && upksValue > 0) {
-                        totalUprs += uprsValue;
-                        totalUpks += upksValue;
-                        count++;
-                    }
-                });
+filteredDeals.forEach(deal => {
+    const uprsValue = deal.uprs || 0;
+    const upksValue = deal.upks || 0;
+    if (uprsValue > 0 && upksValue > 0) {
+        totalUprs += uprsValue;
+        totalUpks += upksValue;
+        count++;
+    }
+});
                 if (count > 0) {
                     const avgUprs = totalUprs / count;
                     const avgUpks = totalUpks / count;
