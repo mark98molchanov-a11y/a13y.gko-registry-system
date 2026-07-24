@@ -140,7 +140,7 @@ function calculateCityPrices() {
         if (uprs.length === 0 && upks.length === 0) return;
         
         cityData[city] = {
-            count: Math.max(uprs.length, upks.length),
+            count: allDeals.length,
             uprsMedian: uprs.length > 0 ? getMedianSync(uprs) : 0,
             upksMedian: upks.length > 0 ? getMedianSync(upks) : 0,
             uprsMin: uprs.length > 0 ? Math.min(...uprs) : 0,
