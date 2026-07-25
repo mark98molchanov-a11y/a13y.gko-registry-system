@@ -539,17 +539,30 @@ function getGroupValue(deal, groupBy) {
 }
 
 // Функция для получения значения поля для группировки
-function getGroupValue(deal, groupBy) {
-    switch(groupBy) {
-        case 'city': return deal.city || 'unknown';
-        case 'obj_kind': return deal.obj_kind_text || 'unknown';
-        case 'deal_kind': return deal.deal_kind_text || 'unknown';
-        case 'purpose': return deal.purpose_text || 'unknown';
-        case 'quarter': return deal.quarter || 'unknown';
-        case 'wall_material': return deal.wall_material_name || 'unknown';
-        case 'vri': return deal.vri || 'unknown';
-        default: return deal.city || 'unknown';
-    }
+function setChartGroupBy(group) {
+    if (currentChartGroupBy === group) return;
+    
+    // ✅ ПРИНУДИТЕЛЬНЫЙ СБРОС ПЕРЕД ПЕРЕКЛЮЧЕНИЕМ
+    window._calcDepth = 0;
+    
+    currentChartGroupBy = group;
+    
+    // Обновляем активную кнопку
+    document.querySelectorAll('.chart-group-btn').forEach(btn => {
+        const isActive = btn.dataset.group === group;
+        if (isActive) {
+            btn.style.background = '#0ea5e9';
+            btn.style.color = 'white';
+            btn.classList.add('active');
+        } else {
+            btn.style.background = '#e2e8f0';
+            btn.style.color = '#475569';
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Обновляем график
+    renderPriceChart();
 }
 function refreshPriceChart() {
     renderPriceChart();
