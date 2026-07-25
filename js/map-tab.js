@@ -183,37 +183,46 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
         if (allDeals.length === 0) continue;
         
         // Вычисляем медианы
-        let uprsMedian = 0;
-        if (uprs.length > 0) {
-            try {
-                const sorted = uprs.slice().sort((a, b) => a - b);
-                const mid = Math.floor(sorted.length / 2);
-                uprsMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-            } catch(e) {
-                console.warn('Ошибка вычисления uprsMedian для группы', group, e);
-            }
+       let uprsMedian = 0;
+if (uprs && uprs.length > 0) {
+    try {
+        const validUprs = uprs.filter(v => v > 0 && isFinite(v));
+        if (validUprs.length > 0) {
+            const sorted = validUprs.slice().sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            uprsMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
         }
-        
-        let upksMedian = 0;
-        if (upks.length > 0) {
-            try {
-                const sorted = upks.slice().sort((a, b) => a - b);
-                const mid = Math.floor(sorted.length / 2);
-                upksMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-            } catch(e) {
-                console.warn('Ошибка вычисления upksMedian для группы', group, e);
-            }
+    } catch(e) {
+        console.warn('Ошибка uprsMedian для', group, e);
+    }
+}
+
+let upksMedian = 0;
+if (upks && upks.length > 0) {
+    try {
+        const validUpks = upks.filter(v => v > 0 && isFinite(v));
+        if (validUpks.length > 0) {
+            const sorted = validUpks.slice().sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            upksMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
         }
-        
-        groupData[group] = {
-            count: allDeals.length,
-            uprsMedian: uprsMedian,
-            upksMedian: upksMedian,
-            uprsMin: uprs.length > 0 ? Math.min(...uprs) : 0,
-            uprsMax: uprs.length > 0 ? Math.max(...uprs) : 0,
-            upksMin: upks.length > 0 ? Math.min(...upks) : 0,
-            upksMax: upks.length > 0 ? Math.max(...upks) : 0
-        };
+    } catch(e) {
+        console.warn('Ошибка upksMedian для', group, e);
+    }
+}
+
+const validUprs = uprs ? uprs.filter(v => v > 0 && isFinite(v)) : [];
+const validUpks = upks ? upks.filter(v => v > 0 && isFinite(v)) : [];
+
+groupData[group] = {
+    count: allDeals.length,
+    uprsMedian: uprsMedian,
+    upksMedian: upksMedian,
+    uprsMin: validUprs.length > 0 ? Math.min(...validUprs) : 0,
+    uprsMax: validUprs.length > 0 ? Math.max(...validUprs) : 0,
+    upksMin: validUpks.length > 0 ? Math.min(...validUpks) : 0,
+    upksMax: validUpks.length > 0 ? Math.max(...validUpks) : 0
+};
     }
     
     // Сортируем группы по количеству сделок
