@@ -25,6 +25,7 @@ let currentPurposeFilter = [];
 let currentVriFilter = [];    
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
+let currentChartGroupBy = 'city';
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
@@ -82,8 +83,9 @@ function getMedianSync(arr) {
 let priceChartInstance = null;
 let chartDataCache = null;
 
+
 function calculateCityPrices() {
-    console.log('📊 Расчет УПРС и УПКС по городам...');
+    console.log(`📊 Расчет УПРС и УПКС по группам (${currentChartGroupBy})...`);
     
     // ✅ ПОЛУЧАЕМ ПРЕФИКС РАЙОНА
     let districtPrefix = null;
@@ -91,8 +93,8 @@ function calculateCityPrices() {
         districtPrefix = String(currentDistrictFilter).substring(0, 5);
     }
     
-    // Группируем сделки по городам
-    const groupedByCity = {};
+    // Группируем сделки по выбранному полю
+    const groupedData = {};
     allDealsFlat.forEach(deal => {
         // ✅ ФИЛЬТР ПО РАЙОНУ
         if (districtPrefix && !deal.cad_number.startsWith(districtPrefix)) return;
@@ -114,35 +116,35 @@ function calculateCityPrices() {
         // Фильтр по ВРИ
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return;
         
-        const city = deal.city || 'unknown';
-        if (city === 'unknown' || city === 'nan') return;
+        // ✅ ПОЛУЧАЕМ ЗНАЧЕНИЕ ДЛЯ ГРУППИРОВКИ
+        const groupValue = getGroupValue(deal, currentChartGroupBy);
+        if (groupValue === 'unknown' || groupValue === 'nan') return;
         
-        if (!groupedByCity[city]) {
-            groupedByCity[city] = {
+        if (!groupedData[groupValue]) {
+            groupedData[groupValue] = {
                 uprs: [],
                 upks: [],
-                allDeals: []  // ✅ ВСЕ СДЕЛКИ
+                allDeals: []
             };
         }
         
-        // ✅ СОХРАНЯЕМ ВСЕ СДЕЛКИ
-        groupedByCity[city].allDeals.push(deal);
+        groupedData[groupValue].allDeals.push(deal);
         
-        if (deal.uprs > 0) groupedByCity[city].uprs.push(deal.uprs);
-        if (deal.upks > 0) groupedByCity[city].upks.push(deal.upks);
+        if (deal.uprs > 0) groupedData[groupValue].uprs.push(deal.uprs);
+        if (deal.upks > 0) groupedData[groupValue].upks.push(deal.upks);
     });
     
-    const cityData = {};
-    Object.keys(groupedByCity).forEach(city => {
-        const data = groupedByCity[city];
+    const groupData = {};
+    Object.keys(groupedData).forEach(group => {
+        const data = groupedData[group];
         const uprs = data.uprs;
         const upks = data.upks;
         const allDeals = data.allDeals;
         
         if (allDeals.length === 0) return;
         
-        cityData[city] = {
-            count: allDeals.length,  // ✅ ВСЕ СДЕЛКИ В ГОРОДЕ (НЕ Math.max!)
+        groupData[group] = {
+            count: allDeals.length,
             uprsMedian: uprs.length > 0 ? getMedianSync(uprs) : 0,
             upksMedian: upks.length > 0 ? getMedianSync(upks) : 0,
             uprsMin: uprs.length > 0 ? Math.min(...uprs) : 0,
@@ -152,30 +154,31 @@ function calculateCityPrices() {
         };
     });
     
-    // Сортируем города по количеству сделок
-    const sortedCities = Object.keys(cityData).sort((a, b) => {
-        return cityData[b].count - cityData[a].count;
+    // Сортируем группы по количеству сделок
+    const sortedGroups = Object.keys(groupData).sort((a, b) => {
+        return groupData[b].count - groupData[a].count;
     });
     
-    const topCities = sortedCities.slice(0, 15);
+    const topGroups = sortedGroups.slice(0, 15);
     
     const result = {
-        cities: topCities,
-        data: topCities.map(city => ({
-            city: city,
-            count: cityData[city].count,
-            uprsMedian: cityData[city].uprsMedian,
-            upksMedian: cityData[city].upksMedian,
-            uprsMin: cityData[city].uprsMin,
-            uprsMax: cityData[city].uprsMax,
-            upksMin: cityData[city].upksMin,
-            upksMax: cityData[city].upksMax
+        groups: topGroups,
+        data: topGroups.map(group => ({
+            group: group,
+            count: groupData[group].count,
+            uprsMedian: groupData[group].uprsMedian,
+            upksMedian: groupData[group].upksMedian,
+            uprsMin: groupData[group].uprsMin,
+            uprsMax: groupData[group].uprsMax,
+            upksMin: groupData[group].upksMin,
+            upksMax: groupData[group].upksMax
         })),
-        allData: cityData,
-        totalDeals: topCities.reduce((sum, city) => sum + cityData[city].count, 0)
+        allData: groupData,
+        totalDeals: topGroups.reduce((sum, group) => sum + groupData[group].count, 0),
+        groupBy: currentChartGroupBy
     };
     
-    console.log(`✅ Данные по городам: ${result.cities.length} городов`);
+    console.log(`✅ Данные по группам (${currentChartGroupBy}): ${result.groups.length} групп`);
     if (result.data.length > 0) {
         console.log('📊 Пример:', result.data[0]);
     }
@@ -227,7 +230,7 @@ if (window._uprsVisible) {
     // Если УПРС скрыт — сортируем по УПКС
     sortedData = [...chartData.data].sort((a, b) => a.upksMedian - b.upksMedian);
 }
-    const cities = sortedData.map(d => d.city);
+    const groups = sortedData.map(d => d.group);
     const uprsData = sortedData.map(d => d.uprsMedian);
     const upksData = sortedData.map(d => d.upksMedian);
     
@@ -257,33 +260,33 @@ if (window._uprsVisible) {
     }
     
     // ✅ СОЗДАЕМ ГРУППИРОВАННУЮ СТОЛБЧАТУЮ ДИАГРАММУ
-    priceChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: cities,
-            datasets: [
-                {
-                    label: 'УПРС (медиана)',
-                    data: uprsData,
-                    backgroundColor: 'rgba(14, 165, 233, 0.8)',
-                    borderColor: '#0ea5e9',
-                    borderWidth: 2,
-                    borderRadius: 4,
-                    barPercentage: 0.35,
-                    categoryPercentage: 0.7,
-                },
-                {
-                    label: 'УПКС (медиана)',
-                    data: upksData,
-                    backgroundColor: 'rgba(251, 146, 60, 0.8)',
-                    borderColor: '#f97316',
-                    borderWidth: 2,
-                    borderRadius: 4,
-                    barPercentage: 0.35,
-                    categoryPercentage: 0.7,
-                }
-            ]
-        },
+priceChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: groups,  // ✅ ИСПРАВЛЕНО: было cities
+        datasets: [
+            {
+                label: 'УПРС (медиана)',
+                data: uprsData,
+                backgroundColor: 'rgba(14, 165, 233, 0.8)',
+                borderColor: '#0ea5e9',
+                borderWidth: 2,
+                borderRadius: 4,
+                barPercentage: 0.35,
+                categoryPercentage: 0.7,
+            },
+            {
+                label: 'УПКС (медиана)',
+                data: upksData,
+                backgroundColor: 'rgba(251, 146, 60, 0.8)',
+                borderColor: '#f97316',
+                borderWidth: 2,
+                borderRadius: 4,
+                barPercentage: 0.35,
+                categoryPercentage: 0.7,
+            }
+        ]
+    },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -331,7 +334,7 @@ onClick: function(e, legendItem, legend) {
         }
         
         // Обновляем данные графика
-        ci.data.labels = newSortedData.map(d => d.city);
+        ci.data.labels = newSortedData.map(d => d.group); 
         ci.data.datasets[0].data = newSortedData.map(d => d.uprsMedian);
         ci.data.datasets[1].data = newSortedData.map(d => d.upksMedian);
     }
@@ -439,14 +442,48 @@ if (statsDiv) {
     const medianOfUpks = allUpksMedians.length > 0 ? getMedianSync(allUpksMedians) : 0;
     
     statsDiv.innerHTML = `
-        <span>Городов: <strong>${chartData.cities.length}</strong></span>
+        <span>Групп: <strong>${chartData.groups.length}</strong></span>
         <span>Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
         <span>Медиана УПРС: <strong>${medianOfUprs > 0 ? medianOfUprs.toFixed(0) : '—'} ₽/м²</strong></span>
         <span>Медиана УПКС: <strong>${medianOfUpks > 0 ? medianOfUpks.toFixed(0) : '—'} ₽/м²</strong></span>
     `;
 }
 }
+function setChartGroupBy(group) {
+    if (currentChartGroupBy === group) return;
+    currentChartGroupBy = group;
+    
+    // Обновляем активную кнопку
+    document.querySelectorAll('.chart-group-btn').forEach(btn => {
+        const isActive = btn.dataset.group === group;
+        if (isActive) {
+            btn.style.background = '#0ea5e9';
+            btn.style.color = 'white';
+            btn.classList.add('active');
+        } else {
+            btn.style.background = '#e2e8f0';
+            btn.style.color = '#475569';
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Обновляем график
+    renderPriceChart();
+}
 
+// Функция для получения значения поля для группировки
+function getGroupValue(deal, groupBy) {
+    switch(groupBy) {
+        case 'city': return deal.city || 'unknown';
+        case 'obj_kind': return deal.obj_kind_text || 'unknown';
+        case 'deal_kind': return deal.deal_kind_text || 'unknown';
+        case 'purpose': return deal.purpose_text || 'unknown';
+        case 'quarter': return deal.quarter || 'unknown';
+        case 'wall_material': return deal.wall_material_name || 'unknown';
+        case 'vri': return deal.vri || 'unknown';
+        default: return deal.city || 'unknown';
+    }
+}
 function refreshPriceChart() {
     renderPriceChart();
 }
