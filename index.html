@@ -2012,6 +2012,98 @@
                     Обновить
                 </button>
             </div>
+                <div id="chart-group-buttons" style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; padding: 4px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <button class="chart-group-btn active" data-group="city" onclick="setChartGroupBy('city')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #0ea5e9;
+        color: white;
+    ">МО</button>
+    
+    <button class="chart-group-btn" data-group="obj_kind" onclick="setChartGroupBy('obj_kind')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">Тип объекта</button>
+    
+    <button class="chart-group-btn" data-group="deal_kind" onclick="setChartGroupBy('deal_kind')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">Тип сделки</button>
+    
+    <button class="chart-group-btn" data-group="purpose" onclick="setChartGroupBy('purpose')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">Назначение</button>
+    
+    <button class="chart-group-btn" data-group="quarter" onclick="setChartGroupBy('quarter')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">Квартал</button>
+    
+    <button class="chart-group-btn" data-group="wall_material" onclick="setChartGroupBy('wall_material')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">Материал стен</button>
+    
+    <button class="chart-group-btn" data-group="vri" onclick="setChartGroupBy('vri')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">ВРИ</button>
+</div>
             <div id="price-chart-container" style="
                 min-height: 250px;
                 position: relative;
