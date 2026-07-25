@@ -170,60 +170,81 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
     });
     
     // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ ДЛЯ КАЖДОЙ ГРУППЫ
-    const groupData = {};
-    const groupKeys = Object.keys(groupedData);
+  const groupData = {};
+const groupKeys = Object.keys(groupedData);
+
+for (let i = 0; i < groupKeys.length; i++) {
+    const group = groupKeys[i];
+    const data = groupedData[group];
+    const uprs = data.uprs || [];
+    const upks = data.upks || [];
+    const allDeals = data.allDeals || [];
     
-    for (let i = 0; i < groupKeys.length; i++) {
-        const group = groupKeys[i];
-        const data = groupedData[group];
-        const uprs = data.uprs || [];
-        const upks = data.upks || [];
-        const allDeals = data.allDeals || [];
-        
-        if (allDeals.length === 0) continue;
-        
-        // Вычисляем медианы
-       let uprsMedian = 0;
-if (uprs && uprs.length > 0) {
-    try {
-        const validUprs = uprs.filter(v => v > 0 && isFinite(v));
-        if (validUprs.length > 0) {
-            const sorted = validUprs.slice().sort((a, b) => a - b);
+    if (allDeals.length === 0) continue;
+    
+    // Вычисляем медианы
+    let uprsMedian = 0;
+    if (uprs.length > 0) {
+        try {
+            const sorted = uprs.slice().sort((a, b) => a - b);
             const mid = Math.floor(sorted.length / 2);
             uprsMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        } catch(e) {
+            console.warn('Ошибка вычисления uprsMedian для группы', group, e);
         }
-    } catch(e) {
-        console.warn('Ошибка uprsMedian для', group, e);
     }
-}
-
-let upksMedian = 0;
-if (upks && upks.length > 0) {
-    try {
-        const validUpks = upks.filter(v => v > 0 && isFinite(v));
-        if (validUpks.length > 0) {
-            const sorted = validUpks.slice().sort((a, b) => a - b);
+    
+    let upksMedian = 0;
+    if (upks.length > 0) {
+        try {
+            const sorted = upks.slice().sort((a, b) => a - b);
             const mid = Math.floor(sorted.length / 2);
             upksMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        } catch(e) {
+            console.warn('Ошибка вычисления upksMedian для группы', group, e);
         }
-    } catch(e) {
-        console.warn('Ошибка upksMedian для', group, e);
     }
+    
+    // ✅ ВЫЧИСЛЯЕМ MIN И MAX ЧЕРЕЗ ЦИКЛ (БЕЗ SPREAD ОПЕРАТОРА)
+    let uprsMin = 0, uprsMax = 0;
+    if (uprs.length > 0) {
+        let min = Infinity, max = -Infinity;
+        for (let j = 0; j < uprs.length; j++) {
+            const v = uprs[j];
+            if (v > 0 && isFinite(v)) {
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+        }
+        if (isFinite(min)) uprsMin = min;
+        if (isFinite(max)) uprsMax = max;
+    }
+    
+    let upksMin = 0, upksMax = 0;
+    if (upks.length > 0) {
+        let min = Infinity, max = -Infinity;
+        for (let j = 0; j < upks.length; j++) {
+            const v = upks[j];
+            if (v > 0 && isFinite(v)) {
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+        }
+        if (isFinite(min)) upksMin = min;
+        if (isFinite(max)) upksMax = max;
+    }
+    
+    groupData[group] = {
+        count: allDeals.length,
+        uprsMedian: uprsMedian,
+        upksMedian: upksMedian,
+        uprsMin: uprsMin,
+        uprsMax: uprsMax,
+        upksMin: upksMin,
+        upksMax: upksMax
+    };
 }
 
-const validUprs = uprs ? uprs.filter(v => v > 0 && isFinite(v)) : [];
-const validUpks = upks ? upks.filter(v => v > 0 && isFinite(v)) : [];
-
-groupData[group] = {
-    count: allDeals.length,
-    uprsMedian: uprsMedian,
-    upksMedian: upksMedian,
-    uprsMin: validUprs.length > 0 ? Math.min(...validUprs) : 0,
-    uprsMax: validUprs.length > 0 ? Math.max(...validUprs) : 0,
-    upksMin: validUpks.length > 0 ? Math.min(...validUpks) : 0,
-    upksMax: validUpks.length > 0 ? Math.max(...validUpks) : 0
-};
-    }
     
     // Сортируем группы по количеству сделок
     const sortedGroups = Object.keys(groupData).sort((a, b) => {
