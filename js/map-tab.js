@@ -2590,7 +2590,7 @@ function buildDistrictTooltipContent(layer) {
     const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
     
     return `
-        <div class="popup-title">📋 ${districtName}</div>
+        <div class="popup-title">${districtName}</div>
         <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
         ${totalDeals > 0 ? `
         <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
@@ -3616,7 +3616,7 @@ if (quarterStats.length > 0) {
         
         // ✅ КОНТЕНТ ДЛЯ ПОПАПА (клик)
         const popupContent = `
-       <div class="popup-title">📋 ${districtName}</div>
+       <div class="popup-title">${districtName}</div>
     <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
     ${totalDeals > 0 ? `
     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
@@ -3637,7 +3637,7 @@ if (quarterStats.length > 0) {
         
         // ✅ КОНТЕНТ ДЛЯ ТУЛТИПА (наведение)
         const tooltipContent = `
-          <div class="popup-title">📋 ${districtName}</div>
+          <div class="popup-title">${districtName}</div>
     <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
     ${totalDeals > 0 ? `
     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
