@@ -216,7 +216,15 @@ function renderPriceChart() {
     chartDataCache = chartData;
     
     // Сортируем по УПРС для красивого отображения
-    const sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
+    const uprsVisible = !priceChartInstance?.data?.datasets?.[0]?.hidden;
+let sortedData;
+if (uprsVisible) {
+    // Если УПРС виден — сортируем по УПРС
+    sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
+} else {
+    // Если УПРС скрыт — сортируем по УПКС
+    sortedData = [...chartData.data].sort((a, b) => a.upksMedian - b.upksMedian);
+}
     const cities = sortedData.map(d => d.city);
     const uprsData = sortedData.map(d => d.uprsMedian);
     const upksData = sortedData.map(d => d.upksMedian);
