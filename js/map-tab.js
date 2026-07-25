@@ -87,38 +87,39 @@ let chartDataCache = null;
 function calculateCityPrices() {
     console.log(`📊 Расчет УПРС и УПКС по группам (${currentChartGroupBy})...`);
     
-    // ✅ ПОЛУЧАЕМ ПРЕФИКС РАЙОНА
     let districtPrefix = null;
     if (currentDistrictFilter) {
         districtPrefix = String(currentDistrictFilter).substring(0, 5);
     }
     
-    // Группируем сделки по выбранному полю
     const groupedData = {};
+    
+    // ✅ ПРОХОДИМ ПО СДЕЛКАМ
     allDealsFlat.forEach(deal => {
-        // ✅ ФИЛЬТР ПО РАЙОНУ
+        // Применяем фильтры
         if (districtPrefix && !deal.cad_number.startsWith(districtPrefix)) return;
-        
-        // Фильтр по типу сделки
         if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return;
-        // Фильтр по городу
         if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return;
-        // Фильтр по типу объекта
         if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return;
-        // Фильтр по материалу стен
         if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return;
-        // Фильтр по кварталу сделки
         if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return;
-        // Фильтр по году постройки
         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return;
-        // Фильтр по назначению
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return;
-        // Фильтр по ВРИ
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return;
         
         // ✅ ПОЛУЧАЕМ ЗНАЧЕНИЕ ДЛЯ ГРУППИРОВКИ
-        const groupValue = getGroupValue(deal, currentChartGroupBy);
-        if (groupValue === 'unknown' || groupValue === 'nan') return;
+        let groupValue;
+        switch(currentChartGroupBy) {
+            case 'city': groupValue = deal.city || 'unknown'; break;
+            case 'obj_kind': groupValue = deal.obj_kind_text || 'unknown'; break;
+            case 'deal_kind': groupValue = deal.deal_kind_text || 'unknown'; break;
+            case 'purpose': groupValue = deal.purpose_text || 'unknown'; break;
+            case 'quarter': groupValue = deal.quarter || 'unknown'; break;
+            case 'wall_material': groupValue = deal.wall_material_name || 'unknown'; break;
+            case 'vri': groupValue = deal.vri || 'unknown'; break;
+            default: groupValue = deal.city || 'unknown';
+        }
+        if (!groupValue || groupValue === 'unknown' || groupValue === 'nan') return;
         
         if (!groupedData[groupValue]) {
             groupedData[groupValue] = {
@@ -129,30 +130,48 @@ function calculateCityPrices() {
         }
         
         groupedData[groupValue].allDeals.push(deal);
-        
         if (deal.uprs > 0) groupedData[groupValue].uprs.push(deal.uprs);
         if (deal.upks > 0) groupedData[groupValue].upks.push(deal.upks);
     });
     
+    // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ ДЛЯ КАЖДОЙ ГРУППЫ
     const groupData = {};
-    Object.keys(groupedData).forEach(group => {
+    const groupKeys = Object.keys(groupedData);
+    
+    for (let i = 0; i < groupKeys.length; i++) {
+        const group = groupKeys[i];
         const data = groupedData[group];
         const uprs = data.uprs;
         const upks = data.upks;
         const allDeals = data.allDeals;
         
-        if (allDeals.length === 0) return;
+        if (allDeals.length === 0) continue;
+        
+        // Вычисляем медианы
+        let uprsMedian = 0;
+        if (uprs.length > 0) {
+            const sorted = uprs.slice().sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            uprsMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        }
+        
+        let upksMedian = 0;
+        if (upks.length > 0) {
+            const sorted = upks.slice().sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            upksMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        }
         
         groupData[group] = {
             count: allDeals.length,
-            uprsMedian: uprs.length > 0 ? getMedianSync(uprs) : 0,
-            upksMedian: upks.length > 0 ? getMedianSync(upks) : 0,
+            uprsMedian: uprsMedian,
+            upksMedian: upksMedian,
             uprsMin: uprs.length > 0 ? Math.min(...uprs) : 0,
             uprsMax: uprs.length > 0 ? Math.max(...uprs) : 0,
             upksMin: upks.length > 0 ? Math.min(...upks) : 0,
             upksMax: upks.length > 0 ? Math.max(...upks) : 0
         };
-    });
+    }
     
     // Сортируем группы по количеству сделок
     const sortedGroups = Object.keys(groupData).sort((a, b) => {
