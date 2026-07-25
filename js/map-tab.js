@@ -215,10 +215,12 @@ function renderPriceChart() {
     
     chartDataCache = chartData;
     
-    // Сортируем по УПРС для красивого отображения
-    const uprsVisible = !priceChartInstance?.data?.datasets?.[0]?.hidden;
+if (typeof window._uprsVisible === 'undefined') {
+    window._uprsVisible = true; // по умолчанию УПРС виден
+}
+
 let sortedData;
-if (uprsVisible) {
+if (window._uprsVisible) {
     // Если УПРС виден — сортируем по УПРС
     sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
 } else {
@@ -304,16 +306,38 @@ plugins: {
             color: '#475569',
             boxWidth: 12,
         },
-        // ✅ ДОБАВЬТЕ ЭТОТ БЛОК:
-        onClick: function(e, legendItem, legend) {
-            const datasetIndex = legendItem.datasetIndex;
-            const ci = legend.chart;
-            const meta = ci.getDatasetMeta(datasetIndex);
-            
-            // Переключаем видимость набора данных
-            meta.hidden = !meta.hidden;
-            ci.update();
+onClick: function(e, legendItem, legend) {
+    const datasetIndex = legendItem.datasetIndex;
+    const ci = legend.chart;
+    const meta = ci.getDatasetMeta(datasetIndex);
+    
+    // Переключаем видимость набора данных
+    meta.hidden = !meta.hidden;
+    
+    // ✅ ОБНОВЛЯЕМ СОСТОЯНИЕ ВИДИМОСТИ УПРС
+    if (datasetIndex === 0) {
+        window._uprsVisible = !meta.hidden;
+    }
+    
+    // ✅ ПЕРЕСОРТИРОВКА ПОСЛЕ ИЗМЕНЕНИЯ ВИДИМОСТИ
+    // Сохраняем текущие данные
+    const currentData = chartDataCache;
+    if (currentData) {
+        let newSortedData;
+        if (window._uprsVisible) {
+            newSortedData = [...currentData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
+        } else {
+            newSortedData = [...currentData.data].sort((a, b) => a.upksMedian - b.upksMedian);
         }
+        
+        // Обновляем данные графика
+        ci.data.labels = newSortedData.map(d => d.city);
+        ci.data.datasets[0].data = newSortedData.map(d => d.uprsMedian);
+        ci.data.datasets[1].data = newSortedData.map(d => d.upksMedian);
+    }
+    
+    ci.update();
+}
     },
     tooltip: {
         enabled: false  
