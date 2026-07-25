@@ -86,12 +86,18 @@ let chartDataCache = null;
 
 function calculateCityPrices() {
     // ✅ ЗАЩИТА ОТ РЕКУРСИИ
-    if (window._calcDepth && window._calcDepth > 5) {
-        console.warn('⚠️ Обнаружена рекурсия, прерываем выполнение');
-        window._calcDepth = 0;
-        return { groups: [], data: [], totalDeals: 0 };
-    }
-    window._calcDepth = (window._calcDepth || 0) + 1;
+if (!window._calcDepth) {
+    window._calcDepth = 0;
+}
+
+if (window._calcDepth > 10) {
+    console.warn('⚠️ Обнаружена рекурсия, прерываем выполнение');
+    window._calcDepth = 0;
+    return { groups: [], data: [], totalDeals: 0 };
+}
+
+window._calcDepth = window._calcDepth + 1;
+console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
     
     console.log(`📊 Расчет УПРС и УПКС по группам (${currentChartGroupBy})...`);
     
@@ -509,26 +515,27 @@ if (statsDiv) {
     `;
 }
 }
-function setChartGroupBy(group) {
-    if (currentChartGroupBy === group) return;
-    currentChartGroupBy = group;
+function getGroupValue(deal, groupBy) {
+    // ✅ ПРОВЕРКА НА РЕКУРСИЮ
+    if (!deal || typeof deal !== 'object') {
+        return 'unknown';
+    }
     
-    // Обновляем активную кнопку
-    document.querySelectorAll('.chart-group-btn').forEach(btn => {
-        const isActive = btn.dataset.group === group;
-        if (isActive) {
-            btn.style.background = '#0ea5e9';
-            btn.style.color = 'white';
-            btn.classList.add('active');
-        } else {
-            btn.style.background = '#e2e8f0';
-            btn.style.color = '#475569';
-            btn.classList.remove('active');
-        }
-    });
+    // ✅ ЛОГИРУЕМ ТОЛЬКО ДЛЯ obj_kind (ДЛЯ ОТЛАДКИ)
+    if (groupBy === 'obj_kind') {
+        console.log('🔍 obj_kind:', deal.obj_kind_text);
+    }
     
-    // Обновляем график
-    renderPriceChart();
+    switch(groupBy) {
+        case 'city': return deal.city || 'unknown';
+        case 'obj_kind': return deal.obj_kind_text || 'unknown';
+        case 'deal_kind': return deal.deal_kind_text || 'unknown';
+        case 'purpose': return deal.purpose_text || 'unknown';
+        case 'quarter': return deal.quarter || 'unknown';
+        case 'wall_material': return deal.wall_material_name || 'unknown';
+        case 'vri': return deal.vri || 'unknown';
+        default: return deal.city || 'unknown';
+    }
 }
 
 // Функция для получения значения поля для группировки
