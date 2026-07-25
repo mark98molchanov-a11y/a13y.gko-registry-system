@@ -85,6 +85,14 @@ let chartDataCache = null;
 
 
 function calculateCityPrices() {
+    // ✅ ЗАЩИТА ОТ РЕКУРСИИ
+    if (window._calcDepth && window._calcDepth > 5) {
+        console.warn('⚠️ Обнаружена рекурсия, прерываем выполнение');
+        window._calcDepth = 0;
+        return { groups: [], data: [], totalDeals: 0 };
+    }
+    window._calcDepth = (window._calcDepth || 0) + 1;
+    
     console.log(`📊 Расчет УПРС и УПКС по группам (${currentChartGroupBy})...`);
     
     let districtPrefix = null;
@@ -109,18 +117,34 @@ function calculateCityPrices() {
         
         // ✅ ПОЛУЧАЕМ ЗНАЧЕНИЕ ДЛЯ ГРУППИРОВКИ
         let groupValue;
-        switch(currentChartGroupBy) {
-            case 'city': groupValue = deal.city || 'unknown'; break;
-            case 'obj_kind': groupValue = deal.obj_kind_text || 'unknown'; break;
-            case 'deal_kind': groupValue = deal.deal_kind_text || 'unknown'; break;
-            case 'purpose': groupValue = deal.purpose_text || 'unknown'; break;
-            case 'quarter': groupValue = deal.quarter || 'unknown'; break;
-            case 'wall_material': groupValue = deal.wall_material_name || 'unknown'; break;
-            case 'vri': groupValue = deal.vri || 'unknown'; break;
-            default: groupValue = deal.city || 'unknown';
+        try {
+            switch(currentChartGroupBy) {
+                case 'city': groupValue = String(deal.city || 'unknown'); break;
+                case 'obj_kind': groupValue = String(deal.obj_kind_text || 'unknown'); break;
+                case 'deal_kind': groupValue = String(deal.deal_kind_text || 'unknown'); break;
+                case 'purpose': groupValue = String(deal.purpose_text || 'unknown'); break;
+                case 'quarter': groupValue = String(deal.quarter || 'unknown'); break;
+                case 'wall_material': groupValue = String(deal.wall_material_name || 'unknown'); break;
+                case 'vri': groupValue = String(deal.vri || 'unknown'); break;
+                default: groupValue = String(deal.city || 'unknown');
+            }
+        } catch(e) {
+            console.warn('Ошибка получения groupValue:', e);
+            return;
         }
-        if (!groupValue || groupValue === 'unknown' || groupValue === 'nan') return;
         
+        // Проверяем, что groupValue — это строка
+        if (typeof groupValue !== 'string') {
+            console.warn('groupValue не строка:', groupValue);
+            return;
+        }
+        
+        // Пропускаем пустые значения
+        if (!groupValue || groupValue === 'unknown' || groupValue === 'nan' || groupValue === 'undefined') {
+            return;
+        }
+        
+        // Инициализируем группу
         if (!groupedData[groupValue]) {
             groupedData[groupValue] = {
                 uprs: [],
@@ -129,9 +153,14 @@ function calculateCityPrices() {
             };
         }
         
-        groupedData[groupValue].allDeals.push(deal);
-        if (deal.uprs > 0) groupedData[groupValue].uprs.push(deal.uprs);
-        if (deal.upks > 0) groupedData[groupValue].upks.push(deal.upks);
+        // Добавляем данные
+        try {
+            groupedData[groupValue].allDeals.push(deal);
+            if (deal.uprs > 0) groupedData[groupValue].uprs.push(deal.uprs);
+            if (deal.upks > 0) groupedData[groupValue].upks.push(deal.upks);
+        } catch(e) {
+            console.warn('Ошибка добавления данных в группу:', e);
+        }
     });
     
     // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ ДЛЯ КАЖДОЙ ГРУППЫ
@@ -141,25 +170,33 @@ function calculateCityPrices() {
     for (let i = 0; i < groupKeys.length; i++) {
         const group = groupKeys[i];
         const data = groupedData[group];
-        const uprs = data.uprs;
-        const upks = data.upks;
-        const allDeals = data.allDeals;
+        const uprs = data.uprs || [];
+        const upks = data.upks || [];
+        const allDeals = data.allDeals || [];
         
         if (allDeals.length === 0) continue;
         
         // Вычисляем медианы
         let uprsMedian = 0;
         if (uprs.length > 0) {
-            const sorted = uprs.slice().sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            uprsMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            try {
+                const sorted = uprs.slice().sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                uprsMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            } catch(e) {
+                console.warn('Ошибка вычисления uprsMedian для группы', group, e);
+            }
         }
         
         let upksMedian = 0;
         if (upks.length > 0) {
-            const sorted = upks.slice().sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            upksMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            try {
+                const sorted = upks.slice().sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                upksMedian = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            } catch(e) {
+                console.warn('Ошибка вычисления upksMedian для группы', group, e);
+            }
         }
         
         groupData[group] = {
@@ -201,6 +238,10 @@ function calculateCityPrices() {
     if (result.data.length > 0) {
         console.log('📊 Пример:', result.data[0]);
     }
+    
+    // ✅ СБРАСЫВАЕМ ГЛУБИНУ РЕКУРСИИ
+    window._calcDepth = 0;
+    
     return result;
 }
 function renderPriceChart() {
