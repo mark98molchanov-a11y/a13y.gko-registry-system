@@ -281,7 +281,7 @@ function renderPriceChart() {
                 intersect: false,
                 mode: 'index',
             },
-           plugins: {
+plugins: {
     legend: {
         display: true,
         position: 'top',
@@ -295,6 +295,16 @@ function renderPriceChart() {
             },
             color: '#475569',
             boxWidth: 12,
+        },
+        // ✅ ДОБАВЬТЕ ЭТОТ БЛОК:
+        onClick: function(e, legendItem, legend) {
+            const datasetIndex = legendItem.datasetIndex;
+            const ci = legend.chart;
+            const meta = ci.getDatasetMeta(datasetIndex);
+            
+            // Переключаем видимость набора данных
+            meta.hidden = !meta.hidden;
+            ci.update();
         }
     },
     tooltip: {
@@ -356,31 +366,33 @@ function renderPriceChart() {
                 animationDuration: 200,
             },
         },
-        plugins: [{
-            // ✅ ПЛАГИН ДЛЯ ПОДПИСИ ЗНАЧЕНИЙ НА СТОЛБЦАХ
-            afterDraw: function(chart) {
-                const ctx = chart.ctx;
-                chart.data.datasets.forEach(function(dataset, datasetIndex) {
-                    const meta = chart.getDatasetMeta(datasetIndex);
-                    if (!meta.data) return;
+plugins: [{
+    afterDraw: function(chart) {
+        const ctx = chart.ctx;
+        chart.data.datasets.forEach(function(dataset, datasetIndex) {
+            const meta = chart.getDatasetMeta(datasetIndex);
+            if (!meta.data) return;
+            
+            // ✅ ПРОВЕРЯЕМ, ВИДЕН ЛИ НАБОР ДАННЫХ
+            if (meta.hidden) return;
+            
+            meta.data.forEach(function(bar, index) {
+                const dataValue = dataset.data[index];
+                if (dataValue > 0) {
+                    ctx.save();
+                    ctx.font = '500 9px Inter, sans-serif';
+                    ctx.fillStyle = '#475569';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
                     
-                    meta.data.forEach(function(bar, index) {
-                        const dataValue = dataset.data[index];
-                        if (dataValue > 0) {
-                            ctx.save();
-                            ctx.font = '500 9px Inter, sans-serif';
-                            ctx.fillStyle = '#475569';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'bottom';
-                            
-                            const yPos = bar.y - 4;
-                            ctx.fillText(dataValue.toFixed(0), bar.x, yPos);
-                            ctx.restore();
-                        }
-                    });
-                });
-            }
-        }]
+                    const yPos = bar.y - 4;
+                    ctx.fillText(dataValue.toFixed(0), bar.x, yPos);
+                    ctx.restore();
+                }
+            });
+        });
+    }
+}]
     });
     
     // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
