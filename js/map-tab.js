@@ -132,6 +132,7 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
                 case 'quarter': groupValue = String(deal.quarter || 'unknown'); break;
                 case 'wall_material': groupValue = String(deal.wall_material_name || 'unknown'); break;
                 case 'vri': groupValue = String(deal.vri || 'unknown'); break;
+                    case 'year_build': groupValue = String(deal.year_build || 'unknown'); break;
                 default: groupValue = String(deal.city || 'unknown');
             }
         } catch(e) {
@@ -247,28 +248,72 @@ for (let i = 0; i < groupKeys.length; i++) {
 
     
     // Сортируем группы по количеству сделок
-    const sortedGroups = Object.keys(groupData).sort((a, b) => {
-        return groupData[b].count - groupData[a].count;
+const sortedGroups = Object.keys(groupData).sort((a, b) => {
+    return groupData[b].count - groupData[a].count;
+});
+
+// ✅ ОГРАНИЧЕНИЕ ТОЛЬКО ДЛЯ ГРУППИРОВКИ "КВАРТАЛ"
+let topGroups;
+if (currentChartGroupBy === 'quarter') {
+    // Для кварталов: берем последние 15 (самые новые)
+    const quarterGroups = Object.keys(groupData).filter(g => g !== 'unknown' && g !== 'nan');
+    
+    // Сортируем по убыванию (новые сверху)
+    const sortedQuarters = quarterGroups.sort((a, b) => {
+        const parseQuarter = (q) => {
+            const parts = q.split('/');
+            if (parts.length === 2) {
+                const year = parseInt(parts[0]);
+                const quarter = parseInt(parts[1].replace('Q', ''));
+                if (!isNaN(year) && !isNaN(quarter)) {
+                    return year * 10 + quarter;
+                }
+            }
+            return 0;
+        };
+        return parseQuarter(b) - parseQuarter(a);
     });
     
-    const topGroups = sortedGroups;
+    // Берем первые 15 (самые новые)
+    const top15 = sortedQuarters.slice(0, 15);
+    // Сортируем от старого к новому (возрастание)
+    topGroups = top15.sort((a, b) => {
+        const parseQuarter = (q) => {
+            const parts = q.split('/');
+            if (parts.length === 2) {
+                const year = parseInt(parts[0]);
+                const quarter = parseInt(parts[1].replace('Q', ''));
+                if (!isNaN(year) && !isNaN(quarter)) {
+                    return year * 10 + quarter;
+                }
+            }
+            return 0;
+        };
+        return parseQuarter(a) - parseQuarter(b);
+    });
     
-    const result = {
-        groups: topGroups,
-        data: topGroups.map(group => ({
-            group: group,
-            count: groupData[group].count,
-            uprsMedian: groupData[group].uprsMedian,
-            upksMedian: groupData[group].upksMedian,
-            uprsMin: groupData[group].uprsMin,
-            uprsMax: groupData[group].uprsMax,
-            upksMin: groupData[group].upksMin,
-            upksMax: groupData[group].upksMax
-        })),
-        allData: groupData,
-        totalDeals: topGroups.reduce((sum, group) => sum + groupData[group].count, 0),
-        groupBy: currentChartGroupBy
-    };
+    console.log(`📅 Кварталы: выбрано ${topGroups.length} из ${Object.keys(groupData).length}`);
+} else {
+    // Для всех остальных группировок — все группы
+    topGroups = sortedGroups;
+}
+
+const result = {
+    groups: topGroups,
+    data: topGroups.map(group => ({
+        group: group,
+        count: groupData[group].count,
+        uprsMedian: groupData[group].uprsMedian,
+        upksMedian: groupData[group].upksMedian,
+        uprsMin: groupData[group].uprsMin,
+        uprsMax: groupData[group].uprsMax,
+        upksMin: groupData[group].upksMin,
+        upksMax: groupData[group].upksMax
+    })),
+    allData: groupData,
+    totalDeals: topGroups.reduce((sum, group) => sum + groupData[group].count, 0),
+    groupBy: currentChartGroupBy
+};
     
     console.log(`✅ Данные по группам (${currentChartGroupBy}): ${result.groups.length} групп`);
     if (result.data.length > 0) {
@@ -587,6 +632,7 @@ function getGroupValue(deal, groupBy) {
         case 'quarter': return deal.quarter || 'unknown';
         case 'wall_material': return deal.wall_material_name || 'unknown';
         case 'vri': return deal.vri || 'unknown';
+             case 'year_build': return deal.year_build || 'unknown'; 
         default: return deal.city || 'unknown';
     }
 }
