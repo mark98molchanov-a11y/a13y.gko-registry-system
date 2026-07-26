@@ -251,7 +251,7 @@ for (let i = 0; i < groupKeys.length; i++) {
         return groupData[b].count - groupData[a].count;
     });
     
-    const topGroups = sortedGroups.slice(0, 15);
+    const topGroups = sortedGroups;
     
     const result = {
         groups: topGroups,
@@ -482,8 +482,8 @@ onClick: function(e, legendItem, legend) {
                             family: 'Inter, sans-serif'
                         },
                         color: '#94a3b8',
-                        maxRotation: 45,
-                        minRotation: 30,
+                        maxRotation: 90, 
+                        minRotation: 60,
                     }
                 }
             },
