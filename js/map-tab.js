@@ -526,20 +526,43 @@ plugins: [{
 }]
     });
     
-    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
 const statsDiv = document.getElementById('price-chart-stats');
 if (statsDiv) {
-    // ✅ СОБИРАЕМ ВСЕ МЕДИАНЫ ПО ГОРОДАМ
-    const allUprsMedians = sortedData.map(d => d.uprsMedian).filter(v => v > 0);
-    const allUpksMedians = sortedData.map(d => d.upksMedian).filter(v => v > 0);
+    // ✅ СОБИРАЕМ ВСЕ СДЕЛКИ ИЗ ВСЕХ ГРУПП
+    let allChartDeals = [];
+    Object.keys(chartData.allData).forEach(group => {
+        const groupData = chartData.allData[group];
+        if (groupData && groupData.allDeals) {
+            allChartDeals = allChartDeals.concat(groupData.allDeals);
+        }
+    });
     
-    // ✅ ВЫЧИСЛЯЕМ МЕДИАНУ МЕДИАН
-    const medianOfUprs = allUprsMedians.length > 0 ? getMedianSync(allUprsMedians) : 0;
-    const medianOfUpks = allUpksMedians.length > 0 ? getMedianSync(allUpksMedians) : 0;
+    // ✅ Если нет данных из groupedData, используем allDealsFlat с фильтрами
+    if (allChartDeals.length === 0) {
+        allChartDeals = allDealsFlat.filter(deal => {
+            // Применяем все активные фильтры
+            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            return true;
+        });
+    }
+    
+    // ✅ ВЫЧИСЛЯЕМ МЕДИАНУ ПО ВСЕМ СДЕЛКАМ (как на карточках)
+    const allUprsValues = allChartDeals.map(d => d.uprs_rub || d.uprs).filter(v => v > 0);
+    const allUpksValues = allChartDeals.map(d => d.upks).filter(v => v > 0);
+    
+    const medianOfUprs = allUprsValues.length > 0 ? getMedianSync(allUprsValues) : 0;
+    const medianOfUpks = allUpksValues.length > 0 ? getMedianSync(allUpksValues) : 0;
     
     statsDiv.innerHTML = `
         <span>Групп: <strong>${chartData.groups.length}</strong></span>
-        <span>Сделок: <strong>${chartData.totalDeals.toLocaleString()}</strong></span>
+        <span>Сделок: <strong>${allChartDeals.length.toLocaleString()}</strong></span>
         <span>Медиана УПРС: <strong>${medianOfUprs > 0 ? medianOfUprs.toFixed(0) : '—'} ₽/м²</strong></span>
         <span>Медиана УПКС: <strong>${medianOfUpks > 0 ? medianOfUpks.toFixed(0) : '—'} ₽/м²</strong></span>
     `;
