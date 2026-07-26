@@ -2103,6 +2103,19 @@
         background: #e2e8f0;
         color: #475569;
     ">ВРИ</button>
+                    
+    <button class="chart-group-btn" data-group="year_build" onclick="setChartGroupBy('year_build')" style="
+        padding: 4px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        background: #e2e8f0;
+        color: #475569;
+    ">Год постройки</button>
 </div>
             <div id="price-chart-container" style="
                 min-height: 250px;
@@ -2761,18 +2774,11 @@ const CalculatorInputGroup = (props) => {
         )
     );
 };
-
-// ============================================================
-// ГЛАВНЫЙ КОМПОНЕНТ КАЛЬКУЛЯТОРА (ПОЛНАЯ ВЕРСИЯ)
-// ============================================================
-
 function EfficiencyCalculator() {
     const [activeCalcTab, setActiveCalcTab] = React.useState(0);
     const [moneyUnit, setMoneyUnit] = React.useState('rub');
     const [period, setPeriod] = React.useState('2025_year');
     const [calculatorData, setCalculatorData] = React.useState({});
-    
-    // ===== ЗАГРУЖАЕМ ДАННЫЕ ИЗ GITHUB (через window) =====
     React.useEffect(() => {
         const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
         const emptyDataModel = {
