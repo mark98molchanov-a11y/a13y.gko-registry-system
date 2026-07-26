@@ -252,10 +252,10 @@ const sortedGroups = Object.keys(groupData).sort((a, b) => {
     return groupData[b].count - groupData[a].count;
 });
 
-// ✅ ОГРАНИЧЕНИЕ ТОЛЬКО ДЛЯ ГРУППИРОВКИ "КВАРТАЛ"
+// ✅ ОГРАНИЧЕНИЕ ТОЛЬКО ДЛЯ ГРУППИРОВОК "КВАРТАЛ" И "ГОД ПОСТРОЙКИ"
 let topGroups;
 if (currentChartGroupBy === 'quarter') {
-    // Для кварталов: берем последние 15 (самые новые)
+    // Для кварталов: берем последние 15 (самые новые), сортируем от старого к новому
     const quarterGroups = Object.keys(groupData).filter(g => g !== 'unknown' && g !== 'nan');
     
     // Сортируем по убыванию (новые сверху)
@@ -276,7 +276,7 @@ if (currentChartGroupBy === 'quarter') {
     
     // Берем первые 15 (самые новые)
     const top15 = sortedQuarters.slice(0, 15);
-    // Сортируем от старого к новому (возрастание)
+    // Сортируем от старого к новому (возрастание) — ЭТО ВАЖНО!
     topGroups = top15.sort((a, b) => {
         const parseQuarter = (q) => {
             const parts = q.split('/');
@@ -293,6 +293,27 @@ if (currentChartGroupBy === 'quarter') {
     });
     
     console.log(`📅 Кварталы: выбрано ${topGroups.length} из ${Object.keys(groupData).length}`);
+    
+} else if (currentChartGroupBy === 'year_build') {
+    // Для годов постройки: берем топ 15 по количеству сделок
+    // Сортируем по количеству сделок (по убыванию)
+    const yearGroups = Object.keys(groupData).filter(g => g !== 'unknown' && g !== 'nan');
+    const sortedYears = yearGroups.sort((a, b) => {
+        return groupData[b].count - groupData[a].count;
+    });
+    topGroups = sortedYears.slice(0, 15);
+    
+    // Сортируем годы по возрастанию (от старых к новым) для красивого отображения
+    topGroups.sort((a, b) => {
+        const aNum = parseInt(a);
+        const bNum = parseInt(b);
+        if (isNaN(aNum)) return 1;
+        if (isNaN(bNum)) return -1;
+        return aNum - bNum;
+    });
+    
+    console.log(`📅 Годы постройки: выбрано ${topGroups.length} из ${Object.keys(groupData).length}`);
+    
 } else {
     // Для всех остальных группировок — все группы
     topGroups = sortedGroups;
