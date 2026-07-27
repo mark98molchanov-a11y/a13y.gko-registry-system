@@ -46,7 +46,6 @@ class NSPDIntegration {
     // ============================================================
     
     addPanel() {
-        // Метод оставлен для совместимости, но не вызывается
         console.log('ℹ️ addPanel() не используется — панель уже есть в HTML');
         return;
     }
@@ -74,6 +73,9 @@ class NSPDIntegration {
         if (cached) {
             this.currentResult = cached;
             this.displayResult(cached);
+            if (cached.geometry) {
+                this.displayOnMap(cached.geometry, cached.properties);
+            }
             return;
         }
 
@@ -157,7 +159,7 @@ class NSPDIntegration {
     }
 
     // ============================================================
-    // НОРМАЛИЗАЦИЯ ОТВЕТА (БЕЗ ИЗМЕНЕНИЙ)
+    // НОРМАЛИЗАЦИЯ ОТВЕТА
     // ============================================================
     
     normalizeResponse(data) {
@@ -174,6 +176,7 @@ class NSPDIntegration {
             geometry = this.convertGeometryToWGS84(feature.geometry);
         }
 
+        // ✅ ПЕРЕДАЁМ ВСЕ ДАННЫЕ, ВКЛЮЧАЯ ФИЧУ ДЛЯ ПОПАПА
         return {
             cadastral_number: options.cad_number || props.externalKey || '',
             object_type: options.object_type_value || props.categoryName || '',
@@ -189,6 +192,8 @@ class NSPDIntegration {
             year_built: options.params_year_built || '',
             cost_determination_date: options.cost_determination_date || '',
             registration_date: options.registration_date || '',
+            // ✅ СОХРАНЯЕМ ОРИГИНАЛЬНЫЕ ДАННЫЕ ДЛЯ ПОПАПА
+            _feature: feature,
             properties: {
                 interactionId: props.interactionId,
                 systemInfo: props.systemInfo,
@@ -203,7 +208,13 @@ class NSPDIntegration {
                 cost_registration_date: options.cost_registration_date,
                 cultural_heritage_val: options.cultural_heritage_val,
                 facility_cad_number: options.facility_cad_number,
-                united_cad_number: options.united_cad_number
+                united_cad_number: options.united_cad_number,
+                // ✅ ДЛЯ ПОПАПА
+                cad_number: options.cad_number || props.externalKey || '',
+                params_name: options.params_name || '',
+                address_readable_address: options.address_readable_address || '',
+                object_type_value: options.object_type_value || props.categoryName || '',
+                cost_value: parseFloat(options.cost_value) || 0
             },
             geometry: geometry,
             raw: data
@@ -281,6 +292,10 @@ class NSPDIntegration {
         this.removeFromMap();
 
         try {
+            // ✅ ИСПОЛЬЗУЕМ ДАННЫЕ ИЗ currentResult ДЛЯ ПОПАПА
+            const featureData = this.currentResult?._feature || {};
+            const propsData = this.currentResult?.properties || properties || {};
+
             const geoJsonLayer = L.geoJSON(geometry, {
                 style: {
                     color: '#dc2626',
@@ -291,7 +306,12 @@ class NSPDIntegration {
                     dashArray: '6 4'
                 },
                 onEachFeature: (feature, layer) => {
-                    const popupContent = this.buildGeoPopup(feature.properties, properties);
+                    // ✅ ПЕРЕДАЁМ ВСЕ НУЖНЫЕ ДАННЫЕ
+                    const popupContent = this.buildGeoPopup(
+                        feature.properties || {}, 
+                        propsData,
+                        featureData
+                    );
                     layer.bindPopup(popupContent);
                     
                     layer.on('mouseover', function() {
@@ -372,7 +392,7 @@ class NSPDIntegration {
             { label: 'Адрес', value: data.address },
             { label: 'Кадастровый квартал', value: data.quarter_cad_number },
             { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null },
-            { label: 'УПКС (кадастровый)', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
+            { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : null },
             { label: 'Год постройки', value: data.year_built },
             { label: 'Дата определения стоимости', value: data.cost_determination_date ? formatDate(data.cost_determination_date) : null },
@@ -519,12 +539,34 @@ class NSPDIntegration {
     // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     // ============================================================
     
-    buildGeoPopup(featureProps, objectProps) {
-        const cadNumber = objectProps.cadastral_number || featureProps.cad_number || '—';
-        const name = objectProps.object_name || featureProps.params_name || '';
-        const address = objectProps.address || featureProps.address_readable_address || 'Адрес не указан';
-        const type = objectProps.object_type || featureProps.object_type_value || '';
+    buildGeoPopup(featureProps, objectProps, featureData = {}) {
+        // ✅ БЕЗОПАСНО ПОЛУЧАЕМ ДАННЫЕ ИЗ РАЗНЫХ ИСТОЧНИКОВ
+        const cadNumber = objectProps?.cadastral_number || 
+                         featureProps?.cad_number || 
+                         featureData?.properties?.cad_number || 
+                         featureProps?.externalKey || 
+                         '—';
         
+        const name = objectProps?.object_name || 
+                    featureProps?.params_name || 
+                    featureData?.properties?.params_name || 
+                    '';
+        
+        const address = objectProps?.address || 
+                       featureProps?.address_readable_address || 
+                       featureData?.properties?.address_readable_address || 
+                       'Адрес не указан';
+        
+        const type = objectProps?.object_type || 
+                    featureProps?.object_type_value || 
+                    featureData?.properties?.object_type_value || 
+                    '';
+        
+        const cadastralValue = objectProps?.cadastral_value || 
+                              featureProps?.cost_value || 
+                              featureData?.properties?.cost_value || 
+                              0;
+
         return `
             <div style="font-size: 12px; max-width: 250px;">
                 <div style="font-weight: 600; color: #dc2626; margin-bottom: 4px;">
@@ -537,15 +579,15 @@ class NSPDIntegration {
                 <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">
                     Кад. номер: ${cadNumber}
                 </div>
-                ${objectProps.cadastral_value ? `
+                ${cadastralValue > 0 ? `
                     <div style="font-size: 10px; color: #94a3b8;">
-                        Кад. стоимость: ${objectProps.cadastral_value.toLocaleString()} ₽
+                        Кад. стоимость: ${cadastralValue.toLocaleString()} ₽
                     </div>
                 ` : ''}
                 <div style="margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
                     <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(cadNumber)}" target="_blank" 
                        style="color: #3b82f6; text-decoration: none; font-size: 10px;">
-                        Открыть в НСПД
+                        Открыть в НСПД →
                     </a>
                 </div>
             </div>
