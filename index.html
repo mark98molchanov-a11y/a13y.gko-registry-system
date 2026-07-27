@@ -6268,5 +6268,37 @@ window.addEventListener('hashchange', function() {
 
 <!-- Модуль карты -->
 <script src="js/map-tab.js"></script>
+    <script>
+let currentSearchMode = 'quarter';
+
+function setSearchMode(mode) {
+    currentSearchMode = mode;
+    
+    const quarterBlock = document.getElementById('search-quarter-block');
+    const nspdBlock = document.getElementById('search-nspd-block');
+    const quarterBtn = document.getElementById('search-mode-quarter');
+    const nspdBtn = document.getElementById('search-mode-nspd');
+    
+    if (mode === 'quarter') {
+        quarterBlock.style.display = 'flex';
+        nspdBlock.style.display = 'none';
+        quarterBtn.style.background = '#0ea5e9';
+        quarterBtn.style.color = 'white';
+        nspdBtn.style.background = 'transparent';
+        nspdBtn.style.color = '#64748b';
+        document.getElementById('quarter-search-input')?.focus();
+    } else {
+        quarterBlock.style.display = 'none';
+        nspdBlock.style.display = 'flex';
+        nspdBtn.style.background = '#3b82f6';
+        nspdBtn.style.color = 'white';
+        quarterBtn.style.background = 'transparent';
+        quarterBtn.style.color = '#64748b';
+        document.getElementById('cadSearchInput')?.focus();
+    }
+}
+
+console.log('✅ Переключатель режимов поиска зарегистрирован');
+</script>
 </body>
 </html>
