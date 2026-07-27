@@ -4447,25 +4447,6 @@ if (levelName === 'quarter') {
         <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
         ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
         
-        <button onclick="event.stopPropagation(); searchCadastralByNumber('${cadNum}')" 
-                style="
-                    width: 100%;
-                    margin-top: 10px;
-                    padding: 6px 12px;
-                    background: #3b82f6;
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 11px;
-                    font-weight: 500;
-                    transition: all 0.2s;
-                    font-family: 'Inter', sans-serif;
-                "
-                onmouseover="this.style.background='#2563eb'"
-                onmouseout="this.style.background='#3b82f6'">
-                🔍 Проверить по кадастру НСПД
-            </button>
     `;
 }
     
