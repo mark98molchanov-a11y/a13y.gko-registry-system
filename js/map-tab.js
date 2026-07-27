@@ -3163,7 +3163,38 @@ function initMapTab(containerId) {
         console.error('❌ Ошибка загрузки:', error);
     });
 }
+function initNSPD() {
+    // Проверяем, что nspdApp доступен
+    if (typeof window.nspdApp !== 'undefined' && window.nspdApp) {
+        console.log('✅ НСПД уже инициализирована');
+        return;
+    }
+    
+    console.log('⏳ Ожидаем загрузку НСПД...');
+    
+    // Пробуем инициализировать каждые 500мс
+    const checkInterval = setInterval(() => {
+        if (typeof window.nspdApp !== 'undefined' && window.nspdApp) {
+            console.log('✅ НСПД инициализирована');
+            clearInterval(checkInterval);
+        }
+    }, 500);
+    
+    // Таймаут через 10 секунд
+    setTimeout(() => {
+        clearInterval(checkInterval);
+        if (typeof window.nspdApp === 'undefined' || !window.nspdApp) {
+            console.warn('⚠️ НСПД не загружена, проверьте подключение файлов');
+        }
+    }, 10000);
+}
 
+// Запускаем инициализацию после загрузки страницы
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNSPD);
+} else {
+    setTimeout(initNSPD, 1000);
+}
 // ============================================================
 // ЗАГРУЗКА ДАННЫХ
 // ============================================================
@@ -4432,13 +4463,10 @@ if (levelName === 'quarter') {
     const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
     const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
     
-    // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ
     const medianPrice = getMedianSync(prices);
     const uprsMedian = getMedianSync(uprsValues);
     const upksMedian = getMedianSync(upksValues);
     const cadCostMedian = getMedianSync(cadCostValues);
-    
-    // ✅ ВЫЧИСЛЯЕМ minPrice И maxPrice ДЛЯ КВАРТАЛА
     const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
     const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
     
@@ -4452,6 +4480,26 @@ if (levelName === 'quarter') {
         <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
         <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
         ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+        
+        <button onclick="event.stopPropagation(); searchCadastralByNumber('${cadNum}')" 
+                style="
+                    width: 100%;
+                    margin-top: 10px;
+                    padding: 6px 12px;
+                    background: #3b82f6;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    font-family: 'Inter', sans-serif;
+                "
+                onmouseover="this.style.background='#2563eb'"
+                onmouseout="this.style.background='#3b82f6'">
+                🔍 Проверить по кадастру НСПД
+            </button>
     `;
 }
     
@@ -5511,6 +5559,25 @@ function searchQuarterByCadNumber(cadNumber) {
         console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
     }, 300);
 }
+function searchCadastralByNumber(cadNumber) {
+    if (!cadNumber) return;
+    
+    // Находим поле поиска НСПД
+    const input = document.getElementById('cadSearchInput');
+    if (input) {
+        input.value = cadNumber;
+        // Вызываем поиск через глобальный объект nspdApp
+        if (window.nspdApp && typeof window.nspdApp.search === 'function') {
+            window.nspdApp.search();
+        } else {
+            console.warn('⚠️ nspdApp не инициализирован');
+            showNotification('НСПД не загружена, обновите страницу', 'warning');
+        }
+    } else {
+        console.warn('⚠️ Поле cadSearchInput не найдено');
+    }
+}
+window.searchCadastralByNumber = searchCadastralByNumber;
 function renderMapLevelWithFlag(level, parentId, fromSearch = false) {
     console.log(`🔄 renderMapLevelWithFlag: level=${level}, fromSearch=${fromSearch}`);
     
