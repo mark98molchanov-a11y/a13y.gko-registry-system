@@ -229,7 +229,7 @@ class NSPDIntegration {
     // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ
     // ============================================================
     
-  displayResult(data) {
+ displayResult(data) {
     console.log('📊 displayResult вызван с данными:', data);
     
     let resultDiv = document.getElementById('cadResult');
@@ -258,49 +258,49 @@ class NSPDIntegration {
         return new Date(date).toLocaleDateString('ru-RU');
     };
 
+    // ВСЕ ПОЛЯ - показываем даже пустые как '—'
     const fields = [
-        { label: 'Кадастровый номер', value: data.cadastral_number, important: true },
-        { label: 'Тип объекта', value: data.object_type, important: true },
-        { label: 'Статус', value: data.status },
-        { label: 'Форма собственности', value: data.ownership_type },
-        { label: 'Наименование', value: data.object_name, important: true },
-        { label: 'Назначение', value: data.purpose },
-        { label: 'Адрес', value: data.address, important: true },
-        { label: 'Кадастровый квартал', value: data.quarter_cad_number },
-        { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : null },
-        { label: 'Год постройки', value: data.year_built },
-        { label: 'Год ввода в эксплуатацию', value: data.year_commisioning },
-        { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : null },
-        { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : null },
-        { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : null },
-        { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : null },
-        { label: 'Этажность', value: data.params_floors || null },
-        { label: 'Площадь застройки', value: data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : null },
-        { label: 'Глубина залегания', value: data.params_occurence_depth > 0 ? data.params_occurence_depth + ' м' : null },
-        { label: 'Подземных этажей', value: data.params_underground_floors || null },
-        { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null, important: true },
-        { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null, important: true },
-        { label: 'Дата определения стоимости', value: data.cost_determination_date ? formatDate(data.cost_determination_date) : null },
-        { label: 'Дата применения стоимости', value: data.cost_application_date ? formatDate(data.cost_application_date) : null },
-        { label: 'Дата регистрации стоимости', value: data.cost_registration_date ? formatDate(data.cost_registration_date) : null },
-        { label: 'Дата утверждения стоимости', value: data.cost_approvement_date ? formatDate(data.cost_approvement_date) : null },
-        { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : null },
-        { label: 'Дата регистрации', value: data.registration_date ? formatDate(data.registration_date) : null },
-        { label: 'Объект культурного наследия', value: data.cultural_heritage_val || null },
-        { label: 'Кадастровый номер сооружения', value: data.facility_cad_number || null },
-        { label: 'Объединенный кадастровый номер', value: data.united_cad_number || null },
-        { label: 'Разрешенное использование', value: data.permitted_uses_name || null },
-        { label: 'Категория', value: data.categoryName || data.category || null },
-        { label: 'Подкатегория', value: data.subcategory || null },
-        { label: 'Описание', value: data.descr || null },
-        { label: 'ID объекта', value: data.interactionId || null },
-        { label: 'Код кадастрового района', value: data.cadastralDistrictsCode || null },
-        { label: 'Тип геометрии', value: data.geometryType || null },
+        { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
+        { label: 'Тип объекта', value: data.object_type || '—', important: true },
+        { label: 'Статус', value: data.status || '—' },
+        { label: 'Форма собственности', value: data.ownership_type || '—' },
+        { label: 'Наименование', value: data.object_name || '—', important: true },
+        { label: 'Назначение', value: data.purpose || '—' },
+        { label: 'Адрес', value: data.address || '—', important: true },
+        { label: 'Кадастровый квартал', value: data.quarter_cad_number || '—' },
+        { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—' },
+        { label: 'Год постройки', value: data.year_built || '—' },
+        { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
+        { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : '—' },
+        { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
+        { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : '—' },
+        { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
+        { label: 'Этажность', value: data.params_floors || '—' },
+        { label: 'Площадь застройки', value: data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : '—' },
+        { label: 'Глубина залегания', value: data.params_occurence_depth > 0 ? data.params_occurence_depth + ' м' : '—' },
+        { label: 'Подземных этажей', value: data.params_underground_floors || '—' },
+        { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
+        { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : '—', important: true },
+        { label: 'Дата определения стоимости', value: data.cost_determination_date ? formatDate(data.cost_determination_date) : '—' },
+        { label: 'Дата применения стоимости', value: data.cost_application_date ? formatDate(data.cost_application_date) : '—' },
+        { label: 'Дата регистрации стоимости', value: data.cost_registration_date ? formatDate(data.cost_registration_date) : '—' },
+        { label: 'Дата утверждения стоимости', value: data.cost_approvement_date ? formatDate(data.cost_approvement_date) : '—' },
+        { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+        { label: 'Дата регистрации', value: data.registration_date ? formatDate(data.registration_date) : '—' },
+        { label: 'Объект культурного наследия', value: data.cultural_heritage_val || '—' },
+        { label: 'Кадастровый номер сооружения', value: data.facility_cad_number || '—' },
+        { label: 'Объединенный кадастровый номер', value: data.united_cad_number || '—' },
+        { label: 'Разрешенное использование', value: data.permitted_uses_name || '—' },
+        { label: 'Категория', value: data.categoryName || data.category || '—' },
+        { label: 'Подкатегория', value: data.subcategory || '—' },
+        { label: 'Описание', value: data.descr || '—' },
+        { label: 'ID объекта', value: data.interactionId || '—' },
+        { label: 'Код кадастрового района', value: data.cadastralDistrictsCode || '—' },
+        { label: 'Тип геометрии', value: data.geometryType || '—' },
         { label: 'Наличие геометрии', value: data.hasGeometry ? 'Да' : 'Нет' },
     ];
 
-    const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== null && f.value !== '');
-
+    // ПОКАЗЫВАЕМ ВСЕ ПОЛЯ, даже с '—'
     resultDiv.innerHTML = `
         <div style="
             background: white;
@@ -318,7 +318,7 @@ class NSPDIntegration {
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px;">
-                ${visibleFields.map(item => `
+                ${fields.map(item => `
                     <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc; ${item.important ? 'background: #f8fafc; border-radius: 4px;' : ''}">
                         <span style="color: #64748b; font-weight: 500; font-size: 11px; white-space: nowrap;">${item.label}:</span>
                         <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 11px; max-width: 60%; ${item.important ? 'font-weight: 600;' : ''}">${item.value}</span>
@@ -331,6 +331,8 @@ class NSPDIntegration {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;">
                     <span>Создано: ${data.systemInfo.inserted ? new Date(data.systemInfo.inserted).toLocaleString('ru-RU') : '—'}</span>
                     <span>Обновлено: ${data.systemInfo.updated ? new Date(data.systemInfo.updated).toLocaleString('ru-RU') : '—'}</span>
+                    <span>Создал: ${data.systemInfo.insertedBy || '—'}</span>
+                    <span>Обновил: ${data.systemInfo.updatedBy || '—'}</span>
                 </div>
             </div>
             ` : ''}
@@ -348,7 +350,7 @@ class NSPDIntegration {
                    style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 11px; text-decoration: none; font-weight: 500; transition: all 0.2s;">
                     Открыть в НСПД
                 </a>
-                ${data.quarter_cad_number ? `
+                ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
                 <button onclick="searchQuarterByNumber('${data.quarter_cad_number}')" 
                         style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
                     Найти квартал
