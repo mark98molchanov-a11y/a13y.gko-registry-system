@@ -1687,85 +1687,206 @@
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         <!-- ХЛЕБНЫЕ КРОШКИ -->
-        <div class="flex justify-start mb-3">
-            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-width: 900px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+         <div class="flex justify-start mb-3">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm" style="max-width: 900px; width: 100%; display: flex; flex-direction: column; gap: 8px;">
 
-               <div style="display: flex; align-items: center; gap: 12px;">
-    <button onclick="togglePriceFilter()" 
-            id="priceFilterToggle"
-            title="Исключаем 10% самых низких и 10% самых высоких УПРС/УПКС по каждому типу сделки в каждом кадастровом районе"
-            style="
-                font-size: 10px; 
-                color: #0284c7; 
-                background: #e0f2fe; 
-                border: 1px solid #bae6fd; 
-                border-radius: 6px; 
-                padding: 4px 12px; 
-                cursor: pointer; 
-                font-weight: 500;
-                transition: all 0.2s;
-                font-family: 'Inter', sans-serif;
-                white-space: nowrap;
-            "
-            onmouseover="this.style.background='#bae6fd'; this.style.borderColor='#7dd3fc';"
-            onmouseout="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd';">
-        Ценовой фильтр
-    </button>
+                <!-- ВЕРХНИЙ РЯД: кнопки + хлебные крошки -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button onclick="togglePriceFilter()" 
+                                id="priceFilterToggle"
+                                title="Исключаем 10% самых низких и 10% самых высоких УПРС/УПКС по каждому типу сделки в каждом кадастровом районе"
+                                style="
+                                    font-size: 10px; 
+                                    color: #0284c7; 
+                                    background: #e0f2fe; 
+                                    border: 1px solid #bae6fd; 
+                                    border-radius: 6px; 
+                                    padding: 4px 12px; 
+                                    cursor: pointer; 
+                                    font-weight: 500;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    white-space: nowrap;
+                                "
+                                onmouseover="this.style.background='#bae6fd'; this.style.borderColor='#7dd3fc';"
+                                onmouseout="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd';">
+                            Ценовой фильтр
+                        </button>
 
-   <button onclick="toggleHeatmapMode()" 
-        id="heatmap-toggle-btn-header"
-        title="Показывает разницу между кадастровой и рыночной стоимостью"
-        style="
-            font-size: 10px; 
-            color: #0284c7; 
-            background: #e0f2fe; 
-            border: 1px solid #bae6fd; 
-            border-radius: 6px; 
-            padding: 4px 12px; 
-            cursor: pointer; 
-            font-weight: 500;
-            transition: all 0.2s;
-            font-family: 'Inter', sans-serif;
-            white-space: nowrap;
-        "
-        onmouseover="this.style.background='#bae6fd'; this.style.borderColor='#7dd3fc';"
-        onmouseout="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd';">
-    Тепловая карта
-</button>
+                        <button onclick="toggleHeatmapMode()" 
+                                id="heatmap-toggle-btn-header"
+                                title="Показывает разницу между кадастровой и рыночной стоимостью"
+                                style="
+                                    font-size: 10px; 
+                                    color: #0284c7; 
+                                    background: #e0f2fe; 
+                                    border: 1px solid #bae6fd; 
+                                    border-radius: 6px; 
+                                    padding: 4px 12px; 
+                                    cursor: pointer; 
+                                    font-weight: 500;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    white-space: nowrap;
+                                "
+                                onmouseover="this.style.background='#bae6fd'; this.style.borderColor='#7dd3fc';"
+                                onmouseout="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd';">
+                            Тепловая карта
+                        </button>
 
-    <div id="map-breadcrumb" style="font-size:0.85rem;color:#475569;">
-        ЯНАО
-    </div>
-</div>
-                
-                <!-- ПРАВАЯ ЧАСТЬ: поиск -->
-                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-<button onclick="generateReport()" 
-        style="
-            padding: 6px 14px;
-            background: #2b5797;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Inter', sans-serif;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            box-shadow: 0 1px 3px rgba(43, 87, 151, 0.3);
-        "
-        onmouseover="this.style.background='#1a3e6b'; this.style.boxShadow='0 2px 6px rgba(43, 87, 151, 0.4)';"
-        onmouseout="this.style.background='#2b5797'; this.style.boxShadow='0 1px 3px rgba(43, 87, 151, 0.3)';">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-    Отчет Word
-</button>
+                        <div id="map-breadcrumb" style="font-size:0.85rem;color:#475569;">
+                            ЯНАО
+                        </div>
+                    </div>
+                    
+                    <!-- ПРАВАЯ ЧАСТЬ: Отчет Word -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                        <button onclick="generateReport()" 
+                                style="
+                                    padding: 6px 14px;
+                                    background: #2b5797;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 8px;
+                                    font-size: 0.8rem;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    white-space: nowrap;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 4px;
+                                    box-shadow: 0 1px 3px rgba(43, 87, 151, 0.3);
+                                "
+                                onmouseover="this.style.background='#1a3e6b'; this.style.boxShadow='0 2px 6px rgba(43, 87, 151, 0.4)';"
+                                onmouseout="this.style.background='#2b5797'; this.style.boxShadow='0 1px 3px rgba(43, 87, 151, 0.3)';">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Отчет Word
+                        </button>
+                    </div>
+                </div>
 
+                <!-- НИЖНИЙ РЯД: ПОИСК С ПЕРЕКЛЮЧАТЕЛЕМ -->
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                    <!-- Переключатель режимов -->
+                    <div style="display: flex; background: #f1f5f9; border-radius: 6px; padding: 2px; flex-shrink: 0;">
+                        <button id="search-mode-quarter" 
+                                onclick="setSearchMode('quarter')" 
+                                style="
+                                    padding: 4px 12px;
+                                    border: none;
+                                    border-radius: 4px;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    background: #0ea5e9;
+                                    color: white;
+                                ">
+                            Квартал
+                        </button>
+                        <button id="search-mode-nspd" 
+                                onclick="setSearchMode('nspd')" 
+                                style="
+                                    padding: 4px 12px;
+                                    border: none;
+                                    border-radius: 4px;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    background: transparent;
+                                    color: #64748b;
+                                ">
+                            НСПД
+                        </button>
+                    </div>
+
+                    <!-- Поле поиска КВАРТАЛ -->
+                    <div id="search-quarter-block" style="display: flex; gap: 8px; flex: 1; min-width: 0;">
+                        <input type="text" 
+                               id="quarter-search-input" 
+                               placeholder="Поиск квартала по номеру..." 
+                               style="
+                                   flex: 1;
+                                   padding: 6px 12px;
+                                   border: 1px solid #e2e8f0;
+                                   border-radius: 6px;
+                                   font-size: 12px;
+                                   outline: none;
+                                   transition: all 0.2s;
+                                   background: #f8fafc;
+                                   font-family: 'Inter', sans-serif;
+                                   min-width: 0;
+                               "
+                               onfocus="this.style.borderColor='#0ea5e9'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(14,165,233,0.15)';"
+                               onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
+                               onkeydown="if(event.key==='Enter') { searchQuarter(); }">
+                        <button onclick="searchQuarter()" 
+                                style="
+                                    padding: 6px 14px;
+                                    background: #0ea5e9;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 6px;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    white-space: nowrap;
+                                "
+                                onmouseover="this.style.background='#0284c7'"
+                                onmouseout="this.style.background='#0ea5e9'">
+                            Найти
+                        </button>
+                    </div>
+
+                    <!-- Поле поиска НСПД -->
+                    <div id="search-nspd-block" style="display: none; gap: 8px; flex: 1; min-width: 0;">
+                        <input type="text" 
+                               id="cadSearchInput" 
+                               placeholder="Введите кадастровый номер..." 
+                               style="
+                                   flex: 1;
+                                   padding: 6px 12px;
+                                   border: 1px solid #e2e8f0;
+                                   border-radius: 6px;
+                                   font-size: 12px;
+                                   outline: none;
+                                   transition: all 0.2s;
+                                   background: #f8fafc;
+                                   font-family: 'Inter', sans-serif;
+                                   min-width: 0;
+                               "
+                               onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
+                               onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
+                               onkeydown="if(event.key==='Enter') { if(window.nspdApp) nspdApp.search(); }">
+                        <button onclick="if(window.nspdApp) nspdApp.search(); else alert('НСПД не загружена')" 
+                                style="
+                                    padding: 6px 14px;
+                                    background: #3b82f6;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 6px;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    font-family: 'Inter', sans-serif;
+                                    white-space: nowrap;
+                                "
+                                onmouseover="this.style.background='#2563eb'"
+                                onmouseout="this.style.background='#3b82f6'">
+                            Найти
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1913,105 +2034,6 @@
                 </div>
             </div>
         </div>
-<div id="nspd-panel" style="
-    margin-top: 12px;
-    background: white;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    overflow: hidden;
-    padding: 12px 16px;
-">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Проверка по кадастру</span>
-        <span style="font-size: 9px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px;">НСПД</span>
-    </div>
-    
-    <!-- ========================================================== -->
-    <!-- 1. ПОИСК КВАРТАЛА (ВОССТАНОВЛЕН)                           -->
-    <!-- ========================================================== -->
-    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <input type="text" 
-               id="quarter-search-input" 
-               placeholder="Поиск квартала по номеру" 
-               style="
-                   flex: 1;
-                   padding: 8px 12px;
-                   border: 1px solid #e2e8f0;
-                   border-radius: 8px;
-                   font-size: 13px;
-                   outline: none;
-                   transition: all 0.2s;
-                   background: #f8fafc;
-                   font-family: 'Inter', sans-serif;
-               "
-               onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
-               onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
-               onkeydown="if(event.key==='Enter') { searchQuarter(); }">
-        <button onclick="searchQuarter()" 
-                style="
-                    padding: 8px 16px;
-                    background: #0ea5e9;
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-family: 'Inter', sans-serif;
-                    white-space: nowrap;
-                "
-                onmouseover="this.style.background='#0284c7'"
-                onmouseout="this.style.background='#0ea5e9'">
-            Найти квартал
-        </button>
-    </div>
-    
-    <!-- ========================================================== -->
-    <!-- 2. ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ (НСПД)                      -->
-    <!-- ========================================================== -->
-    <div style="display: flex; gap: 8px;">
-        <input type="text" 
-               id="cadSearchInput" 
-               placeholder="Введите кадастровый номер" 
-               style="
-                   flex: 1;
-                   padding: 8px 12px;
-                   border: 1px solid #e2e8f0;
-                   border-radius: 8px;
-                   font-size: 13px;
-                   outline: none;
-                   transition: all 0.2s;
-                   background: #f8fafc;
-                   font-family: 'Inter', sans-serif;
-               "
-               onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
-               onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
-               onkeydown="if(event.key==='Enter') { if(window.nspdApp) nspdApp.search(); }">
-        <button onclick="if(window.nspdApp) nspdApp.search(); else alert('НСПД не загружена')" 
-                style="
-                    padding: 8px 16px;
-                    background: #3b82f6;
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-family: 'Inter', sans-serif;
-                    white-space: nowrap;
-                "
-                onmouseover="this.style.background='#2563eb'"
-                onmouseout="this.style.background='#3b82f6'">
-            Поиск в НСПД
-        </button>
-    </div>
-    
-    <!-- РЕЗУЛЬТАТЫ ПОИСКА НСПД -->
-    <div id="cadResult" style="margin-top: 10px; display: none;"></div>
-</div>
         <!-- ============================================================ -->
         <!-- 🆕 ТАБЛИЦА СДЕЛОК (отдельный полноширинный блок ПОД картой) -->
         <!-- ============================================================ -->
