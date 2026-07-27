@@ -276,7 +276,7 @@ if (currentChartGroupBy === 'quarter') {
     
     // Берем первые 15 (самые новые)
     const top15 = sortedQuarters.slice(0, 15);
-    // Сортируем от старого к новому (возрастание) — ЭТО ВАЖНО!
+    // Сортируем от старого к новому (возрастание)
     topGroups = top15.sort((a, b) => {
         const parseQuarter = (q) => {
             const parts = q.split('/');
@@ -295,24 +295,19 @@ if (currentChartGroupBy === 'quarter') {
     console.log(`📅 Кварталы: выбрано ${topGroups.length} из ${Object.keys(groupData).length}`);
     
 } else if (currentChartGroupBy === 'year_build') {
-    // Для годов постройки: берем топ 15 по количеству сделок
-    // Сортируем по количеству сделок (по убыванию)
+    // ✅ Для годов постройки: показываем ВСЕ годы, сортируем от старых к новым
     const yearGroups = Object.keys(groupData).filter(g => g !== 'unknown' && g !== 'nan');
-    const sortedYears = yearGroups.sort((a, b) => {
-        return groupData[b].count - groupData[a].count;
-    });
-    topGroups = sortedYears.slice(0, 15);
     
-    // Сортируем годы по возрастанию (от старых к новым) для красивого отображения
-    topGroups.sort((a, b) => {
+    topGroups = yearGroups.sort((a, b) => {
         const aNum = parseInt(a);
         const bNum = parseInt(b);
+        if (isNaN(aNum) && isNaN(bNum)) return 0;
         if (isNaN(aNum)) return 1;
         if (isNaN(bNum)) return -1;
         return aNum - bNum;
     });
     
-    console.log(`📅 Годы постройки: выбрано ${topGroups.length} из ${Object.keys(groupData).length}`);
+    console.log(`📅 Годы постройки: ${topGroups.length} групп (от ${topGroups[0] || '?'} до ${topGroups[topGroups.length-1] || '?'})`);
     
 } else {
     // Для всех остальных группировок — все группы
