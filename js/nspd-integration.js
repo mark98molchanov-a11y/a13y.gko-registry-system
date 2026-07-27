@@ -43,82 +43,122 @@ class NSPDIntegration {
     // ДОБАВЛЕНИЕ ПАНЕЛИ В ИНТЕРФЕЙС
     // ============================================================
     
-    addPanel() {
-        if (document.querySelector('.nspd-panel') || document.getElementById('nspd-panel')) {
-            console.log('Панель НСПД уже существует');
-            return;
-        }
-        
-        const container = document.querySelector('#mapTab .flex.gap-4') || 
-                          document.querySelector('#map-container')?.parentNode;
-        
-        if (!container) {
-            console.warn('Не найден контейнер для панели НСПД');
-            return;
-        }
-
-        const panel = document.createElement('div');
-        panel.id = 'nspd-panel';
-        panel.className = 'nspd-panel';
-        panel.style.cssText = `
-            margin: 12px 0;
-            padding: 12px 16px;
-            background: white;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        `;
-        
-        panel.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Проверка по кадастру</span>
-                <span style="font-size: 9px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px;">НСПД</span>
-            </div>
-            
-            <div style="display: flex; gap: 8px;">
-                <input type="text" 
-                       id="cadSearchInput" 
-                       placeholder="Введите кадастровый номер" 
-                       style="
-                           flex: 1;
-                           padding: 8px 12px;
-                           border: 1px solid #e2e8f0;
-                           border-radius: 8px;
-                           font-size: 13px;
-                           outline: none;
-                           transition: all 0.2s;
-                           background: #f8fafc;
-                           font-family: 'Inter', sans-serif;
-                       "
-                       onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
-                       onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
-                       onkeydown="if(event.key==='Enter') { if(window.nspdApp) nspdApp.search(); }">
-                <button onclick="if(window.nspdApp) nspdApp.search(); else alert('НСПД не загружена')" 
-                        style="
-                            padding: 8px 16px;
-                            background: #3b82f6;
-                            color: white;
-                            border: none;
-                            border-radius: 8px;
-                            font-size: 13px;
-                            font-weight: 500;
-                            cursor: pointer;
-                            transition: all 0.2s;
-                            font-family: 'Inter', sans-serif;
-                            white-space: nowrap;
-                        "
-                        onmouseover="this.style.background='#2563eb'"
-                        onmouseout="this.style.background='#3b82f6'">
-                    Найти
-                </button>
-            </div>
-            
-            <div id="cadResult" style="margin-top: 10px; display: none;"></div>
-        `;
-        
-        container.insertBefore(panel, container.firstChild);
-        console.log('Панель НСПД добавлена');
+   addPanel() {
+    if (document.querySelector('.nspd-panel') || document.getElementById('nspd-panel')) {
+        console.log('ℹ️ Панель НСПД уже существует');
+        return;
     }
+    
+    const container = document.querySelector('#mapTab .flex.gap-4') || 
+                      document.querySelector('#map-container')?.parentNode;
+    
+    if (!container) {
+        console.warn('⚠️ Не найден контейнер для панели НСПД');
+        return;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'nspd-panel';
+    panel.className = 'nspd-panel';
+    panel.style.cssText = `
+        margin: 12px 0;
+        padding: 12px 16px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    `;
+    
+    panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Проверка по кадастру</span>
+            <span style="font-size: 9px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px;">НСПД</span>
+        </div>
+        
+        <!-- ✅ ПОИСК КВАРТАЛА (ВОССТАНОВЛЕН!) -->
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <input type="text" 
+                   id="quarter-search-input" 
+                   placeholder="Поиск квартала по номеру" 
+                   style="
+                       flex: 1;
+                       padding: 8px 12px;
+                       border: 1px solid #e2e8f0;
+                       border-radius: 8px;
+                       font-size: 13px;
+                       outline: none;
+                       transition: all 0.2s;
+                       background: #f8fafc;
+                       font-family: 'Inter', sans-serif;
+                   "
+                   onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
+                   onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
+                   onkeydown="if(event.key==='Enter') { searchQuarter(); }">
+            <button onclick="searchQuarter()" 
+                    style="
+                        padding: 8px 16px;
+                        background: #0ea5e9;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.background='#0284c7'"
+                    onmouseout="this.style.background='#0ea5e9'">
+                Найти квартал
+            </button>
+        </div>
+        
+        <!-- ПОИСК В НСПД -->
+        <div style="display: flex; gap: 8px;">
+            <input type="text" 
+                   id="cadSearchInput" 
+                   placeholder="Введите кадастровый номер" 
+                   style="
+                       flex: 1;
+                       padding: 8px 12px;
+                       border: 1px solid #e2e8f0;
+                       border-radius: 8px;
+                       font-size: 13px;
+                       outline: none;
+                       transition: all 0.2s;
+                       background: #f8fafc;
+                       font-family: 'Inter', sans-serif;
+                   "
+                   onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
+                   onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
+                   onkeydown="if(event.key==='Enter') { if(window.nspdApp) nspdApp.search(); }">
+            <button onclick="if(window.nspdApp) nspdApp.search(); else alert('НСПД не загружена')" 
+                    style="
+                        padding: 8px 16px;
+                        background: #3b82f6;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.background='#2563eb'"
+                    onmouseout="this.style.background='#3b82f6'">
+                Поиск в НСПД
+            </button>
+        </div>
+        
+        <div id="cadResult" style="margin-top: 10px; display: none;"></div>
+    `;
+    
+    container.insertBefore(panel, container.firstChild);
+    console.log('✅ Панель НСПД добавлена (с поиском квартала)');
+}
 
     // ============================================================
     // ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ
