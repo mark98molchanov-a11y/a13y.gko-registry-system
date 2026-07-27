@@ -10,6 +10,8 @@ class NSPDIntegration {
         this.isLoading = false;
         this.initialized = false;
         this.baseUrl = 'https://nspd.gov.ru/api/geoportal/v2/search/geoportal';
+        this._initAttempts = 0;
+        this._maxInitAttempts = 20;
         console.log('NSPDIntegration: конструктор вызван');
     }
 
@@ -25,8 +27,17 @@ class NSPDIntegration {
             return this;
         }
         
+        // ✅ ОГРАНИЧИВАЕМ КОЛИЧЕСТВО ПОПЫТОК
+        this._initAttempts++;
+        if (this._initAttempts > this._maxInitAttempts) {
+            console.warn('⚠️ Превышено количество попыток инициализации НСПД');
+            this.initialized = true;
+            return this;
+        }
+        
+        // ✅ ПРОВЕРЯЕМ, ЧТО КАРТА СОЗДАНА
         if (typeof mapInstance === 'undefined' || !mapInstance) {
-            console.log('Карта ещё не создана, ждём...');
+            console.log(`⏳ Карта ещё не создана, ждём... (попытка ${this._initAttempts}/${this._maxInitAttempts})`);
             setTimeout(() => this.init(), 500);
             return this;
         }
@@ -287,7 +298,7 @@ class NSPDIntegration {
             
             // Стоимость
             { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null, important: true },
-            { label: 'УПКС (кадастровый)', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
+            { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : null },
             
             // Характеристики
@@ -542,16 +553,11 @@ console.log('NSPD Integration загружается...');
 
 window.nspdApp = new NSPDIntegration();
 
+// ✅ ОДИН РАЗ ПЫТАЕМСЯ ИНИЦИАЛИЗИРОВАТЬ, ДАЛЬШЕ ЧЕРЕЗ setTimeout ВНУТРИ init
 setTimeout(() => {
     if (window.nspdApp) {
         window.nspdApp.init();
     }
-}, 100);
-
-setTimeout(() => {
-    if (window.nspdApp && !window.nspdApp.initialized) {
-        window.nspdApp.init();
-    }
-}, 1000);
+}, 200);
 
 console.log('NSPD Integration загружена');
