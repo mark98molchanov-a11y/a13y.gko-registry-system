@@ -43,7 +43,7 @@ class NSPDIntegration {
     // ДОБАВЛЕНИЕ ПАНЕЛИ В ИНТЕРФЕЙС
     // ============================================================
     
-   addPanel() {
+addPanel() {
     if (document.querySelector('.nspd-panel') || document.getElementById('nspd-panel')) {
         console.log('ℹ️ Панель НСПД уже существует');
         return;
@@ -75,7 +75,9 @@ class NSPDIntegration {
             <span style="font-size: 9px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px;">НСПД</span>
         </div>
         
-        <!-- ✅ ПОИСК КВАРТАЛА (ВОССТАНОВЛЕН!) -->
+        <!-- ========================================================== -->
+        <!-- 1. ПОИСК КВАРТАЛА (ВОССТАНОВЛЕН)                           -->
+        <!-- ========================================================== -->
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
             <input type="text" 
                    id="quarter-search-input" 
@@ -114,7 +116,9 @@ class NSPDIntegration {
             </button>
         </div>
         
-        <!-- ПОИСК В НСПД -->
+        <!-- ========================================================== -->
+        <!-- 2. ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ (НСПД)                      -->
+        <!-- ========================================================== -->
         <div style="display: flex; gap: 8px;">
             <input type="text" 
                    id="cadSearchInput" 
@@ -153,13 +157,13 @@ class NSPDIntegration {
             </button>
         </div>
         
+        <!-- РЕЗУЛЬТАТЫ ПОИСКА НСПД -->
         <div id="cadResult" style="margin-top: 10px; display: none;"></div>
     `;
     
     container.insertBefore(panel, container.firstChild);
     console.log('✅ Панель НСПД добавлена (с поиском квартала)');
 }
-
     // ============================================================
     // ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ
     // ============================================================
