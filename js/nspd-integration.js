@@ -148,7 +148,7 @@ class NSPDIntegration {
     // НОРМАЛИЗАЦИЯ ОТВЕТА — ВСЕ ПОЛЯ
     // ============================================================
     
- normalizeResponse(data) {
+normalizeResponse(data) {
     console.log('🔄 Нормализация ответа...');
     
     if (!data || !data.data || !data.data.features || data.data.features.length === 0) {
@@ -173,16 +173,19 @@ class NSPDIntegration {
         cadastralDistrictsCode: props.cadastralDistrictsCode || '',
         
         // Из options (все поля)
-        // ✅ ИСПРАВЛЕНО: если cad_number пустой, берем из externalKey или label или descr
-        cadastral_number: options.cad_number || props.externalKey || props.label || props.descr || '',
-        object_type: options.object_type_value || options.type || props.categoryName || '',
+        cadastral_number: options.cad_num || props.externalKey || props.label || props.descr || '',
+        object_type: options.object_type_value || options.type || options.land_record_type || props.categoryName || '',
         status: options.status || options.common_data_status || '',
         ownership_type: options.ownership_type || '',
         object_name: options.params_name || options.name || options.building_name || '',
-        purpose: options.params_purpose || options.purpose || '',
+        purpose: options.params_purpose || options.purpose || options.permitted_use_established_by_document || '',
         address: options.address_readable_address || options.readable_address || '',
         quarter_cad_number: options.quarter_cad_number || '',
-        area: parseFloat(options.params_area) || parseFloat(options.area) || parseFloat(options.build_record_area) || 0,
+        
+        // === ПЛОЩАДЬ (для ЗУ - specified_area) ===
+        area: parseFloat(options.params_area) || parseFloat(options.area) || parseFloat(options.build_record_area) || parseFloat(options.specified_area) || 0,
+        specified_area: parseFloat(options.specified_area) || 0, // ← НОВОЕ ПОЛЕ
+        
         year_built: options.params_year_built || options.year_built || '',
         year_commisioning: options.params_year_commisioning || options.year_commisioning || '',
         params_extension: parseFloat(options.params_extension) || parseFloat(options.extension) || 0,
@@ -200,11 +203,11 @@ class NSPDIntegration {
         cost_registration_date: options.cost_registration_date || '',
         cost_approvement_date: options.cost_approvement_date || '',
         determination_couse: options.determination_couse || '',
-        registration_date: options.registration_date || options.build_record_registration_date || '',
+        registration_date: options.registration_date || options.build_record_registration_date || options.land_record_reg_date || '',
         cultural_heritage_val: options.cultural_heritage_val || options.cultural_heritage_object || '',
         facility_cad_number: options.facility_cad_number || '',
         united_cad_number: options.united_cad_number || options.united_cad_numbers || '',
-        permitted_uses_name: options.permitted_uses_name || options.permitted_use_name || '',
+        permitted_uses_name: options.permitted_uses_name || options.permitted_use_established_by_document || '',
         degree_readiness: options.degree_readiness || '',
         right_type: options.right_type || '',
         built_up_area: parseFloat(options.built_up_area) || 0,
@@ -214,6 +217,8 @@ class NSPDIntegration {
         building_name: options.building_name || '',
         build_record_area: parseFloat(options.build_record_area) || 0,
         name: options.name || '',
+        land_record_category_type: options.land_record_category_type || '', // ← НОВОЕ ПОЛЕ
+        land_record_subtype: options.land_record_subtype || '', // ← НОВОЕ ПОЛЕ
         
         // Системная информация
         systemInfo: {
@@ -334,14 +339,21 @@ class NSPDIntegration {
             { label: 'Наименование', value: data.object_name || data.name || '—', important: true },
             { label: 'Назначение', value: data.purpose || '—' },
         );
-    } else if (isLand) {
-        // ЗЕМЕЛЬНЫЙ УЧАСТОК
-        fields.push(
-            { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—' },
-            { label: 'Категория земель', value: data.categoryName || '—' },
-            { label: 'Вид разрешенного использования', value: data.permitted_uses_name || data.purpose || '—' },
-        );
-    }
+} else if (isLand) {
+    // ЗЕМЕЛЬНЫЙ УЧАСТОК
+    const areaValue = data.specified_area > 0 
+        ? data.specified_area.toFixed(1) + ' м²' 
+        : (data.area > 0 ? data.area.toFixed(1) + ' м²' : '—');
+    
+    fields.push(
+        { label: 'Площадь', value: areaValue, important: true },
+        { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
+        { label: 'Вид разрешенного использования', value: data.permitted_uses_name || data.purpose || '—' },
+        { label: 'Подтип', value: data.land_record_subtype || '—' },
+        { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
+        { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : '—' },
+    );
+}
 
     // ============================================
     // ДОБАВЛЯЕМ ДАТЫ (для всех типов)
