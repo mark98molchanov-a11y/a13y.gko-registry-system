@@ -3,11 +3,11 @@
 // ============================================================
 
 const NSPD_CONFIG = {
-    // Адрес вашего MCP-сервера (пока заглушка, позже заменим)
-    MCP_SERVER_URL: 'https://your-mcp-server.ru/api/rosreestr',
+    // Базовый URL API НСПД
+    BASE_URL: 'https://nspd.gov.ru/api/geoportal/v2/search/geoportal',
     
     // Таймаут запроса (мс)
-    TIMEOUT: 10000,
+    TIMEOUT: 15000,
     
     // Кэширование результатов (время жизни в минутах)
     CACHE_TTL: 60,
