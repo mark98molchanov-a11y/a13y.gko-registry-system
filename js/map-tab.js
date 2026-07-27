@@ -295,19 +295,33 @@ if (currentChartGroupBy === 'quarter') {
     console.log(`📅 Кварталы: выбрано ${topGroups.length} из ${Object.keys(groupData).length}`);
     
 } else if (currentChartGroupBy === 'year_build') {
-    // ✅ Для годов постройки: показываем ВСЕ годы, сортируем от старых к новым
-    const yearGroups = Object.keys(groupData).filter(g => g !== 'unknown' && g !== 'nan');
+    // ✅ Для годов постройки: берем последние 15 лет (самые новые), сортируем от старых к новым
+    const yearGroups = Object.keys(groupData).filter(g => g !== 'unknown' && g !== 'nan' && g !== '');
     
-    topGroups = yearGroups.sort((a, b) => {
+    // Сортируем по убыванию (новые сверху)
+    const sortedYears = yearGroups.sort((a, b) => {
         const aNum = parseInt(a);
         const bNum = parseInt(b);
         if (isNaN(aNum) && isNaN(bNum)) return 0;
         if (isNaN(aNum)) return 1;
         if (isNaN(bNum)) return -1;
-        return aNum - bNum;
+        return bNum - aNum;  // ← УБЫВАНИЕ (новые сверху)
     });
     
-    console.log(`📅 Годы постройки: ${topGroups.length} групп (от ${topGroups[0] || '?'} до ${topGroups[topGroups.length-1] || '?'})`);
+    // Берем первые 15 (самые новые)
+    const top15Years = sortedYears.slice(0, 15);
+    
+    // Сортируем от старых к новым (возрастание) для хронологического порядка на графике
+    topGroups = top15Years.sort((a, b) => {
+        const aNum = parseInt(a);
+        const bNum = parseInt(b);
+        if (isNaN(aNum) && isNaN(bNum)) return 0;
+        if (isNaN(aNum)) return 1;
+        if (isNaN(bNum)) return -1;
+        return aNum - bNum;  // ← ВОЗРАСТАНИЕ (от старых к новым)
+    });
+    
+    console.log(`📅 Годы постройки: выбрано ${topGroups.length} из ${Object.keys(groupData).length} (от ${topGroups[0] || '?'} до ${topGroups[topGroups.length-1] || '?'})`);
     
 } else {
     // Для всех остальных группировок — все группы
