@@ -378,23 +378,30 @@ function renderPriceChart() {
         return;
     }
     
-    chartDataCache = chartData;
+chartDataCache = chartData;
     
 if (typeof window._uprsVisible === 'undefined') {
     window._uprsVisible = true; // по умолчанию УПРС виден
 }
 
+// ✅ СОРТИРОВКА: для кварталов и годов — сохраняем хронологический порядок
 let sortedData;
-if (window._uprsVisible) {
-    // Если УПРС виден — сортируем по УПРС
+if (currentChartGroupBy === 'quarter' || currentChartGroupBy === 'year_build') {
+    // Для кварталов и годов — НЕ СОРТИРУЕМ по УПРС/УПКС
+    // Используем порядок из calculateCityPrices (уже отсортирован от старого к новому)
+    sortedData = chartData.data;
+    console.log(`📅 Хронологический порядок для ${currentChartGroupBy}:`, sortedData.map(d => d.group));
+} else if (window._uprsVisible) {
+    // Для всех остальных — сортируем по УПРС
     sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
 } else {
-    // Если УПРС скрыт — сортируем по УПКС
+    // Для всех остальных — сортируем по УПКС
     sortedData = [...chartData.data].sort((a, b) => a.upksMedian - b.upksMedian);
 }
-    const groups = sortedData.map(d => d.group);
-    const uprsData = sortedData.map(d => d.uprsMedian);
-    const upksData = sortedData.map(d => d.upksMedian);
+
+const groups = sortedData.map(d => d.group);
+const uprsData = sortedData.map(d => d.uprsMedian);
+const upksData = sortedData.map(d => d.upksMedian);
     
     // Находим максимум для шкалы
     const allValues = [...uprsData, ...upksData].filter(v => v > 0);
