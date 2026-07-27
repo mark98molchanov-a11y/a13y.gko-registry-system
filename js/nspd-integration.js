@@ -10,6 +10,7 @@ class NSPDIntegration {
         this.cadastralLayer = null;
         this.isLoading = false;
         this.initialized = false;
+        this.baseUrl = 'https://nspd.gov.ru/api/geoportal/v2/search/geoportal';
     }
 
     // ============================================================
@@ -21,7 +22,6 @@ class NSPDIntegration {
         
         console.log('🏛️ NSPD Integration инициализируется...');
         
-        // Ждем загрузки карты
         const checkMap = () => {
             if (typeof mapInstance !== 'undefined' && mapInstance) {
                 this.addPanel();
@@ -33,16 +33,13 @@ class NSPDIntegration {
             return false;
         };
         
-        // Пробуем сразу
         if (!checkMap()) {
-            // Ждем с интервалом
             const interval = setInterval(() => {
                 if (checkMap()) {
                     clearInterval(interval);
                 }
             }, 500);
             
-            // Таймаут
             setTimeout(() => {
                 clearInterval(interval);
                 if (!this.initialized) {
@@ -59,18 +56,17 @@ class NSPDIntegration {
     // ============================================================
     
     addPanel() {
-        // Ищем контейнер для панели
-        const sidebar = document.querySelector('.sidebar-content') || 
-                        document.querySelector('#filters-container') ||
-                        document.querySelector('.leaflet-control-container');
-        
-        if (!sidebar) {
-            console.warn('⚠️ Не найден контейнер для панели НСПД');
-            return;
-        }
-
         // Проверяем, не добавлена ли уже панель
         if (document.querySelector('.nspd-panel')) {
+            return;
+        }
+        
+        // Ищем контейнер для панели
+        const container = document.querySelector('#mapTab .flex.gap-4') || 
+                          document.querySelector('#map-container')?.parentNode;
+        
+        if (!container) {
+            console.warn('⚠️ Не найден контейнер для панели НСПД');
             return;
         }
 
@@ -78,47 +74,50 @@ class NSPDIntegration {
         panel.className = 'nspd-panel';
         panel.id = 'nspd-panel';
         panel.style.cssText = `
-            margin: 12px;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 8px;
+            margin: 12px 0;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 12px;
             border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         `;
         
         panel.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 11px; font-weight: 600; color: #475569;">🏛️ Проверка по кадастру</span>
-                <span style="font-size: 9px; color: #94a3b8;">НСПД</span>
+                <span style="font-size: 11px; font-weight: 600; color: #1e293b;">🏛️ Проверка по кадастру</span>
+                <span style="font-size: 9px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px;">НСПД</span>
             </div>
             
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 8px;">
                 <input type="text" 
                        id="cadSearchInput" 
-                       placeholder="Введите кад. номер" 
+                       placeholder="Введите кадастровый номер" 
                        style="
-                           flex: 1; 
-                           padding: 6px 10px; 
-                           border: 1px solid #e2e8f0; 
-                           border-radius: 6px; 
-                           font-size: 12px;
+                           flex: 1;
+                           padding: 8px 12px;
+                           border: 1px solid #e2e8f0;
+                           border-radius: 8px;
+                           font-size: 13px;
                            outline: none;
-                           transition: border-color 0.2s;
-                           background: white;
+                           transition: all 0.2s;
+                           background: #f8fafc;
+                           font-family: 'Inter', sans-serif;
                        "
-                       onfocus="this.style.borderColor='#3b82f6'"
-                       onblur="this.style.borderColor='#e2e8f0'"
-                       onkeydown="if(event.key === 'Enter') nspdApp.search()">
-                <button onclick="nspdApp.search()" 
+                       onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
+                       onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
+                       onkeydown="if(event.key==='Enter') { if(window.nspdApp) nspdApp.search(); }">
+                <button onclick="if(window.nspdApp) nspdApp.search(); else alert('НСПД не загружена')" 
                         style="
-                            padding: 6px 14px; 
-                            background: #3b82f6; 
-                            color: white; 
-                            border: none; 
-                            border-radius: 6px; 
-                            cursor: pointer; 
-                            font-size: 12px;
+                            padding: 8px 16px;
+                            background: #3b82f6;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            font-size: 13px;
                             font-weight: 500;
-                            transition: background 0.2s;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            font-family: 'Inter', sans-serif;
                             white-space: nowrap;
                         "
                         onmouseover="this.style.background='#2563eb'"
@@ -130,20 +129,8 @@ class NSPDIntegration {
             <div id="cadResult" style="margin-top: 10px; display: none;"></div>
         `;
         
-        // Вставляем панель в подходящее место
-        const breadcrumb = document.querySelector('#map-breadcrumb');
-        if (breadcrumb && breadcrumb.parentNode) {
-            breadcrumb.parentNode.insertBefore(panel, breadcrumb);
-        } else {
-            // Вставляем в начало контейнера
-            const firstChild = sidebar.firstChild;
-            if (firstChild) {
-                sidebar.insertBefore(panel, firstChild);
-            } else {
-                sidebar.appendChild(panel);
-            }
-        }
-        
+        // Вставляем панель в начало контейнера
+        container.insertBefore(panel, container.firstChild);
         console.log('✅ Панель НСПД добавлена');
     }
 
@@ -169,7 +156,6 @@ class NSPDIntegration {
             return;
         }
 
-        // Показываем загрузку
         this.showLoading();
 
         try {
@@ -185,14 +171,10 @@ class NSPDIntegration {
                 return;
             }
 
-            // Сохраняем в кэш
             this.saveToCache(cadNumber, response);
             this.currentResult = response;
-            
-            // Отображаем результат
             this.displayResult(response);
             
-            // Если есть геометрия — показываем на карте
             if (response.geometry) {
                 this.displayOnMap(response.geometry, response.properties);
             }
@@ -206,80 +188,53 @@ class NSPDIntegration {
     }
 
     // ============================================================
-    // ЗАПРОС К MCP-СЕРВЕРУ
+    // ЗАПРОС К НСПД
     // ============================================================
     
     async makeRequest(cadNumber) {
-        const url = this.config.MCP_SERVER_URL || 'https://your-mcp-server.ru/api/rosreestr';
+        // Используем проверенный URL с параметрами
+        const url = `${this.baseUrl}?thematicSearchId=1&query=${encodeURIComponent(cadNumber)}&limit=10&offset=0&geometry=true`;
         
-        // Пробуем разные эндпоинты
-        const endpoints = [
-            '/get_cadastral_coordinates',
-            '/search',
-            '/object'
-        ];
+        console.log(`📤 Запрос к НСПД: ${url}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        let lastError = null;
-
-        for (const endpoint of endpoints) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), this.config.TIMEOUT || 10000);
-
-                const response = await fetch(`${url}${endpoint}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        cadastral_number: cadNumber.trim(),
-                        area_type: 1
-                    }),
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    return this.normalizeResponse(data);
-                }
-            } catch (error) {
-                lastError = error;
-                console.warn(`Ошибка при запросе к ${endpoint}:`, error);
-                continue;
-            }
-        }
-
-        // Если все эндпоинты не работают, пробуем прямой запрос к НСПД
         try {
-            const directResponse = await this.directNSPDRequest(cadNumber);
-            if (directResponse) {
-                return directResponse;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                // Обработка 404 (объект не найден)
+                if (response.status === 404) {
+                    const errorData = await response.json();
+                    if (errorData.code === 204) {
+                        return { error: 'Объект не найден в НСПД' };
+                    }
+                }
+                throw new Error(`HTTP ${response.status}`);
             }
+
+            const data = await response.json();
+            console.log('📥 Ответ от НСПД:', data);
+            
+            return this.normalizeResponse(data);
+
         } catch (error) {
-            console.warn('Прямой запрос к НСПД также не удался:', error);
-        }
-
-        throw new Error(lastError || 'Все эндпоинты недоступны');
-    }
-
-    // Прямой запрос к НСПД (как fallback)
-    async directNSPDRequest(cadNumber) {
-        const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?text=${encodeURIComponent(cadNumber)}`;
-        
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                throw new Error('Превышено время ожидания ответа от НСПД');
             }
-        });
-        
-        if (!response.ok) return null;
-        
-        const data = await response.json();
-        return this.normalizeResponse(data);
+            throw error;
+        }
     }
 
     // ============================================================
@@ -287,29 +242,72 @@ class NSPDIntegration {
     // ============================================================
     
     normalizeResponse(data) {
-        // Приводим ответ к единому формату
-        const result = data.result || data.data || data;
-        
-        // Если ответ пустой или содержит ошибку
-        if (!result || result.error) {
-            return { error: result?.error || 'Объект не найден' };
+        // Проверяем, есть ли данные
+        if (!data || !data.data || !data.data.features || data.data.features.length === 0) {
+            return { error: 'Объект не найден' };
         }
+
+        const feature = data.data.features[0];
+        const props = feature.properties || {};
+        const options = props.options || {};
         
-        // Извлекаем данные из разных форматов
-        const firstResult = Array.isArray(result) ? result[0] : result;
-        const props = firstResult?.properties || firstResult || {};
-        
+        // Извлекаем координаты из геометрии
+        let geometry = null;
+        if (feature.geometry) {
+            // Конвертируем EPSG:3857 в WGS84 (для Leaflet)
+            geometry = this.convertGeometryToWGS84(feature.geometry);
+        }
+
         return {
-            cadastral_number: props.cadastral_number || props.cad_num || result.cadastral_number || '',
-            area: parseFloat(props.area || props.square || result.area || 0),
-            cadastral_value: parseFloat(props.cadastral_value || props.cad_cost || result.cadastral_value || 0),
-            address: props.address || props.full_address || result.address || '',
-            category: props.category || props.land_category || result.category || '',
-            permitted_use: props.permitted_use || props.vri || result.permitted_use || '',
-            geometry: props.geometry || props.geo_json || result.geometry || null,
-            properties: props,
+            cadastral_number: options.cad_number || props.externalKey || '',
+            area: parseFloat(options.params_area) || 0,
+            cadastral_value: parseFloat(options.cost_value) || 0,
+            cadastral_index: parseFloat(options.cost_index) || 0,
+            address: options.address_readable_address || '',
+            object_name: options.params_name || '',
+            object_type: options.object_type_value || props.categoryName || '',
+            purpose: options.params_purpose || '',
+            year_built: options.params_year_built || '',
+            registration_date: options.registration_date || '',
+            status: options.status || '',
+            ownership_type: options.ownership_type || '',
+            quarter_cad_number: options.quarter_cad_number || '',
+            cost_determination_date: options.cost_determination_date || '',
+            geometry: geometry,
+            properties: options,
             raw: data
         };
+    }
+
+    // ============================================================
+    // КОНВЕРТАЦИЯ ГЕОМЕТРИИ (EPSG:3857 -> WGS84)
+    // ============================================================
+    
+    convertGeometryToWGS84(geometry) {
+        if (!geometry || !geometry.coordinates) return null;
+
+        const convertCoords = (coords) => {
+            if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+                // EPSG:3857 -> WGS84
+                const x = coords[0];
+                const y = coords[1];
+                const lon = (x / 6378137) * 57.29577951308232;
+                const lat = (2 * Math.atan(Math.exp(y / 6378137)) - Math.PI / 2) * 57.29577951308232;
+                return [lon, lat];
+            }
+            return coords.map(c => convertCoords(c));
+        };
+
+        try {
+            const converted = {
+                type: geometry.type,
+                coordinates: convertCoords(geometry.coordinates)
+            };
+            return converted;
+        } catch (error) {
+            console.warn('Ошибка конвертации геометрии:', error);
+            return null;
+        }
     }
 
     // ============================================================
@@ -350,13 +348,11 @@ class NSPDIntegration {
     displayOnMap(geometry, properties = {}) {
         if (!geometry || typeof mapInstance === 'undefined' || !mapInstance) return;
 
-        // Удаляем старый слой
         this.removeFromMap();
 
         try {
-            // Создаем слой из GeoJSON
             const geoJsonLayer = L.geoJSON(geometry, {
-                style: this.config.MAP_STYLE || {
+                style: {
                     color: '#dc2626',
                     weight: 3,
                     opacity: 0.8,
@@ -365,8 +361,7 @@ class NSPDIntegration {
                     dashArray: '6 4'
                 },
                 onEachFeature: (feature, layer) => {
-                    const props = feature.properties || {};
-                    const popupContent = this.buildGeoPopup(props, properties);
+                    const popupContent = this.buildGeoPopup(feature.properties, properties);
                     layer.bindPopup(popupContent);
                     
                     layer.on('mouseover', function() {
@@ -390,7 +385,6 @@ class NSPDIntegration {
             this.cadastralLayer = geoJsonLayer;
             geoJsonLayer.addTo(mapInstance);
 
-            // Приближаем к объекту
             const bounds = geoJsonLayer.getBounds();
             if (bounds && bounds.isValid()) {
                 mapInstance.fitBounds(bounds, { padding: [30, 30] });
@@ -432,9 +426,10 @@ class NSPDIntegration {
             return num.toLocaleString('ru-RU') + ' ₽';
         };
 
-        const formatArea = (num) => {
-            if (!num || num === 0) return '—';
-            return num.toFixed(1) + ' м²';
+        const formatDate = (date) => {
+            if (!date) return '—';
+            const d = new Date(date);
+            return d.toLocaleDateString('ru-RU');
         };
 
         resultDiv.style.display = 'block';
@@ -455,14 +450,16 @@ class NSPDIntegration {
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 11px;">
-                    <div><span style="color: #64748b;">Площадь:</span> <strong>${formatArea(data.area)}</strong></div>
-                    <div><span style="color: #64748b;">Кад. стоимость:</span> <strong>${formatPrice(data.cadastral_value)}</strong></div>
-                    <div><span style="color: #64748b;">Категория:</span> <strong>${data.category || '—'}</strong></div>
-                    <div><span style="color: #64748b;">ВРИ:</span> <strong>${data.permitted_use || '—'}</strong></div>
-                    <div style="grid-column: span 2;">
-                        <span style="color: #64748b;">Адрес:</span> 
-                        <strong style="font-size: 11px;">${data.address || '—'}</strong>
-                    </div>
+                    ${data.object_name ? `<div style="grid-column: span 2;"><span style="color: #64748b;">Наименование:</span> <strong>${data.object_name}</strong></div>` : ''}
+                    ${data.object_type ? `<div><span style="color: #64748b;">Тип:</span> <strong>${data.object_type}</strong></div>` : ''}
+                    ${data.purpose ? `<div><span style="color: #64748b;">Назначение:</span> <strong>${data.purpose}</strong></div>` : ''}
+                    ${data.area > 0 ? `<div><span style="color: #64748b;">Площадь:</span> <strong>${data.area.toFixed(1)} м²</strong></div>` : ''}
+                    ${data.cadastral_value > 0 ? `<div><span style="color: #64748b;">Кад. стоимость:</span> <strong>${formatPrice(data.cadastral_value)}</strong></div>` : ''}
+                    ${data.cadastral_index > 0 ? `<div><span style="color: #64748b;">УПКС:</span> <strong>${data.cadastral_index.toFixed(2)} ₽/м²</strong></div>` : ''}
+                    ${data.year_built ? `<div><span style="color: #64748b;">Год постройки:</span> <strong>${data.year_built}</strong></div>` : ''}
+                    ${data.status ? `<div><span style="color: #64748b;">Статус:</span> <strong>${data.status}</strong></div>` : ''}
+                    ${data.address ? `<div style="grid-column: span 2;"><span style="color: #64748b;">Адрес:</span> <strong style="font-size: 11px;">${data.address}</strong></div>` : ''}
+                    ${data.registration_date ? `<div style="grid-column: span 2; font-size: 10px; color: #94a3b8;">Зарегистрирован: ${formatDate(data.registration_date)}</div>` : ''}
                 </div>
                 
                 <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 8px;">
@@ -476,9 +473,9 @@ class NSPDIntegration {
                             style="padding: 4px 10px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; font-size: 10px;">
                         📋 Копировать
                     </button>
-                    <a href="https://nspd.gov.ru" target="_blank" 
+                    <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(data.cadastral_number)}" target="_blank" 
                        style="padding: 4px 10px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; text-decoration: none;">
-                        🔗 НСПД
+                        🔗 Открыть в НСПД
                     </a>
                     <button onclick="nspdApp.clear()" 
                             style="padding: 4px 10px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer; font-size: 10px;">
@@ -500,7 +497,8 @@ class NSPDIntegration {
         resultDiv.style.display = 'block';
         resultDiv.innerHTML = `
             <div style="text-align: center; padding: 12px; color: #94a3b8; font-size: 13px;">
-                ⏳ Поиск в НСПД...
+                <span class="animate-spin" style="display:inline-block; margin-right:8px;">⏳</span>
+                Поиск в НСПД...
             </div>
         `;
     }
@@ -532,7 +530,6 @@ class NSPDIntegration {
             warning: '#f59e0b'
         };
 
-        // Удаляем старые уведомления
         document.querySelectorAll('.nspd-notification').forEach(el => el.remove());
 
         const notification = document.createElement('div');
@@ -568,28 +565,30 @@ class NSPDIntegration {
     // ============================================================
     
     buildGeoPopup(featureProps, objectProps) {
-        const cadNumber = objectProps.cadastral_number || featureProps.cadastral_number || '—';
-        const address = objectProps.address || featureProps.address || 'Адрес не указан';
-        const area = objectProps.area || featureProps.area || null;
+        const cadNumber = objectProps.cadastral_number || featureProps.cad_number || '—';
+        const name = objectProps.object_name || featureProps.params_name || '';
+        const address = objectProps.address || featureProps.address_readable_address || 'Адрес не указан';
+        const type = objectProps.object_type || featureProps.object_type_value || '';
         
         return `
             <div style="font-size: 12px; max-width: 250px;">
                 <div style="font-weight: 600; color: #dc2626; margin-bottom: 4px;">
-                    🏛️ Объект из НСПД
+                    🏛️ ${name || 'Объект из НСПД'}
                 </div>
                 <div style="color: #64748b; font-size: 11px;">
                     ${address}
                 </div>
+                ${type ? `<div style="font-size: 10px; color: #94a3b8;">${type}</div>` : ''}
                 <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">
                     Кад. номер: ${cadNumber}
                 </div>
-                ${area ? `
+                ${objectProps.cadastral_value ? `
                     <div style="font-size: 10px; color: #94a3b8;">
-                        Площадь: ${typeof area === 'number' ? area.toFixed(1) : area} м²
+                        Кад. стоимость: ${objectProps.cadastral_value.toLocaleString()} ₽
                     </div>
                 ` : ''}
                 <div style="margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
-                    <a href="https://nspd.gov.ru" target="_blank" 
+                    <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(cadNumber)}" target="_blank" 
                        style="color: #3b82f6; text-decoration: none; font-size: 10px;">
                         📍 Открыть в НСПД →
                     </a>
@@ -605,25 +604,28 @@ class NSPDIntegration {
             return;
         }
 
-        const text = Object.entries(data)
-            .filter(([key]) => !['geometry', 'raw', 'properties'].includes(key))
-            .map(([key, value]) => {
-                const label = {
-                    cadastral_number: 'Кадастровый номер',
-                    area: 'Площадь',
-                    cadastral_value: 'Кадастровая стоимость',
-                    address: 'Адрес',
-                    category: 'Категория земель',
-                    permitted_use: 'ВРИ'
-                }[key] || key;
-                return `${label}: ${value}`;
-            })
+        const fields = {
+            'Кадастровый номер': data.cadastral_number,
+            'Наименование': data.object_name,
+            'Тип': data.object_type,
+            'Назначение': data.purpose,
+            'Площадь': data.area > 0 ? data.area.toFixed(1) + ' м²' : null,
+            'Кадастровая стоимость': data.cadastral_value > 0 ? data.cadastral_value.toLocaleString() + ' ₽' : null,
+            'УПКС': data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null,
+            'Год постройки': data.year_built,
+            'Статус': data.status,
+            'Адрес': data.address,
+            'Дата регистрации': data.registration_date
+        };
+
+        const text = Object.entries(fields)
+            .filter(([_, value]) => value && value !== '—' && value !== null)
+            .map(([key, value]) => `${key}: ${value}`)
             .join('\n');
 
         navigator.clipboard.writeText(text).then(() => {
             this.showNotification('✅ Данные скопированы в буфер обмена', 'success');
         }).catch(() => {
-            // fallback
             const textarea = document.createElement('textarea');
             textarea.value = text;
             document.body.appendChild(textarea);
@@ -674,10 +676,8 @@ class NSPDIntegration {
 // ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
-// Создаем глобальный экземпляр
 let nspdApp = null;
 
-// Инициализация после загрузки страницы
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         nspdApp = new NSPDIntegration();
@@ -688,7 +688,5 @@ if (document.readyState === 'loading') {
     nspdApp.init();
 }
 
-// Экспортируем для доступа из HTML
 window.nspdApp = nspdApp;
-
 console.log('🏛️ NSPD Integration загружена');
