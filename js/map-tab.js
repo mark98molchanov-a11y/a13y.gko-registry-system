@@ -3163,41 +3163,7 @@ function initMapTab(containerId) {
         console.error('❌ Ошибка загрузки:', error);
     });
 }
-function initNSPD() {
-    // Проверяем, что nspdApp доступен
-    if (typeof window.nspdApp !== 'undefined' && window.nspdApp) {
-        console.log('✅ НСПД уже инициализирована');
-        return;
-    }
-    
-    console.log('⏳ Ожидаем загрузку НСПД...');
-    
-    // Пробуем инициализировать каждые 500мс
-    const checkInterval = setInterval(() => {
-        if (typeof window.nspdApp !== 'undefined' && window.nspdApp) {
-            console.log('✅ НСПД инициализирована');
-            clearInterval(checkInterval);
-        }
-    }, 500);
-    
-    // Таймаут через 10 секунд
-    setTimeout(() => {
-        clearInterval(checkInterval);
-        if (typeof window.nspdApp === 'undefined' || !window.nspdApp) {
-            console.warn('⚠️ НСПД не загружена, проверьте подключение файлов');
-        }
-    }, 10000);
-}
 
-// Запускаем инициализацию после загрузки страницы
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initNSPD);
-} else {
-    setTimeout(initNSPD, 1000);
-}
-// ============================================================
-// ЗАГРУЗКА ДАННЫХ
-// ============================================================
 async function loadMapData() {
     try {
         console.log('📥 Загрузка:', MAP_URL);
