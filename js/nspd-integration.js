@@ -32,138 +32,25 @@ class NSPDIntegration {
             return this;
         }
         
-        this.addPanel();
+        // ❌ НЕ СОЗДАЁМ ПАНЕЛЬ — ОНА УЖЕ ЕСТЬ В HTML
+        // this.addPanel();
+        
         this.setupEventListeners();
         this.initialized = true;
-        console.log('НСПД Integration готова к работе');
+        console.log('НСПД Integration готова к работе (панель из HTML)');
         return this;
     }
 
     // ============================================================
-    // ДОБАВЛЕНИЕ ПАНЕЛИ В ИНТЕРФЕЙС
+    // ДОБАВЛЕНИЕ ПАНЕЛИ В ИНТЕРФЕЙС (НЕ ИСПОЛЬЗУЕТСЯ)
     // ============================================================
     
-addPanel() {
-    if (document.querySelector('.nspd-panel') || document.getElementById('nspd-panel')) {
-        console.log('ℹ️ Панель НСПД уже существует');
-        return;
-    }
-    
-    const container = document.querySelector('#mapTab .flex.gap-4') || 
-                      document.querySelector('#map-container')?.parentNode;
-    
-    if (!container) {
-        console.warn('⚠️ Не найден контейнер для панели НСПД');
+    addPanel() {
+        // Метод оставлен для совместимости, но не вызывается
+        console.log('ℹ️ addPanel() не используется — панель уже есть в HTML');
         return;
     }
 
-    const panel = document.createElement('div');
-    panel.id = 'nspd-panel';
-    panel.className = 'nspd-panel';
-    panel.style.cssText = `
-        margin: 12px 0;
-        padding: 12px 16px;
-        background: white;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    `;
-    
-    panel.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 11px; font-weight: 600; color: #1e293b;">Проверка по кадастру</span>
-            <span style="font-size: 9px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px;">НСПД</span>
-        </div>
-        
-        <!-- ========================================================== -->
-        <!-- 1. ПОИСК КВАРТАЛА (ВОССТАНОВЛЕН)                           -->
-        <!-- ========================================================== -->
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <input type="text" 
-                   id="quarter-search-input" 
-                   placeholder="Поиск квартала по номеру" 
-                   style="
-                       flex: 1;
-                       padding: 8px 12px;
-                       border: 1px solid #e2e8f0;
-                       border-radius: 8px;
-                       font-size: 13px;
-                       outline: none;
-                       transition: all 0.2s;
-                       background: #f8fafc;
-                       font-family: 'Inter', sans-serif;
-                   "
-                   onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
-                   onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
-                   onkeydown="if(event.key==='Enter') { searchQuarter(); }">
-            <button onclick="searchQuarter()" 
-                    style="
-                        padding: 8px 16px;
-                        background: #0ea5e9;
-                        color: white;
-                        border: none;
-                        border-radius: 8px;
-                        font-size: 13px;
-                        font-weight: 500;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                        font-family: 'Inter', sans-serif;
-                        white-space: nowrap;
-                    "
-                    onmouseover="this.style.background='#0284c7'"
-                    onmouseout="this.style.background='#0ea5e9'">
-                Найти квартал
-            </button>
-        </div>
-        
-        <!-- ========================================================== -->
-        <!-- 2. ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ (НСПД)                      -->
-        <!-- ========================================================== -->
-        <div style="display: flex; gap: 8px;">
-            <input type="text" 
-                   id="cadSearchInput" 
-                   placeholder="Введите кадастровый номер" 
-                   style="
-                       flex: 1;
-                       padding: 8px 12px;
-                       border: 1px solid #e2e8f0;
-                       border-radius: 8px;
-                       font-size: 13px;
-                       outline: none;
-                       transition: all 0.2s;
-                       background: #f8fafc;
-                       font-family: 'Inter', sans-serif;
-                   "
-                   onfocus="this.style.borderColor='#3b82f6'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
-                   onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
-                   onkeydown="if(event.key==='Enter') { if(window.nspdApp) nspdApp.search(); }">
-            <button onclick="if(window.nspdApp) nspdApp.search(); else alert('НСПД не загружена')" 
-                    style="
-                        padding: 8px 16px;
-                        background: #3b82f6;
-                        color: white;
-                        border: none;
-                        border-radius: 8px;
-                        font-size: 13px;
-                        font-weight: 500;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                        font-family: 'Inter', sans-serif;
-                        white-space: nowrap;
-                    "
-                    onmouseover="this.style.background='#2563eb'"
-                    onmouseout="this.style.background='#3b82f6'">
-                Поиск в НСПД
-            </button>
-        </div>
-        
-        <!-- РЕЗУЛЬТАТЫ ПОИСКА НСПД -->
-        <div id="cadResult" style="margin-top: 10px; display: none;"></div>
-    `;
-    
-    container.insertBefore(panel, container.firstChild);
-    console.log('✅ Панель НСПД добавлена (с поиском квартала)');
-}
     // ============================================================
     // ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ
     // ============================================================
@@ -172,7 +59,8 @@ addPanel() {
         console.log('Поиск запущен');
         const input = document.getElementById('cadSearchInput');
         if (!input) {
-            console.warn('Поле cadSearchInput не найдено');
+            console.warn('Поле cadSearchInput не найдено в HTML');
+            this.showError('Поле поиска не найдено. Обновите страницу.');
             return;
         }
         
@@ -269,7 +157,7 @@ addPanel() {
     }
 
     // ============================================================
-    // НОРМАЛИЗАЦИЯ ОТВЕТА
+    // НОРМАЛИЗАЦИЯ ОТВЕТА (БЕЗ ИЗМЕНЕНИЙ)
     // ============================================================
     
     normalizeResponse(data) {
@@ -459,105 +347,100 @@ addPanel() {
     // UI: ОТОБРАЖЕНИЕ РЕЗУЛЬТАТА
     // ============================================================
     
- displayResult(data) {
-    const resultDiv = document.getElementById('cadResult');
-    if (!resultDiv) return;
+    displayResult(data) {
+        const resultDiv = document.getElementById('cadResult');
+        if (!resultDiv) return;
 
-    const formatPrice = (num) => {
-        if (!num || num === 0) return '—';
-        return num.toLocaleString('ru-RU') + ' ₽';
-    };
+        const formatPrice = (num) => {
+            if (!num || num === 0) return '—';
+            return num.toLocaleString('ru-RU') + ' ₽';
+        };
 
-    const formatDate = (date) => {
-        if (!date) return '—';
-        const d = new Date(date);
-        return d.toLocaleDateString('ru-RU');
-    };
+        const formatDate = (date) => {
+            if (!date) return '—';
+            const d = new Date(date);
+            return d.toLocaleDateString('ru-RU');
+        };
 
-    // Все поля в одном массиве
-    const fields = [
-        { label: 'Кадастровый номер', value: data.cadastral_number },
-        { label: 'Тип объекта', value: data.object_type },
-        { label: 'Статус', value: data.status },
-        { label: 'Форма собственности', value: data.ownership_type },
-        { label: 'Наименование', value: data.object_name },
-        { label: 'Назначение', value: data.purpose },
-        { label: 'Адрес', value: data.address },
-        { label: 'Кадастровый квартал', value: data.quarter_cad_number },
-        { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null },
-        { label: 'УПКС (кадастровый)', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
-        { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : null },
-        { label: 'Год постройки', value: data.year_built },
-        { label: 'Дата определения стоимости', value: data.cost_determination_date ? formatDate(data.cost_determination_date) : null },
-        { label: 'Дата регистрации', value: data.registration_date ? formatDate(data.registration_date) : null },
-        { label: 'Протяженность', value: data.properties?.params_extension ? data.properties.params_extension + ' м' : null },
-        { label: 'Объем', value: data.properties?.params_volume ? data.properties.params_volume + ' м³' : null },
-        { label: 'Высота', value: data.properties?.params_height ? data.properties.params_height + ' м' : null },
-        { label: 'Глубина', value: data.properties?.params_depth ? data.properties.params_depth + ' м' : null },
-        { label: 'Этажность', value: data.properties?.params_floors || null },
-        { label: 'Площадь застройки', value: data.properties?.params_built_up_area ? data.properties.params_built_up_area + ' м²' : null },
-        { label: 'Основание оценки', value: data.properties?.determination_couse ? data.properties.determination_couse.replace(/\n/g, ' ').trim() : null },
-    ];
+        const fields = [
+            { label: 'Кадастровый номер', value: data.cadastral_number },
+            { label: 'Тип объекта', value: data.object_type },
+            { label: 'Статус', value: data.status },
+            { label: 'Форма собственности', value: data.ownership_type },
+            { label: 'Наименование', value: data.object_name },
+            { label: 'Назначение', value: data.purpose },
+            { label: 'Адрес', value: data.address },
+            { label: 'Кадастровый квартал', value: data.quarter_cad_number },
+            { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null },
+            { label: 'УПКС (кадастровый)', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
+            { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : null },
+            { label: 'Год постройки', value: data.year_built },
+            { label: 'Дата определения стоимости', value: data.cost_determination_date ? formatDate(data.cost_determination_date) : null },
+            { label: 'Дата регистрации', value: data.registration_date ? formatDate(data.registration_date) : null },
+            { label: 'Протяженность', value: data.properties?.params_extension ? data.properties.params_extension + ' м' : null },
+            { label: 'Объем', value: data.properties?.params_volume ? data.properties.params_volume + ' м³' : null },
+            { label: 'Высота', value: data.properties?.params_height ? data.properties.params_height + ' м' : null },
+            { label: 'Глубина', value: data.properties?.params_depth ? data.properties.params_depth + ' м' : null },
+            { label: 'Этажность', value: data.properties?.params_floors || null },
+            { label: 'Площадь застройки', value: data.properties?.params_built_up_area ? data.properties.params_built_up_area + ' м²' : null },
+            { label: 'Основание оценки', value: data.properties?.determination_couse ? data.properties.determination_couse.replace(/\n/g, ' ').trim() : null },
+        ];
 
-    // Фильтруем только поля с непустыми значениями
-    const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== null);
+        const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== null);
 
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = `
-        <div style="
-            background: white;
-            border-radius: 8px;
-            padding: 14px 16px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            max-height: 500px;
-            overflow-y: auto;
-            font-family: 'Inter', sans-serif;
-        ">
-            <!-- Заголовок -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: white; z-index: 1;">
-                <span style="font-weight: 600; font-size: 13px; color: #1e293b;">Данные из НСПД</span>
-                <span style="font-size: 10px; color: #10b981; background: #dcfce7; padding: 2px 12px; border-radius: 20px; font-weight: 500;">
-                    Найден
-                </span>
-            </div>
-            
-            <!-- Таблица данных -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px;">
-                ${visibleFields.map(item => `
-                    <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc;">
-                        <span style="color: #64748b; font-weight: 500; font-size: 11px; white-space: nowrap;">${item.label}:</span>
-                        <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 11px; max-width: 60%; font-weight: 500;">${item.value}</span>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <!-- Кнопки -->
-            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                ${data.geometry ? `
-                    <button onclick="nspdApp.showOnMap()" 
-                            style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
-                        Показать на карте
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+            <div style="
+                background: white;
+                border-radius: 8px;
+                padding: 14px 16px;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                max-height: 500px;
+                overflow-y: auto;
+                font-family: 'Inter', sans-serif;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: white; z-index: 1;">
+                    <span style="font-weight: 600; font-size: 13px; color: #1e293b;">Данные из НСПД</span>
+                    <span style="font-size: 10px; color: #10b981; background: #dcfce7; padding: 2px 12px; border-radius: 20px; font-weight: 500;">
+                        Найден
+                    </span>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px;">
+                    ${visibleFields.map(item => `
+                        <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc;">
+                            <span style="color: #64748b; font-weight: 500; font-size: 11px; white-space: nowrap;">${item.label}:</span>
+                            <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 11px; max-width: 60%; font-weight: 500;">${item.value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                    ${data.geometry ? `
+                        <button onclick="nspdApp.showOnMap()" 
+                                style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
+                            Показать на карте
+                        </button>
+                    ` : ''}
+                    <button onclick="nspdApp.copyData()" 
+                            style="padding: 5px 14px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
+                        Копировать
                     </button>
-                ` : ''}
-                <button onclick="nspdApp.copyData()" 
-                        style="padding: 5px 14px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
-                    Копировать
-                </button>
-                <button onclick="nspdApp.clear()" 
-                        style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
-                    Очистить
-                </button>
+                    <button onclick="nspdApp.clear()" 
+                            style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
+                        Очистить
+                    </button>
+                </div>
+                
+                <div style="margin-top: 8px; font-size: 9px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 6px; display: flex; justify-content: space-between;">
+                    <span>ID: ${data.properties?.interactionId || '—'}</span>
+                    <span>Обновлено: ${data.properties?.systemInfo?.updated ? new Date(data.properties.systemInfo.updated).toLocaleString('ru-RU') : '—'}</span>
+                </div>
             </div>
-            
-            <!-- ID и дата обновления -->
-            <div style="margin-top: 8px; font-size: 9px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 6px; display: flex; justify-content: space-between;">
-                <span>ID: ${data.properties?.interactionId || '—'}</span>
-                <span>Обновлено: ${data.properties?.systemInfo?.updated ? new Date(data.properties.systemInfo.updated).toLocaleString('ru-RU') : '—'}</span>
-            </div>
-        </div>
-    `;
-}
+        `;
+    }
+
     // ============================================================
     // UI: СОСТОЯНИЯ
     // ============================================================
