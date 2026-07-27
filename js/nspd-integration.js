@@ -1,5 +1,5 @@
 // ============================================================
-// ИНТЕГРАЦИЯ С НСПД - ОСНОВНАЯ ЛОГИКА
+// ИНТЕГРАЦИЯ С НСПД - ТОЛЬКО ДАННЫЕ (БЕЗ КАРТЫ)
 // ============================================================
 
 class NSPDIntegration {
@@ -7,7 +7,6 @@ class NSPDIntegration {
         this.config = window.NSPD_CONFIG || {};
         this.cache = new Map();
         this.currentResult = null;
-        this.cadastralLayer = null;
         this.isLoading = false;
         this.initialized = false;
         this.baseUrl = 'https://nspd.gov.ru/api/geoportal/v2/search/geoportal';
@@ -37,12 +36,12 @@ class NSPDIntegration {
         
         this.setupEventListeners();
         this.initialized = true;
-        console.log('НСПД Integration готова к работе (панель из HTML)');
+        console.log('НСПД Integration готова к работе (только данные)');
         return this;
     }
 
     // ============================================================
-    // ДОБАВЛЕНИЕ ПАНЕЛИ В ИНТЕРФЕЙС (НЕ ИСПОЛЬЗУЕТСЯ)
+    // ДОБАВЛЕНИЕ ПАНЕЛИ (НЕ ИСПОЛЬЗУЕТСЯ)
     // ============================================================
     
     addPanel() {
@@ -73,9 +72,6 @@ class NSPDIntegration {
         if (cached) {
             this.currentResult = cached;
             this.displayResult(cached);
-            if (cached.geometry) {
-                this.displayOnMap(cached.geometry, cached.properties);
-            }
             return;
         }
 
@@ -97,10 +93,6 @@ class NSPDIntegration {
             this.saveToCache(cadNumber, response);
             this.currentResult = response;
             this.displayResult(response);
-            
-            if (response.geometry) {
-                this.displayOnMap(response.geometry, response.properties);
-            }
             
             this.showNotification('Объект найден в НСПД', 'success');
 
@@ -159,7 +151,7 @@ class NSPDIntegration {
     }
 
     // ============================================================
-    // НОРМАЛИЗАЦИЯ ОТВЕТА
+    // НОРМАЛИЗАЦИЯ ОТВЕТА — ВСЕ ПОЛЯ
     // ============================================================
     
     normalizeResponse(data) {
@@ -171,84 +163,62 @@ class NSPDIntegration {
         const props = feature.properties || {};
         const options = props.options || {};
         
-        let geometry = null;
-        if (feature.geometry) {
-            geometry = this.convertGeometryToWGS84(feature.geometry);
-        }
-
-        // ✅ ПЕРЕДАЁМ ВСЕ ДАННЫЕ, ВКЛЮЧАЯ ФИЧУ ДЛЯ ПОПАПА
+        // ВСЕ ДАННЫЕ ИЗ ОТВЕТА
         return {
+            // Основные
             cadastral_number: options.cad_number || props.externalKey || '',
             object_type: options.object_type_value || props.categoryName || '',
             status: options.status || '',
             ownership_type: options.ownership_type || '',
             object_name: options.params_name || '',
             purpose: options.params_purpose || '',
+            
+            // Адрес
             address: options.address_readable_address || '',
             quarter_cad_number: options.quarter_cad_number || '',
+            
+            // Стоимость
             area: parseFloat(options.params_area) || 0,
             cadastral_value: parseFloat(options.cost_value) || 0,
             cadastral_index: parseFloat(options.cost_index) || 0,
+            
+            // Характеристики
             year_built: options.params_year_built || '',
             cost_determination_date: options.cost_determination_date || '',
             registration_date: options.registration_date || '',
-            // ✅ СОХРАНЯЕМ ОРИГИНАЛЬНЫЕ ДАННЫЕ ДЛЯ ПОПАПА
-            _feature: feature,
-            properties: {
-                interactionId: props.interactionId,
-                systemInfo: props.systemInfo,
-                determination_couse: options.determination_couse || '',
-                params_extension: options.params_extension,
-                params_volume: options.params_volume,
-                params_height: options.params_height,
-                params_depth: options.params_depth,
-                params_floors: options.params_floors,
-                params_built_up_area: options.params_built_up_area,
-                cost_application_date: options.cost_application_date,
-                cost_registration_date: options.cost_registration_date,
-                cultural_heritage_val: options.cultural_heritage_val,
-                facility_cad_number: options.facility_cad_number,
-                united_cad_number: options.united_cad_number,
-                // ✅ ДЛЯ ПОПАПА
-                cad_number: options.cad_number || props.externalKey || '',
-                params_name: options.params_name || '',
-                address_readable_address: options.address_readable_address || '',
-                object_type_value: options.object_type_value || props.categoryName || '',
-                cost_value: parseFloat(options.cost_value) || 0
-            },
-            geometry: geometry,
+            cost_application_date: options.cost_application_date || '',
+            cost_registration_date: options.cost_registration_date || '',
+            
+            // Параметры объекта
+            params_extension: options.params_extension || 0,
+            params_volume: options.params_volume || 0,
+            params_height: options.params_height || 0,
+            params_depth: options.params_depth || 0,
+            params_floors: options.params_floors || '',
+            params_built_up_area: options.params_built_up_area || 0,
+            
+            // Документы
+            determination_couse: options.determination_couse || '',
+            cultural_heritage_val: options.cultural_heritage_val || '',
+            
+            // Системные
+            interactionId: props.interactionId || '',
+            category: props.category || '',
+            categoryName: props.categoryName || '',
+            subcategory: props.subcategory || '',
+            descr: props.descr || '',
+            externalKey: props.externalKey || '',
+            label: props.label || '',
+            
+            // Системная информация
+            systemInfo: props.systemInfo || {},
+            
+            // Геометрия (для информации, но не отображаем)
+            hasGeometry: !!feature.geometry,
+            
+            // Сырые данные
             raw: data
         };
-    }
-
-    // ============================================================
-    // КОНВЕРТАЦИЯ ГЕОМЕТРИИ (EPSG:3857 -> WGS84)
-    // ============================================================
-    
-    convertGeometryToWGS84(geometry) {
-        if (!geometry || !geometry.coordinates) return null;
-
-        const convertCoords = (coords) => {
-            if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-                const x = coords[0];
-                const y = coords[1];
-                const lon = (x / 6378137) * 57.29577951308232;
-                const lat = (2 * Math.atan(Math.exp(y / 6378137)) - Math.PI / 2) * 57.29577951308232;
-                return [lon, lat];
-            }
-            return coords.map(c => convertCoords(c));
-        };
-
-        try {
-            const converted = {
-                type: geometry.type,
-                coordinates: convertCoords(geometry.coordinates)
-            };
-            return converted;
-        } catch (error) {
-            console.warn('Ошибка конвертации геометрии:', error);
-            return null;
-        }
     }
 
     // ============================================================
@@ -283,88 +253,7 @@ class NSPDIntegration {
     }
 
     // ============================================================
-    // ОТОБРАЖЕНИЕ НА КАРТЕ
-    // ============================================================
-    
-    displayOnMap(geometry, properties = {}) {
-        if (!geometry || typeof mapInstance === 'undefined' || !mapInstance) return;
-
-        this.removeFromMap();
-
-        try {
-            // ✅ ИСПОЛЬЗУЕМ ДАННЫЕ ИЗ currentResult ДЛЯ ПОПАПА
-            const featureData = this.currentResult?._feature || {};
-            const propsData = this.currentResult?.properties || properties || {};
-
-            const geoJsonLayer = L.geoJSON(geometry, {
-                style: {
-                    color: '#dc2626',
-                    weight: 3,
-                    opacity: 0.8,
-                    fillColor: '#dc2626',
-                    fillOpacity: 0.15,
-                    dashArray: '6 4'
-                },
-                onEachFeature: (feature, layer) => {
-                    // ✅ ПЕРЕДАЁМ ВСЕ НУЖНЫЕ ДАННЫЕ
-                    const popupContent = this.buildGeoPopup(
-                        feature.properties || {}, 
-                        propsData,
-                        featureData
-                    );
-                    layer.bindPopup(popupContent);
-                    
-                    layer.on('mouseover', function() {
-                        this.setStyle({
-                            fillOpacity: 0.3,
-                            weight: 4,
-                            color: '#ef4444'
-                        });
-                        this.bringToFront();
-                    });
-                    layer.on('mouseout', function() {
-                        this.setStyle({
-                            fillOpacity: 0.15,
-                            weight: 3,
-                            color: '#dc2626'
-                        });
-                    });
-                }
-            });
-
-            this.cadastralLayer = geoJsonLayer;
-            geoJsonLayer.addTo(mapInstance);
-
-            const bounds = geoJsonLayer.getBounds();
-            if (bounds && bounds.isValid()) {
-                mapInstance.fitBounds(bounds, { padding: [30, 30] });
-            }
-
-            this.showNotification('Границы объекта отображены на карте', 'success');
-        } catch (error) {
-            console.error('Ошибка отображения геометрии:', error);
-            this.showNotification('Не удалось отобразить границы объекта', 'warning');
-        }
-    }
-
-    removeFromMap() {
-        if (this.cadastralLayer && typeof mapInstance !== 'undefined' && mapInstance) {
-            mapInstance.removeLayer(this.cadastralLayer);
-            this.cadastralLayer = null;
-        }
-    }
-
-    showOnMap() {
-        const data = this.currentResult;
-        if (!data || !data.geometry) {
-            this.showNotification('Нет геометрии для отображения', 'error');
-            return;
-        }
-        this.displayOnMap(data.geometry, data.properties);
-    }
-
-    // ============================================================
-    // UI: ОТОБРАЖЕНИЕ РЕЗУЛЬТАТА
+    // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ
     // ============================================================
     
     displayResult(data) {
@@ -382,31 +271,50 @@ class NSPDIntegration {
             return d.toLocaleDateString('ru-RU');
         };
 
+        // ✅ ВСЕ ПОЛЯ, КОТОРЫЕ ЕСТЬ В ДАННЫХ
         const fields = [
-            { label: 'Кадастровый номер', value: data.cadastral_number },
+            // Основные
+            { label: 'Кадастровый номер', value: data.cadastral_number, important: true },
             { label: 'Тип объекта', value: data.object_type },
             { label: 'Статус', value: data.status },
             { label: 'Форма собственности', value: data.ownership_type },
-            { label: 'Наименование', value: data.object_name },
+            { label: 'Наименование', value: data.object_name, important: true },
             { label: 'Назначение', value: data.purpose },
-            { label: 'Адрес', value: data.address },
+            
+            // Адрес
+            { label: 'Адрес', value: data.address, important: true },
             { label: 'Кадастровый квартал', value: data.quarter_cad_number },
-            { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null },
-            { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
+            
+            // Стоимость
+            { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : null, important: true },
+            { label: 'УПКС (кадастровый)', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : null },
+            
+            // Характеристики
             { label: 'Год постройки', value: data.year_built },
             { label: 'Дата определения стоимости', value: data.cost_determination_date ? formatDate(data.cost_determination_date) : null },
             { label: 'Дата регистрации', value: data.registration_date ? formatDate(data.registration_date) : null },
-            { label: 'Протяженность', value: data.properties?.params_extension ? data.properties.params_extension + ' м' : null },
-            { label: 'Объем', value: data.properties?.params_volume ? data.properties.params_volume + ' м³' : null },
-            { label: 'Высота', value: data.properties?.params_height ? data.properties.params_height + ' м' : null },
-            { label: 'Глубина', value: data.properties?.params_depth ? data.properties.params_depth + ' м' : null },
-            { label: 'Этажность', value: data.properties?.params_floors || null },
-            { label: 'Площадь застройки', value: data.properties?.params_built_up_area ? data.properties.params_built_up_area + ' м²' : null },
-            { label: 'Основание оценки', value: data.properties?.determination_couse ? data.properties.determination_couse.replace(/\n/g, ' ').trim() : null },
+            { label: 'Дата применения стоимости', value: data.cost_application_date ? formatDate(data.cost_application_date) : null },
+            
+            // Параметры
+            { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : null },
+            { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : null },
+            { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : null },
+            { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : null },
+            { label: 'Этажность', value: data.params_floors || null },
+            { label: 'Площадь застройки', value: data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : null },
+            
+            // Документы
+            { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : null },
+            { label: 'Объект культурного наследия', value: data.cultural_heritage_val || null },
+            
+            // Системные
+            { label: 'Категория', value: data.categoryName || data.category || null },
+            { label: 'ID объекта', value: data.interactionId || null },
         ];
 
-        const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== null);
+        // Фильтруем только поля с непустыми значениями
+        const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== null && f.value !== '');
 
         resultDiv.style.display = 'block';
         resultDiv.innerHTML = `
@@ -420,6 +328,7 @@ class NSPDIntegration {
                 overflow-y: auto;
                 font-family: 'Inter', sans-serif;
             ">
+                <!-- Заголовок -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: white; z-index: 1;">
                     <span style="font-weight: 600; font-size: 13px; color: #1e293b;">Данные из НСПД</span>
                     <span style="font-size: 10px; color: #10b981; background: #dcfce7; padding: 2px 12px; border-radius: 20px; font-weight: 500;">
@@ -427,22 +336,18 @@ class NSPDIntegration {
                     </span>
                 </div>
                 
+                <!-- Все поля в две колонки -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px;">
                     ${visibleFields.map(item => `
-                        <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc;">
+                        <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc; ${item.important ? 'background: #f8fafc; border-radius: 4px;' : ''}">
                             <span style="color: #64748b; font-weight: 500; font-size: 11px; white-space: nowrap;">${item.label}:</span>
-                            <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 11px; max-width: 60%; font-weight: 500;">${item.value}</span>
+                            <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 11px; max-width: 60%; ${item.important ? 'font-weight: 600;' : ''}">${item.value}</span>
                         </div>
                     `).join('')}
                 </div>
                 
+                <!-- Кнопки -->
                 <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                    ${data.geometry ? `
-                        <button onclick="nspdApp.showOnMap()" 
-                                style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
-                            Показать на карте
-                        </button>
-                    ` : ''}
                     <button onclick="nspdApp.copyData()" 
                             style="padding: 5px 14px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
                         Копировать
@@ -451,11 +356,16 @@ class NSPDIntegration {
                             style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;">
                         Очистить
                     </button>
+                    <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(data.cadastral_number)}" target="_blank" 
+                       style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 11px; text-decoration: none; font-weight: 500; transition: all 0.2s;">
+                        Открыть в НСПД
+                    </a>
                 </div>
                 
+                <!-- ID и дата обновления -->
                 <div style="margin-top: 8px; font-size: 9px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 6px; display: flex; justify-content: space-between;">
-                    <span>ID: ${data.properties?.interactionId || '—'}</span>
-                    <span>Обновлено: ${data.properties?.systemInfo?.updated ? new Date(data.properties.systemInfo.updated).toLocaleString('ru-RU') : '—'}</span>
+                    <span>ID: ${data.interactionId || '—'}</span>
+                    <span>Обновлено: ${data.systemInfo?.updated ? new Date(data.systemInfo.updated).toLocaleString('ru-RU') : '—'}</span>
                 </div>
             </div>
         `;
@@ -539,61 +449,6 @@ class NSPDIntegration {
     // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     // ============================================================
     
-    buildGeoPopup(featureProps, objectProps, featureData = {}) {
-        // ✅ БЕЗОПАСНО ПОЛУЧАЕМ ДАННЫЕ ИЗ РАЗНЫХ ИСТОЧНИКОВ
-        const cadNumber = objectProps?.cadastral_number || 
-                         featureProps?.cad_number || 
-                         featureData?.properties?.cad_number || 
-                         featureProps?.externalKey || 
-                         '—';
-        
-        const name = objectProps?.object_name || 
-                    featureProps?.params_name || 
-                    featureData?.properties?.params_name || 
-                    '';
-        
-        const address = objectProps?.address || 
-                       featureProps?.address_readable_address || 
-                       featureData?.properties?.address_readable_address || 
-                       'Адрес не указан';
-        
-        const type = objectProps?.object_type || 
-                    featureProps?.object_type_value || 
-                    featureData?.properties?.object_type_value || 
-                    '';
-        
-        const cadastralValue = objectProps?.cadastral_value || 
-                              featureProps?.cost_value || 
-                              featureData?.properties?.cost_value || 
-                              0;
-
-        return `
-            <div style="font-size: 12px; max-width: 250px;">
-                <div style="font-weight: 600; color: #dc2626; margin-bottom: 4px;">
-                    ${name || 'Объект из НСПД'}
-                </div>
-                <div style="color: #64748b; font-size: 11px;">
-                    ${address}
-                </div>
-                ${type ? `<div style="font-size: 10px; color: #94a3b8;">${type}</div>` : ''}
-                <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">
-                    Кад. номер: ${cadNumber}
-                </div>
-                ${cadastralValue > 0 ? `
-                    <div style="font-size: 10px; color: #94a3b8;">
-                        Кад. стоимость: ${cadastralValue.toLocaleString()} ₽
-                    </div>
-                ` : ''}
-                <div style="margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
-                    <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(cadNumber)}" target="_blank" 
-                       style="color: #3b82f6; text-decoration: none; font-size: 10px;">
-                        Открыть в НСПД →
-                    </a>
-                </div>
-            </div>
-        `;
-    }
-
     copyData() {
         const data = this.currentResult;
         if (!data) {
@@ -603,20 +458,32 @@ class NSPDIntegration {
 
         const fields = {
             'Кадастровый номер': data.cadastral_number,
+            'Тип объекта': data.object_type,
+            'Статус': data.status,
+            'Форма собственности': data.ownership_type,
             'Наименование': data.object_name,
-            'Тип': data.object_type,
             'Назначение': data.purpose,
+            'Адрес': data.address,
+            'Кадастровый квартал': data.quarter_cad_number,
             'Площадь': data.area > 0 ? data.area.toFixed(1) + ' м²' : null,
             'Кадастровая стоимость': data.cadastral_value > 0 ? data.cadastral_value.toLocaleString() + ' ₽' : null,
             'УПКС': data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : null,
             'Год постройки': data.year_built,
-            'Статус': data.status,
-            'Адрес': data.address,
-            'Дата регистрации': data.registration_date
+            'Дата определения стоимости': data.cost_determination_date || null,
+            'Дата регистрации': data.registration_date || null,
+            'Протяженность': data.params_extension > 0 ? data.params_extension + ' м' : null,
+            'Объем': data.params_volume > 0 ? data.params_volume + ' м³' : null,
+            'Высота': data.params_height > 0 ? data.params_height + ' м' : null,
+            'Глубина': data.params_depth > 0 ? data.params_depth + ' м' : null,
+            'Этажность': data.params_floors || null,
+            'Площадь застройки': data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : null,
+            'Основание оценки': data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : null,
+            'Категория': data.categoryName || null,
+            'ID объекта': data.interactionId || null
         };
 
         const text = Object.entries(fields)
-            .filter(([_, value]) => value && value !== '—' && value !== null)
+            .filter(([_, value]) => value && value !== '—' && value !== null && value !== '')
             .map(([key, value]) => `${key}: ${value}`)
             .join('\n');
 
@@ -634,7 +501,6 @@ class NSPDIntegration {
     }
 
     clear() {
-        this.removeFromMap();
         this.currentResult = null;
         const resultDiv = document.getElementById('cadResult');
         if (resultDiv) {
@@ -669,7 +535,7 @@ class NSPDIntegration {
 }
 
 // ============================================================
-// ИНИЦИАЛИЗАЦИЯ (сразу создаём экземпляр)
+// ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
 console.log('NSPD Integration загружается...');
