@@ -4220,11 +4220,22 @@ if (uprsValues.length > 0 && upksValues.length > 0) {
 });
 }
 function onPopupClose(levelName, districtId) {
-    // Если мы на уровне кварталов (level === 2) и попап/тултип закрылся
+    // ✅ ПРОВЕРЯЕМ, ЧТО МЫ ДЕЙСТВИТЕЛЬНО ЗАКРЫВАЕМ ПОПАП/ТУЛТИП КВАРТАЛА
     if (levelName === 'quarter' && districtId) {
         console.log('🔄 Закрытие попапа/тултипа квартала → обновление таблицы');
         
-        // Сбрасываем выбранный квартал
+        // ✅ ПРОВЕРЯЕМ, НЕ БЫЛ ЛИ КВАРТАЛ ВЫБРАН ЧЕРЕЗ НСПД
+        // Если выбранный квартал совпадает с districtId, значит мы НЕ должны сбрасывать
+        const selectedCad = window.selectedQuarterCadNumber;
+        const isFromNSPD = selectedCad && selectedCad === districtId;
+        
+        // ✅ ЕСЛИ КВАРТАЛ ВЫБРАН ЧЕРЕЗ НСПД — НЕ СБРАСЫВАЕМ ЕГО
+        if (isFromNSPD) {
+            console.log('⏳ Квартал выбран через НСПД, НЕ сбрасываем');
+            return;
+        }
+        
+        // Сбрасываем выбранный квартал ТОЛЬКО если это не результат поиска НСПД
         window.selectedQuarterCadNumber = null;
         
         // ✅ ТОЛЬКО ОБНОВЛЯЕМ ТАБЛИЦУ И СТАТИСТИКУ
