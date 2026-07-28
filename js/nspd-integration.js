@@ -395,10 +395,10 @@ normalizeResponse(data) {
             font-family: 'Inter', sans-serif;
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: white; z-index: 1; flex-wrap: wrap; gap: 8px;">
-                <span style="font-weight: 600; font-size: 13px; color: #1e293b;">📋 Данные из НСПД</span>
+                <span style="font-size: 13px; color: #1e293b;">Данные из НСПД</span>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <span style="font-size: 9px; color: #10b981; background: #dcfce7; padding: 2px 10px; border-radius: 20px; font-weight: 500;">Найден</span>
-                    <span style="font-size: 9px; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 20px; font-weight: 500;">
+                    <span style="font-size: 9px; color: #10b981; background: #dcfce7; padding: 2px 10px; border-radius: 20px;">Найден</span>
+                    <span style="font-size: 9px; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 20px;">
                         ${objectType || 'Объект'}
                     </span>
                 </div>
@@ -407,8 +407,8 @@ normalizeResponse(data) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px;">
                 ${visibleFields.map(item => `
                     <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc; ${item.important ? 'background: #f8fafc; border-radius: 4px; padding-left: 4px; padding-right: 4px;' : ''}">
-                        <span style="color: #64748b; font-weight: 500; font-size: 10px; white-space: nowrap; min-width: 40%;">${item.label}:</span>
-                        <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 10px; max-width: 60%; ${item.important ? 'font-weight: 600;' : ''}">${item.value}</span>
+                        <span style="color: #64748b; font-size: 10px; white-space: nowrap; min-width: 40%;">${item.label}:</span>
+                        <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 10px; max-width: 60%;">${item.value}</span>
                     </div>
                 `).join('')}
             </div>
@@ -424,20 +424,20 @@ normalizeResponse(data) {
             
             <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
                 <button onclick="nspdApp.copyData()" 
-                        style="padding: 5px 14px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 500; transition: all 0.2s;">
+                        style="padding: 5px 14px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Копировать
                 </button>
                 <button onclick="nspdApp.clear()" 
-                        style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 500; transition: all 0.2s;">
+                        style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Очистить
                 </button>
                 <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(data.cadastral_number)}" target="_blank" 
-                   style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 10px; text-decoration: none; font-weight: 500; transition: all 0.2s;">
+                   style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 10px; text-decoration: none; transition: all 0.2s;">
                     Открыть в НСПД
                 </a>
                 ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
                 <button onclick="searchQuarterByNumber('${data.quarter_cad_number}')" 
-                        style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 500; transition: all 0.2s;">
+                        style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Найти квартал
                 </button>
                 ` : ''}
