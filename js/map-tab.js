@@ -5523,110 +5523,43 @@ function searchQuarterByCadNumber(cadNumber) {
         renderYearBuildFilters();
         renderDealsTable();
         
-        // ✅ ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ СОДЕРЖИМОГО ТУЛТИПА
-        function getTooltipContentForWrapper(cadNumLayer) {
-            const deals = dealsData[cadNumLayer] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-                return true;
-            });
-            
-            const dealsCount = filteredDeals.length;
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-            const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-            const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
-            const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-            
-            const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
-            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-            const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-            const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
-            const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
-            const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
-            
-            return `
-                <div style="text-align:right; margin-bottom:4px;">
-                    <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNumLayer}'); return false;" 
-                          style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
-                                 background:transparent; border-radius:0; display:inline-block; 
-                                 width:auto; height:auto; line-height:1; text-align:center;
-                                 border:none; user-select:none; padding:0 2px;">
-                        ✕
-                    </span>
-                </div>
-                <div class="popup-title">${cadNumLayer}</div>
-                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                ${dealsCount > 0 ? `
-                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
-                <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
-                ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-            `;
-        }
-        
-        // ✅ ФУНКЦИЯ ДЛЯ ОТКРЫТИЯ ТУЛТИПА ОБЕРТКИ
+        // ✅ ФУНКЦИЯ ДЛЯ ОТКРЫТИЯ ТУЛТИПА ОБЕРТКИ (С ПРОВЕРКОЙ)
         function openWrapperTooltip(layer, cadNumLayer) {
             if (!layer) return false;
             
-            // Проверяем, есть ли метод _openTooltipWithRetry
+            // ✅ ПРОВЕРЯЕМ НАЛИЧИЕ МЕТОДА
             if (layer._openTooltipWithRetry) {
                 layer._openTooltipWithRetry(0);
+                console.log('✅ _openTooltipWithRetry вызван');
                 return true;
             }
             
-            // Старый способ (fallback)
+            // ✅ FALLBACK: если метод отсутствует
             if (layer._updateTooltip) {
                 layer._updateTooltip();
             }
             
-            // Пробуем открыть с проверкой
             if (layer._tooltip) {
                 layer.openTooltip();
-                console.log('✅ Тултип обертки открыт через _tooltip');
-                return true;
-            }
-            
-            // Если тултип не привязан - привязываем
-            const content = getTooltipContentForWrapper(cadNumLayer);
-            if (content) {
-                layer.unbindTooltip();
-                layer.bindTooltip(content, {
-                    className: 'custom-popup',
-                    permanent: false,
-                    direction: 'top',
-                    offset: [0, -10],
-                    opacity: 0.95,
-                    sticky: true,
-                    interactive: true
-                });
-                layer.openTooltip();
-                console.log('✅ Тултип обертки привязан и открыт (fallback)');
+                console.log('✅ Тултип открыт через openTooltip');
                 return true;
             }
             
             return false;
         }
         
-        // ✅ Ищем и приближаем к обертке с ПОСТОЯННЫМИ ПОПЫТКАМИ
+        // ✅ Ищем и приближаем к обертке
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15;
+        let foundLayer = null;
         
         function findAndOpenWrapper() {
             attempts++;
             console.log(`🔍 Попытка #${attempts} найти обертку ${cadNum}`);
             
-            let foundLayer = null;
+            // ✅ Ищем слой
+            foundLayer = null;
             
-            // Ищем в wrapperLayer
             if (window.wrapperLayer) {
                 window.wrapperLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
@@ -5638,7 +5571,6 @@ function searchQuarterByCadNumber(cadNumber) {
                 });
             }
             
-            // Если не нашли в wrapperLayer, ищем в mapLayer
             if (!foundLayer && window.mapLayer) {
                 window.mapLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
@@ -5670,14 +5602,15 @@ function searchQuarterByCadNumber(cadNumber) {
                     opacity: 0.8
                 });
                 
-                // ✅ ОТКРЫВАЕМ ТУЛТИП С ЗАДЕРЖКОЙ (ждем завершения анимации)
+                // ✅ ОТКРЫВАЕМ ТУЛТИП (С НЕБОЛЬШОЙ ЗАДЕРЖКОЙ)
                 setTimeout(function() {
+                    console.log('🔄 Открываем тултип для обертки:', cadNum);
                     openWrapperTooltip(foundLayer, cadNum);
-                }, 300);
+                }, 400);
                 
                 // ✅ ЗАВЕРШАЕМ ПОИСК
                 isUpdatingFromSearch = false;
-                console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+                console.log('🔓 Флаг isUpdatingFromSearch = false');
                 
                 setTimeout(() => {
                     window._isPopupOpening = false;
@@ -5688,14 +5621,14 @@ function searchQuarterByCadNumber(cadNumber) {
                 return true;
             }
             
-            // Если не нашли и попытки не закончились — пробуем снова
+            // ✅ Если не нашли — пробуем снова
             if (attempts < maxAttempts) {
                 console.log(`⏳ Обертка ${cadNum} еще не загружена, пробуем снова через 300ms...`);
                 setTimeout(findAndOpenWrapper, 300);
                 return false;
             }
             
-            // Максимум попыток достигнут
+            // ✅ Максимум попыток
             console.warn(`⚠️ Обертка ${cadNum} не найдена после ${maxAttempts} попыток`);
             
             // Fallback: пытаемся найти район по префиксу
@@ -5717,7 +5650,7 @@ function searchQuarterByCadNumber(cadNumber) {
             }
             
             isUpdatingFromSearch = false;
-            console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+            console.log('🔓 Флаг isUpdatingFromSearch = false');
             
             setTimeout(() => {
                 window._isPopupOpening = false;
@@ -5728,9 +5661,8 @@ function searchQuarterByCadNumber(cadNumber) {
             return false;
         }
         
-        // ✅ ЗАПУСКАЕМ ПОИСК С НЕБОЛЬШОЙ ЗАДЕРЖКОЙ (ждем отрисовки)
-        setTimeout(findAndOpenWrapper, 200);
-        
+        // ✅ ЗАПУСКАЕМ ПОИСК
+        setTimeout(findAndOpenWrapper, 300);
         return;
     }
     
@@ -5740,13 +5672,11 @@ function searchQuarterByCadNumber(cadNumber) {
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
-    // ✅ Переходим на уровень 2 (кварталы) С ФЛАГОМ
     renderMapLevelWithFlag(2, districtId, true);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
     window.selectedQuarterCadNumber = cadNum;
     
-    // ✅ Приближаем к кварталу С ОТКРЫТИЕМ ПОПАПА
     setTimeout(() => {
         if (window.mapLayer) {
             let foundLayer = null;
@@ -5759,20 +5689,16 @@ function searchQuarterByCadNumber(cadNumber) {
             });
             if (foundLayer) {
                 console.log(`✅ Квартал ${cadNum} найден, приближаем`);
-                
                 try {
                     const bounds = foundLayer.getBounds();
                     if (bounds && bounds.isValid && bounds.isValid()) {
                         mapInstance.fitBounds(bounds, { padding: [40, 40] });
-                        console.log('✅ Приближение через fitBounds');
                     } else {
                         const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
                         if (center) {
                             mapInstance.setView(center, 15);
-                            console.log('✅ Приближение через setView');
                         }
                     }
-                    // ✅ ПОСЛЕ ПРИБЛИЖЕНИЯ — ОТКРЫВАЕМ ПОПАП
                     setTimeout(() => {
                         foundLayer.openPopup();
                     }, 500);
@@ -5784,12 +5710,11 @@ function searchQuarterByCadNumber(cadNumber) {
             }
         }
         
-        // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ С ВЫБРАННЫМ КВАРТАЛОМ
         renderDealsTable();
         console.log('✅ Таблица обновлена для квартала:', cadNum);
         
         isUpdatingFromSearch = false;
-        console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+        console.log('🔓 Флаг isUpdatingFromSearch = false');
         
         setTimeout(() => {
             window._isPopupOpening = false;
