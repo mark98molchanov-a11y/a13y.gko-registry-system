@@ -4279,7 +4279,6 @@ function onPopupClose(levelName, districtId) {
         
         if (isFromNSPD) {
             console.log('⏳ Квартал выбран через НСПД, НЕ сбрасываем');
-            // ✅ НЕ СБРАСЫВАЕМ selectedQuarterCadNumber!
             renderDealsTable();
             updateMapStatsFromDeals(currentLevel, currentParentId);
             updateQuartersListWithFilteredObjects(null);
@@ -4287,20 +4286,21 @@ function onPopupClose(levelName, districtId) {
             return;
         }
         
-        // ✅ ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: ЕСЛИ МЫ НА УРОВНЕ 2 И КВАРТАЛ ВЫБРАН - НЕ СБРАСЫВАЕМ
-        if (currentLevel === 2 && window.selectedQuarterCadNumber) {
-            console.log('⏳ Мы на уровне кварталов и квартал выбран, НЕ сбрасываем');
-            renderDealsTable();
-            updateMapStatsFromDeals(currentLevel, currentParentId);
-            updateQuartersListWithFilteredObjects(null);
-            updateActiveFiltersDisplay();
-            return;
-        }
+        // ❌ УБИРАЕМ ЭТУ ПРОВЕРКУ - ОНА МЕШАЕТ ВОЗВРАТУ НА УРОВЕНЬ РАЙОНА
+        // if (currentLevel === 2 && window.selectedQuarterCadNumber) {
+        //     console.log('⏳ Мы на уровне кварталов и квартал выбран, НЕ сбрасываем');
+        //     renderDealsTable();
+        //     updateMapStatsFromDeals(currentLevel, currentParentId);
+        //     updateQuartersListWithFilteredObjects(null);
+        //     updateActiveFiltersDisplay();
+        //     return;
+        // }
         
-        // Сбрасываем выбранный квартал ТОЛЬКО если все проверки пройдены
+        // Сбрасываем выбранный квартал
         window.selectedQuarterCadNumber = null;
         window._popupOpenCadNum = null;
         
+        // Обновляем таблицу сделок (покажет все сделки района)
         renderDealsTable();
         updateMapStatsFromDeals(currentLevel, currentParentId);
         updateQuartersListWithFilteredObjects(null);
