@@ -422,19 +422,11 @@ normalizeResponse(data) {
             </div>
             ` : ''}
             
-            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                <button onclick="nspdApp.copyData()" 
-                        style="padding: 5px 14px; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
-                    Копировать
-                </button>
+               <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
                 <button onclick="nspdApp.clear()" 
                         style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Очистить
                 </button>
-                <a href="https://nspd.gov.ru/map?text=${encodeURIComponent(data.cadastral_number)}" target="_blank" 
-                   style="padding: 5px 14px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 10px; text-decoration: none; transition: all 0.2s;">
-                    Открыть в НСПД
-                </a>
                 ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
                 <button onclick="searchQuarterByNumber('${data.quarter_cad_number}')" 
                         style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
