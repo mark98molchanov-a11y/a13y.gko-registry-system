@@ -26,6 +26,7 @@ let currentVriFilter = [];
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
 window._isNSPDSearch = false;
+window._isPopupOpening = false;
 let currentChartGroupBy = 'city';
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
@@ -4020,40 +4021,65 @@ if (quarterStats.length > 0) {
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
-        } else if (levelName === 'quarter') {
-            // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
-            const cadNum = props.cadastral_number;
-            const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
-            console.log('Квартал выбран:', cadNum);
-            console.log('Сделок:', dealsCount);
-            window.selectedQuarterCadNumber = cadNum;
-            
-            // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
-            renderDealsTable();
-            
-            // ✅ СОХРАНЯЕМ ID РАЙОНА ДЛЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ ПРИ ЗАКРЫТИИ
-            const districtId = props.parent_id || props.district_id;
-            
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
-            } else if (layer.getLatLng) {
-                mapInstance.setView(layer.getLatLng(), 15);
-            }
-            layer.openPopup();
-            
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-            layer.off('popupclose');
-            layer.on('popupclose', function(e) {
-                if (currentLevel === 2) {
-                    console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
-                    setTimeout(() => {
-                        if (currentLevel === 2) {
-                            onPopupClose('quarter', districtId);
-                        }
-                    }, 300);
-                }
-            });
+} else if (levelName === 'quarter') {
+    // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
+    const cadNum = props.cadastral_number;
+    const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
+    console.log('Квартал выбран:', cadNum);
+    console.log('Сделок:', dealsCount);
+    
+    // ✅ УСТАНАВЛИВАЕМ ФЛАГ ОТКРЫТИЯ ПОПАПА
+    window._isPopupOpening = true;
+    console.log('🔒 Флаг _isPopupOpening = true');
+    
+    window.selectedQuarterCadNumber = cadNum;
+    
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
+    renderDealsTable();
+    
+    // ✅ СОХРАНЯЕМ ID РАЙОНА ДЛЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ ПРИ ЗАКРЫТИИ
+    const districtId = props.parent_id || props.district_id;
+    
+    if (layer.getBounds && layer.getBounds().isValid()) {
+        mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
+    } else if (layer.getLatLng) {
+        mapInstance.setView(layer.getLatLng(), 15);
+    }
+    
+    // ✅ ОТКРЫВАЕМ ПОПАП
+    layer.openPopup();
+    
+    // ✅ СБРАСЫВАЕМ ФЛАГ ЧЕРЕЗ НЕБОЛЬШУЮ ЗАДЕРЖКУ ПОСЛЕ ОТКРЫТИЯ ПОПАПА
+    setTimeout(() => {
+        window._isPopupOpening = false;
+        console.log('🔓 Флаг _isPopupOpening = false');
+    }, 500);
+    
+    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
+    layer.off('popupclose');
+    layer.on('popupclose', function(e) {
+        // ✅ ПРОВЕРЯЕМ, НЕ ОТКРЫВАЕМ ЛИ МЫ ПОПАП
+        if (window._isPopupOpening) {
+            console.log('⏳ Пропускаем close, идет открытие');
+            return;
         }
+        
+        // ✅ ПРОВЕРЯЕМ, ВСЕ ЕЩЕ ЛИ ВЫБРАН ЭТОТ КВАРТАЛ
+        if (window.selectedQuarterCadNumber === cadNum) {
+            console.log('⏳ Квартал все еще выбран, не сбрасываем');
+            return;
+        }
+        
+        if (currentLevel === 2) {
+            console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
+            setTimeout(() => {
+                if (currentLevel === 2) {
+                    onPopupClose('quarter', districtId);
+                }
+            }, 300);
+        }
+    });
+}
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
@@ -4247,7 +4273,23 @@ function onPopupClose(levelName, districtId) {
         // ✅ ЕСЛИ КВАРТАЛ ВЫБРАН ЧЕРЕЗ НСПД — НЕ СБРАСЫВАЕМ ЕГО
         if (isFromNSPD) {
             console.log('⏳ Квартал выбран через НСПД, НЕ сбрасываем');
-            // ✅ ВСЁ РАВНО ОБНОВЛЯЕМ ТАБЛИЦУ
+            renderDealsTable();
+            updateMapStatsFromDeals(currentLevel, currentParentId);
+            updateQuartersListWithFilteredObjects(null);
+            updateActiveFiltersDisplay();
+            return;
+        }
+        
+        // ✅ НОВАЯ ПРОВЕРКА: ЕСЛИ МЫ В ПРОЦЕССЕ ОТКРЫТИЯ ПОПАПА - НЕ СБРАСЫВАЕМ
+        if (window._isPopupOpening) {
+            console.log('⏳ Идет процесс открытия попапа, НЕ сбрасываем');
+            return;
+        }
+        
+        // ✅ ЕСЛИ ВЫБРАННЫЙ КВАРТАЛ СОВПАДАЕТ С districtId - НЕ СБРАСЫВАЕМ
+        if (window.selectedQuarterCadNumber && window.selectedQuarterCadNumber === districtId) {
+            console.log('⏳ Квартал все еще выбран, НЕ сбрасываем');
+            // ВСЁ РАВНО ОБНОВЛЯЕМ ТАБЛИЦУ
             renderDealsTable();
             updateMapStatsFromDeals(currentLevel, currentParentId);
             updateQuartersListWithFilteredObjects(null);
@@ -4258,19 +4300,10 @@ function onPopupClose(levelName, districtId) {
         // Сбрасываем выбранный квартал ТОЛЬКО если это не результат поиска НСПД
         window.selectedQuarterCadNumber = null;
         
-        // ✅ ТОЛЬКО ОБНОВЛЯЕМ ТАБЛИЦУ И СТАТИСТИКУ
-        // НЕ МЕНЯЕМ УРОВЕНЬ КАРТЫ!
-        
         // Обновляем таблицу сделок (покажет все сделки района)
         renderDealsTable();
-        
-        // Обновляем статистику для текущего уровня
         updateMapStatsFromDeals(currentLevel, currentParentId);
-        
-        // Обновляем список кварталов
         updateQuartersListWithFilteredObjects(null);
-        
-        // Обновляем активные фильтры
         updateActiveFiltersDisplay();
     }
 }
@@ -5382,6 +5415,7 @@ function searchQuarterByCadNumber(cadNumber) {
         console.log('⏳ Пропускаем, уже в процессе обновления');
         return;
     }
+    window._isPopupOpening = true;
         if (window._isNSPDSearch) {
         console.log('🔍 Поиск из НСПД, сохраняем состояние');
         // Не сбрасываем selectedQuarterCadNumber
@@ -5588,6 +5622,11 @@ function searchQuarterByCadNumber(cadNumber) {
        renderDealsTable();
         isUpdatingFromSearch = false;
         console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+             
+        setTimeout(() => {
+            window._isPopupOpening = false;
+            console.log('🔓 Флаг _isPopupOpening = false');
+        }, 500);
         
         // ✅ СБРАСЫВАЕМ ФЛАГ НСПД ЧЕРЕЗ 2 СЕКУНДЫ
         setTimeout(() => {
