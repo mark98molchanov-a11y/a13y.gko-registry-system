@@ -3186,7 +3186,7 @@ async function loadMapData() {
     }
 }
 
-function renderMapLevel(level, parentId = null) {
+function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
     // ✅ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ ПРИ ПЕРЕХОДЕ НА УРОВЕНЬ ОКРУГА
     if (level === 0) {
         window.selectedQuarterCadNumber = null;
@@ -3479,21 +3479,24 @@ function renderMapLevel(level, parentId = null) {
     console.log('🔥 Стили обновлены сразу после добавления слоев, isHeatmapEnabled =', isHeatmapEnabled);
 }
 
-
-    // ✅ КАРДИНАЛЬНОЕ РЕШЕНИЕ ДЛЯ ЦЕНТРИРОВАНИЯ С ПРИНУДИТЕЛЬНЫМИ ПОПЫТКАМИ
+    // ✅ ФУНКЦИЯ ЦЕНТРИРОВАНИЯ С ПРОВЕРКОЙ skipAutoCenter
     function centerMap(attempt) {
+        // ✅ ЕСЛИ skipAutoCenter = true — ПРОПУСКАЕМ ВСЕ ПОПЫТКИ
+        if (skipAutoCenter) {
+            console.log(`⏳ Пропускаем центрирование (skipAutoCenter=true), attempt=${attempt}`);
+            return true;
+        }
+        
         attempt = attempt || 1;
         console.log(`🔄 Попытка центрирования #${attempt}`);
         
         try {
-            // ===== ДЛЯ УРОВНЯ 0 (ОКРУГ) - ВСЕГДА ЦЕНТР ЯНАО =====
             if (level === 0) {
                 console.log('📍 УРОВЕНЬ ОКРУГА: центрируем на ЯНАО');
                 mapInstance.setView([66.0, 76.0], 5);
                 return true;
             }
             
-            // ===== ДЛЯ УРОВНЯ 1 (РАЙОНЫ) =====
             if (level === 1) {
                 console.log('📍 УРОВЕНЬ РАЙОНОВ: центрируем по границам');
                 let bounds = null;
@@ -3521,7 +3524,6 @@ function renderMapLevel(level, parentId = null) {
                 }
             }
             
-            // ===== ДЛЯ УРОВНЯ 2 (КВАРТАЛЫ) =====
             if (level === 2) {
                 console.log('📍 УРОВЕНЬ КВАРТАЛОВ: центрируем по границам');
                 let bounds = null;
@@ -3543,7 +3545,6 @@ function renderMapLevel(level, parentId = null) {
                     console.log('✅ Карта отцентрирована по кварталам');
                     return true;
                 } else {
-                    // Если границы не найдены - показываем район
                     const districtId = parentId || currentDistrictFilter;
                     if (districtId) {
                         const districtFeature = mapData.features.find(f => 
@@ -3569,7 +3570,6 @@ function renderMapLevel(level, parentId = null) {
                 }
             }
             
-            // Fallback
             console.warn('⚠️ Неизвестный уровень, центрируем на ЯНАО');
             mapInstance.setView([66.0, 76.0], 5);
             return true;
@@ -3585,20 +3585,25 @@ function renderMapLevel(level, parentId = null) {
         }
     }
 
-    setTimeout(() => {
-        console.log('⏳ 1-я попытка центрирования через 100ms');
-        centerMap(1);
-    }, 100);
-    
-    setTimeout(() => {
-        console.log('⏳ 2-я попытка центрирования через 400ms');
-        centerMap(2);
-    }, 400);
-    
-    setTimeout(() => {
-        console.log('⏳ 3-я (гарантированная) попытка центрирования через 900ms');
-        centerMap(3);
-    }, 900);
+    // ✅ ЗАПУСКАЕМ ЦЕНТРИРОВАНИЕ ТОЛЬКО ЕСЛИ НЕ ОТКЛЮЧЕНО
+    if (!skipAutoCenter) {
+        setTimeout(() => {
+            console.log('⏳ 1-я попытка центрирования через 100ms');
+            centerMap(1);
+        }, 100);
+        
+        setTimeout(() => {
+            console.log('⏳ 2-я попытка центрирования через 400ms');
+            centerMap(2);
+        }, 400);
+        
+        setTimeout(() => {
+            console.log('⏳ 3-я (гарантированная) попытка центрирования через 900ms');
+            centerMap(3);
+        }, 900);
+    } else {
+        console.log('⏳ Автоматическое центрирование ОТКЛЮЧЕНО (поиск)');
+    }
 
     if (window.wrapperLayer) {
         window.wrapperLayer.setStyle({
@@ -5245,8 +5250,8 @@ function searchQuarter() {
         console.log(`🔴 Найдена обертка: ${cadNum}`);
         window.selectedQuarterCadNumber = cadNum;
         
-        // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ РАЙОНОВ (1)
-        renderMapLevel(1);
+        // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ РАЙОНОВ (1) С ОТКЛЮЧЕНИЕМ ЦЕНТРИРОВАНИЯ
+        renderMapLevel(1, null, true);
         updateBreadcrumb('okrug');
         renderDealTypeFilters();
         renderCityFilters();
@@ -5289,14 +5294,14 @@ function searchQuarter() {
         return;
     }
     
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ НА УРОВЕНЬ КВАРТАЛОВ (2)
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ НА УРОВЕНЬ КВАРТАЛОВ (2) С ОТКЛЮЧЕНИЕМ ЦЕНТРИРОВАНИЯ
     console.log(`🏘️ Обычный квартал: ${cadNum}, приближаем`);
     
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
-    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ 2 (КВАРТАЛЫ) С ЭТИМ РАЙОНОМ
-    renderMapLevel(2, districtId);
+    // ✅ ПЕРЕХОДИМ НА УРОВЕНЬ 2 (КВАРТАЛЫ) С ОТКЛЮЧЕНИЕМ ЦЕНТРИРОВАНИЯ
+    renderMapLevel(2, districtId, true);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
     // ✅ СОХРАНЯЕМ ВЫБРАННЫЙ КВАРТАЛ
@@ -5391,8 +5396,8 @@ function searchQuarterByCadNumber(cadNumber) {
         console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов с приближением`);
         window.selectedQuarterCadNumber = cadNum;
         
-        // ✅ Переходим на уровень районов (1)
-        renderMapLevel(1);
+        // ✅ Переходим на уровень районов (1) С ОТКЛЮЧЕНИЕМ ЦЕНТРИРОВАНИЯ
+        renderMapLevel(1, null, true);
         updateBreadcrumb('okrug');
         renderDealTypeFilters();
         renderCityFilters();
