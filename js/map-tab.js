@@ -3360,9 +3360,7 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
     });
     console.log(`Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
-    // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-   // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-if (wrapperQuarters.length > 0) {
+ if (wrapperQuarters.length > 0) {
     window.wrapperLayer = L.geoJSON(wrapperQuarters, {
         style: function(feature) {
             return {
@@ -3376,9 +3374,9 @@ if (wrapperQuarters.length > 0) {
         },
         onEachFeature: function(feature, layer) {
             const cadNum = feature.properties.cadastral_number || '—';
-            let tooltipOpen = false;
             
-            function updateTooltip() {
+            // ✅ ФУНКЦИЯ ДЛЯ ПОСТРОЕНИЯ ПОПАПА (как у обычных кварталов)
+            function buildWrapperPopupContent() {
                 const deals = dealsData[cadNum] || [];
                 const filteredDeals = deals.filter(deal => {
                     if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
@@ -3406,15 +3404,6 @@ if (wrapperQuarters.length > 0) {
                 const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
                 
                 return `
-                    <div style="text-align:right; margin-bottom:4px;">
-                        <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNum}'); return false;" 
-                              style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
-                                     background:transparent; border-radius:0; display:inline-block; 
-                                     width:auto; height:auto; line-height:1; text-align:center;
-                                     border:none; user-select:none; padding:0 2px;">
-                            ✕
-                        </span>
-                    </div>
                     <div class="popup-title">${cadNum}</div>
                     <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
                     ${dealsCount > 0 ? `
@@ -3427,98 +3416,71 @@ if (wrapperQuarters.length > 0) {
                 `;
             }
             
-            function updateTooltipContent() {
-                const content = updateTooltip();
-                layer.unbindTooltip();
-                layer.bindTooltip(content, {
+            // ✅ ПРИВЯЗЫВАЕМ ПОПАП (как у обычных кварталов)
+            layer.bindPopup(buildWrapperPopupContent(), {
+                className: 'custom-popup',
+                maxWidth: 300,
+                closeButton: true
+            });
+            
+            // ✅ КЛИК - ОТКРЫВАЕМ ПОПАП
+            layer.on('click', function(e) {
+                // Обновляем попап перед открытием
+                this.bindPopup(buildWrapperPopupContent(), {
                     className: 'custom-popup',
-                    permanent: false,
-                    direction: 'top',
-                    offset: [0, -10],
-                    opacity: 0.98,
-                    sticky: true,
-                    interactive: true,
-                    autoPan: false
+                    maxWidth: 300,
+                    closeButton: true
                 });
-            }
-            
-            // ✅ СОХРАНЯЕМ МЕТОДЫ
-            layer._updateTooltip = updateTooltipContent;
-            layer._openTooltipWithRetry = function(retries) {
-                retries = retries || 0;
-                if (retries > 5) {
-                    console.warn('⚠️ Не удалось открыть тултип после 5 попыток');
-                    return;
+                
+                // Устанавливаем выбранный квартал
+                window.selectedQuarterCadNumber = cadNum;
+                
+                // Открываем попап
+                this.openPopup();
+                
+                // Приближаем
+                if (this.getBounds && this.getBounds().isValid()) {
+                    mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
                 }
-                updateTooltipContent();
-                setTimeout(function() {
-                    if (layer._tooltip) {
-                        layer.openTooltip();
-                        tooltipOpen = true;
-                        console.log('✅ Тултип обертки открыт');
-                    } else {
-                        layer._openTooltipWithRetry(retries + 1);
-                    }
-                }, 200);
-            };
+                
+                // Обновляем таблицу сделок
+                renderDealsTable();
+                
+                console.log(`🔄 Обертка ${cadNum} выбрана, попап открыт`);
+                L.DomEvent.stopPropagation(e);
+            });
             
-            // ✅ ИНИЦИАЛИЗАЦИЯ
-            updateTooltipContent();
-            
-            // ===== СОБЫТИЯ =====
+            // ✅ ХОВЕР - просто подсветка, без тултипа
             layer.on('mouseover', function() {
-                // ✅ НЕ ОБНОВЛЯЕМ ТУЛТИП, ЕСЛИ ОН УЖЕ ОТКРЫТ ПРИНУДИТЕЛЬНО
-                if (window._isWrapperTooltipForced && window._wrapperTooltipCadNum === cadNum) {
-                    return;
-                }
-                updateTooltipContent();
                 this.setStyle({
-                    fillOpacity: 0.5,
-                    weight: 2,
+                    fillOpacity: 0.3,
+                    weight: 3,
                     color: '#ff0000',
-                    opacity: 0.7
+                    opacity: 0.9
                 });
-                setTimeout(function() {
-                    if (layer._tooltip) {
-                        layer.openTooltip();
-                    }
-                }, 100);
             });
             
             layer.on('mouseout', function() {
-                // ✅ НЕ ЗАКРЫВАЕМ ТУЛТИП, ЕСЛИ ОН ПРИНУДИТЕЛЬНО ОТКРЫТ
-                if (window._isWrapperTooltipForced && window._wrapperTooltipCadNum === cadNum) {
-                    return;
-                }
                 this.setStyle({
                     fillOpacity: 0.25,
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4
+                    weight: 2.5,
+                    color: '#dc2626',
+                    opacity: 0.8
                 });
-                // Закрываем только если тултип не принудительный
-                if (!window._isWrapperTooltipForced) {
-                    this.closeTooltip();
-                }
             });
             
-            layer.on('click', function(e) {
-                // ✅ ОТКРЫВАЕМ ТУЛТИП ПО КЛИКУ С ПРИНУДИТЕЛЬНЫМ ФЛАГОМ
-                window._isWrapperTooltipForced = true;
-                window._wrapperTooltipCadNum = cadNum;
-                window._wrapperTooltipLayer = this;
-                
-                updateTooltipContent();
-                setTimeout(function() {
-                    if (layer._tooltip) {
-                        layer.openTooltip();
-                        tooltipOpen = true;
-                    }
-                    if (layer.getBounds && layer.getBounds().isValid()) {
-                        mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
-                    }
-                }, 300);
-                L.DomEvent.stopPropagation(e);
+            // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
+            layer.on('popupclose', function(e) {
+                // Сбрасываем выбранный квартал, если это была обертка
+                if (window.selectedQuarterCadNumber === cadNum) {
+                    // Проверяем, не был ли это клик по обертке
+                    setTimeout(() => {
+                        // Если попап закрыт, сбрасываем выбор
+                        window.selectedQuarterCadNumber = null;
+                        renderDealsTable();
+                        console.log(`🔄 Попап обертки ${cadNum} закрыт, таблица обновлена`);
+                    }, 200);
+                }
             });
         }
     }).addTo(mapInstance);
@@ -5412,257 +5374,11 @@ function searchQuarter() {
     const cadNum = found.properties.cadastral_number || '';
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
-    // ✅ ДЛЯ ОБЕРТОК — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ И ОТКРЫВАЕМ ТУЛТИП
+    // ✅ ДЛЯ ОБЕРТОК - ПОПАП
     if (isWrapper) {
-    console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов с тултипом`);
-    window.selectedQuarterCadNumber = cadNum;
-    window._isWrapperTooltipForced = true;
-    window._wrapperTooltipCadNum = cadNum;
-    
-    // Переходим на уровень районов
-    renderMapLevel(1, null, true);
-    updateBreadcrumb('okrug');
-    renderDealTypeFilters();
-    renderCityFilters();
-    renderObjectTypeFilters();
-    renderWallMaterialFilters();
-    renderQuarterFilters();
-    renderYearBuildFilters();
-    renderDealsTable();
-    
-    // Ищем слой обертки и открываем тултип
-    let attempts = 0;
-    const maxAttempts = 20;
-    let isOpened = false;
-    
-    function findAndOpenWrapper() {
-        attempts++;
-        console.log(`🔍 Попытка #${attempts} найти обертку ${cadNum} для открытия тултипа`);
-        
-        let foundLayer = null;
-        
-        // Ищем в wrapperLayer
-        if (window.wrapperLayer) {
-            window.wrapperLayer.eachLayer(function(layer) {
-                if (layer.feature && layer.feature.properties) {
-                    const layerCadNum = layer.feature.properties.cadastral_number || '';
-                    if (layerCadNum === cadNum) {
-                        foundLayer = layer;
-                        console.log('✅ Нашли в wrapperLayer');
-                    }
-                }
-            });
-        }
-        
-        // Если не нашли, ищем в mapLayer
-        if (!foundLayer && window.mapLayer) {
-            window.mapLayer.eachLayer(function(layer) {
-                if (layer.feature && layer.feature.properties) {
-                    const layerCadNum = layer.feature.properties.cadastral_number || '';
-                    if (layerCadNum === cadNum) {
-                        foundLayer = layer;
-                        console.log('✅ Нашли в mapLayer');
-                    }
-                }
-            });
-        }
-        
-        if (foundLayer && !isOpened) {
-            console.log(`✅ Обертка ${cadNum} найдена на попытке #${attempts}`);
-            isOpened = true;
-            window._wrapperTooltipLayer = foundLayer;
-            
-            // Приближаем
-            try {
-                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
-                }
-            } catch(e) {
-                console.warn('⚠️ Ошибка приближения:', e);
-            }
-            
-            // Подсвечиваем
-            foundLayer.setStyle({
-                fillOpacity: 0.5,
-                weight: 3,
-                color: '#ff0000',
-                opacity: 0.9
-            });
-            
-            // Отключаем события mouseover/mouseout
-            foundLayer.off('mouseover');
-            foundLayer.off('mouseout');
-            
-            // Открываем тултип
-            console.log('🔄 Открываем тултип обертки...');
-            if (foundLayer._openTooltipWithRetry) {
-                foundLayer._openTooltipWithRetry(0);
-                console.log('✅ _openTooltipWithRetry вызван');
-            } else if (foundLayer._updateTooltip) {
-                foundLayer._updateTooltip();
-                if (foundLayer._tooltip) {
-                    foundLayer.openTooltip();
-                    console.log('✅ Тултип открыт через updateTooltip + openTooltip');
-                }
-            } else if (foundLayer.openTooltip) {
-                foundLayer.openTooltip();
-                console.log('✅ Тултип открыт через openTooltip');
-            }
-            
-            // Через 5 секунд сбрасываем флаг (увеличиваем время)
-            setTimeout(function() {
-                window._isWrapperTooltipForced = false;
-                window._wrapperTooltipLayer = null;
-                window._wrapperTooltipCadNum = null;
-                console.log('🔓 Флаг _isWrapperTooltipForced сброшен');
-            }, 5000);
-            
-            return true;
-        }
-        
-        if (attempts < maxAttempts) {
-            console.log(`⏳ Обертка ${cadNum} еще не загружена, пробуем снова через 300ms...`);
-            setTimeout(findAndOpenWrapper, 300);
-            return false;
-        }
-        
-        console.warn(`⚠️ Обертка ${cadNum} не найдена после ${maxAttempts} попыток`);
-        window._isWrapperTooltipForced = false;
-        window._wrapperTooltipLayer = null;
-        window._wrapperTooltipCadNum = null;
-        return false;
-    }
-    
-    // Запускаем поиск с задержкой
-    setTimeout(findAndOpenWrapper, 500);
-    return;
-}
-    
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ НА УРОВЕНЬ 2 И ОТКРЫВАЕМ ПОПАП
-    console.log(`🏘️ Обычный квартал: ${cadNum}, приближаем на уровень кварталов`);
-    
-    const districtId = found.properties.parent_id || found.properties.district_id;
-    const districtName = found.properties.district_name || districtId || 'Район';
-    
-    // Переходим на уровень 2 (кварталы)
-    renderMapLevel(2, districtId, true);
-    updateBreadcrumb('quarter', districtId, districtName, true);
-    
-    window.selectedQuarterCadNumber = cadNum;
-    
-    // Ищем слой квартала и открываем попап
-    setTimeout(() => {
-        if (window.mapLayer) {
-            let foundLayer = null;
-            window.mapLayer.eachLayer(function(layer) {
-                if (layer.feature && layer.feature.properties) {
-                    const layerCadNum = layer.feature.properties.cadastral_number || '';
-                    if (layerCadNum === cadNum) {
-                        foundLayer = layer;
-                    }
-                }
-            });
-            
-            if (foundLayer) {
-                console.log(`✅ Квартал ${cadNum} найден, приближаем`);
-                try {
-                    const bounds = foundLayer.getBounds();
-                    if (bounds && bounds.isValid && bounds.isValid()) {
-                        mapInstance.fitBounds(bounds, { padding: [40, 40] });
-                    } else {
-                        const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
-                        if (center) {
-                            mapInstance.setView(center, 15);
-                        }
-                    }
-                    // Открываем попап после приближения
-                    setTimeout(() => {
-                        foundLayer.openPopup();
-                    }, 500);
-                } catch(e) {
-                    console.warn('⚠️ Ошибка приближения:', e);
-                }
-            } else {
-                console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
-            }
-        }
-        renderDealsTable();
-    }, 1000);
-}
-function searchQuarterByCadNumber(cadNumber) {
-    // ✅ ПРОВЕРЯЕМ ФЛАГ — ЕСЛИ УЖЕ В ПРОЦЕССЕ, ПРОПУСКАЕМ
-    if (!cadNumber || isUpdatingFromSearch) {
-        console.log('⏳ Пропускаем, уже в процессе обновления');
-        return;
-    }
-    
-    // ✅ УСТАНАВЛИВАЕМ ФЛАГ ОТКРЫТИЯ ПОПАПА И СОХРАНЯЕМ НОМЕР КВАРТАЛА
-    window._isPopupOpening = true;
-    window._popupOpenCadNum = cadNumber;
-    console.log('🔒 Флаг _isPopupOpening = true, cadNum =', cadNumber);
-    
-    if (window._isNSPDSearch) {
-        console.log('🔍 Поиск из НСПД, сохраняем состояние');
-    }
-    
-    console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
-    isUpdatingFromSearch = true;
-    console.log('🔒 Флаг isUpdatingFromSearch = true');
-    
-    // 1. Ищем в mapData (level 2)
-    let found = mapData.features.find(f => {
-        if (f.properties.level !== 2) return false;
-        return f.properties.cadastral_number === cadNumber;
-    });
-    
-    // 2. Ищем в mapData (level 1 — обертки)
-    if (!found) {
-        found = mapData.features.find(f => {
-            if (f.properties.level !== 1) return false;
-            const cadNum = f.properties.cadastral_number || '';
-            return cadNum === cadNumber;
-        });
-    }
-    
-    // 3. Если не нашли, проверяем dealsData
-    if (!found) {
-        const deals = dealsData[cadNumber] || [];
-        const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
-        if (deals.length > 0 || isWrapper) {
-            found = {
-                properties: {
-                    cadastral_number: cadNumber,
-                    level: 2,
-                    district_id: cadNumber.substring(0, 5),
-                    parent_id: cadNumber.substring(0, 5),
-                    isWrapper: isWrapper
-                }
-            };
-            console.log(`   Найдено в dealsData: ${cadNumber}`);
-        }
-    }
-    
-    if (!found) {
-        console.log(`❌ Квартал "${cadNumber}" не найден`);
-        isUpdatingFromSearch = false;
-        window._isPopupOpening = false;
-        window._popupOpenCadNum = null;
-        return;
-    }
-    
-    console.log(`✅ Найден квартал: ${found.properties.cadastral_number}`);
-    
-    const cadNum = found.properties.cadastral_number || cadNumber;
-    const isWrapper = cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
-    
-    // ✅ ДЛЯ ОБЕРТОК — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (1), НО ПРИБЛИЖАЕМ К ОБЕРТКЕ
-    if (isWrapper) {
-        console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов с приближением`);
+        console.log(`🔴 Найдена обертка: ${cadNum}`);
         window.selectedQuarterCadNumber = cadNum;
-        window._isWrapperTooltipForced = true;
-        window._wrapperTooltipCadNum = cadNum;
         
-        // ✅ Переходим на уровень районов (1) С ОТКЛЮЧЕНИЕМ ЦЕНТРИРОВАНИЯ
         renderMapLevel(1, null, true);
         updateBreadcrumb('okrug');
         renderDealTypeFilters();
@@ -5673,164 +5389,225 @@ function searchQuarterByCadNumber(cadNumber) {
         renderYearBuildFilters();
         renderDealsTable();
         
-        // ✅ Ищем и приближаем к обертке
+        // Ищем слой и открываем попап
         let attempts = 0;
         const maxAttempts = 20;
-        let isOpened = false;
         
-        function findAndOpenWrapper() {
+        function findAndOpenPopup() {
             attempts++;
-            console.log(`🔍 Попытка #${attempts} найти обертку ${cadNum}`);
+            console.log(`🔍 Попытка #${attempts} найти обертку ${cadNum} для открытия попапа`);
             
             let foundLayer = null;
             
-            // Ищем в wrapperLayer
             if (window.wrapperLayer) {
                 window.wrapperLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
-                        const layerCadNum = layer.feature.properties.cadastral_number || '';
-                        if (layerCadNum === cadNum) {
+                        if (layer.feature.properties.cadastral_number === cadNum) {
                             foundLayer = layer;
-                            console.log('✅ Нашли в wrapperLayer');
                         }
                     }
                 });
             }
             
-            // Если не нашли в wrapperLayer, ищем в mapLayer
             if (!foundLayer && window.mapLayer) {
                 window.mapLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
-                        const layerCadNum = layer.feature.properties.cadastral_number || '';
-                        if (layerCadNum === cadNum) {
+                        if (layer.feature.properties.cadastral_number === cadNum) {
                             foundLayer = layer;
-                            console.log('✅ Нашли в mapLayer');
                         }
                     }
                 });
             }
             
-            if (foundLayer && !isOpened) {
+            if (foundLayer) {
                 console.log(`✅ Обертка ${cadNum} найдена на попытке #${attempts}`);
-                isOpened = true;
-                window._wrapperTooltipLayer = foundLayer;
-                
-                // ✅ ПРИБЛИЖАЕМ
-                try {
-                    if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                        mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
-                    }
-                } catch(e) {
-                    console.warn('⚠️ Ошибка приближения:', e);
+                foundLayer.openPopup();
+                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
                 }
-                
-                // ✅ ПОДСВЕЧИВАЕМ
-                foundLayer.setStyle({
-                    fillOpacity: 0.4,
-                    weight: 3,
-                    color: '#ff0000',
-                    opacity: 0.8
-                });
-                
-                // ✅ ОТКЛЮЧАЕМ ВРЕМЕННО СОБЫТИЯ mouseover/mouseout
-                foundLayer.off('mouseover');
-                foundLayer.off('mouseout');
-                
-                // ✅ ОТКРЫВАЕМ ТУЛТИП ПОСЛЕ ПРИБЛИЖЕНИЯ
-                setTimeout(() => {
-                    if (foundLayer._openTooltipWithRetry) {
-                        foundLayer._openTooltipWithRetry(0);
-                        console.log('✅ _openTooltipWithRetry вызван');
-                    } else if (foundLayer._updateTooltip) {
-                        foundLayer._updateTooltip();
-                        if (foundLayer._tooltip) {
-                            foundLayer.openTooltip();
-                            console.log('✅ Тултип открыт через updateTooltip + openTooltip');
-                        }
-                    } else if (foundLayer.openTooltip) {
-                        foundLayer.openTooltip();
-                        console.log('✅ Тултип открыт через openTooltip');
-                    }
-                }, 500);
-                
-                // ✅ ЧЕРЕЗ 5 СЕКУНД ВОССТАНАВЛИВАЕМ СОБЫТИЯ И СБРАСЫВАЕМ ФЛАГ
-                setTimeout(() => {
-                    window._isWrapperTooltipForced = false;
-                    window._wrapperTooltipLayer = null;
-                    window._wrapperTooltipCadNum = null;
-                    console.log('🔓 Флаг _isWrapperTooltipForced сброшен');
-                }, 5000);
-                
-                isUpdatingFromSearch = false;
-                console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
-                
-                setTimeout(() => {
-                    window._isPopupOpening = false;
-                    window._popupOpenCadNum = null;
-                    console.log('🔓 Флаг _isPopupOpening = false');
-                }, 2000);
-                
                 return true;
             }
             
             if (attempts < maxAttempts) {
-                console.log(`⏳ Обертка ${cadNum} еще не загружена, пробуем снова через 300ms...`);
-                setTimeout(findAndOpenWrapper, 300);
+                setTimeout(findAndOpenPopup, 300);
                 return false;
             }
             
             console.warn(`⚠️ Обертка ${cadNum} не найдена после ${maxAttempts} попыток`);
-            // Fallback: пытаемся найти район по префиксу
-            const prefix = cadNum.substring(0, 5);
-            const districtFeature = mapData.features.find(f => 
-                f.properties.level === 1 && 
-                f.properties.cadastral_number && 
-                f.properties.cadastral_number.startsWith(prefix)
-            );
-            if (districtFeature && districtFeature.geometry) {
-                const coords = districtFeature.geometry.coordinates[0];
-                if (coords && coords.length > 0) {
-                    let lat = 0, lng = 0;
-                    coords.forEach(c => { lat += c[1]; lng += c[0]; });
-                    lat /= coords.length;
-                    lng /= coords.length;
-                    mapInstance.setView([lat, lng], 10);
-                }
-            }
-            
-            isUpdatingFromSearch = false;
-            window._isWrapperTooltipForced = false;
-            window._wrapperTooltipLayer = null;
-            window._wrapperTooltipCadNum = null;
-            console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
-            
-            setTimeout(() => {
-                window._isPopupOpening = false;
-                window._popupOpenCadNum = null;
-                console.log('🔓 Флаг _isPopupOpening = false');
-            }, 2000);
-            
             return false;
         }
         
-        // ✅ ЗАПУСКАЕМ ПОИСК С ЗАДЕРЖКОЙ
-        setTimeout(findAndOpenWrapper, 500);
+        setTimeout(findAndOpenPopup, 500);
         return;
     }
     
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ НА УРОВЕНЬ 2
-    console.log(`🏘️ Обычный квартал: ${cadNum}, приближаем на уровень кварталов`);
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПОПАП
+    console.log(`🏘️ Обычный квартал: ${cadNum}`);
     
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
     
-    // ✅ Переходим на уровень 2 (кварталы) С ФЛАГОМ
+    renderMapLevel(2, districtId, true);
+    updateBreadcrumb('quarter', districtId, districtName, true);
+    
+    window.selectedQuarterCadNumber = cadNum;
+    
+    setTimeout(() => {
+        if (window.mapLayer) {
+            let foundLayer = null;
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    if (layer.feature.properties.cadastral_number === cadNum) {
+                        foundLayer = layer;
+                    }
+                }
+            });
+            
+            if (foundLayer) {
+                console.log(`✅ Квартал ${cadNum} найден`);
+                try {
+                    const bounds = foundLayer.getBounds();
+                    if (bounds && bounds.isValid && bounds.isValid()) {
+                        mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                    }
+                    setTimeout(() => {
+                        foundLayer.openPopup();
+                    }, 500);
+                } catch(e) {
+                    console.warn('⚠️ Ошибка:', e);
+                }
+            }
+        }
+        renderDealsTable();
+    }, 1000);
+}
+function searchQuarterByCadNumber(cadNumber) {
+    if (!cadNumber || isUpdatingFromSearch) {
+        console.log('⏳ Пропускаем');
+        return;
+    }
+    
+    window._isPopupOpening = true;
+    window._popupOpenCadNum = cadNumber;
+    console.log(`🔍 Поиск по номеру: ${cadNumber}`);
+    isUpdatingFromSearch = true;
+    
+    let found = mapData.features.find(f => {
+        if (f.properties.level !== 2) return false;
+        return f.properties.cadastral_number === cadNumber;
+    });
+    
+    if (!found) {
+        found = mapData.features.find(f => {
+            if (f.properties.level !== 1) return false;
+            return f.properties.cadastral_number === cadNumber;
+        });
+    }
+    
+    if (!found) {
+        const deals = dealsData[cadNumber] || [];
+        const isWrapper = cadNumber.endsWith('000000') || cadNumber.match(/^\d{2}:\d{2}:000000$/);
+        if (deals.length > 0 || isWrapper) {
+            found = {
+                properties: {
+                    cadastral_number: cadNumber,
+                    level: isWrapper ? 1 : 2,
+                    district_id: cadNumber.substring(0, 5),
+                    parent_id: cadNumber.substring(0, 5),
+                    isWrapper: isWrapper
+                }
+            };
+        }
+    }
+    
+    if (!found) {
+        console.log(`❌ Квартал "${cadNumber}" не найден`);
+        isUpdatingFromSearch = false;
+        window._isPopupOpening = false;
+        return;
+    }
+    
+    const cadNum = found.properties.cadastral_number || cadNumber;
+    const isWrapper = cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
+    
+    // ✅ ОБЕРТКА - ПОПАП
+    if (isWrapper) {
+        console.log(`🔴 Обертка: ${cadNum}`);
+        window.selectedQuarterCadNumber = cadNum;
+        
+        renderMapLevel(1, null, true);
+        updateBreadcrumb('okrug');
+        renderDealTypeFilters();
+        renderCityFilters();
+        renderObjectTypeFilters();
+        renderWallMaterialFilters();
+        renderQuarterFilters();
+        renderYearBuildFilters();
+        renderDealsTable();
+        
+        let attempts = 0;
+        const maxAttempts = 20;
+        
+        function findAndOpenPopup() {
+            attempts++;
+            let foundLayer = null;
+            
+            if (window.wrapperLayer) {
+                window.wrapperLayer.eachLayer(function(layer) {
+                    if (layer.feature && layer.feature.properties) {
+                        if (layer.feature.properties.cadastral_number === cadNum) {
+                            foundLayer = layer;
+                        }
+                    }
+                });
+            }
+            
+            if (!foundLayer && window.mapLayer) {
+                window.mapLayer.eachLayer(function(layer) {
+                    if (layer.feature && layer.feature.properties) {
+                        if (layer.feature.properties.cadastral_number === cadNum) {
+                            foundLayer = layer;
+                        }
+                    }
+                });
+            }
+            
+            if (foundLayer) {
+                console.log(`✅ Обертка ${cadNum} найдена`);
+                foundLayer.openPopup();
+                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                }
+                isUpdatingFromSearch = false;
+                window._isPopupOpening = false;
+                return true;
+            }
+            
+            if (attempts < maxAttempts) {
+                setTimeout(findAndOpenPopup, 300);
+                return false;
+            }
+            
+            isUpdatingFromSearch = false;
+            window._isPopupOpening = false;
+            return false;
+        }
+        
+        setTimeout(findAndOpenPopup, 500);
+        return;
+    }
+    
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ
+    console.log(`🏘️ Квартал: ${cadNum}`);
+    
+    const districtId = found.properties.parent_id || found.properties.district_id;
+    const districtName = found.properties.district_name || districtId || 'Район';
+    
     renderMapLevelWithFlag(2, districtId, true);
     updateBreadcrumb('quarter', districtId, districtName, true);
     
     window.selectedQuarterCadNumber = cadNum;
     
-    // ✅ Приближаем к кварталу С ОТКРЫТИЕМ ПОПАПА
     setTimeout(() => {
         if (window.mapLayer) {
             let foundLayer = null;
@@ -5842,50 +5619,23 @@ function searchQuarterByCadNumber(cadNumber) {
                 }
             });
             if (foundLayer) {
-                console.log(`✅ Квартал ${cadNum} найден, приближаем`);
-                
                 try {
                     const bounds = foundLayer.getBounds();
                     if (bounds && bounds.isValid && bounds.isValid()) {
                         mapInstance.fitBounds(bounds, { padding: [40, 40] });
-                        console.log('✅ Приближение через fitBounds');
-                    } else {
-                        const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
-                        if (center) {
-                            mapInstance.setView(center, 15);
-                            console.log('✅ Приближение через setView');
-                        }
                     }
-                    // ✅ ПОСЛЕ ПРИБЛИЖЕНИЯ — ОТКРЫВАЕМ ПОПАП
                     setTimeout(() => {
                         foundLayer.openPopup();
                     }, 500);
                 } catch(e) {
-                    console.warn('⚠️ Ошибка приближения:', e);
+                    console.warn('⚠️ Ошибка:', e);
                 }
-            } else {
-                console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
             }
         }
-        
-        // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ С ВЫБРАННЫМ КВАРТАЛОМ
         renderDealsTable();
-        console.log('✅ Таблица обновлена для квартала:', cadNum);
-        
         isUpdatingFromSearch = false;
-        console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
-        
-        setTimeout(() => {
-            window._isPopupOpening = false;
-            window._popupOpenCadNum = null;
-            console.log('🔓 Флаг _isPopupOpening = false');
-        }, 2000);
-        
-        setTimeout(() => {
-            window._isNSPDSearch = false;
-            console.log('🔓 Флаг _isNSPDSearch сброшен');
-        }, 2000);
-        
+        window._isPopupOpening = false;
+        window._isNSPDSearch = false;
     }, 1000);
 }
 
