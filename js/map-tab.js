@@ -5363,36 +5363,91 @@ function searchQuarter() {
         renderYearBuildFilters();
         renderDealsTable();
         
-        setTimeout(() => {
+        // ✅ ИЩЕМ И ОТКРЫВАЕМ ТУЛТИП ОБЕРТКИ
+        let attempts = 0;
+        const maxAttempts = 30;
+        
+        function findAndOpenWrapperTooltip() {
+            attempts++;
+            console.log(`🔍 Попытка #${attempts} найти обертку ${cadNum} для открытия тултипа`);
+            
             let foundLayer = null;
+            
             if (window.wrapperLayer) {
                 window.wrapperLayer.eachLayer(function(layer) {
                     if (layer.feature && layer.feature.properties) {
                         const layerCadNum = layer.feature.properties.cadastral_number || '';
                         if (layerCadNum === cadNum) {
                             foundLayer = layer;
+                            console.log('✅ Нашли в wrapperLayer');
+                        }
+                    }
+                });
+            }
+            
+            if (!foundLayer && window.mapLayer) {
+                window.mapLayer.eachLayer(function(layer) {
+                    if (layer.feature && layer.feature.properties) {
+                        const layerCadNum = layer.feature.properties.cadastral_number || '';
+                        if (layerCadNum === cadNum) {
+                            foundLayer = layer;
+                            console.log('✅ Нашли в mapLayer');
                         }
                     }
                 });
             }
             
             if (foundLayer) {
-                console.log(`✅ Обертка ${cadNum} найдена в слоях`);
-                // ✅ НЕ ОТКРЫВАЕМ ТУЛТИП — ТОЛЬКО ПРИБЛИЖАЕМ
-                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                console.log(`✅ Обертка ${cadNum} найдена на попытке #${attempts}`);
+                
+                // Приближаем
+                try {
+                    if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                        mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                    }
+                } catch(e) {
+                    console.warn('⚠️ Ошибка приближения:', e);
                 }
+                
+                // Подсвечиваем
                 foundLayer.setStyle({
-                    fillOpacity: 0.4,
+                    fillOpacity: 0.5,
                     weight: 3,
                     color: '#ff0000',
-                    opacity: 0.8
+                    opacity: 0.9
                 });
+                
+                // Открываем тултип
+                console.log('🔄 Открываем тултип обертки...');
+                if (foundLayer._openTooltipWithRetry) {
+                    foundLayer._openTooltipWithRetry(0);
+                    console.log('✅ _openTooltipWithRetry вызван');
+                } else if (foundLayer._updateTooltip) {
+                    foundLayer._updateTooltip();
+                    if (foundLayer._tooltip) {
+                        foundLayer.openTooltip();
+                        console.log('✅ Тултип открыт через updateTooltip + openTooltip');
+                    }
+                }
+                return true;
             }
-        }, 500);
+            
+            if (attempts < maxAttempts) {
+                console.log(`⏳ Обертка ${cadNum} еще не загружена, пробуем снова через 300ms...`);
+                setTimeout(findAndOpenWrapperTooltip, 300);
+                return false;
+            }
+            
+            console.warn(`⚠️ Обертка ${cadNum} не найдена после ${maxAttempts} попыток`);
+            return false;
+        }
+        
+        // Запускаем поиск с задержкой
+        setTimeout(findAndOpenWrapperTooltip, 500);
         return;
     }
     
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ
     console.log(`🏘️ Обычный квартал: ${cadNum}, приближаем`);
     
     const districtId = found.properties.parent_id || found.properties.district_id;
@@ -5403,43 +5458,42 @@ function searchQuarter() {
     
     window.selectedQuarterCadNumber = cadNum;
     
-setTimeout(() => {
-    if (window.mapLayer) {
-        let foundLayer = null;
-        window.mapLayer.eachLayer(function(layer) {
-            if (layer.feature && layer.feature.properties) {
-                const layerCadNum = layer.feature.properties.cadastral_number || '';
-                if (layerCadNum === cadNum) {
-                    foundLayer = layer;
-                }
-            }
-        });
-        
-        if (foundLayer) {
-            console.log(`✅ Квартал ${cadNum} найден на карте, приближаем`);
-            try {
-                const bounds = foundLayer.getBounds();
-                if (bounds && bounds.isValid && bounds.isValid()) {
-                    mapInstance.fitBounds(bounds, { padding: [40, 40] });
-                } else {
-                    const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
-                    if (center) {
-                        mapInstance.setView(center, 15);
+    setTimeout(() => {
+        if (window.mapLayer) {
+            let foundLayer = null;
+            window.mapLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature.properties) {
+                    const layerCadNum = layer.feature.properties.cadastral_number || '';
+                    if (layerCadNum === cadNum) {
+                        foundLayer = layer;
                     }
                 }
-                // ✅ ПОСЛЕ ПРИБЛИЖЕНИЯ — ОТКРЫВАЕМ ПОПАП
-                setTimeout(() => {
-                    foundLayer.openPopup();
-                }, 500);
-            } catch(e) {
-                console.warn('⚠️ Ошибка приближения:', e);
+            });
+            
+            if (foundLayer) {
+                console.log(`✅ Квартал ${cadNum} найден на карте, приближаем`);
+                try {
+                    const bounds = foundLayer.getBounds();
+                    if (bounds && bounds.isValid && bounds.isValid()) {
+                        mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                    } else {
+                        const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
+                        if (center) {
+                            mapInstance.setView(center, 15);
+                        }
+                    }
+                    setTimeout(() => {
+                        foundLayer.openPopup();
+                    }, 500);
+                } catch(e) {
+                    console.warn('⚠️ Ошибка приближения:', e);
+                }
+            } else {
+                console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
             }
-        } else {
-            console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
         }
-    }
-    renderDealsTable();
-}, 1000);
+        renderDealsTable();
+    }, 1000);
 }
 function searchQuarterByCadNumber(cadNumber) {
     // ✅ ПРОВЕРЯЕМ ФЛАГ — ЕСЛИ УЖЕ В ПРОЦЕССЕ, ПРОПУСКАЕМ
