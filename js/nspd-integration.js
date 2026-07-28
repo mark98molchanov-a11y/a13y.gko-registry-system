@@ -244,7 +244,7 @@ normalizeResponse(data) {
     // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ
     // ============================================================
     
- displayResult(data) {
+displayResult(data) {
     console.log('📊 displayResult вызван с данными:', data);
     
     let resultDiv = document.getElementById('cadResult');
@@ -284,6 +284,21 @@ normalizeResponse(data) {
     const isLand = objectType.includes('Земельный участок');
 
     // ============================================
+    // ВЫЧИСЛЯЕМ УПКС ЕСЛИ ОТСУТСТВУЕТ
+    // ============================================
+    let upksValue = data.cadastral_index || 0;
+    
+    // Если УПКС нет, но есть стоимость и площадь — вычисляем
+    if (upksValue === 0) {
+        const cost = data.cadastral_value || 0;
+        const area = data.specified_area || data.area || 0;
+        if (cost > 0 && area > 0) {
+            upksValue = cost / area;
+            console.log(`📊 УПКС вычислен: ${upksValue.toFixed(2)} ₽/м²`);
+        }
+    }
+
+    // ============================================
     // БАЗОВЫЕ ПОЛЯ ДЛЯ ВСЕХ ТИПОВ
     // ============================================
     const fields = [
@@ -294,7 +309,7 @@ normalizeResponse(data) {
         { label: 'Адрес', value: data.address || '—', important: true },
         { label: 'Кадастровый квартал', value: data.quarter_cad_number || '—' },
         { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
-        { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : '—', important: true },
+        { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
     ];
 
     // ============================================
@@ -339,20 +354,19 @@ normalizeResponse(data) {
             { label: 'Наименование', value: data.object_name || data.name || '—', important: true },
             { label: 'Назначение', value: data.purpose || '—' },
         );
-} else if (isLand) {
-    // ЗЕМЕЛЬНЫЙ УЧАСТОК
-    const areaValue = data.specified_area > 0 
-        ? data.specified_area.toFixed(1) + ' м²' 
-        : (data.area > 0 ? data.area.toFixed(1) + ' м²' : '—');
-    
-    fields.push(
-        { label: 'Площадь', value: areaValue, important: true },
-        { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
-        { label: 'Вид разрешенного использования', value: data.permitted_uses_name || data.purpose || '—' },
-        { label: 'Подтип', value: data.land_record_subtype || '—' },
-        { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
-    );
-}
+    } else if (isLand) {
+        // ЗЕМЕЛЬНЫЙ УЧАСТОК
+        const areaValue = data.specified_area > 0 
+            ? data.specified_area.toFixed(1) + ' м²' 
+            : (data.area > 0 ? data.area.toFixed(1) + ' м²' : '—');
+        
+        fields.push(
+            { label: 'Площадь', value: areaValue, important: true },
+            { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
+            { label: 'Вид разрешенного использования', value: data.permitted_uses_name || data.purpose || '—' },
+            { label: 'Подтип', value: data.land_record_subtype || '—' },
+        );
+    }
 
     // ============================================
     // ДОБАВЛЯЕМ ДАТЫ (для всех типов)
@@ -421,12 +435,12 @@ normalizeResponse(data) {
             </div>
             ` : ''}
             
-               <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
                 <button onclick="nspdApp.clear()" 
                         style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Очистить
                 </button>
-                  ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
+                ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
                 <button onclick="window.nspdApp.searchQuarter('${data.quarter_cad_number}')" 
                         style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Найти квартал
@@ -444,7 +458,6 @@ normalizeResponse(data) {
     
     console.log('✅ Данные отображены в карточке');
 }
-
     // ============================================================
     // UI: СОСТОЯНИЯ
     // ============================================================
