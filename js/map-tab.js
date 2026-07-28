@@ -5303,22 +5303,33 @@ setTimeout(() => {
         let foundLayer = null;
         window.mapLayer.eachLayer(function(layer) {
             if (layer.feature && layer.feature.properties) {
-                if (layer.feature.properties.cadastral_number === cadNum) {
+                const layerCadNum = layer.feature.properties.cadastral_number || '';
+                if (layerCadNum === cadNum) {
                     foundLayer = layer;
                 }
             }
         });
+        
         if (foundLayer) {
-            console.log(`✅ Квартал ${cadNum} найден, приближаем`);
-            // ✅ НЕ ОТКРЫВАЕМ ПОПАП — ТОЛЬКО ПРИБЛИЖАЕМ!
-            if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+            console.log(`✅ Квартал ${cadNum} найден на карте, приближаем`);
+            try {
+                const bounds = foundLayer.getBounds();
+                if (bounds && bounds.isValid && bounds.isValid()) {
+                    mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                } else {
+                    const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
+                    if (center) {
+                        mapInstance.setView(center, 15);
+                    }
+                }
+            } catch(e) {
+                console.warn('⚠️ Ошибка приближения:', e);
             }
+        } else {
+            console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
         }
     }
     renderDealsTable();
-    isUpdatingFromSearch = false;
-    console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
 }, 1000);
 }
 function searchQuarterByCadNumber(cadNumber) {
@@ -5471,28 +5482,57 @@ function searchQuarterByCadNumber(cadNumber) {
     window.selectedQuarterCadNumber = cadNum;
     
     // ✅ Приближаем к кварталу БЕЗ ОТКРЫТИЯ ПОПАПА
-    setTimeout(() => {
-        if (window.mapLayer) {
-            let foundLayer = null;
-            window.mapLayer.eachLayer(function(layer) {
-                if (layer.feature && layer.feature.properties) {
-                    if (layer.feature.properties.cadastral_number === cadNum) {
-                        foundLayer = layer;
-                    }
-                }
-            });
-            if (foundLayer) {
-                console.log(`✅ Квартал ${cadNum} найден, приближаем`);
-                // ✅ НЕ ОТКРЫВАЕМ ПОПАП — ТОЛЬКО ПРИБЛИЖАЕМ!
-                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+setTimeout(() => {
+    if (window.mapLayer) {
+        let foundLayer = null;
+        window.mapLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.properties) {
+                if (layer.feature.properties.cadastral_number === cadNum) {
+                    foundLayer = layer;
                 }
             }
+        });
+        if (foundLayer) {
+            console.log(`✅ Квартал ${cadNum} найден, приближаем`);
+            
+            // ✅ ПРИНУДИТЕЛЬНОЕ ПРИБЛИЖЕНИЕ ЧЕРЕЗ ЦЕНТР + ЗУМ
+            try {
+                // Вариант 1: через getBounds
+                const bounds = foundLayer.getBounds();
+                if (bounds && bounds.isValid && bounds.isValid()) {
+                    mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                    console.log('✅ Приближение через fitBounds');
+                } else {
+                    // Вариант 2: через центр + зум
+                    const center = foundLayer.getCenter ? foundLayer.getCenter() : null;
+                    if (center) {
+                        mapInstance.setView(center, 15);
+                        console.log('✅ Приближение через setView');
+                    }
+                }
+            } catch(e) {
+                console.warn('⚠️ Ошибка приближения:', e);
+                // Fallback: центрируем по координатам из feature
+                if (foundLayer.feature && foundLayer.feature.geometry) {
+                    const coords = foundLayer.feature.geometry.coordinates[0];
+                    if (coords && coords.length > 0) {
+                        let lat = 0, lng = 0;
+                        coords.forEach(c => { lat += c[1]; lng += c[0]; });
+                        lat /= coords.length;
+                        lng /= coords.length;
+                        mapInstance.setView([lat, lng], 14);
+                        console.log('✅ Приближение через центр полигона');
+                    }
+                }
+            }
+        } else {
+            console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
         }
-        renderDealsTable();
-        isUpdatingFromSearch = false;
-        console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
-    }, 300);
+    }
+    renderDealsTable();
+    isUpdatingFromSearch = false;
+    console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+}, 1000);
 }
 function searchCadastralByNumber(cadNumber) {
     if (!cadNumber) return;
