@@ -3937,57 +3937,102 @@ function onMapFeatureClick(feature, layer) {
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
-        } else if (levelName === 'quarter') {
-            const cadNum = props.cadastral_number;
-            const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
-            console.log('Квартал выбран:', cadNum);
-            console.log('Сделок:', dealsCount);
-            window.selectedQuarterCadNumber = cadNum;
+       } else if (levelName === 'quarter') {
+    const cadNum = props.cadastral_number;
+    const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
+    console.log('Квартал выбран:', cadNum);
+    console.log('Сделок:', dealsCount);
+    window.selectedQuarterCadNumber = cadNum;
+    
+    renderDealsTable();
+    
+    const districtId = props.parent_id || props.district_id;
+    
+    if (layer.getBounds && layer.getBounds().isValid()) {
+        mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
+    } else if (layer.getLatLng) {
+        mapInstance.setView(layer.getLatLng(), 15);
+    }
+    layer.openPopup();
+    
+    // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА — ВОЗВРАТ НА УРОВЕНЬ РАЙОНА
+    layer.off('popupclose');
+    layer.on('popupclose', function(e) {
+        if (currentLevel === 2) {
+            console.log('🔄 Попап закрыт → возврат на уровень района');
             
-            renderDealsTable();
+            window.selectedQuarterCadNumber = null;
             
-            const districtId = props.parent_id || props.district_id;
-            
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
-            } else if (layer.getLatLng) {
-                mapInstance.setView(layer.getLatLng(), 15);
+            const parentDistrictId = props.parent_id || props.district_id;
+            if (parentDistrictId) {
+                let districtName = parentDistrictId;
+                const districtFeature = mapData.features.find(f => 
+                    f.properties.level === 1 && 
+                    (f.properties.district_id === parentDistrictId || 
+                     f.properties.cadastral_number === parentDistrictId)
+                );
+                if (districtFeature) {
+                    districtName = districtFeature.properties.district_name || parentDistrictId;
+                }
+                
+                renderMapLevel(1, null, true);
+                updateBreadcrumb('district', parentDistrictId, districtName);
+                
+                renderDealTypeFilters();
+                renderCityFilters();
+                renderObjectTypeFilters();
+                renderWallMaterialFilters();
+                renderQuarterFilters();
+                renderYearBuildFilters();
+                renderDealsTable();
+                
+                updateMapStatsFromDeals(1, null);
+                updateQuartersListWithFilteredObjects(null);
+                updateActiveFiltersDisplay();
+                addMapLegend();
             }
-            layer.openPopup();
-            
-            // ============================================================
-            // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА — СБРАСЫВАЕМ НА УРОВЕНЬ РАЙОНА
-            // ============================================================
-            layer.off('popupclose');
-            layer.on('popupclose', function(e) {
-                if (currentLevel === 2) {
-                    console.log('🔄 Попап закрыт → сброс на уровень района');
-                    
-                    window.selectedQuarterCadNumber = null;
-                    renderDealsTable();
-                    updateMapStatsFromDeals(currentLevel, currentParentId);
-                    updateQuartersListWithFilteredObjects(null);
-                    updateBreadcrumb('district', currentParentId);
-                }
-            });
-            
-            // ============================================================
-            // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА — СБРАСЫВАЕМ НА УРОВЕНЬ РАЙОНА
-            // ============================================================
-            layer.off('tooltipclose');
-            layer.on('tooltipclose', function(e) {
-                if (currentLevel === 2) {
-                    console.log('🔄 Тултип закрыт → сброс на уровень района');
-                    
-                    window.selectedQuarterCadNumber = null;
-                    renderDealsTable();
-                    updateMapStatsFromDeals(currentLevel, currentParentId);
-                    updateQuartersListWithFilteredObjects(null);
-                    updateBreadcrumb('district', currentParentId);
-                }
-            });
         }
     });
+    
+    // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА — ВОЗВРАТ НА УРОВЕНЬ РАЙОНА
+    layer.off('tooltipclose');
+    layer.on('tooltipclose', function(e) {
+        if (currentLevel === 2) {
+            console.log('🔄 Тултип закрыт → возврат на уровень района');
+            
+            window.selectedQuarterCadNumber = null;
+            
+            const parentDistrictId = props.parent_id || props.district_id;
+            if (parentDistrictId) {
+                let districtName = parentDistrictId;
+                const districtFeature = mapData.features.find(f => 
+                    f.properties.level === 1 && 
+                    (f.properties.district_id === parentDistrictId || 
+                     f.properties.cadastral_number === parentDistrictId)
+                );
+                if (districtFeature) {
+                    districtName = districtFeature.properties.district_name || parentDistrictId;
+                }
+                
+                renderMapLevel(1, null, true);
+                updateBreadcrumb('district', parentDistrictId, districtName);
+                
+                renderDealTypeFilters();
+                renderCityFilters();
+                renderObjectTypeFilters();
+                renderWallMaterialFilters();
+                renderQuarterFilters();
+                renderYearBuildFilters();
+                renderDealsTable();
+                
+                updateMapStatsFromDeals(1, null);
+                updateQuartersListWithFilteredObjects(null);
+                updateActiveFiltersDisplay();
+                addMapLegend();
+            }
+        }
+    });
+}
 
     // ===== 🖱️ ХОВЕР (наведение) =====
     layer.on('mouseover', function(e) {
