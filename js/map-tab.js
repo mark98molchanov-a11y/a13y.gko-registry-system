@@ -4292,20 +4292,11 @@ function onPopupClose(levelName, districtId) {
             return;
         }
         
-        // ✅ ЕСЛИ ВЫБРАННЫЙ КВАРТАЛ СОВПАДАЕТ С districtId - НЕ СБРАСЫВАЕМ
-        if (window.selectedQuarterCadNumber && window.selectedQuarterCadNumber === districtId) {
-            console.log('⏳ Квартал все еще выбран, НЕ сбрасываем');
-            renderDealsTable();
-            updateMapStatsFromDeals(currentLevel, currentParentId);
-            updateQuartersListWithFilteredObjects(null);
-            updateActiveFiltersDisplay();
-            return;
-        }
-        
         // Сбрасываем выбранный квартал
         window.selectedQuarterCadNumber = null;
         window._popupOpenCadNum = null;
         
+        // Обновляем таблицу сделок (покажет все сделки района)
         renderDealsTable();
         updateMapStatsFromDeals(currentLevel, currentParentId);
         updateQuartersListWithFilteredObjects(null);
