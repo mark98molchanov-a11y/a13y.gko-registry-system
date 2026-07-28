@@ -1138,16 +1138,21 @@ function renderDealTypeFilters() {
     const container = document.getElementById('deal-type-filters');
     if (!container) return;
     
+    // ✅ СОРТИРОВКА: nan всегда внизу
     const types = Object.keys(dealTypes)
-    .map(k => k.trim())  // ← Удаляем пробелы в начале и конце
-    .sort((a, b) => dealTypes[b] - dealTypes[a]);
+        .map(k => k.trim())
+        .sort((a, b) => {
+            // nan всегда внизу
+            if (a === 'nan' || a === 'NaN' || a === '') return 1;
+            if (b === 'nan' || b === 'NaN' || b === '') return -1;
+            return dealTypes[b] - dealTypes[a];
+        });
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
         return;
     }
 
-    // Определяем, все ли типы выбраны
     const allSelected = types.every(kind => currentDealTypeFilter.includes(kind));
     
     let html = `
@@ -1180,6 +1185,7 @@ function renderDealTypeFilters() {
         const count = dealTypes[kind];
         const isActive = currentDealTypeFilter.includes(kind);
         const shortName = kind.length > 15 ? kind.substring(0, 14) + '…' : kind;
+        const isNan = kind === 'nan' || kind === 'NaN' || kind === '';
         
         html += `
             <tr onclick="applyDealTypeFilter('${kind.replace(/'/g, "\\'")}')" 
@@ -1190,6 +1196,7 @@ function renderDealTypeFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1210,7 +1217,13 @@ function renderCityFilters() {
     const container = document.getElementById('city-filters');
     if (!container) return;
     
-    const cities = Object.keys(cityTypes).sort((a, b) => cityTypes[b] - cityTypes[a]);
+    const cities = Object.keys(cityTypes)
+        .sort((a, b) => {
+            // nan всегда внизу
+            if (a === 'nan' || a === 'NaN' || a === '') return 1;
+            if (b === 'nan' || b === 'NaN' || b === '') return -1;
+            return cityTypes[b] - cityTypes[a];
+        });
     
     if (cities.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
@@ -1249,6 +1262,7 @@ function renderCityFilters() {
         const count = cityTypes[city];
         const isActive = currentCityFilter.includes(city);
         const shortName = city.length > 15 ? city.substring(0, 14) + '…' : city;
+        const isNan = city === 'nan' || city === 'NaN' || city === '';
         
         html += `
             <tr onclick="applyCityFilter('${city.replace(/'/g, "\\'")}')" 
@@ -1259,6 +1273,7 @@ function renderCityFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1279,7 +1294,12 @@ function renderObjectTypeFilters() {
     const container = document.getElementById('object-type-filters');
     if (!container) return;
     
-    const types = Object.keys(objectTypes).sort((a, b) => objectTypes[b] - objectTypes[a]);
+    const types = Object.keys(objectTypes)
+        .sort((a, b) => {
+            if (a === 'nan' || a === 'NaN' || a === '') return 1;
+            if (b === 'nan' || b === 'NaN' || b === '') return -1;
+            return objectTypes[b] - objectTypes[a];
+        });
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
@@ -1318,6 +1338,7 @@ function renderObjectTypeFilters() {
         const count = objectTypes[type];
         const isActive = currentObjectTypeFilter.includes(type);
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
+        const isNan = type === 'nan' || type === 'NaN' || type === '';
         
         html += `
             <tr onclick="applyObjectTypeFilter('${type.replace(/'/g, "\\'")}')" 
@@ -1328,6 +1349,7 @@ function renderObjectTypeFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1348,7 +1370,12 @@ function renderWallMaterialFilters() {
     const container = document.getElementById('wall-material-filters');
     if (!container) return;
     
-    const types = Object.keys(wallMaterialTypes).sort((a, b) => wallMaterialTypes[b] - wallMaterialTypes[a]);
+    const types = Object.keys(wallMaterialTypes)
+        .sort((a, b) => {
+            if (a === 'nan' || a === 'NaN' || a === '') return 1;
+            if (b === 'nan' || b === 'NaN' || b === '') return -1;
+            return wallMaterialTypes[b] - wallMaterialTypes[a];
+        });
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
@@ -1360,7 +1387,7 @@ function renderWallMaterialFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Материал стен</span>
-           <button onclick="toggleAllWallMaterials(${JSON.stringify(types).replace(/"/g, '&quot;')})"
+            <button onclick="toggleAllWallMaterials(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
                         padding: 1px 8px; 
@@ -1387,6 +1414,7 @@ function renderWallMaterialFilters() {
         const count = wallMaterialTypes[type];
         const isActive = currentWallMaterialFilter.includes(type);
         const shortName = type.length > 12 ? type.substring(0, 11) + '…' : type;
+        const isNan = type === 'nan' || type === 'NaN' || type === '';
         
         html += `
             <tr onclick="applyWallMaterialFilter('${type.replace(/'/g, "\\'")}')" 
@@ -1397,6 +1425,7 @@ function renderWallMaterialFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1418,8 +1447,9 @@ function renderYearBuildFilters() {
     if (!container) return;
     
     const types = Object.keys(yearBuildTypes).sort((a, b) => {
-        if (a === 'nan') return 1;
-        if (b === 'nan') return -1;
+        // nan всегда внизу
+        if (a === 'nan' || a === 'NaN' || a === '') return 1;
+        if (b === 'nan' || b === 'NaN' || b === '') return -1;
         const aNum = parseInt(a);
         const bNum = parseInt(b);
         if (isNaN(aNum)) return 1;
@@ -1463,6 +1493,7 @@ function renderYearBuildFilters() {
     types.forEach(type => {
         const count = yearBuildTypes[type];
         const isActive = currentYearBuildFilter.includes(type);
+        const isNan = type === 'nan' || type === 'NaN' || type === '';
         
         html += `
             <tr onclick="applyYearBuildFilter('${type.replace(/'/g, "\\'")}')" 
@@ -1473,6 +1504,7 @@ function renderYearBuildFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1494,7 +1526,7 @@ function renderQuarterFilters() {
     if (!container) return;
     
     function parseQuarter(quarter) {
-        if (quarter === 'nan') return { year: 0, q: 0, sortKey: 0 };
+        if (quarter === 'nan' || quarter === 'NaN' || quarter === '') return { year: 0, q: 0, sortKey: 0 };
         const parts = quarter.split('/');
         if (parts.length === 2) {
             const year = parseInt(parts[0]);
@@ -1507,8 +1539,9 @@ function renderQuarterFilters() {
     }
     
     const types = Object.keys(quarterTypes).sort((a, b) => {
-        if (a === 'nan') return 1;
-        if (b === 'nan') return -1;
+        // nan всегда внизу
+        if (a === 'nan' || a === 'NaN' || a === '') return 1;
+        if (b === 'nan' || b === 'NaN' || b === '') return -1;
         const aParsed = parseQuarter(a);
         const bParsed = parseQuarter(b);
         return bParsed.sortKey - aParsed.sortKey;
@@ -1551,6 +1584,7 @@ function renderQuarterFilters() {
         const count = quarterTypes[type];
         const isActive = currentQuarterFilter.includes(type);
         const shortName = type.length > 10 ? type.substring(0, 9) + '…' : type;
+        const isNan = type === 'nan' || type === 'NaN' || type === '';
         
         html += `
             <tr onclick="applyQuarterFilter('${type.replace(/'/g, "\\'")}')" 
@@ -1561,6 +1595,7 @@ function renderQuarterFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1577,11 +1612,17 @@ function renderQuarterFilters() {
     
     container.innerHTML = html;
 }
+
 function renderVriFilters() {
     const container = document.getElementById('vri-filters');
     if (!container) return;
     
-    const types = Object.keys(vriCount).sort((a, b) => vriCount[b] - vriCount[a]);
+    const types = Object.keys(vriCount).sort((a, b) => {
+        // nan всегда внизу
+        if (a === 'nan' || a === 'NaN' || a === '') return 1;
+        if (b === 'nan' || b === 'NaN' || b === '') return -1;
+        return vriCount[b] - vriCount[a];
+    });
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
@@ -1620,6 +1661,7 @@ function renderVriFilters() {
         const count = vriCount[type];
         const isActive = currentVriFilter.includes(type);
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
+        const isNan = type === 'nan' || type === 'NaN' || type === '';
         
         html += `
             <tr onclick="applyVriFilter('${type.replace(/'/g, "\\'")}')" 
@@ -1630,6 +1672,7 @@ function renderVriFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
@@ -1646,11 +1689,17 @@ function renderVriFilters() {
     
     container.innerHTML = html;
 }
+
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
     if (!container) return;
     
-    const types = Object.keys(purposeCount).sort((a, b) => purposeCount[b] - purposeCount[a]);
+    const types = Object.keys(purposeCount).sort((a, b) => {
+        // nan всегда внизу
+        if (a === 'nan' || a === 'NaN' || a === '') return 1;
+        if (b === 'nan' || b === 'NaN' || b === '') return -1;
+        return purposeCount[b] - purposeCount[a];
+    });
     
     if (types.length === 0) {
         container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
@@ -1689,6 +1738,7 @@ function renderPurposeFilters() {
         const count = purposeCount[type];
         const isActive = currentPurposeFilter.includes(type);
         const shortName = type.length > 15 ? type.substring(0, 14) + '…' : type;
+        const isNan = type === 'nan' || type === 'NaN' || type === '';
         
         html += `
             <tr onclick="applyPurposeFilter('${type.replace(/'/g, "\\'")}')" 
@@ -1699,6 +1749,7 @@ function renderPurposeFilters() {
                     border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
                     font-weight: ${isActive ? '600' : '400'};
                     color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
                 "
                 onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
                 onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
