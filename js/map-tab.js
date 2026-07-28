@@ -4055,20 +4055,19 @@ if (quarterStats.length > 0) {
     
     // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
     layer.off('popupclose');
-    layer.on('popupclose', function(e) {
-        // ✅ ПРОВЕРЯЕМ ФЛАГ ОТКРЫТИЯ
-        if (window._isPopupOpening) {
-            console.log('⏳ Пропускаем close, идет открытие');
-            return;
-        }
-        
-        if (currentLevel === 2) {
-            console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
-            setTimeout(() => {
-                if (currentLevel === 2) {
-                    onPopupClose('quarter', districtId);
-                }
-            }, 300);
+layer.on('popupclose', function(e) {
+    if (window._isPopupOpening) {
+        console.log('⏳ Пропускаем close, идет открытие');
+        return;
+    }
+    
+    if (currentLevel === 2) {
+        console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
+        setTimeout(() => {
+            if (currentLevel === 2) {
+                onPopupClose('quarter', districtId);
+            }
+        }, 300);
         }
     });
 }
@@ -4286,17 +4285,7 @@ function onPopupClose(levelName, districtId) {
             return;
         }
         
-        // ❌ УБИРАЕМ ЭТУ ПРОВЕРКУ - ОНА МЕШАЕТ ВОЗВРАТУ НА УРОВЕНЬ РАЙОНА
-        // if (currentLevel === 2 && window.selectedQuarterCadNumber) {
-        //     console.log('⏳ Мы на уровне кварталов и квартал выбран, НЕ сбрасываем');
-        //     renderDealsTable();
-        //     updateMapStatsFromDeals(currentLevel, currentParentId);
-        //     updateQuartersListWithFilteredObjects(null);
-        //     updateActiveFiltersDisplay();
-        //     return;
-        // }
-        
-        // Сбрасываем выбранный квартал
+        // ✅ Сбрасываем выбранный квартал (УДАЛИЛИ ВСЕ ПРОВЕРКИ!)
         window.selectedQuarterCadNumber = null;
         window._popupOpenCadNum = null;
         
