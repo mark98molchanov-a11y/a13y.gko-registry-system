@@ -589,63 +589,25 @@ normalizeResponse(data) {
         }
     }
 
-         searchQuarter(quarterNumber) {
+      searchQuarter(quarterNumber) {
         console.log('🔍 Поиск квартала:', quarterNumber);
         
-        // Расширенный список селекторов для поиска поля ввода
-        const selectors = [
-            'input[type="search"]',
-            'input[type="text"]',
-            'input[placeholder*="оиск"]',
-            'input[placeholder*="вартал"]',
-            'input[placeholder*="номер"]',
-            '#searchInput',
-            '#quarterSearch', 
-            '#cadQuarterInput',
-            '#cadSearchInput',
-            '.search-input',
-            '.quarter-input',
-            'input.form-control',
-            'input:not([type="hidden"])'
-        ];
-        
-        let searchInput = null;
-        let usedSelector = '';
-        
-        // Ищем поле ввода
-        for (const selector of selectors) {
-            const elements = document.querySelectorAll(selector);
-            for (const el of elements) {
-                // Пропускаем скрытые поля и поля из карточки НСПД
-                if (el.offsetParent !== null && 
-                    el.id !== 'cadSearchInput' && 
-                    !el.closest('#cadResult')) {
-                    searchInput = el;
-                    usedSelector = selector;
-                    break;
-                }
-            }
-            if (searchInput) break;
-        }
+        // Ищем конкретное поле для поиска квартала
+        const searchInput = document.getElementById('quarter-search-input');
         
         if (searchInput) {
-            console.log(`✅ Найдено поле поиска: ${usedSelector}`, searchInput);
+            console.log('✅ Найдено поле поиска квартала:', searchInput);
             
-            // Устанавливаем значение
+            // Очищаем поле и устанавливаем номер квартала
+            searchInput.value = '';
             searchInput.value = quarterNumber;
             searchInput.focus();
             
-            // Вызываем все возможные события
-            const events = ['input', 'change', 'keyup', 'keydown', 'keypress'];
-            events.forEach(eventType => {
-                const event = new Event(eventType, { 
-                    bubbles: true, 
-                    cancelable: true 
-                });
-                searchInput.dispatchEvent(event);
-            });
+            // Вызываем события для активации фильтров
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
             
-            // Также создаем KeyboardEvent для имитации нажатия Enter
+            // Имитируем нажатие Enter для запуска поиска
             const enterEvent = new KeyboardEvent('keydown', {
                 key: 'Enter',
                 code: 'Enter',
@@ -657,60 +619,25 @@ normalizeResponse(data) {
             
             setTimeout(() => {
                 searchInput.dispatchEvent(enterEvent);
-            }, 200);
+            }, 100);
             
-            // Ищем и кликаем по кнопке поиска
-            const buttonSelectors = [
-                'button[type="submit"]',
-                'button:contains("оиск")',
-                'button:contains("Найти")',
-                '.search-btn',
-                '#searchBtn',
-                '.btn-search',
-                'button.btn-primary',
-                'form button',
-                'button'
-            ];
+            // Также пробуем найти кнопку поиска рядом с полем
+            const searchButton = searchInput.closest('div')?.querySelector('button') ||
+                                searchInput.nextElementSibling?.querySelector('button') ||
+                                searchInput.parentElement?.querySelector('button');
             
-            setTimeout(() => {
-                for (const selector of buttonSelectors) {
-                    const buttons = document.querySelectorAll(selector);
-                    for (const btn of buttons) {
-                        if (btn.offsetParent !== null && 
-                            btn.textContent.match(/оиск|Найти|Search|search/i)) {
-                            console.log('🖱️ Клик по кнопке:', btn);
-                            btn.click();
-                            return;
-                        }
-                    }
-                }
-                console.warn('⚠️ Кнопка поиска не найдена');
-            }, 300);
+            if (searchButton) {
+                setTimeout(() => {
+                    console.log('🖱️ Клик по кнопке поиска:', searchButton);
+                    searchButton.click();
+                }, 200);
+            }
             
             this.showNotification(`🔍 Квартал: ${quarterNumber}`, 'info');
             
         } else {
-            console.error('❌ Поле поиска не найдено!');
-            console.log('Доступные поля ввода:', 
-                Array.from(document.querySelectorAll('input:not([type="hidden"])'))
-                    .map(el => ({
-                        id: el.id,
-                        type: el.type,
-                        placeholder: el.placeholder,
-                        class: el.className,
-                        visible: el.offsetParent !== null
-                    }))
-            );
-            
-            // Альтернатива: вставляем в поле поиска НСПД
-            const cadInput = document.getElementById('cadSearchInput');
-            if (cadInput) {
-                cadInput.value = quarterNumber;
-                cadInput.dispatchEvent(new Event('input', { bubbles: true }));
-                this.showNotification('Номер вставлен в поле поиска НСПД', 'warning');
-            } else {
-                this.showNotification('Не удалось найти поле поиска', 'error');
-            }
+            console.error('❌ Поле quarter-search-input не найдено');
+            this.showNotification('Поле поиска квартала не найдено', 'error');
         }
     }
     
