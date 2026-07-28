@@ -351,7 +351,6 @@ normalizeResponse(data) {
         { label: 'Вид разрешенного использования', value: data.permitted_uses_name || data.purpose || '—' },
         { label: 'Подтип', value: data.land_record_subtype || '—' },
         { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
-        { label: 'УПКС', value: data.cadastral_index > 0 ? data.cadastral_index.toFixed(2) + ' ₽/м²' : '—' },
     );
 }
 
