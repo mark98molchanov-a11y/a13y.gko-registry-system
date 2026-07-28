@@ -604,6 +604,9 @@ displayResult(data) {
 searchQuarter(quarterNumber) {
     console.log('🔍 Поиск квартала:', quarterNumber);
     
+    // ✅ УСТАНАВЛИВАЕМ ФЛАГ, ЧТО МЫ В ПРОЦЕССЕ ПОИСКА ИЗ НСПД
+    window._isNSPDSearch = true;
+    
     // Ищем конкретное поле для поиска квартала
     const searchInput = document.getElementById('quarter-search-input');
     
@@ -681,6 +684,12 @@ searchQuarter(quarterNumber) {
                 }, 300);
             }
             
+            // ✅ СБРАСЫВАЕМ ФЛАГ ЧЕРЕЗ НЕБОЛЬШУЮ ЗАДЕРЖКУ
+            setTimeout(() => {
+                window._isNSPDSearch = false;
+                console.log('🔓 Флаг _isNSPDSearch сброшен');
+            }, 2000);
+            
         }, 500);
         
         this.showNotification(`🔍 Квартал: ${quarterNumber}`, 'info');
@@ -688,6 +697,7 @@ searchQuarter(quarterNumber) {
     } else {
         console.error('❌ Поле quarter-search-input не найдено');
         this.showNotification('Поле поиска квартала не найдено', 'error');
+        window._isNSPDSearch = false;
     }
 }
     
