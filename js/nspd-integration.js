@@ -429,7 +429,7 @@ displayResult(data) {
             ${data.systemInfo?.updated ? `
             <div style="margin-top: 12px; padding: 8px 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #f1f5f9; font-size: 9px; color: #94a3b8;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;">
-                    <span>📅 Создано: ${data.systemInfo.inserted ? new Date(data.systemInfo.inserted).toLocaleString('ru-RU') : '—'}</span>
+                    <span>Создано: ${data.systemInfo.inserted ? new Date(data.systemInfo.inserted).toLocaleString('ru-RU') : '—'}</span>
                     <span>✏️ Обновлено: ${data.systemInfo.updated ? new Date(data.systemInfo.updated).toLocaleString('ru-RU') : '—'}</span>
                 </div>
             </div>
