@@ -589,39 +589,128 @@ normalizeResponse(data) {
         }
     }
 
-       searchQuarter(quarterNumber) {
+         searchQuarter(quarterNumber) {
         console.log('🔍 Поиск квартала:', quarterNumber);
         
-        // Пробуем найти различные поля поиска
-        const searchInput = document.querySelector('input[type="search"]') || 
-                           document.querySelector('input[placeholder*="оиск"]') ||
-                           document.querySelector('#searchInput') ||
-                           document.querySelector('.search-input') ||
-                           document.querySelector('#quarterSearch') ||
-                           document.querySelector('#cadQuarterInput');
+        // Расширенный список селекторов для поиска поля ввода
+        const selectors = [
+            'input[type="search"]',
+            'input[type="text"]',
+            'input[placeholder*="оиск"]',
+            'input[placeholder*="вартал"]',
+            'input[placeholder*="номер"]',
+            '#searchInput',
+            '#quarterSearch', 
+            '#cadQuarterInput',
+            '#cadSearchInput',
+            '.search-input',
+            '.quarter-input',
+            'input.form-control',
+            'input:not([type="hidden"])'
+        ];
+        
+        let searchInput = null;
+        let usedSelector = '';
+        
+        // Ищем поле ввода
+        for (const selector of selectors) {
+            const elements = document.querySelectorAll(selector);
+            for (const el of elements) {
+                // Пропускаем скрытые поля и поля из карточки НСПД
+                if (el.offsetParent !== null && 
+                    el.id !== 'cadSearchInput' && 
+                    !el.closest('#cadResult')) {
+                    searchInput = el;
+                    usedSelector = selector;
+                    break;
+                }
+            }
+            if (searchInput) break;
+        }
         
         if (searchInput) {
-            // Очищаем поле и устанавливаем номер квартала
-            searchInput.value = '';
+            console.log(`✅ Найдено поле поиска: ${usedSelector}`, searchInput);
+            
+            // Устанавливаем значение
             searchInput.value = quarterNumber;
             searchInput.focus();
             
-            // Вызываем события для активации фильтров
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            // Вызываем все возможные события
+            const events = ['input', 'change', 'keyup', 'keydown', 'keypress'];
+            events.forEach(eventType => {
+                const event = new Event(eventType, { 
+                    bubbles: true, 
+                    cancelable: true 
+                });
+                searchInput.dispatchEvent(event);
+            });
             
-            // Если есть кнопка поиска, кликаем по ней
-            const searchButton = document.querySelector('button[type="submit"]') ||
-                                document.querySelector('.search-btn') ||
-                                document.querySelector('#searchBtn');
-            if (searchButton) {
-                setTimeout(() => searchButton.click(), 100);
-            }
+            // Также создаем KeyboardEvent для имитации нажатия Enter
+            const enterEvent = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true
+            });
             
-            this.showNotification(`Поиск квартала: ${quarterNumber}`, 'info');
+            setTimeout(() => {
+                searchInput.dispatchEvent(enterEvent);
+            }, 200);
+            
+            // Ищем и кликаем по кнопке поиска
+            const buttonSelectors = [
+                'button[type="submit"]',
+                'button:contains("оиск")',
+                'button:contains("Найти")',
+                '.search-btn',
+                '#searchBtn',
+                '.btn-search',
+                'button.btn-primary',
+                'form button',
+                'button'
+            ];
+            
+            setTimeout(() => {
+                for (const selector of buttonSelectors) {
+                    const buttons = document.querySelectorAll(selector);
+                    for (const btn of buttons) {
+                        if (btn.offsetParent !== null && 
+                            btn.textContent.match(/оиск|Найти|Search|search/i)) {
+                            console.log('🖱️ Клик по кнопке:', btn);
+                            btn.click();
+                            return;
+                        }
+                    }
+                }
+                console.warn('⚠️ Кнопка поиска не найдена');
+            }, 300);
+            
+            this.showNotification(`🔍 Квартал: ${quarterNumber}`, 'info');
+            
         } else {
-            console.warn('⚠️ Поле поиска не найдено');
-            this.showNotification('Поле поиска не найдено на странице', 'warning');
+            console.error('❌ Поле поиска не найдено!');
+            console.log('Доступные поля ввода:', 
+                Array.from(document.querySelectorAll('input:not([type="hidden"])'))
+                    .map(el => ({
+                        id: el.id,
+                        type: el.type,
+                        placeholder: el.placeholder,
+                        class: el.className,
+                        visible: el.offsetParent !== null
+                    }))
+            );
+            
+            // Альтернатива: вставляем в поле поиска НСПД
+            const cadInput = document.getElementById('cadSearchInput');
+            if (cadInput) {
+                cadInput.value = quarterNumber;
+                cadInput.dispatchEvent(new Event('input', { bubbles: true }));
+                this.showNotification('Номер вставлен в поле поиска НСПД', 'warning');
+            } else {
+                this.showNotification('Не удалось найти поле поиска', 'error');
+            }
         }
     }
     
