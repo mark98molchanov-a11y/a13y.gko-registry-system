@@ -4033,6 +4033,7 @@ function onMapFeatureClick(feature, layer) {
         }
     });
 }
+        });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
     layer.on('mouseover', function(e) {
