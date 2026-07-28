@@ -5339,7 +5339,9 @@ function searchQuarterByCadNumber(cadNumber) {
     const cadNum = found.properties.cadastral_number || cadNumber;
     const isWrapper = cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
-    // ✅ ДЛЯ ОБЕРТОК — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (1), НО ПРИБЛИЖАЕМ К ОБЕРТКЕ
+    // ============================================================
+    // ✅ ДЛЯ ОБЕРТОК — ПОКАЗЫВАЕМ НА УРОВНЕ РАЙОНОВ (1)
+    // ============================================================
     if (isWrapper) {
         console.log(`🔴 Найдена обертка: ${cadNum}, показываем на уровне районов с приближением`);
         window.selectedQuarterCadNumber = cadNum;
@@ -5427,19 +5429,22 @@ function searchQuarterByCadNumber(cadNumber) {
         return;
     }
     
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПРИБЛИЖАЕМ БЕЗ ПЕРЕРИСОВКИ КАРТЫ
-    console.log(`🏘️ Обычный квартал: ${cadNum}, приближаем`);
+    // ============================================================
+    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПЕРЕКЛЮЧАЕМСЯ НА УРОВЕНЬ 2 И ПРИБЛИЖАЕМ
+    // ============================================================
+    console.log(`🏘️ Обычный квартал: ${cadNum}, переключаемся на уровень кварталов`);
 
     const districtId = found.properties.parent_id || found.properties.district_id;
     const districtName = found.properties.district_name || districtId || 'Район';
 
-    // ✅ НЕ ПЕРЕРИСОВЫВАЕМ КАРТУ, ПРОСТО УСТАНАВЛИВАЕМ ВЫБРАННЫЙ КВАРТАЛ
+    // ✅ УСТАНАВЛИВАЕМ ВЫБРАННЫЙ КВАРТАЛ
     window.selectedQuarterCadNumber = cadNum;
 
-    // ✅ Обновляем хлебные крошки
+    // ✅ ПЕРЕКЛЮЧАЕМСЯ НА УРОВЕНЬ 2 (КВАРТАЛЫ) БЕЗ ЦЕНТРИРОВАНИЯ
+    renderMapLevel(2, districtId, true);
     updateBreadcrumb('quarter', districtId, districtName, true);
 
-    // ✅ Приближаем к кварталу БЕЗ ПЕРЕРИСОВКИ КАРТЫ
+    // ✅ ПОСЛЕ ПЕРЕРИСОВКИ КАРТЫ — ИЩЕМ И ПРИБЛИЖАЕМ КВАРТАЛ
     setTimeout(() => {
         if (window.mapLayer) {
             let foundLayer = null;
@@ -5450,6 +5455,7 @@ function searchQuarterByCadNumber(cadNumber) {
                     }
                 }
             });
+            
             if (foundLayer) {
                 console.log(`✅ Квартал ${cadNum} найден, приближаем`);
 
@@ -5486,19 +5492,13 @@ function searchQuarterByCadNumber(cadNumber) {
                         }
                     }
                 }
-                
-                // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ ПОСЛЕ ОТКРЫТИЯ ПОПАПА (ТОЛЬКО 1 РАЗ)
-                renderDealsTable();
             } else {
                 console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
-                // ✅ ДАЖЕ ЕСЛИ НЕ НАШЛИ — ОБНОВЛЯЕМ ТАБЛИЦУ (ТОЛЬКО 1 РАЗ)
-                renderDealsTable();
             }
-        } else {
-            // ✅ ЕСЛИ СЛОЯ НЕТ — ВСЕ РАВНО ОБНОВЛЯЕМ ТАБЛИЦУ (ТОЛЬКО 1 РАЗ)
-            renderDealsTable();
         }
         
+        // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (ТОЛЬКО 1 РАЗ)
+        renderDealsTable();
         isUpdatingFromSearch = false;
         console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
     }, 1000);
