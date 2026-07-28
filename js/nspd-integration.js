@@ -601,57 +601,95 @@ displayResult(data) {
         }
     }
 
-      searchQuarter(quarterNumber) {
-        console.log('🔍 Поиск квартала:', quarterNumber);
+searchQuarter(quarterNumber) {
+    console.log('🔍 Поиск квартала:', quarterNumber);
+    
+    // Ищем конкретное поле для поиска квартала
+    const searchInput = document.getElementById('quarter-search-input');
+    
+    if (searchInput) {
+        console.log('✅ Найдено поле поиска квартала:', searchInput);
         
-        // Ищем конкретное поле для поиска квартала
-        const searchInput = document.getElementById('quarter-search-input');
+        // Очищаем поле и устанавливаем номер квартала
+        searchInput.value = '';
+        searchInput.value = quarterNumber;
+        searchInput.focus();
         
-        if (searchInput) {
-            console.log('✅ Найдено поле поиска квартала:', searchInput);
-            
-            // Очищаем поле и устанавливаем номер квартала
-            searchInput.value = '';
-            searchInput.value = quarterNumber;
-            searchInput.focus();
-            
-            // Вызываем события для активации фильтров
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            // Имитируем нажатие Enter для запуска поиска
-            const enterEvent = new KeyboardEvent('keydown', {
-                key: 'Enter',
-                code: 'Enter',
-                keyCode: 13,
-                which: 13,
-                bubbles: true,
-                cancelable: true
-            });
-            
+        // Вызываем события для активации фильтров
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Имитируем нажатие Enter для запуска поиска
+        const enterEvent = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true
+        });
+        
+        setTimeout(() => {
+            searchInput.dispatchEvent(enterEvent);
+        }, 100);
+        
+        // Также пробуем найти кнопку поиска рядом с полем
+        const searchButton = searchInput.closest('div')?.querySelector('button') ||
+                            searchInput.nextElementSibling?.querySelector('button') ||
+                            searchInput.parentElement?.querySelector('button');
+        
+        if (searchButton) {
             setTimeout(() => {
-                searchInput.dispatchEvent(enterEvent);
-            }, 100);
+                console.log('🖱️ Клик по кнопке поиска:', searchButton);
+                searchButton.click();
+            }, 200);
+        }
+        
+        // ✅ ДОБАВЛЯЕМ ОБНОВЛЕНИЕ ТАБЛИЦЫ ПОСЛЕ ПОИСКА
+        setTimeout(() => {
+            console.log('🔄 Обновление таблицы сделок после поиска квартала');
             
-            // Также пробуем найти кнопку поиска рядом с полем
-            const searchButton = searchInput.closest('div')?.querySelector('button') ||
-                                searchInput.nextElementSibling?.querySelector('button') ||
-                                searchInput.parentElement?.querySelector('button');
+            // 1. Обновляем выбранный квартал
+            window.selectedQuarterCadNumber = quarterNumber;
             
-            if (searchButton) {
-                setTimeout(() => {
-                    console.log('🖱️ Клик по кнопке поиска:', searchButton);
-                    searchButton.click();
-                }, 200);
+            // 2. Обновляем таблицу сделок
+            if (typeof renderDealsTable === 'function') {
+                renderDealsTable();
+                console.log('✅ Таблица сделок обновлена');
             }
             
-            this.showNotification(`🔍 Квартал: ${quarterNumber}`, 'info');
+            // 3. Обновляем статистику
+            if (typeof updateMapStatsFromDeals === 'function') {
+                updateMapStatsFromDeals(currentLevel, currentParentId);
+            }
             
-        } else {
-            console.error('❌ Поле quarter-search-input не найдено');
-            this.showNotification('Поле поиска квартала не найдено', 'error');
-        }
+            // 4. Обновляем список кварталов
+            if (typeof updateQuartersListWithFilteredObjects === 'function') {
+                updateQuartersListWithFilteredObjects(null);
+            }
+            
+            // 5. Обновляем активные фильтры
+            if (typeof updateActiveFiltersDisplay === 'function') {
+                updateActiveFiltersDisplay();
+            }
+            
+            // 6. Обновляем график, если он есть
+            if (typeof renderPriceChart === 'function') {
+                setTimeout(() => {
+                    renderPriceChart();
+                    console.log('📊 График обновлен');
+                }, 300);
+            }
+            
+        }, 500);
+        
+        this.showNotification(`🔍 Квартал: ${quarterNumber}`, 'info');
+        
+    } else {
+        console.error('❌ Поле quarter-search-input не найдено');
+        this.showNotification('Поле поиска квартала не найдено', 'error');
     }
+}
     
     setupEventListeners() {
         document.addEventListener('click', (e) => {
