@@ -606,6 +606,7 @@ searchQuarter(quarterNumber) {
     
     // ✅ УСТАНАВЛИВАЕМ ФЛАГ, ЧТО МЫ В ПРОЦЕССЕ ПОИСКА ИЗ НСПД
     window._isNSPDSearch = true;
+    console.log('🔒 Флаг _isNSPDSearch = true');
     
     // Ищем конкретное поле для поиска квартала
     const searchInput = document.getElementById('quarter-search-input');
@@ -648,49 +649,22 @@ searchQuarter(quarterNumber) {
             }, 200);
         }
         
-        // ✅ ДОБАВЛЯЕМ ОБНОВЛЕНИЕ ТАБЛИЦЫ ПОСЛЕ ПОИСКА
+        // ❌ УБИРАЕМ ЭТОТ БЛОК - ОН ВЫЗЫВАЕТ ДВОЙНОЕ ОБНОВЛЕНИЕ
+        // setTimeout(() => {
+        //     console.log('🔄 Обновление таблицы сделок после поиска квартала');
+        //     window.selectedQuarterCadNumber = quarterNumber;
+        //     if (typeof renderDealsTable === 'function') {
+        //         renderDealsTable();
+        //         console.log('✅ Таблица сделок обновлена');
+        //     }
+        //     ...
+        // }, 500);
+        
+        // ✅ ОСТАВЛЯЕМ ТОЛЬКО СБРОС ФЛАГА
         setTimeout(() => {
-            console.log('🔄 Обновление таблицы сделок после поиска квартала');
-            
-            // 1. Обновляем выбранный квартал
-            window.selectedQuarterCadNumber = quarterNumber;
-            
-            // 2. Обновляем таблицу сделок
-            if (typeof renderDealsTable === 'function') {
-                renderDealsTable();
-                console.log('✅ Таблица сделок обновлена');
-            }
-            
-            // 3. Обновляем статистику
-            if (typeof updateMapStatsFromDeals === 'function') {
-                updateMapStatsFromDeals(currentLevel, currentParentId);
-            }
-            
-            // 4. Обновляем список кварталов
-            if (typeof updateQuartersListWithFilteredObjects === 'function') {
-                updateQuartersListWithFilteredObjects(null);
-            }
-            
-            // 5. Обновляем активные фильтры
-            if (typeof updateActiveFiltersDisplay === 'function') {
-                updateActiveFiltersDisplay();
-            }
-            
-            // 6. Обновляем график, если он есть
-            if (typeof renderPriceChart === 'function') {
-                setTimeout(() => {
-                    renderPriceChart();
-                    console.log('📊 График обновлен');
-                }, 300);
-            }
-            
-            // ✅ СБРАСЫВАЕМ ФЛАГ ЧЕРЕЗ НЕБОЛЬШУЮ ЗАДЕРЖКУ
-            setTimeout(() => {
-                window._isNSPDSearch = false;
-                console.log('🔓 Флаг _isNSPDSearch сброшен');
-            }, 2000);
-            
-        }, 500);
+            window._isNSPDSearch = false;
+            console.log('🔓 Флаг _isNSPDSearch сброшен');
+        }, 3000);
         
         this.showNotification(`🔍 Квартал: ${quarterNumber}`, 'info');
         
