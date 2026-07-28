@@ -3324,115 +3324,158 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
     console.log(`Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
     // 🔥 СНАЧАЛА ДОБАВЛЯЕМ ОБЕРТКУ (БУДЕТ СНИЗУ)
-    if (wrapperQuarters.length > 0) {
-        window.wrapperLayer = L.geoJSON(wrapperQuarters, {
-            style: function(feature) {
-                return {
-                    fillColor: 'transparent',
-                    fillOpacity: 0,
-                    color: '#dc2626',
-                    weight: 2.5,
-                    opacity: 0.8,
-                    dashArray: '6 4'
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                const cadNum = feature.properties.cadastral_number || '—';
-                
-                function updateTooltip() {
-                    const deals = dealsData[cadNum] || [];
-                    const filteredDeals = deals.filter(deal => {
-                        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-                        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-                        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-                        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-                        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-                        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-                        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-                        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-                        return true;
-                    });
-                    
-                    const dealsCount = filteredDeals.length;
-                    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
-                    const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-                    
-                    const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
-                    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                    const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
-                    const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
-                    const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
-                    
-                    const tooltipContent = `
-                        <div style="text-align:right; margin-bottom:4px;">
-                            <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNum}'); return false;" 
-                                  style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
-                                         background:transparent; border-radius:0; display:inline-block; 
-                                         width:auto; height:auto; line-height:1; text-align:center;
-                                         border:none; user-select:none; padding:0 2px;">
-                                ✕
-                            </span>
-                        </div>
-                        <div class="popup-title">${cadNum}</div>
-                        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                        ${dealsCount > 0 ? `
-                        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                        <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
-                        <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
-                        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                    `;
-                    
-                    layer.bindTooltip(tooltipContent, {
-                        className: 'custom-popup',
-                        permanent: false,
-                        direction: 'top',
-                        offset: [0, -10],
-                        opacity: 0.95,
-                        sticky: true,
-                        interactive: true
-                    });
-                }
-                
-                layer._updateTooltip = updateTooltip;
-                updateTooltip();
-                
-                layer.on('mouseover', function() {
-                    updateTooltip();
-                    this.setStyle({
-                        fillOpacity: 0.5,
-                        weight: 2,
-                        color: '#ff0000',
-                        opacity: 0.7
-                    });
-                    this.openTooltip();
+  if (wrapperQuarters.length > 0) {
+    window.wrapperLayer = L.geoJSON(wrapperQuarters, {
+        style: function(feature) {
+            return {
+                fillColor: 'transparent',
+                fillOpacity: 0,
+                color: '#dc2626',
+                weight: 2.5,
+                opacity: 0.8,
+                dashArray: '6 4'
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            const cadNum = feature.properties.cadastral_number || '—';
+            
+            // ✅ ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ СОДЕРЖИМОГО ТУЛТИПА
+            function getTooltipContent() {
+                const deals = dealsData[cadNum] || [];
+                const filteredDeals = deals.filter(deal => {
+                    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                    return true;
                 });
                 
-                layer.on('mouseout', function() {
-                    this.setStyle({
-                        fillOpacity: 0.25,
-                        weight: 1,
-                        color: '#ff0000',
-                        opacity: 0.4
-                    });
-                });
+                const dealsCount = filteredDeals.length;
+                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+                const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
+                const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
                 
-                layer.on('click', function(e) {
-                    updateTooltip();
-                    this.openTooltip();
-                    if (this.getBounds && this.getBounds().isValid()) {
-                        mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
-                    }
+                const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
+                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+                const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
+                const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
+                const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
+                
+                return `
+                    <div style="text-align:right; margin-bottom:4px;">
+                        <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNum}'); return false;" 
+                              style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
+                                     background:transparent; border-radius:0; display:inline-block; 
+                                     width:auto; height:auto; line-height:1; text-align:center;
+                                     border:none; user-select:none; padding:0 2px;">
+                            ✕
+                        </span>
+                    </div>
+                    <div class="popup-title">${cadNum}</div>
+                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                    ${dealsCount > 0 ? `
+                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+                    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
+                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+                `;
+            }
+            
+            // ✅ ФУНКЦИЯ ОБНОВЛЕНИЯ ТУЛТИПА (ПЕРЕСОЗДАЕТ)
+            function updateTooltip() {
+                const content = getTooltipContent();
+                layer.unbindTooltip();
+                layer.bindTooltip(content, {
+                    className: 'custom-popup',
+                    permanent: false,
+                    direction: 'top',
+                    offset: [0, -10],
+                    opacity: 0.95,
+                    sticky: true,
+                    interactive: true
                 });
             }
-        }).addTo(mapInstance);
-        
-        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
-    }
+            
+            // ✅ ФУНКЦИЯ ОТКРЫТИЯ ТУЛТИПА С ГАРАНТИЕЙ
+            function openTooltipWithRetry(retries) {
+                retries = retries || 0;
+                if (retries > 3) {
+                    console.warn('⚠️ Не удалось открыть тултип после 3 попыток');
+                    return;
+                }
+                
+                // Проверяем, что тултип привязан
+                if (layer._tooltip) {
+                    layer.openTooltip();
+                    console.log('✅ Тултип обертки открыт (через _tooltip)');
+                } else {
+                    // Если тултип не привязан - привязываем и пробуем снова
+                    updateTooltip();
+                    setTimeout(function() {
+                        openTooltipWithRetry(retries + 1);
+                    }, 200);
+                }
+            }
+            
+            // Сохраняем методы на слое
+            layer._updateTooltip = updateTooltip;
+            layer._openTooltipWithRetry = openTooltipWithRetry;
+            
+            // Инициализируем тултип (привязываем)
+            updateTooltip();
+            
+            // ===== СОБЫТИЯ =====
+            layer.on('mouseover', function() {
+                updateTooltip();
+                this.setStyle({
+                    fillOpacity: 0.5,
+                    weight: 2,
+                    color: '#ff0000',
+                    opacity: 0.7
+                });
+                // Открываем с задержкой (чтобы тултип успел привязаться)
+                setTimeout(function() {
+                    if (layer._tooltip) {
+                        layer.openTooltip();
+                    }
+                }, 100);
+            });
+            
+            layer.on('mouseout', function() {
+                this.setStyle({
+                    fillOpacity: 0.25,
+                    weight: 1,
+                    color: '#ff0000',
+                    opacity: 0.4
+                });
+            });
+            
+            layer.on('click', function(e) {
+                updateTooltip();
+                // Открываем с задержкой
+                setTimeout(function() {
+                    if (layer._tooltip) {
+                        layer.openTooltip();
+                        if (layer.getBounds && layer.getBounds().isValid()) {
+                            mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40] });
+                        }
+                    }
+                }, 150);
+                L.DomEvent.stopPropagation(e);
+            });
+        }
+    }).addTo(mapInstance);
+    
+    console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
+}
 
     // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
     if (normalQuarters.length > 0) {
@@ -5481,67 +5524,97 @@ function searchQuarterByCadNumber(cadNumber) {
         renderDealsTable();
         
         // ✅ ФУНКЦИЯ ДЛЯ ОТКРЫТИЯ ТУЛТИПА ОБЕРТКИ
-        function openWrapperTooltip(layer, cadNumLayer) {
-            if (!layer) return false;
-            
-            // Обновляем тултип
-            if (layer._updateTooltip) {
-                layer._updateTooltip();
-            }
-            
-            // Пробуем открыть
-            if (layer.openTooltip) {
-                layer.openTooltip();
-                console.log('✅ Тултип обертки открыт через openTooltip');
-                return true;
-            }
-            
-            // Fallback: принудительно привязываем тултип
-            const deals = dealsData[cadNumLayer] || [];
-            const filteredDeals = deals.filter(deal => {
-                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-                return true;
-            });
-            
-            const dealsCount = filteredDeals.length;
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-            const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-            const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
-            const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
-            
-            const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
-            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-            const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-            const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
-            const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
-            const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
-            
-            const tooltipContent = `
-                <div style="text-align:right; margin-bottom:4px;">
-                    <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNumLayer}'); return false;" 
-                          style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
-                                 background:transparent; border-radius:0; display:inline-block; 
-                                 width:auto; height:auto; line-height:1; text-align:center;
-                                 border:none; user-select:none; padding:0 2px;">
-                        ✕
-                    </span>
-                </div>
-                <div class="popup-title">${cadNumLayer}</div>
-                <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                ${dealsCount > 0 ? `
-                <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
-                <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
-                ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+       function openWrapperTooltip(layer, cadNumLayer) {
+    if (!layer) return false;
+    
+    // Проверяем, есть ли метод _openTooltipWithRetry
+    if (layer._openTooltipWithRetry) {
+        layer._openTooltipWithRetry(0);
+        return true;
+    }
+    
+    // Старый способ (fallback)
+    if (layer._updateTooltip) {
+        layer._updateTooltip();
+    }
+    
+    // Пробуем открыть с проверкой
+    if (layer._tooltip) {
+        layer.openTooltip();
+        console.log('✅ Тултип обертки открыт через _tooltip');
+        return true;
+    }
+    
+    // Если тултип не привязан - привязываем
+    const content = getTooltipContentForWrapper(cadNumLayer);
+    if (content) {
+        layer.unbindTooltip();
+        layer.bindTooltip(content, {
+            className: 'custom-popup',
+            permanent: false,
+            direction: 'top',
+            offset: [0, -10],
+            opacity: 0.95,
+            sticky: true,
+            interactive: true
+        });
+        layer.openTooltip();
+        console.log('✅ Тултип обертки привязан и открыт (fallback)');
+        return true;
+    }
+    
+    return false;
+}
+
+// Вспомогательная функция для получения содержимого тултипа
+function getTooltipContentForWrapper(cadNumLayer) {
+    const deals = dealsData[cadNumLayer] || [];
+    const filteredDeals = deals.filter(deal => {
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
+    });
+    
+    const dealsCount = filteredDeals.length;
+    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
+    const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+    
+    const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
+    const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
+    const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
+    
+    return `
+        <div style="text-align:right; margin-bottom:4px;">
+            <span onmousedown="event.stopPropagation(); event.preventDefault(); closeWrapperTooltip('${cadNumLayer}'); return false;" 
+                  style="cursor:pointer; font-size:16px; font-weight:bold; color:#94a3b8; 
+                         background:transparent; border-radius:0; display:inline-block; 
+                         width:auto; height:auto; line-height:1; text-align:center;
+                         border:none; user-select:none; padding:0 2px;">
+                ✕
+            </span>
+        </div>
+        <div class="popup-title">${cadNumLayer}</div>
+        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+        ${dealsCount > 0 ? `
+        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+        <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+        <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
+        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+    `;
+}
             `;
             
             layer.unbindTooltip();
