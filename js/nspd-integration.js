@@ -427,8 +427,8 @@ normalizeResponse(data) {
                         style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Очистить
                 </button>
-                ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
-                <button onclick="searchQuarterByNumber('${data.quarter_cad_number}')" 
+                  ${data.quarter_cad_number && data.quarter_cad_number !== '—' ? `
+                <button onclick="window.nspdApp.searchQuarter('${data.quarter_cad_number}')" 
                         style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
                     Найти квартал
                 </button>
@@ -589,9 +589,41 @@ normalizeResponse(data) {
         }
     }
 
-    // ============================================================
-    // НАСТРОЙКА ОБРАБОТЧИКОВ
-    // ============================================================
+       searchQuarter(quarterNumber) {
+        console.log('🔍 Поиск квартала:', quarterNumber);
+        
+        // Пробуем найти различные поля поиска
+        const searchInput = document.querySelector('input[type="search"]') || 
+                           document.querySelector('input[placeholder*="оиск"]') ||
+                           document.querySelector('#searchInput') ||
+                           document.querySelector('.search-input') ||
+                           document.querySelector('#quarterSearch') ||
+                           document.querySelector('#cadQuarterInput');
+        
+        if (searchInput) {
+            // Очищаем поле и устанавливаем номер квартала
+            searchInput.value = '';
+            searchInput.value = quarterNumber;
+            searchInput.focus();
+            
+            // Вызываем события для активации фильтров
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Если есть кнопка поиска, кликаем по ней
+            const searchButton = document.querySelector('button[type="submit"]') ||
+                                document.querySelector('.search-btn') ||
+                                document.querySelector('#searchBtn');
+            if (searchButton) {
+                setTimeout(() => searchButton.click(), 100);
+            }
+            
+            this.showNotification(`Поиск квартала: ${quarterNumber}`, 'info');
+        } else {
+            console.warn('⚠️ Поле поиска не найдено');
+            this.showNotification('Поле поиска не найдено на странице', 'warning');
+        }
+    }
     
     setupEventListeners() {
         document.addEventListener('click', (e) => {
