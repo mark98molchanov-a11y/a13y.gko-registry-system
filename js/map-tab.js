@@ -25,6 +25,7 @@ let currentPurposeFilter = [];
 let currentVriFilter = [];    
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
+window._isNSPDSearch = false;
 let currentChartGroupBy = 'city';
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
@@ -1854,13 +1855,18 @@ function applyDealTypeFilter(kind) {
     // ============================================================
     // СБРОС ОБЕРТКИ ПРИ ПРИМЕНЕНИИ ФИЛЬТРА
     // ============================================================
-    if (window.selectedQuarterCadNumber) {
-        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
-                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
-        if (isWrapper) {
-            console.log('🔄 Сброс обертки при применении фильтра');
-            window.selectedQuarterCadNumber = null;
+    // ✅ ЕСЛИ ЭТО ПОИСК ИЗ НСПД — НЕ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ
+    if (!window._isNSPDSearch) {
+        if (window.selectedQuarterCadNumber) {
+            const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                              window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+            if (isWrapper) {
+                console.log('🔄 Сброс обертки при применении фильтра');
+                window.selectedQuarterCadNumber = null;
+            }
         }
+    } else {
+        console.log('⏳ Поиск из НСПД, сохраняем выбранный квартал:', window.selectedQuarterCadNumber);
     }
     
     // ✅ ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
@@ -1915,13 +1921,18 @@ function applyCityFilter(city) {
         currentCityFilter.splice(index, 1);
     }
     
-    if (window.selectedQuarterCadNumber) {
-        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
-                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
-        if (isWrapper) {
-            console.log('🔄 Сброс обертки при применении фильтра города');
-            window.selectedQuarterCadNumber = null;
+    // ✅ ЕСЛИ ЭТО ПОИСК ИЗ НСПД — НЕ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ
+    if (!window._isNSPDSearch) {
+        if (window.selectedQuarterCadNumber) {
+            const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                              window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+            if (isWrapper) {
+                console.log('🔄 Сброс обертки при применении фильтра города');
+                window.selectedQuarterCadNumber = null;
+            }
         }
+    } else {
+        console.log('⏳ Поиск из НСПД, сохраняем выбранный квартал:', window.selectedQuarterCadNumber);
     }
     
     renderCityFilters();
@@ -1965,13 +1976,18 @@ function applyObjectTypeFilter(type) {
         currentObjectTypeFilter.splice(index, 1);
     }
     
-    if (window.selectedQuarterCadNumber) {
-        const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
-                          window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
-        if (isWrapper) {
-            console.log('🔄 Сброс обертки при применении фильтра типа объекта');
-            window.selectedQuarterCadNumber = null;
+    // ✅ ЕСЛИ ЭТО ПОИСК ИЗ НСПД — НЕ СБРАСЫВАЕМ ВЫБРАННЫЙ КВАРТАЛ
+    if (!window._isNSPDSearch) {
+        if (window.selectedQuarterCadNumber) {
+            const isWrapper = window.selectedQuarterCadNumber.endsWith('000000') || 
+                              window.selectedQuarterCadNumber.match(/^\d{2}:\d{2}:000000$/);
+            if (isWrapper) {
+                console.log('🔄 Сброс обертки при применении фильтра типа объекта');
+                window.selectedQuarterCadNumber = null;
+            }
         }
+    } else {
+        console.log('⏳ Поиск из НСПД, сохраняем выбранный квартал:', window.selectedQuarterCadNumber);
     }
     
     renderObjectTypeFilters();
@@ -4225,13 +4241,17 @@ function onPopupClose(levelName, districtId) {
         console.log('🔄 Закрытие попапа/тултипа квартала → обновление таблицы');
         
         // ✅ ПРОВЕРЯЕМ, НЕ БЫЛ ЛИ КВАРТАЛ ВЫБРАН ЧЕРЕЗ НСПД
-        // Если выбранный квартал совпадает с districtId, значит мы НЕ должны сбрасывать
         const selectedCad = window.selectedQuarterCadNumber;
-        const isFromNSPD = selectedCad && selectedCad === districtId;
+        const isFromNSPD = selectedCad && (selectedCad === districtId || window._isNSPDSearch);
         
         // ✅ ЕСЛИ КВАРТАЛ ВЫБРАН ЧЕРЕЗ НСПД — НЕ СБРАСЫВАЕМ ЕГО
         if (isFromNSPD) {
             console.log('⏳ Квартал выбран через НСПД, НЕ сбрасываем');
+            // ✅ ВСЁ РАВНО ОБНОВЛЯЕМ ТАБЛИЦУ
+            renderDealsTable();
+            updateMapStatsFromDeals(currentLevel, currentParentId);
+            updateQuartersListWithFilteredObjects(null);
+            updateActiveFiltersDisplay();
             return;
         }
         
@@ -5362,7 +5382,10 @@ function searchQuarterByCadNumber(cadNumber) {
         console.log('⏳ Пропускаем, уже в процессе обновления');
         return;
     }
-    
+        if (window._isNSPDSearch) {
+        console.log('🔍 Поиск из НСПД, сохраняем состояние');
+        // Не сбрасываем selectedQuarterCadNumber
+    }
     console.log(`🔍 Поиск квартала по номеру: ${cadNumber}`);
     isUpdatingFromSearch = true;
     console.log('🔒 Флаг isUpdatingFromSearch = true');
@@ -5562,9 +5585,15 @@ function searchQuarterByCadNumber(cadNumber) {
                 console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
             }
         }
-        renderDealsTable();
+       renderDealsTable();
         isUpdatingFromSearch = false;
         console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+        
+        // ✅ СБРАСЫВАЕМ ФЛАГ НСПД ЧЕРЕЗ 2 СЕКУНДЫ
+        setTimeout(() => {
+            window._isNSPDSearch = false;
+            console.log('🔓 Флаг _isNSPDSearch сброшен');
+        }, 2000);
     }, 1000);
 }
 function searchCadastralByNumber(cadNumber) {
