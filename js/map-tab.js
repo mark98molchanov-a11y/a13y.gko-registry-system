@@ -5298,30 +5298,28 @@ function searchQuarter() {
     
     window.selectedQuarterCadNumber = cadNum;
     
-    setTimeout(() => {
-        if (window.mapLayer) {
-            let foundLayer = null;
-            window.mapLayer.eachLayer(function(layer) {
-                if (layer.feature && layer.feature.properties) {
-                    const layerCadNum = layer.feature.properties.cadastral_number || '';
-                    if (layerCadNum === cadNum) {
-                        foundLayer = layer;
-                    }
+setTimeout(() => {
+    if (window.mapLayer) {
+        let foundLayer = null;
+        window.mapLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.properties) {
+                if (layer.feature.properties.cadastral_number === cadNum) {
+                    foundLayer = layer;
                 }
-            });
-            
-            if (foundLayer) {
-                console.log(`✅ Квартал ${cadNum} найден на карте, приближаем`);
-                // ✅ НЕ ОТКРЫВАЕМ ПОПАП — ТОЛЬКО ПРИБЛИЖАЕМ!
-                if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
-                }
-            } else {
-                console.warn(`⚠️ Квартал ${cadNum} не найден в слоях`);
+            }
+        });
+        if (foundLayer) {
+            console.log(`✅ Квартал ${cadNum} найден, приближаем`);
+            // ✅ НЕ ОТКРЫВАЕМ ПОПАП — ТОЛЬКО ПРИБЛИЖАЕМ!
+            if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
+                mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
             }
         }
-        renderDealsTable();
-    }, 300);
+    }
+    renderDealsTable();
+    isUpdatingFromSearch = false;
+    console.log('🔓 Флаг isUpdatingFromSearch = false (освобожден)');
+}, 1000);
 }
 function searchQuarterByCadNumber(cadNumber) {
     // ✅ ПРОВЕРЯЕМ ФЛАГ — ЕСЛИ УЖЕ В ПРОЦЕССЕ, ПРОПУСКАЕМ
