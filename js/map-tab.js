@@ -2698,36 +2698,7 @@ function updatePopupsAndTooltips(level) {
                 maxWidth: 300,
                 closeButton: true
             });
-            
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-            layer.off('popupclose');
-            layer.on('popupclose', function(e) {
-                if (currentLevel === 2) {
-                    const districtId = layer.feature.properties.parent_id || 
-                                      layer.feature.properties.district_id;
-                    console.log('🔄 Попап закрыт → обновление таблицы');
-                    setTimeout(() => {
-                        if (currentLevel === 2) {
-                            onPopupClose('quarter', districtId);
-                        }
-                    }, 300);
-                }
-            });
-            
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА
-            layer.off('tooltipclose');
-            layer.on('tooltipclose', function(e) {
-                if (currentLevel === 2) {
-                    const districtId = layer.feature.properties.parent_id || 
-                                      layer.feature.properties.district_id;
-                    console.log('🔄 Тултип закрыт → обновление таблицы');
-                    setTimeout(() => {
-                        if (currentLevel === 2) {
-                            onPopupClose('quarter', districtId);
-                        }
-                    }, 300);
-                }
-            });
+
         }
     });
     if (window.wrapperLayer) {
@@ -4004,40 +3975,117 @@ if (quarterStats.length > 0) {
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
                 mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
             }
-        } else if (levelName === 'quarter') {
-            // ✅ ИСПРАВЛЕНО: убрано дублирование cadNum
-            const cadNum = props.cadastral_number;
-            const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
-            console.log('Квартал выбран:', cadNum);
-            console.log('Сделок:', dealsCount);
-            window.selectedQuarterCadNumber = cadNum;
+} else if (levelName === 'quarter') {
+    const cadNum = props.cadastral_number;
+    const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
+    console.log('Квартал выбран:', cadNum);
+    console.log('Сделок:', dealsCount);
+    window.selectedQuarterCadNumber = cadNum;
+    
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (ПОКАЗЫВАЕТ СДЕЛКИ КВАРТАЛА)
+    renderDealsTable();
+    
+    const districtId = props.parent_id || props.district_id;
+    
+    if (layer.getBounds && layer.getBounds().isValid()) {
+        mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
+    } else if (layer.getLatLng) {
+        mapInstance.setView(layer.getLatLng(), 15);
+    }
+    layer.openPopup();
+    
+    // ============================================================
+    // ✅ ТОЛЬКО ЗДЕСЬ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА — ВОЗВРАТ НА УРОВЕНЬ РАЙОНА
+    // ============================================================
+    layer.off('popupclose');
+    layer.on('popupclose', function(e) {
+        if (currentLevel === 2) {
+            console.log('🔄 Попап закрыт → возврат на уровень района');
             
-            // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
-            renderDealsTable();
+            // Сбрасываем выбранный квартал
+            window.selectedQuarterCadNumber = null;
             
-            // ✅ СОХРАНЯЕМ ID РАЙОНА ДЛЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ ПРИ ЗАКРЫТИИ
-            const districtId = props.parent_id || props.district_id;
-            
-            if (layer.getBounds && layer.getBounds().isValid()) {
-                mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
-            } else if (layer.getLatLng) {
-                mapInstance.setView(layer.getLatLng(), 15);
-            }
-            layer.openPopup();
-            
-            // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-            layer.off('popupclose');
-            layer.on('popupclose', function(e) {
-                if (currentLevel === 2) {
-                    console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
-                    setTimeout(() => {
-                        if (currentLevel === 2) {
-                            onPopupClose('quarter', districtId);
-                        }
-                    }, 300);
+            // Находим родительский район
+            const parentDistrictId = props.parent_id || props.district_id;
+            if (parentDistrictId) {
+                let districtName = parentDistrictId;
+                const districtFeature = mapData.features.find(f => 
+                    f.properties.level === 1 && 
+                    (f.properties.district_id === parentDistrictId || 
+                     f.properties.cadastral_number === parentDistrictId)
+                );
+                if (districtFeature) {
+                    districtName = districtFeature.properties.district_name || parentDistrictId;
                 }
-            });
+                
+                // ✅ ПЕРЕКЛЮЧАЕМ КАРТУ НА УРОВЕНЬ РАЙОНОВ (1)
+                renderMapLevel(1, null, true);
+                updateBreadcrumb('district', parentDistrictId, districtName);
+                
+                // ✅ ОБНОВЛЯЕМ ВСЕ ФИЛЬТРЫ И ТАБЛИЦУ
+                renderDealTypeFilters();
+                renderCityFilters();
+                renderObjectTypeFilters();
+                renderWallMaterialFilters();
+                renderQuarterFilters();
+                renderYearBuildFilters();
+                renderDealsTable();
+                
+                // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
+                updateMapStatsFromDeals(1, null);
+                updateQuartersListWithFilteredObjects(null);
+                updateActiveFiltersDisplay();
+                addMapLegend();
+            }
         }
+    });
+    
+    // ============================================================
+    // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ТУЛТИПА — ВОЗВРАТ НА УРОВЕНЬ РАЙОНА
+    // ============================================================
+    layer.off('tooltipclose');
+    layer.on('tooltipclose', function(e) {
+        if (currentLevel === 2) {
+            console.log('🔄 Тултип закрыт → возврат на уровень района');
+            
+            // Сбрасываем выбранный квартал
+            window.selectedQuarterCadNumber = null;
+            
+            // Находим родительский район
+            const parentDistrictId = props.parent_id || props.district_id;
+            if (parentDistrictId) {
+                let districtName = parentDistrictId;
+                const districtFeature = mapData.features.find(f => 
+                    f.properties.level === 1 && 
+                    (f.properties.district_id === parentDistrictId || 
+                     f.properties.cadastral_number === parentDistrictId)
+                );
+                if (districtFeature) {
+                    districtName = districtFeature.properties.district_name || parentDistrictId;
+                }
+                
+                // ✅ ПЕРЕКЛЮЧАЕМ КАРТУ НА УРОВЕНЬ РАЙОНОВ (1)
+                renderMapLevel(1, null, true);
+                updateBreadcrumb('district', parentDistrictId, districtName);
+                
+                // ✅ ОБНОВЛЯЕМ ВСЕ ФИЛЬТРЫ И ТАБЛИЦУ
+                renderDealTypeFilters();
+                renderCityFilters();
+                renderObjectTypeFilters();
+                renderWallMaterialFilters();
+                renderQuarterFilters();
+                renderYearBuildFilters();
+                renderDealsTable();
+                
+                // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
+                updateMapStatsFromDeals(1, null);
+                updateQuartersListWithFilteredObjects(null);
+                updateActiveFiltersDisplay();
+                addMapLegend();
+            }
+        }
+    });
+}
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
