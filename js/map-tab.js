@@ -4062,12 +4062,6 @@ if (quarterStats.length > 0) {
             return;
         }
         
-        // ✅ ПРОВЕРЯЕМ, ВСЕ ЕЩЕ ЛИ ВЫБРАН ЭТОТ КВАРТАЛ
-        if (window.selectedQuarterCadNumber === cadNum) {
-            console.log('⏳ Квартал все еще выбран, не сбрасываем');
-            return;
-        }
-        
         if (currentLevel === 2) {
             console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
             setTimeout(() => {
