@@ -775,7 +775,8 @@ async function loadDealsCSV() {
         const cadCostIndex = headers.indexOf('cad_cost'); 
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
-        const streetIndex = headers.indexOf('street'); 
+        const streetIndex = headers.indexOf('street');
+        const nspdIndex = headers.indexOf('cad_nspd'); // ✅ НОВЫЙ СТОЛБЕЦ
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -812,7 +813,13 @@ async function loadDealsCSV() {
             const vri = values[vriIndex] || 'nan';  
             const floor = values[floorIndex] || 'nan';
             const location = values[locationIndex] || 'nan';
-            const street = values[streetIndex] || 'nan'; 
+            const street = values[streetIndex] || 'nan';
+            
+            // ✅ ЧИТАЕМ cad_nspd ИЗ CSV (ЕСЛИ ЕСТЬ)
+            let cadNspd = null;
+            if (nspdIndex !== -1 && values[nspdIndex] && values[nspdIndex].trim() !== '') {
+                cadNspd = values[nspdIndex].trim();
+            }
             
             if (!cadNum) continue;
             
@@ -841,7 +848,7 @@ async function loadDealsCSV() {
                 floor: values[floorIndex] || 'nan',
                 location: values[locationIndex] || 'nan',
                 street: values[streetIndex] || 'nan',
-                cad_nspd: null
+                cad_nspd: cadNspd  // ✅ ЗАГРУЖАЕМ ИЗ CSV
             });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
@@ -862,7 +869,7 @@ async function loadDealsCSV() {
                 floor: floor,
                 location: location,
                 street: street,
-                cad_nspd: null
+                cad_nspd: cadNspd  // ✅ ЗАГРУЖАЕМ ИЗ CSV
             });
             
             // ✅ ИСПОЛЬЗУЕМ ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -901,10 +908,6 @@ async function loadDealsCSV() {
             rebuildDealsData(allDealsFlat);
         }
         
-        // ============================================================
-        // 🆕 КОНЕЦ КОДА ФИЛЬТРАЦИИ
-        // ============================================================
-        
         // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
         dealsData = dealsByCad;
         dealTypes = typesCount;
@@ -918,6 +921,7 @@ async function loadDealsCSV() {
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('Типы сделок:', dealTypes);
+        console.log('📊 Столбец cad_nspd найден:', nspdIndex !== -1);
         
         renderDealTypeFilters();
         renderCityFilters();
@@ -929,18 +933,15 @@ async function loadDealsCSV() {
         renderPurposeFilters();
         renderVriFilters();
         
-        // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ ПОСЛЕ ЗАГРУЗКИ ДАННЫХ
         if (mapData) {
             console.log('🔄 Перерисовка карты после загрузки CSV...');
             renderMapLevel(currentLevel || 0, currentParentId);
         }
-        setTimeout(() => {
-    loadDealsDataWithNSPD();
-    // Перерисовываем таблицу, чтобы показать столбец
-    if (typeof renderDealsTable === 'function') {
-        renderDealsTable();
-    }
-}, 100);
+        
+        if (typeof renderDealsTable === 'function') {
+            renderDealsTable();
+        }
+        
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
@@ -6646,12 +6647,6 @@ function parseCSVLineForUpdate(line) {
     result.push(current.trim());
     return result;
 }
-let syncAbortController = null;
-let isSyncRunning = false;
-
-/**
- * Прерывание синхронизации с НСПД
- */
 window.abortSyncWithNSPD = function() {
     if (syncAbortController) {
         console.log('🛑 Прерывание синхронизации...');
@@ -6677,6 +6672,7 @@ window.abortSyncWithNSPD = function() {
         isSyncRunning = false;
     }
 };
+
 window.syncWithNSPD = async function() {
     // ✅ ЕСЛИ СИНХРОНИЗАЦИЯ УЖЕ ЗАПУЩЕНА - НЕ ЗАПУСКАЕМ НОВУЮ
     if (isSyncRunning) {
@@ -6859,10 +6855,10 @@ window.syncWithNSPD = async function() {
     // ✅ УДАЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
     if (abortBtn) abortBtn.remove();
     
-    // ✅ СОХРАНЯЕМ ДАННЫЕ В localStorage (для восстановления при перезагрузке)
-    saveDealsDataWithNSPD();
+    // ❌ УДАЛЯЕМ СОХРАНЕНИЕ В localStorage
+    // saveDealsDataWithNSPD();
     
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (ДАННЫЕ УЖЕ В allDealsFlat)
     if (typeof renderDealsTable === 'function') {
         renderDealsTable();
     }
@@ -6911,51 +6907,6 @@ window.syncWithNSPD = async function() {
     isSyncRunning = false;
 };
 
-/**
- * Сохранение данных с полем cad_nspd
- */
-function saveDealsDataWithNSPD() {
-    try {
-        const dataToSave = {
-            deals: allDealsFlat,
-            timestamp: Date.now(),
-            version: '2.0'
-        };
-        localStorage.setItem('gko_deals_with_nspd', JSON.stringify(dataToSave));
-        console.log('✅ Данные с НСПД сохранены в localStorage');
-    } catch (e) {
-        console.warn('⚠️ Не удалось сохранить данные:', e);
-    }
-}
-
-/**
- * Загрузка сохраненных данных с НСПД
- */
-function loadDealsDataWithNSPD() {
-    try {
-        const saved = localStorage.getItem('gko_deals_with_nspd');
-        if (saved) {
-            const data = JSON.parse(saved);
-            if (data.deals && data.deals.length > 0 && typeof allDealsFlat !== 'undefined') {
-                // Обновляем существующие сделки
-                for (const savedDeal of data.deals) {
-                    const existingDeal = allDealsFlat.find(d => 
-                        d.cad_number === savedDeal.cad_number && 
-                        Math.abs(d.area - savedDeal.area) <= 0.1
-                    );
-                    if (existingDeal && savedDeal.cad_nspd) {
-                        existingDeal.cad_nspd = savedDeal.cad_nspd;
-                    }
-                }
-                console.log(`✅ Загружено ${data.deals.length} записей с НСПД`);
-                return true;
-            }
-        }
-    } catch (e) {
-        console.warn('⚠️ Не удалось загрузить данные НСПД:', e);
-    }
-    return false;
-}
 
 // ✅ ДОБАВЛЯЕМ СТОЛБЕЦ "Кад. номер НСПД" В ТАБЛИЦУ
 // Сохраняем оригинальную функцию renderDealsTable
