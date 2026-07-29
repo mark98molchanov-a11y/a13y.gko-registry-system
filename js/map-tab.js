@@ -6337,7 +6337,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     
     const originalUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
-    // ✅ ИСПОЛЬЗУЕМ CORS-ПРОКСИ
     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`;
     
     try {
@@ -6359,15 +6358,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return null;
         }
         
-        const data = await response.json();
-        const features = data?.data?.features || [];
-        
-        if (features.length === 0) {
-            console.warn(`⚠️ Нет объектов в квартале ${quarter}`);
-            return null;
-        }
-        
-        const data = await response.json();
+        const data = await response.json();  // ← ТОЛЬКО ОДИН РАЗ!
         const features = data?.data?.features || [];
         
         if (features.length === 0) {
@@ -6386,12 +6377,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const cad = opts.cad_number || props.externalKey || '';
             const objType = opts.object_type_value || props.categoryName || '';
             
-            // Площадь (для разных типов)
             let area = parseFloat(opts.params_area) || 
                        parseFloat(opts.specified_area) || 
                        parseFloat(opts.area) || 0;
             
-            // Для сооружений — если площадь 0, берем протяженность
             if (area === 0 && objType.includes('Сооружение')) {
                 area = parseFloat(opts.params_extension) || 0;
             }
@@ -6441,6 +6430,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         return null;
     }
 }
+
 
 /**
  * Главная функция синхронизации с НСПД
