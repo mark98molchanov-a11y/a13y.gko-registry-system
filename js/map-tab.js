@@ -6336,17 +6336,15 @@ async function generateReport() {
 window.generateReport = generateReport;
 window.loadScript = loadScript;
 window.generateDocxReport = generateReport;
-async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1) {
+async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1, signal = null) {
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     if (locationKeywords && locationKeywords.length > 0) {
         console.log(`📍 Локация: ${locationKeywords}`);
     }
     console.log('-'.repeat(60));
     
-    // ✅ ИСПОЛЬЗУЕМ ТОТ ЖЕ МЕТОД, ЧТО И В nspd-integration.js
     const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
     
-    // ✅ ТОЧНО ТАКИЕ ЖЕ ЗАГОЛОВКИ, КАК В nspd-integration.js
     const headers = {
         'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -6356,6 +6354,15 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
+        let abortHandler = null;
+        if (signal) {
+            abortHandler = function() {
+                console.log('⛔ Отмена запроса к НСПД');
+                controller.abort();
+            };
+            signal.addEventListener('abort', abortHandler);
+        }
+        
         const response = await fetch(url, {
             method: 'GET',
             headers: headers,
@@ -6363,6 +6370,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         });
         
         clearTimeout(timeoutId);
+        if (abortHandler && signal) {
+            signal.removeEventListener('abort', abortHandler);
+        }
         
         if (!response.ok) {
             console.warn(`⚠️ Ошибка запроса к НСПД: ${response.status}`);
@@ -6380,7 +6390,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return null;
         }
         
-        // ✅ ПОИСК КАК В PYTHON СКРИПТАХ
         const targetRoot = targetType.toLowerCase().slice(0, 5);
         let exactMatches = [];
         let allObjects = [];
@@ -6392,12 +6401,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const cad = opts.cad_number || props.externalKey || '';
             const objType = opts.object_type_value || props.categoryName || '';
             
-            // Площадь для разных типов
             let area = parseFloat(opts.params_area) || 
                        parseFloat(opts.specified_area) || 
                        parseFloat(opts.area) || 0;
             
-            // Для сооружений — params_extension
             if (area === 0 && objType.includes('Сооружение')) {
                 area = parseFloat(opts.params_extension) || 0;
             }
@@ -6405,7 +6412,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const name = opts.params_name || opts.name || '';
             const address = opts.address_readable_address || opts.readable_address || '';
             
-            // Проверки
             const typeMatch = targetRoot === objType.toLowerCase().slice(0, 5);
             const areaMatch = Math.abs(area - targetArea) <= tolerance;
             
@@ -6430,7 +6436,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                     locMatch: locMatch
                 });
                 
-                // Логируем только совпадения по типу
                 if (typeMatch) {
                     const status = areaMatch ? '✅' : '❌';
                     const diff = Math.abs(area - targetArea);
@@ -6459,7 +6464,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             }
         }
         
-        // Если есть точные совпадения
         if (exactMatches.length > 0) {
             exactMatches.sort((a, b) => b.score - a.score);
             const best = exactMatches[0];
@@ -6467,7 +6471,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return best.cad;
         }
         
-        // Если нет точных совпадений
         console.log('\n❌ ТОЧНЫХ СОВПАДЕНИЙ НЕТ');
         console.log(`📊 Ближайшие по площади к ${targetArea} м²:`);
         
@@ -6505,10 +6508,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         
     } catch (error) {
         if (error.name === 'AbortError') {
-            console.warn(`⏰ Превышено время ожидания для ${quarter}`);
-        } else {
-            console.error(`❌ Ошибка запроса к НСПД:`, error);
+            console.warn(`⏰ Запрос прерван для ${quarter}`);
+            return null;
         }
+        console.error(`❌ Ошибка запроса к НСПД:`, error);
         return null;
     }
 }
@@ -6813,13 +6816,14 @@ window.syncWithNSPD = async function() {
         totalProcessed++;
         console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
         
-        const cadNspd = await searchNSPD(
-            obj.quarter,
-            obj.area,
-            obj.type,
-            obj.locationKeywords,
-            1 // tolerance ±1 м²
-        );
+const cadNspd = await searchNSPD(
+    obj.quarter,
+    obj.area,
+    obj.type,
+    obj.locationKeywords,
+    1,
+    syncAbortController.signal  // ← ПЕРЕДАЁМ signal ДЛЯ ОТМЕНЫ
+);
         
         // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА
         if (syncAbortController && syncAbortController.signal.aborted) {
