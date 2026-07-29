@@ -6335,22 +6335,23 @@ window.loadScript = loadScript;
 window.generateDocxReport = generateReport;
 async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1) {
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
+    if (locationKeywords && locationKeywords.length > 0) {
+        console.log(`📍 Локация: ${locationKeywords}`);
+    }
+    console.log('-'.repeat(60));
     
+    // ✅ ИСПОЛЬЗУЕМ ТОТ ЖЕ МЕТОД, ЧТО И В nspd-integration.js
     const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
     
+    // ✅ ТОЧНО ТАКИЕ ЖЕ ЗАГОЛОВКИ, КАК В nspd-integration.js
     const headers = {
         'Accept': 'application/json',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://nspd.gov.ru/map?thematic=PKK&theme_id=1',
-        'Origin': 'https://nspd.gov.ru',
-        'Host': 'nspd.gov.ru',
-        'X-Requested-With': 'XMLHttpRequest',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     };
     
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         
         const response = await fetch(url, {
             method: 'GET',
@@ -6368,14 +6369,18 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         const data = await response.json();
         const features = data?.data?.features || [];
         
+        console.log(`📥 Найдено объектов в квартале: ${features.length}`);
+        console.log('-'.repeat(60));
+        
         if (features.length === 0) {
             console.warn(`⚠️ Нет объектов в квартале ${quarter}`);
             return null;
         }
         
-        // Ищем по корню слова (первые 5 букв)
+        // ✅ ПОИСК КАК В PYTHON СКРИПТАХ
         const targetRoot = targetType.toLowerCase().slice(0, 5);
         let exactMatches = [];
+        let allObjects = [];
         
         for (const f of features) {
             const props = f.properties || {};
@@ -6384,10 +6389,12 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const cad = opts.cad_number || props.externalKey || '';
             const objType = opts.object_type_value || props.categoryName || '';
             
+            // Площадь для разных типов
             let area = parseFloat(opts.params_area) || 
                        parseFloat(opts.specified_area) || 
                        parseFloat(opts.area) || 0;
             
+            // Для сооружений — params_extension
             if (area === 0 && objType.includes('Сооружение')) {
                 area = parseFloat(opts.params_extension) || 0;
             }
@@ -6395,37 +6402,102 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const name = opts.params_name || opts.name || '';
             const address = opts.address_readable_address || opts.readable_address || '';
             
+            // Проверки
             const typeMatch = targetRoot === objType.toLowerCase().slice(0, 5);
             const areaMatch = Math.abs(area - targetArea) <= tolerance;
             
             let locMatch = false;
-            if (locationKeywords.length > 0) {
+            if (locationKeywords && locationKeywords.length > 0) {
                 const text = `${name} ${address}`.toLowerCase();
                 locMatch = locationKeywords.some(kw => text.includes(kw.toLowerCase()));
             }
             
             const score = (typeMatch ? 10 : 0) + (areaMatch ? 5 : 0) + (locMatch ? 3 : 0);
             
-            if (cad && typeMatch && areaMatch) {
-                exactMatches.push({
+            if (cad) {
+                allObjects.push({
                     cad: cad,
                     type: objType,
                     area: area,
                     name: name,
                     address: address,
                     score: score,
+                    typeMatch: typeMatch,
+                    areaMatch: areaMatch,
                     locMatch: locMatch
+                });
+                
+                // Логируем только совпадения по типу
+                if (typeMatch) {
+                    const status = areaMatch ? '✅' : '❌';
+                    const diff = Math.abs(area - targetArea);
+                    console.log(`  ${cad}`);
+                    console.log(`    Тип: ${objType} → ✅`);
+                    console.log(`    Площадь: ${area} м² → ${status} (разница ${diff.toFixed(1)}, ищем ${targetArea} ±${tolerance})`);
+                    if (locationKeywords && locationKeywords.length > 0) {
+                        console.log(`    Локация: ${locMatch ? '✅' : '❌'} → ${address.slice(0, 60)}...`);
+                    }
+                    console.log(`    Название: ${name.slice(0, 50) || '—'}`);
+                    console.log(`    Очки: ${score}`);
+                    console.log('---');
+                    
+                    if (areaMatch) {
+                        exactMatches.push({
+                            cad: cad,
+                            type: objType,
+                            area: area,
+                            name: name,
+                            address: address,
+                            score: score,
+                            locMatch: locMatch
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Если есть точные совпадения
+        if (exactMatches.length > 0) {
+            exactMatches.sort((a, b) => b.score - a.score);
+            const best = exactMatches[0];
+            console.log(`\n✅ НАЙДЕНО ТОЧНОЕ СОВПАДЕНИЕ: ${best.cad} (площадь ${best.area} м², очков: ${best.score})`);
+            return best.cad;
+        }
+        
+        // Если нет точных совпадений
+        console.log('\n❌ ТОЧНЫХ СОВПАДЕНИЙ НЕТ');
+        console.log(`📊 Ближайшие по площади к ${targetArea} м²:`);
+        
+        const areaDiffs = [];
+        for (const obj of allObjects) {
+            if (obj.area > 0) {
+                areaDiffs.push({
+                    diff: Math.abs(obj.area - targetArea),
+                    obj: obj
                 });
             }
         }
         
-        if (exactMatches.length > 0) {
-            exactMatches.sort((a, b) => b.score - a.score);
-            console.log(`✅ Найден объект в НСПД: ${exactMatches[0].cad} (площадь ${exactMatches[0].area} м²)`);
-            return exactMatches[0].cad;
+        areaDiffs.sort((a, b) => a.diff - b.diff);
+        
+        if (areaDiffs.length > 0) {
+            const topResults = areaDiffs.slice(0, 10);
+            for (const item of topResults) {
+                const obj = item.obj;
+                const typeText = obj.typeMatch ? '✅' : '❌';
+                const locText = obj.locMatch ? '✅' : '❌';
+                console.log(`  ${obj.cad} | ${obj.type} | ${obj.area} м² (разница ${item.diff.toFixed(1)}) | тип ${typeText} | локация ${locText}`);
+                if (obj.address) {
+                    console.log(`    Адрес: ${obj.address.slice(0, 80)}`);
+                }
+                if (obj.name) {
+                    console.log(`    Название: ${obj.name.slice(0, 50)}`);
+                }
+            }
+        } else {
+            console.log('  Нет объектов с площадью > 0');
         }
         
-        console.warn(`⚠️ Не найдено совпадений для ${quarter} (площадь ${targetArea})`);
         return null;
         
     } catch (error) {
@@ -6437,7 +6509,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         return null;
     }
 }
-
 /**
  * Главная функция синхронизации с НСПД
  */
