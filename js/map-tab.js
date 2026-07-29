@@ -6805,10 +6805,17 @@ window.syncWithNSPD = async function() {
     syncAbortController = new AbortController();
     
     // Обрабатываем с задержкой, чтобы не перегружать API
-   for (const obj of uniqueObjects) {
-    // ✅ ПРОВЕРЯЕМ, НЕ БЫЛО ЛИ ПРЕРЫВАНИЯ
-    if (syncAbortController && syncAbortController.signal.aborted) {
-        console.log('⛔ Синхронизация прервана пользователем');
+  for (const obj of uniqueObjects) {
+    // ✅ ПРОВЕРЯЕМ: если syncAbortController === null — значит была команда на остановку
+    if (syncAbortController === null) {
+        console.log('⛔ Синхронизация прервана пользователем (controller = null)');
+        wasAborted = true;
+        break;
+    }
+    
+    // ✅ ПРОВЕРЯЕМ signal.aborted
+    if (syncAbortController.signal.aborted) {
+        console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
         wasAborted = true;
         break;
     }
@@ -6816,7 +6823,7 @@ window.syncWithNSPD = async function() {
     totalProcessed++;
     console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
     
-    // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null
+    // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null ПЕРЕД ИСПОЛЬЗОВАНИЕМ
     const controllerSignal = syncAbortController ? syncAbortController.signal : null;
     
     const cadNspd = await searchNSPD(
@@ -6825,11 +6832,11 @@ window.syncWithNSPD = async function() {
         obj.type,
         obj.locationKeywords,
         1,
-        controllerSignal  // ← ✅ ПЕРЕДАЁМ signal ИЛИ null
+        controllerSignal
     );
     
-    // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА
-    if (syncAbortController && syncAbortController.signal.aborted) {
+    // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА (controller мог стать null)
+    if (syncAbortController === null || syncAbortController.signal.aborted) {
         console.log('⛔ Синхронизация прервана после запроса');
         wasAborted = true;
         break;
@@ -6837,7 +6844,6 @@ window.syncWithNSPD = async function() {
     
     if (cadNspd) {
         foundCount++;
-        // Обновляем все сделки с этим кварталом и площадью
         for (const deal of allDealsFlat) {
             const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
             if (dealQuarter === obj.quarter && 
@@ -6848,10 +6854,8 @@ window.syncWithNSPD = async function() {
         }
     }
     
-    // Пауза между запросами (300ms)
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Обновляем прогресс
     if (btn) {
         const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
         btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
