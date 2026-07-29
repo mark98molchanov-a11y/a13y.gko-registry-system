@@ -840,7 +840,8 @@ async function loadDealsCSV() {
                 uprs_rub: parseFloat(values[uprsIndex]) || 0,
                 floor: values[floorIndex] || 'nan',
                 location: values[locationIndex] || 'nan',
-                street: values[streetIndex] || 'nan'
+                street: values[streetIndex] || 'nan',
+                cad_nspd: null
             });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
@@ -860,7 +861,8 @@ async function loadDealsCSV() {
                 vri: vri,
                 floor: floor,
                 location: location,
-                street: street
+                street: street,
+                cad_nspd: null
             });
             
             // ✅ ИСПОЛЬЗУЕМ ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
