@@ -6613,70 +6613,168 @@ function loadDealsDataWithNSPD() {
 
 // ✅ ДОБАВЛЯЕМ СТОЛБЕЦ "Кад. номер НСПД" В ТАБЛИЦУ
 // Сохраняем оригинальную функцию renderDealsTable
-const originalRenderDealsTable = window.renderDealsTable || function() {};
-
-// Переопределяем renderDealsTable
 window.renderDealsTable = function() {
-    // Вызываем оригинальную функцию
-    if (typeof originalRenderDealsTable === 'function') {
-        originalRenderDealsTable.call(this);
-    }
+    const container = document.getElementById('deals-table-container');
+    if (!container) return;
     
-    // После рендера добавляем столбец с НСПД
-    const table = document.querySelector('#deals-table-container table');
-    if (!table) return;
+    const selectedQuarter = window.selectedQuarterCadNumber || null;
     
-    // Добавляем заголовок (если еще нет)
-    const thead = table.querySelector('thead tr');
-    if (thead && !thead.querySelector('.nspd-header')) {
-        const th = document.createElement('th');
-        th.className = 'nspd-header';
-        th.style.cssText = 'text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; cursor: pointer;';
-        th.innerHTML = 'Кад. номер НСПД ↕';
-        th.onclick = () => sortDealsTable('cad_nspd');
-        // Вставляем после первой колонки
-        const firstTh = thead.querySelector('th:first-child');
-        if (firstTh) {
-            thead.insertBefore(th, firstTh.nextSibling);
-        }
-    }
-    
-    // Добавляем данные в строки
-    const rows = table.querySelectorAll('tbody tr');
-    if (typeof allDealsFlat === 'undefined') return;
-    
-    rows.forEach((row, index) => {
-        if (index >= allDealsFlat.length) return;
-        const deal = allDealsFlat[index];
-        if (!deal) return;
+    // Фильтруем сделки
+    let filteredDeals = allDealsFlat.filter(deal => {
+        const isWrapperSelected = selectedQuarter ? (
+            selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
+        ) : false;
         
-        // Проверяем, есть ли уже ячейка с НСПД
-        if (row.querySelector('.nspd-cell')) return;
-        
-        const td = document.createElement('td');
-        td.className = 'nspd-cell';
-        td.style.cssText = 'text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b;';
-        
-        if (deal.cad_nspd) {
-            td.textContent = deal.cad_nspd;
-            td.style.color = '#16a34a';
-            td.style.fontWeight = '500';
-        } else {
-            td.textContent = '—';
-            td.style.color = '#94a3b8';
+        if (selectedQuarter) {
+            if (isWrapperSelected) {
+                if (deal.cad_number !== selectedQuarter) return false;
+            } else {
+                if (deal.cad_number !== selectedQuarter) return false;
+            }
+        } else if (currentDistrictFilter) {
+            const prefix = String(currentDistrictFilter).substring(0, 5);
+            if (!deal.cad_number.startsWith(prefix)) return false;
         }
         
-        // Вставляем после первой ячейки
-        const firstTd = row.querySelector('td:first-child');
-        if (firstTd) {
-            row.insertBefore(td, firstTd.nextSibling);
-        }
+        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        return true;
     });
+    
+    // Сортируем по разнице (кадастр - цена)
+    filteredDeals.sort((a, b) => {
+        const cadCostA = a.cad_cost || 0;
+        const priceA = a.deal_price_rub || 0;
+        const diffA = cadCostA > 0 ? cadCostA - priceA : null;
+        
+        const cadCostB = b.cad_cost || 0;
+        const priceB = b.deal_price_rub || 0;
+        const diffB = cadCostB > 0 ? cadCostB - priceB : null;
+        
+        if (diffA === null && diffB === null) return 0;
+        if (diffA === null) return 1;
+        if (diffB === null) return -1;
+        return diffA - diffB;
+    });
+    
+    // Отрисовываем таблицу целиком с новым столбцом
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_number')">Кад. квартал ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_nspd')">Кад. номер НСПД ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('area')">Площадь ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('purpose_text')">Назначение ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('cad_cost')">Кад. стоимость ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('upks')">УПКС ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('city')">Город ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_kind_text')">Тип сделки ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('obj_kind_text')">Тип объекта ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('vri')">ВРИ ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('quarter')">Квартал ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('street')">Улица ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_price_rub')">Цена сделки ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('uprs_rub')">УПРС ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('diff_abs')">Разница (абс.) ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('diff_percent')">Разница (%) ↕</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    if (filteredDeals.length === 0) {
+        html += `
+                <tr>
+                    <td colspan="20" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
+                        Нет данных для отображения
+                    </td>
+                </tr>
+        `;
+    } else {
+        const displayDeals = filteredDeals.slice(0, 100);
+        
+        displayDeals.forEach((deal, index) => {
+            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+            
+            // Вычисляем разницу (кадастр - цена)
+            const cadCost = deal.cad_cost || 0;
+            const price = deal.deal_price_rub || 0;
+            const hasCadCost = cadCost > 0;
+            
+            let diffAbs = null;
+            let diffPercent = null;
+            let diffColor = '#64748b';
+            let diffPercentColor = '#64748b';
+            
+            if (hasCadCost) {
+                diffAbs = cadCost - price;
+                diffPercent = (diffAbs / cadCost) * 100;
+                
+                if (diffAbs > 0) {
+                    diffColor = '#22c55e';
+                    diffPercentColor = '#22c55e';
+                } else if (diffAbs < 0) {
+                    diffColor = '#ef4444';
+                    diffPercentColor = '#ef4444';
+                }
+            }
+            
+            const diffAbsFormatted = (hasCadCost && diffAbs !== 0) ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
+            const diffPercentFormatted = (hasCadCost && diffPercent !== null && diffPercent !== 0) 
+                ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%' 
+                : '—';
+            
+            html += `
+                <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
+                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400;">
+    ${deal.cad_nspd || 'nan'}
+</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.street || 'nan'}">${deal.street || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${diffPercentColor}; font-weight: 600; font-size: 10px;">${diffPercentFormatted}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
 };
 
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
-(function autoCenterOnLoad() {
+function autoCenterOnLoad() {
     // Проверяем, что mapInstance существует
     if (typeof mapInstance !== 'undefined' && mapInstance) {
         console.log('🔄 Автоматическое центрирование при загрузке');
