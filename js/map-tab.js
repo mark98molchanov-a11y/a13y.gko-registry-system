@@ -6803,4 +6803,7 @@ function autoCenterOnLoad() {
             }
         }, 500);
     }
-})();
+}
+
+// 🔥 ВЫЗЫВАЕМ ФУНКЦИЮ ПОСЛЕ ОПРЕДЕЛЕНИЯ
+autoCenterOnLoad();
