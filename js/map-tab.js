@@ -6336,18 +6336,25 @@ window.generateDocxReport = generateReport;
 async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1) {
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     
-    const originalUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`;
+    const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
+    
+    const headers = {
+        'Accept': 'application/json',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://nspd.gov.ru/map?thematic=PKK&theme_id=1',
+        'Origin': 'https://nspd.gov.ru',
+        'Host': 'nspd.gov.ru',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
     
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
         
-        const response = await fetch(proxyUrl, {
+        const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-            },
+            headers: headers,
             signal: controller.signal
         });
         
@@ -6358,7 +6365,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return null;
         }
         
-        const data = await response.json();  // ← ТОЛЬКО ОДИН РАЗ!
+        const data = await response.json();
         const features = data?.data?.features || [];
         
         if (features.length === 0) {
@@ -6430,7 +6437,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         return null;
     }
 }
-
 
 /**
  * Главная функция синхронизации с НСПД
