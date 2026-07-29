@@ -6510,8 +6510,142 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     }
 }
 /**
- * Главная функция синхронизации с НСПД
+ * Обновление CSV файла на GitHub с новым столбцом cad_nspd
  */
+async function updateGitHubCSVWithNSPD(token) {
+    console.log('📤 Обновление CSV на GitHub...');
+    
+    const owner = 'mark98molchanov-a11y';
+    const repo = 'a13y.gko-registry-system';
+    const path = 'data/deals_clean.csv';
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    
+    try {
+        // 1. Получаем текущий файл
+        const getResponse = await fetch(apiUrl, {
+            headers: { 'Authorization': `token ${token}` }
+        });
+        
+        if (!getResponse.ok) {
+            throw new Error(`Ошибка получения файла: ${getResponse.status}`);
+        }
+        
+        const fileData = await getResponse.json();
+        const currentContent = atob(fileData.content);
+        const lines = currentContent.split('\n').filter(line => line.trim() !== '');
+        
+        if (lines.length < 2) {
+            throw new Error('CSV файл пуст');
+        }
+        
+        // 2. Парсим заголовки
+        const headers = lines[0].split(',');
+        const cadIndex = headers.indexOf('cad_number');
+        
+        // Проверяем, есть ли уже столбец cad_nspd
+        let nspdIndex = headers.indexOf('cad_nspd');
+        const hasNspdColumn = nspdIndex !== -1;
+        
+        if (!hasNspdColumn) {
+            // Добавляем новый столбец
+            headers.push('cad_nspd');
+            nspdIndex = headers.length - 1;
+        }
+        
+        // 3. Создаем карту cad_number -> cad_nspd из allDealsFlat
+        const nspdMap = {};
+        for (const deal of allDealsFlat) {
+            if (deal.cad_nspd) {
+                nspdMap[deal.cad_number] = deal.cad_nspd;
+            }
+        }
+        
+        console.log(`📊 Найдено ${Object.keys(nspdMap).length} номеров НСПД для обновления`);
+        
+        // 4. Обновляем строки данных
+        const updatedLines = [headers.join(',')];
+        let updatedCount = 0;
+        
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCSVLineForUpdate(lines[i]);
+            
+            if (values.length === 0 || values.length < cadIndex + 1) {
+                updatedLines.push(lines[i]);
+                continue;
+            }
+            
+            const cadNumber = values[cadIndex] || '';
+            const nspdValue = nspdMap[cadNumber] || '';
+            
+            if (hasNspdColumn) {
+                if (nspdValue) {
+                    values[nspdIndex] = nspdValue;
+                    updatedCount++;
+                }
+                updatedLines.push(values.join(','));
+            } else {
+                values.push(nspdValue || '');
+                updatedLines.push(values.join(','));
+            }
+        }
+        
+        // 5. Формируем новый CSV
+        const newCSV = updatedLines.join('\n');
+        const contentEncoded = btoa(unescape(encodeURIComponent(newCSV)));
+        
+        // 6. Отправляем на GitHub
+        const putResponse = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: `Обновление cad_nspd: добавлено ${updatedCount} номеров из НСПД`,
+                content: contentEncoded,
+                sha: fileData.sha
+            })
+        });
+        
+        if (putResponse.ok) {
+            console.log(`✅ CSV обновлен: добавлено ${updatedCount} номеров НСПД`);
+            return { success: true, updated: updatedCount };
+        } else {
+            const error = await putResponse.json();
+            throw new Error(error.message || 'Ошибка обновления');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления CSV:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+function parseCSVLineForUpdate(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current.trim());
+    return result;
+}
 window.syncWithNSPD = async function() {
     console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД');
     
@@ -6531,12 +6665,19 @@ window.syncWithNSPD = async function() {
         btn.style.cursor = 'wait';
     }
     
-    // Собираем уникальные комбинации (квартал + площадь + тип + локация)
+    // ✅ СЧИТАЕМ СКОЛЬКО УЖЕ ЕСТЬ ЗАПОЛНЕННЫХ
+    let alreadyFilled = 0;
+    for (const deal of allDealsFlat) {
+        if (deal.cad_nspd) alreadyFilled++;
+    }
+    console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
+    
+    // Собираем уникальные комбинации (только для тех, у кого нет cad_nspd)
     const uniqueObjects = [];
     const processedKeys = new Set();
     
     for (const deal of allDealsFlat) {
-        // Пропускаем, если уже есть кадастровый номер из НСПД
+        // ✅ ПРОПУСКАЕМ, ЕСЛИ УЖЕ ЕСТЬ КАДАСТРОВЫЙ НОМЕР ИЗ НСПД
         if (deal.cad_nspd) continue;
         
         // Берем квартал (первые 11 символов кадастрового номера)
@@ -6563,6 +6704,7 @@ window.syncWithNSPD = async function() {
     }
     
     console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
+    console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
     
     if (uniqueObjects.length === 0) {
         showNotification('✅ Все объекты уже синхронизированы', 'success');
@@ -6614,7 +6756,7 @@ window.syncWithNSPD = async function() {
         }
     }
     
-    // Сохраняем данные
+    // Сохраняем данные в localStorage
     saveDealsDataWithNSPD();
     
     // Обновляем таблицу
@@ -6626,6 +6768,25 @@ window.syncWithNSPD = async function() {
     const message = `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
     showNotification(message, 'success');
     console.log(message);
+    
+    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB
+    if (foundCount > 0) {
+        console.log('📤 Автоматическое обновление CSV на GitHub...');
+        showNotification('⏳ Обновление CSV на GitHub...', 'info');
+        
+        // Запрашиваем токен у пользователя
+        const token = prompt('Введите GitHub Token для обновления CSV:');
+        if (token && token.trim()) {
+            const result = await updateGitHubCSVWithNSPD(token.trim());
+            if (result.success) {
+                showNotification(`✅ CSV обновлен: добавлено ${result.updated} номеров НСПД`, 'success');
+            } else {
+                showNotification(`❌ Ошибка обновления CSV: ${result.error}`, 'error');
+            }
+        } else {
+            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+        }
+    }
     
     // Восстанавливаем кнопку
     if (btn) {
