@@ -6336,25 +6336,19 @@ window.generateDocxReport = generateReport;
 async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1) {
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     
-    const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
-    
-    const headers = {
-        'Accept': 'application/json',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://nspd.gov.ru/map?thematic=PKK&theme_id=1',
-        'Origin': 'https://nspd.gov.ru',
-        'Host': 'nspd.gov.ru',
-        'X-Requested-With': 'XMLHttpRequest',
-    };
+    const originalUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
+    // ✅ ИСПОЛЬЗУЕМ CORS-ПРОКСИ
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`;
     
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
         
-        const response = await fetch(url, {
+        const response = await fetch(proxyUrl, {
             method: 'GET',
-            headers: headers,
+            headers: {
+                'Accept': 'application/json',
+            },
             signal: controller.signal
         });
         
@@ -6362,6 +6356,14 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         
         if (!response.ok) {
             console.warn(`⚠️ Ошибка запроса к НСПД: ${response.status}`);
+            return null;
+        }
+        
+        const data = await response.json();
+        const features = data?.data?.features || [];
+        
+        if (features.length === 0) {
+            console.warn(`⚠️ Нет объектов в квартале ${quarter}`);
             return null;
         }
         
