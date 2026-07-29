@@ -32,6 +32,8 @@ window._isWrapperTooltipForced = false;
 window._wrapperTooltipLayer = null;
 window._wrapperTooltipCadNum = null;
 let currentChartGroupBy = 'city';
+let syncAbortController = null;
+let isSyncRunning = false;
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
