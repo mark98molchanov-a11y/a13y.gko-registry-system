@@ -944,6 +944,43 @@ async function loadDealsCSV() {
             renderDealsTable();
         }
         
+        // ✅ ============================================================
+        // ✅ ЗАГРУЗКА СОХРАНЁННЫХ НОМЕРОВ НСПД ИЗ localStorage
+        // ✅ ============================================================
+        try {
+            const savedNspd = localStorage.getItem('nspd_data');
+            if (savedNspd) {
+                const nspdMap = JSON.parse(savedNspd);
+                let loadedCount = 0;
+                for (const deal of allDealsFlat) {
+                    if (nspdMap[deal.cad_number]) {
+                        deal.cad_nspd = nspdMap[deal.cad_number];
+                        loadedCount++;
+                    }
+                }
+                console.log(`✅ Загружено ${loadedCount} номеров НСПД из localStorage (${Object.keys(nspdMap).length} уникальных)`);
+                
+                // Обновляем dealsData (для карты и попапов)
+                for (const cadNum in dealsData) {
+                    const deals = dealsData[cadNum] || [];
+                    for (const deal of deals) {
+                        if (nspdMap[cadNum]) {
+                            deal.cad_nspd = nspdMap[cadNum];
+                        }
+                    }
+                }
+                
+                // Перерисовываем таблицу, чтобы показать номера
+                if (typeof renderDealsTable === 'function') {
+                    renderDealsTable();
+                }
+            } else {
+                console.log('ℹ️ Нет сохранённых номеров НСПД в localStorage');
+            }
+        } catch(e) {
+            console.error('❌ Ошибка загрузки из localStorage:', e);
+        }
+        
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
@@ -6974,62 +7011,62 @@ window.syncWithNSPD = async function() {
     syncAbortController = new AbortController();
     
     // Обрабатываем с задержкой, чтобы не перегружать API
-  for (const obj of uniqueObjects) {
-    // ✅ ПРОВЕРЯЕМ: если syncAbortController === null — значит была команда на остановку
-    if (syncAbortController === null) {
-        console.log('⛔ Синхронизация прервана пользователем (controller = null)');
-        wasAborted = true;
-        break;
-    }
-    
-    // ✅ ПРОВЕРЯЕМ signal.aborted
-    if (syncAbortController.signal.aborted) {
-        console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
-        wasAborted = true;
-        break;
-    }
-    
-    totalProcessed++;
-    console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
-    
-    // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null ПЕРЕД ИСПОЛЬЗОВАНИЕМ
-    const controllerSignal = syncAbortController ? syncAbortController.signal : null;
-    
-    const cadNspd = await searchNSPD(
-        obj.quarter,
-        obj.area,
-        obj.type,
-        obj.locationKeywords,
-        1,
-        controllerSignal
-    );
-    
-    // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА (controller мог стать null)
-    if (syncAbortController === null || syncAbortController.signal.aborted) {
-        console.log('⛔ Синхронизация прервана после запроса');
-        wasAborted = true;
-        break;
-    }
-    
-    if (cadNspd) {
-        foundCount++;
-        for (const deal of allDealsFlat) {
-            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-            if (dealQuarter === obj.quarter && 
-                Math.abs(deal.area - obj.area) <= 1 && 
-                deal.obj_kind_text === obj.type) {
-                deal.cad_nspd = cadNspd;
+    for (const obj of uniqueObjects) {
+        // ✅ ПРОВЕРЯЕМ: если syncAbortController === null — значит была команда на остановку
+        if (syncAbortController === null) {
+            console.log('⛔ Синхронизация прервана пользователем (controller = null)');
+            wasAborted = true;
+            break;
+        }
+        
+        // ✅ ПРОВЕРЯЕМ signal.aborted
+        if (syncAbortController.signal.aborted) {
+            console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
+            wasAborted = true;
+            break;
+        }
+        
+        totalProcessed++;
+        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+        
+        // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null ПЕРЕД ИСПОЛЬЗОВАНИЕМ
+        const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+        
+        const cadNspd = await searchNSPD(
+            obj.quarter,
+            obj.area,
+            obj.type,
+            obj.locationKeywords,
+            1,
+            controllerSignal
+        );
+        
+        // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА (controller мог стать null)
+        if (syncAbortController === null || syncAbortController.signal.aborted) {
+            console.log('⛔ Синхронизация прервана после запроса');
+            wasAborted = true;
+            break;
+        }
+        
+        if (cadNspd) {
+            foundCount++;
+            for (const deal of allDealsFlat) {
+                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                if (dealQuarter === obj.quarter && 
+                    Math.abs(deal.area - obj.area) <= 1 && 
+                    deal.obj_kind_text === obj.type) {
+                    deal.cad_nspd = cadNspd;
+                }
             }
         }
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (btn) {
+            const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
+            btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
+        }
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    if (btn) {
-        const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
-        btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
-    }
-}
     
     // ✅ ОЧИЩАЕМ AbortController
     syncAbortController = null;
