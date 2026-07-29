@@ -6646,23 +6646,99 @@ function parseCSVLineForUpdate(line) {
     result.push(current.trim());
     return result;
 }
+let syncAbortController = null;
+let isSyncRunning = false;
+
+/**
+ * Прерывание синхронизации с НСПД
+ */
+window.abortSyncWithNSPD = function() {
+    if (syncAbortController) {
+        console.log('🛑 Прерывание синхронизации...');
+        syncAbortController.abort();
+        syncAbortController = null;
+        
+        const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
+        if (btn) {
+            btn.innerHTML = '🔄 Синхронизация прервана';
+            btn.style.background = '#ef4444';
+            btn.style.color = 'white';
+            setTimeout(() => {
+                btn.innerHTML = 'Синхронизация с НСПД';
+                btn.style.background = '#2563eb';
+                btn.style.color = 'white';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }, 2000);
+        }
+        
+        showNotification('⛔ Синхронизация прервана', 'warning');
+        isSyncRunning = false;
+    }
+};
 window.syncWithNSPD = async function() {
+    // ✅ ЕСЛИ СИНХРОНИЗАЦИЯ УЖЕ ЗАПУЩЕНА - НЕ ЗАПУСКАЕМ НОВУЮ
+    if (isSyncRunning) {
+        showNotification('⚠️ Синхронизация уже выполняется', 'warning');
+        return;
+    }
+    
     console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД');
+    isSyncRunning = true;
     
     // Проверяем, есть ли данные
     if (typeof allDealsFlat === 'undefined' || allDealsFlat.length === 0) {
         showNotification('⚠️ Нет данных для синхронизации', 'warning');
+        isSyncRunning = false;
         return;
     }
     
     // Показываем индикатор загрузки
     const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
     const originalHTML = btn?.innerHTML || 'Синхронизация с НСПД';
+    
+    // ✅ СОЗДАЕМ КНОПКУ ПРЕРЫВАНИЯ
+    const syncContainer = btn?.parentElement;
+    let abortBtn = document.getElementById('abort-sync-btn');
+    
     if (btn) {
         btn.innerHTML = '⏳ Синхронизация... 0%';
         btn.disabled = true;
         btn.style.opacity = '0.7';
         btn.style.cursor = 'wait';
+        btn.style.background = '#2563eb';
+        
+        // ✅ ДОБАВЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
+        if (!abortBtn && syncContainer) {
+            abortBtn = document.createElement('button');
+            abortBtn.id = 'abort-sync-btn';
+            abortBtn.innerHTML = '⛔ Остановить';
+            abortBtn.style.cssText = `
+                padding: 4px 14px;
+                background: #ef4444;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-family: 'Inter', sans-serif;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                margin-left: 8px;
+            `;
+            abortBtn.onmouseover = function() { this.style.background = '#dc2626'; };
+            abortBtn.onmouseout = function() { this.style.background = '#ef4444'; };
+            abortBtn.onclick = function() {
+                if (confirm('Остановить синхронизацию? Будет сохранен текущий прогресс.')) {
+                    window.abortSyncWithNSPD();
+                }
+            };
+            syncContainer.appendChild(abortBtn);
+        }
     }
     
     // ✅ СЧИТАЕМ СКОЛЬКО УЖЕ ЕСТЬ ЗАПОЛНЕННЫХ
@@ -6672,7 +6748,7 @@ window.syncWithNSPD = async function() {
     }
     console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
     
-    // Собираем уникальные комбинации (только для тех, у кого нет cad_nspd)
+    // ✅ СОБИРАЕМ УНИКАЛЬНЫЕ КОМБИНАЦИИ (ТОЛЬКО ДЛЯ ТЕХ, У КОГО НЕТ cad_nspd)
     const uniqueObjects = [];
     const processedKeys = new Set();
     
@@ -6680,7 +6756,6 @@ window.syncWithNSPD = async function() {
         // ✅ ПРОПУСКАЕМ, ЕСЛИ УЖЕ ЕСТЬ КАДАСТРОВЫЙ НОМЕР ИЗ НСПД
         if (deal.cad_nspd) continue;
         
-        // Берем квартал (первые 11 символов кадастрового номера)
         const quarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
         if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
         
@@ -6706,6 +6781,7 @@ window.syncWithNSPD = async function() {
     console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
     console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
     
+    // ✅ ЕСЛИ НЕТ ОБЪЕКТОВ ДЛЯ ПОИСКА
     if (uniqueObjects.length === 0) {
         showNotification('✅ Все объекты уже синхронизированы', 'success');
         if (btn) {
@@ -6713,15 +6789,29 @@ window.syncWithNSPD = async function() {
             btn.disabled = false;
             btn.style.opacity = '1';
             btn.style.cursor = 'pointer';
+            btn.style.background = '#2563eb';
         }
+        if (abortBtn) abortBtn.remove();
+        isSyncRunning = false;
         return;
     }
     
     let foundCount = 0;
     let totalProcessed = 0;
+    let wasAborted = false;
+    
+    // ✅ СОЗДАЕМ AbortController ДЛЯ ПРЕРЫВАНИЯ
+    syncAbortController = new AbortController();
     
     // Обрабатываем с задержкой, чтобы не перегружать API
     for (const obj of uniqueObjects) {
+        // ✅ ПРОВЕРЯЕМ, НЕ БЫЛО ЛИ ПРЕРЫВАНИЯ
+        if (syncAbortController && syncAbortController.signal.aborted) {
+            console.log('⛔ Синхронизация прервана пользователем');
+            wasAborted = true;
+            break;
+        }
+        
         totalProcessed++;
         console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
         
@@ -6732,6 +6822,13 @@ window.syncWithNSPD = async function() {
             obj.locationKeywords,
             1 // tolerance ±1 м²
         );
+        
+        // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА
+        if (syncAbortController && syncAbortController.signal.aborted) {
+            console.log('⛔ Синхронизация прервана после запроса');
+            wasAborted = true;
+            break;
+        }
         
         if (cadNspd) {
             foundCount++;
@@ -6756,23 +6853,34 @@ window.syncWithNSPD = async function() {
         }
     }
     
-    // Сохраняем данные в localStorage
+    // ✅ ОЧИЩАЕМ AbortController
+    syncAbortController = null;
+    
+    // ✅ УДАЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
+    if (abortBtn) abortBtn.remove();
+    
+    // ✅ СОХРАНЯЕМ ДАННЫЕ В localStorage (для восстановления при перезагрузке)
     saveDealsDataWithNSPD();
     
-    // Обновляем таблицу
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     if (typeof renderDealsTable === 'function') {
         renderDealsTable();
     }
     
-    // Показываем результат
-    const message = `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
-    showNotification(message, 'success');
-    console.log(message);
+    // ✅ ПОКАЗЫВАЕМ РЕЗУЛЬТАТ
+    const processedCount = wasAborted ? totalProcessed : uniqueObjects.length;
+    const resultMessage = wasAborted 
+        ? `⛔ Синхронизация прервана! Найдено ${foundCount} из ${processedCount} обработанных объектов`
+        : `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
+    showNotification(resultMessage, wasAborted ? 'warning' : 'success');
+    console.log(resultMessage);
     
-    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB
+    // ============================================================
+    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
+    // ============================================================
     if (foundCount > 0) {
-        console.log('📤 Автоматическое обновление CSV на GitHub...');
-        showNotification('⏳ Обновление CSV на GitHub...', 'info');
+        console.log(`📤 Автоматическое обновление CSV на GitHub (найдено ${foundCount} номеров)...`);
+        showNotification(`⏳ Обновление CSV на GitHub (${foundCount} номеров)...`, 'info');
         
         // Запрашиваем токен у пользователя
         const token = prompt('Введите GitHub Token для обновления CSV:');
@@ -6786,6 +6894,9 @@ window.syncWithNSPD = async function() {
         } else {
             showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
         }
+    } else {
+        console.log('ℹ️ Нет новых номеров для обновления CSV');
+        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
     }
     
     // Восстанавливаем кнопку
@@ -6794,7 +6905,10 @@ window.syncWithNSPD = async function() {
         btn.disabled = false;
         btn.style.opacity = '1';
         btn.style.cursor = 'pointer';
+        btn.style.background = '#2563eb';
     }
+    
+    isSyncRunning = false;
 };
 
 /**
