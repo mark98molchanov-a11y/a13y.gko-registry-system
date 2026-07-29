@@ -934,7 +934,13 @@ async function loadDealsCSV() {
             console.log('🔄 Перерисовка карты после загрузки CSV...');
             renderMapLevel(currentLevel || 0, currentParentId);
         }
-        
+        setTimeout(() => {
+    loadDealsDataWithNSPD();
+    // Перерисовываем таблицу, чтобы показать столбец
+    if (typeof renderDealsTable === 'function') {
+        renderDealsTable();
+    }
+}, 100);
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
@@ -5822,6 +5828,7 @@ function exportDealsTableToExcel() {
         
        return {
     'Кад. квартал': deal.cad_number || 'nan',
+           'Кад. номер НСПД': deal.cad_nspd || 'nan', 
     'Площадь': deal.area ? deal.area.toFixed(1) : 'nan',
     'Назначение': deal.purpose_text || 'nan',
     'Кад. стоимость': deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan',
@@ -6326,6 +6333,350 @@ async function generateReport() {
 window.generateReport = generateReport;
 window.loadScript = loadScript;
 window.generateDocxReport = generateReport;
+async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1) {
+    console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
+    
+    const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
+    
+    const headers = {
+        'Accept': 'application/json',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://nspd.gov.ru/map?thematic=PKK&theme_id=1',
+        'Origin': 'https://nspd.gov.ru',
+        'Host': 'nspd.gov.ru',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: headers,
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            console.warn(`⚠️ Ошибка запроса к НСПД: ${response.status}`);
+            return null;
+        }
+        
+        const data = await response.json();
+        const features = data?.data?.features || [];
+        
+        if (features.length === 0) {
+            console.warn(`⚠️ Нет объектов в квартале ${quarter}`);
+            return null;
+        }
+        
+        // Ищем по корню слова (первые 5 букв)
+        const targetRoot = targetType.toLowerCase().slice(0, 5);
+        let exactMatches = [];
+        
+        for (const f of features) {
+            const props = f.properties || {};
+            const opts = props.options || {};
+            
+            const cad = opts.cad_number || props.externalKey || '';
+            const objType = opts.object_type_value || props.categoryName || '';
+            
+            // Площадь (для разных типов)
+            let area = parseFloat(opts.params_area) || 
+                       parseFloat(opts.specified_area) || 
+                       parseFloat(opts.area) || 0;
+            
+            // Для сооружений — если площадь 0, берем протяженность
+            if (area === 0 && objType.includes('Сооружение')) {
+                area = parseFloat(opts.params_extension) || 0;
+            }
+            
+            const name = opts.params_name || opts.name || '';
+            const address = opts.address_readable_address || opts.readable_address || '';
+            
+            const typeMatch = targetRoot === objType.toLowerCase().slice(0, 5);
+            const areaMatch = Math.abs(area - targetArea) <= tolerance;
+            
+            let locMatch = false;
+            if (locationKeywords.length > 0) {
+                const text = `${name} ${address}`.toLowerCase();
+                locMatch = locationKeywords.some(kw => text.includes(kw.toLowerCase()));
+            }
+            
+            const score = (typeMatch ? 10 : 0) + (areaMatch ? 5 : 0) + (locMatch ? 3 : 0);
+            
+            if (cad && typeMatch && areaMatch) {
+                exactMatches.push({
+                    cad: cad,
+                    type: objType,
+                    area: area,
+                    name: name,
+                    address: address,
+                    score: score,
+                    locMatch: locMatch
+                });
+            }
+        }
+        
+        if (exactMatches.length > 0) {
+            exactMatches.sort((a, b) => b.score - a.score);
+            console.log(`✅ Найден объект в НСПД: ${exactMatches[0].cad} (площадь ${exactMatches[0].area} м²)`);
+            return exactMatches[0].cad;
+        }
+        
+        console.warn(`⚠️ Не найдено совпадений для ${quarter} (площадь ${targetArea})`);
+        return null;
+        
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn(`⏰ Превышено время ожидания для ${quarter}`);
+        } else {
+            console.error(`❌ Ошибка запроса к НСПД:`, error);
+        }
+        return null;
+    }
+}
+
+/**
+ * Главная функция синхронизации с НСПД
+ */
+window.syncWithNSPD = async function() {
+    console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД');
+    
+    // Проверяем, есть ли данные
+    if (typeof allDealsFlat === 'undefined' || allDealsFlat.length === 0) {
+        showNotification('⚠️ Нет данных для синхронизации', 'warning');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
+    const originalHTML = btn?.innerHTML || 'Синхронизация с НСПД';
+    if (btn) {
+        btn.innerHTML = '⏳ Синхронизация... 0%';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'wait';
+    }
+    
+    // Собираем уникальные комбинации (квартал + площадь + тип + локация)
+    const uniqueObjects = [];
+    const processedKeys = new Set();
+    
+    for (const deal of allDealsFlat) {
+        // Пропускаем, если уже есть кадастровый номер из НСПД
+        if (deal.cad_nspd) continue;
+        
+        // Берем квартал (первые 11 символов кадастрового номера)
+        const quarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+        if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
+        
+        const area = deal.area || 0;
+        if (area <= 0) continue;
+        
+        const objType = deal.obj_kind_text || 'Здание';
+        const location = deal.city || '';
+        
+        const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
+        if (processedKeys.has(key)) continue;
+        processedKeys.add(key);
+        
+        uniqueObjects.push({
+            quarter: quarter,
+            area: area,
+            type: objType,
+            location: location,
+            locationKeywords: [location, deal.street || ''].filter(Boolean)
+        });
+    }
+    
+    console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
+    
+    if (uniqueObjects.length === 0) {
+        showNotification('✅ Все объекты уже синхронизированы', 'success');
+        if (btn) {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+        return;
+    }
+    
+    let foundCount = 0;
+    let totalProcessed = 0;
+    
+    // Обрабатываем с задержкой, чтобы не перегружать API
+    for (const obj of uniqueObjects) {
+        totalProcessed++;
+        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+        
+        const cadNspd = await searchNSPD(
+            obj.quarter,
+            obj.area,
+            obj.type,
+            obj.locationKeywords,
+            1 // tolerance ±1 м²
+        );
+        
+        if (cadNspd) {
+            foundCount++;
+            // Обновляем все сделки с этим кварталом и площадью
+            for (const deal of allDealsFlat) {
+                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                if (dealQuarter === obj.quarter && 
+                    Math.abs(deal.area - obj.area) <= 1 && 
+                    deal.obj_kind_text === obj.type) {
+                    deal.cad_nspd = cadNspd;
+                }
+            }
+        }
+        
+        // Пауза между запросами (300ms)
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Обновляем прогресс
+        if (btn) {
+            const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
+            btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
+        }
+    }
+    
+    // Сохраняем данные
+    saveDealsDataWithNSPD();
+    
+    // Обновляем таблицу
+    if (typeof renderDealsTable === 'function') {
+        renderDealsTable();
+    }
+    
+    // Показываем результат
+    const message = `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
+    showNotification(message, 'success');
+    console.log(message);
+    
+    // Восстанавливаем кнопку
+    if (btn) {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    }
+};
+
+/**
+ * Сохранение данных с полем cad_nspd
+ */
+function saveDealsDataWithNSPD() {
+    try {
+        const dataToSave = {
+            deals: allDealsFlat,
+            timestamp: Date.now(),
+            version: '2.0'
+        };
+        localStorage.setItem('gko_deals_with_nspd', JSON.stringify(dataToSave));
+        console.log('✅ Данные с НСПД сохранены в localStorage');
+    } catch (e) {
+        console.warn('⚠️ Не удалось сохранить данные:', e);
+    }
+}
+
+/**
+ * Загрузка сохраненных данных с НСПД
+ */
+function loadDealsDataWithNSPD() {
+    try {
+        const saved = localStorage.getItem('gko_deals_with_nspd');
+        if (saved) {
+            const data = JSON.parse(saved);
+            if (data.deals && data.deals.length > 0 && typeof allDealsFlat !== 'undefined') {
+                // Обновляем существующие сделки
+                for (const savedDeal of data.deals) {
+                    const existingDeal = allDealsFlat.find(d => 
+                        d.cad_number === savedDeal.cad_number && 
+                        Math.abs(d.area - savedDeal.area) <= 0.1
+                    );
+                    if (existingDeal && savedDeal.cad_nspd) {
+                        existingDeal.cad_nspd = savedDeal.cad_nspd;
+                    }
+                }
+                console.log(`✅ Загружено ${data.deals.length} записей с НСПД`);
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Не удалось загрузить данные НСПД:', e);
+    }
+    return false;
+}
+
+// ✅ ДОБАВЛЯЕМ СТОЛБЕЦ "Кад. номер НСПД" В ТАБЛИЦУ
+// Сохраняем оригинальную функцию renderDealsTable
+const originalRenderDealsTable = window.renderDealsTable || function() {};
+
+// Переопределяем renderDealsTable
+window.renderDealsTable = function() {
+    // Вызываем оригинальную функцию
+    if (typeof originalRenderDealsTable === 'function') {
+        originalRenderDealsTable.call(this);
+    }
+    
+    // После рендера добавляем столбец с НСПД
+    const table = document.querySelector('#deals-table-container table');
+    if (!table) return;
+    
+    // Добавляем заголовок (если еще нет)
+    const thead = table.querySelector('thead tr');
+    if (thead && !thead.querySelector('.nspd-header')) {
+        const th = document.createElement('th');
+        th.className = 'nspd-header';
+        th.style.cssText = 'text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; cursor: pointer;';
+        th.innerHTML = 'Кад. номер НСПД ↕';
+        th.onclick = () => sortDealsTable('cad_nspd');
+        // Вставляем после первой колонки
+        const firstTh = thead.querySelector('th:first-child');
+        if (firstTh) {
+            thead.insertBefore(th, firstTh.nextSibling);
+        }
+    }
+    
+    // Добавляем данные в строки
+    const rows = table.querySelectorAll('tbody tr');
+    if (typeof allDealsFlat === 'undefined') return;
+    
+    rows.forEach((row, index) => {
+        if (index >= allDealsFlat.length) return;
+        const deal = allDealsFlat[index];
+        if (!deal) return;
+        
+        // Проверяем, есть ли уже ячейка с НСПД
+        if (row.querySelector('.nspd-cell')) return;
+        
+        const td = document.createElement('td');
+        td.className = 'nspd-cell';
+        td.style.cssText = 'text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b;';
+        
+        if (deal.cad_nspd) {
+            td.textContent = deal.cad_nspd;
+            td.style.color = '#16a34a';
+            td.style.fontWeight = '500';
+        } else {
+            td.textContent = '—';
+            td.style.color = '#94a3b8';
+        }
+        
+        // Вставляем после первой ячейки
+        const firstTd = row.querySelector('td:first-child');
+        if (firstTd) {
+            row.insertBefore(td, firstTd.nextSibling);
+        }
+    });
+};
+
+console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 (function autoCenterOnLoad() {
     // Проверяем, что mapInstance существует
