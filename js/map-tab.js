@@ -6527,56 +6527,124 @@ async function updateGitHubCSVWithNSPD(token) {
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
     
     try {
-        // 1. Получаем текущий файл
+        // 1. Получаем текущий файл через API
+        console.log('📥 Запрос к GitHub API...');
         const getResponse = await fetch(apiUrl, {
             headers: { 'Authorization': `token ${token}` }
         });
         
         if (!getResponse.ok) {
+            console.error(`❌ Ошибка получения файла: ${getResponse.status}`);
+            console.log(`📄 Ответ: ${await getResponse.text()}`);
             throw new Error(`Ошибка получения файла: ${getResponse.status}`);
         }
         
         const fileData = await getResponse.json();
-        const currentContent = atob(fileData.content);
-        const lines = currentContent.split('\n').filter(line => line.trim() !== '');
+        console.log(`📄 SHA файла: ${fileData.sha}`);
+        console.log(`📄 Размер файла (base64): ${fileData.content?.length || 0}`);
+        
+        // ✅ ДЕКОДИРУЕМ СОДЕРЖИМОЕ
+        let currentContent;
+        try {
+            currentContent = atob(fileData.content);
+        } catch(e) {
+            console.error('❌ Ошибка декодирования base64:', e);
+            throw new Error('Не удалось декодировать содержимое файла');
+        }
+        
+        console.log(`📄 Декодировано: ${currentContent.length} символов`);
+        console.log(`📄 Первые 100 символов: ${currentContent.substring(0, 100)}`);
+        
+        // ✅ УДАЛЯЕМ BOM
+        if (currentContent.charCodeAt(0) === 0xFEFF) {
+            currentContent = currentContent.substring(1);
+            console.log('🗑️ BOM удалён');
+        }
+        
+        // ✅ РАЗБИВАЕМ НА СТРОКИ
+        const lines = currentContent.split('\n')
+            .filter(line => line.trim() !== '')
+            .map(line => line.trim());
+        
+        console.log(`📄 Найдено строк: ${lines.length}`);
         
         if (lines.length < 2) {
-            throw new Error('CSV файл пуст');
+            console.warn('⚠️ CSV файл содержит меньше 2 строк');
+            console.log('📄 Содержимое файла (первые 500 символов):');
+            console.log(currentContent.substring(0, 500));
+            throw new Error('CSV файл пуст или содержит только заголовок');
         }
         
         // 2. Парсим заголовки
-        const headers = lines[0].split(',');
+        function parseCSVLineForUpdate(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+        
+        const headers = parseCSVLineForUpdate(lines[0]);
+        console.log(`📋 Заголовки (${headers.length}):`, headers);
+        
         const cadIndex = headers.indexOf('cad_number');
+        if (cadIndex === -1) {
+            throw new Error('Столбец cad_number не найден в CSV');
+        }
         
         // Проверяем, есть ли уже столбец cad_nspd
         let nspdIndex = headers.indexOf('cad_nspd');
         const hasNspdColumn = nspdIndex !== -1;
         
         if (!hasNspdColumn) {
-            // Добавляем новый столбец
             headers.push('cad_nspd');
             nspdIndex = headers.length - 1;
+            console.log('➕ Добавлен столбец cad_nspd');
+        } else {
+            console.log('✅ Столбец cad_nspd уже существует');
         }
         
         // 3. Создаем карту cad_number -> cad_nspd из allDealsFlat
         const nspdMap = {};
+        let nspdCount = 0;
         for (const deal of allDealsFlat) {
-            if (deal.cad_nspd) {
+            if (deal.cad_nspd && deal.cad_nspd !== 'nan' && deal.cad_nspd !== '') {
                 nspdMap[deal.cad_number] = deal.cad_nspd;
+                nspdCount++;
             }
         }
         
-        console.log(`📊 Найдено ${Object.keys(nspdMap).length} номеров НСПД для обновления`);
+        console.log(`📊 Найдено ${nspdCount} номеров НСПД для обновления`);
         
         // 4. Обновляем строки данных
         const updatedLines = [headers.join(',')];
         let updatedCount = 0;
+        let skippedCount = 0;
         
         for (let i = 1; i < lines.length; i++) {
             const values = parseCSVLineForUpdate(lines[i]);
             
             if (values.length === 0 || values.length < cadIndex + 1) {
                 updatedLines.push(lines[i]);
+                skippedCount++;
                 continue;
             }
             
@@ -6584,7 +6652,7 @@ async function updateGitHubCSVWithNSPD(token) {
             const nspdValue = nspdMap[cadNumber] || '';
             
             if (hasNspdColumn) {
-                if (nspdValue) {
+                if (nspdValue && values[nspdIndex] !== nspdValue) {
                     values[nspdIndex] = nspdValue;
                     updatedCount++;
                 }
@@ -6595,11 +6663,17 @@ async function updateGitHubCSVWithNSPD(token) {
             }
         }
         
+        console.log(`🔄 Обновлено ${updatedCount} строк, пропущено ${skippedCount}`);
+        
         // 5. Формируем новый CSV
         const newCSV = updatedLines.join('\n');
+        console.log(`📏 Новый CSV: ${newCSV.length} символов, ${updatedLines.length} строк`);
+        
+        // 6. Кодируем в base64
         const contentEncoded = btoa(unescape(encodeURIComponent(newCSV)));
         
-        // 6. Отправляем на GitHub
+        // 7. Отправляем на GitHub
+        console.log('📤 Отправка на GitHub...');
         const putResponse = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
@@ -6618,6 +6692,7 @@ async function updateGitHubCSVWithNSPD(token) {
             return { success: true, updated: updatedCount };
         } else {
             const error = await putResponse.json();
+            console.error('❌ Ошибка ответа GitHub:', error);
             throw new Error(error.message || 'Ошибка обновления');
         }
         
