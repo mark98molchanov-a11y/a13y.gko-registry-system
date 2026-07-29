@@ -6805,55 +6805,58 @@ window.syncWithNSPD = async function() {
     syncAbortController = new AbortController();
     
     // Обрабатываем с задержкой, чтобы не перегружать API
-    for (const obj of uniqueObjects) {
-        // ✅ ПРОВЕРЯЕМ, НЕ БЫЛО ЛИ ПРЕРЫВАНИЯ
-        if (syncAbortController && syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана пользователем');
-            wasAborted = true;
-            break;
-        }
-        
-        totalProcessed++;
-        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
-        
-const cadNspd = await searchNSPD(
-    obj.quarter,
-    obj.area,
-    obj.type,
-    obj.locationKeywords,
-    1,
-    syncAbortController.signal  // ← ПЕРЕДАЁМ signal ДЛЯ ОТМЕНЫ
-);
-        
-        // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА
-        if (syncAbortController && syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана после запроса');
-            wasAborted = true;
-            break;
-        }
-        
-        if (cadNspd) {
-            foundCount++;
-            // Обновляем все сделки с этим кварталом и площадью
-            for (const deal of allDealsFlat) {
-                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-                if (dealQuarter === obj.quarter && 
-                    Math.abs(deal.area - obj.area) <= 1 && 
-                    deal.obj_kind_text === obj.type) {
-                    deal.cad_nspd = cadNspd;
-                }
+   for (const obj of uniqueObjects) {
+    // ✅ ПРОВЕРЯЕМ, НЕ БЫЛО ЛИ ПРЕРЫВАНИЯ
+    if (syncAbortController && syncAbortController.signal.aborted) {
+        console.log('⛔ Синхронизация прервана пользователем');
+        wasAborted = true;
+        break;
+    }
+    
+    totalProcessed++;
+    console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+    
+    // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null
+    const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+    
+    const cadNspd = await searchNSPD(
+        obj.quarter,
+        obj.area,
+        obj.type,
+        obj.locationKeywords,
+        1,
+        controllerSignal  // ← ✅ ПЕРЕДАЁМ signal ИЛИ null
+    );
+    
+    // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА
+    if (syncAbortController && syncAbortController.signal.aborted) {
+        console.log('⛔ Синхронизация прервана после запроса');
+        wasAborted = true;
+        break;
+    }
+    
+    if (cadNspd) {
+        foundCount++;
+        // Обновляем все сделки с этим кварталом и площадью
+        for (const deal of allDealsFlat) {
+            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+            if (dealQuarter === obj.quarter && 
+                Math.abs(deal.area - obj.area) <= 1 && 
+                deal.obj_kind_text === obj.type) {
+                deal.cad_nspd = cadNspd;
             }
         }
-        
-        // Пауза между запросами (300ms)
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Обновляем прогресс
-        if (btn) {
-            const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
-            btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
-        }
     }
+    
+    // Пауза между запросами (300ms)
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Обновляем прогресс
+    if (btn) {
+        const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
+        btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
+    }
+}
     
     // ✅ ОЧИЩАЕМ AbortController
     syncAbortController = null;
