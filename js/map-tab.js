@@ -6519,7 +6519,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
  * Обновление CSV файла на GitHub с новым столбцом cad_nspd
  */
 async function updateGitHubCSVWithNSPD(token) {
-    console.log('📤 Обновление CSV на GitHub...');
+    console.log('📤 Обновление CSV на GitHub (только изменения)...');
     
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
@@ -6528,7 +6528,7 @@ async function updateGitHubCSVWithNSPD(token) {
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/main/${path}`;
     
     try {
-        // ✅ 1. ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ ЧЕРЕЗ RAW URL (обход API)
+        // ✅ 1. ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ
         console.log('📥 Загрузка текущего CSV через raw URL...');
         const rawResponse = await fetch(rawUrl);
         
@@ -6541,13 +6541,13 @@ async function updateGitHubCSVWithNSPD(token) {
         console.log(`📄 Первые 100 символов: ${currentContent.substring(0, 100)}`);
         
         // ✅ 2. РАЗБИВАЕМ НА СТРОКИ
-        const lines = currentContent.split('\n')
+        const currentLines = currentContent.split('\n')
             .filter(line => line.trim() !== '')
             .map(line => line.trim());
         
-        console.log(`📄 Найдено строк: ${lines.length}`);
+        console.log(`📄 Найдено строк: ${currentLines.length}`);
         
-        if (lines.length < 2) {
+        if (currentLines.length < 2) {
             console.warn('⚠️ CSV файл содержит меньше 2 строк');
             console.log('📄 Содержимое файла (первые 500 символов):');
             console.log(currentContent.substring(0, 500));
@@ -6556,7 +6556,6 @@ async function updateGitHubCSVWithNSPD(token) {
             const newContent = await createCSVFromData();
             const contentEncoded = btoa(unescape(encodeURIComponent(newContent)));
             
-            // Получаем SHA через API (только для обновления)
             const getResponse = await fetch(apiUrl, {
                 headers: { 'Authorization': `token ${token}` }
             });
@@ -6616,7 +6615,7 @@ async function updateGitHubCSVWithNSPD(token) {
             return result;
         }
         
-        const headers = parseCSVLineForUpdate(lines[0]);
+        const headers = parseCSVLineForUpdate(currentLines[0]);
         console.log(`📋 Заголовки: ${headers.length} колонок`);
         
         const cadIndex = headers.indexOf('cad_number');
@@ -6628,15 +6627,7 @@ async function updateGitHubCSVWithNSPD(token) {
         let nspdIndex = headers.indexOf('cad_nspd');
         const hasNspdColumn = nspdIndex !== -1;
         
-        if (!hasNspdColumn) {
-            headers.push('cad_nspd');
-            nspdIndex = headers.length - 1;
-            console.log('➕ Добавлен столбец cad_nspd');
-        } else {
-            console.log('✅ Столбец cad_nspd уже существует');
-        }
-        
-        // ✅ 4. СОЗДАЁМ КАРТУ cad_number -> cad_nspd
+        // ✅ 4. СОЗДАЁМ КАРТУ cad_number -> cad_nspd ИЗ allDealsFlat
         const nspdMap = {};
         for (const deal of allDealsFlat) {
             if (deal.cad_nspd && deal.cad_nspd !== 'nan' && deal.cad_nspd !== '') {
@@ -6645,34 +6636,64 @@ async function updateGitHubCSVWithNSPD(token) {
         }
         console.log(`📊 Найдено ${Object.keys(nspdMap).length} номеров НСПД`);
         
-        // ✅ 5. ОБНОВЛЯЕМ СТРОКИ
-        const updatedLines = [headers.join(',')];
+        // ✅ 5. ОБНОВЛЯЕМ ТОЛЬКО СТРОКИ, ГДЕ ПОЯВИЛСЯ НОВЫЙ НОМЕР
+        // Если столбца cad_nspd нет — добавляем его
+        let updatedLines;
         let updatedCount = 0;
         
-        for (let i = 1; i < lines.length; i++) {
-            const values = parseCSVLineForUpdate(lines[i]);
+        if (!hasNspdColumn) {
+            // Добавляем новый столбец
+            headers.push('cad_nspd');
+            nspdIndex = headers.length - 1;
+            console.log('➕ Добавлен столбец cad_nspd');
             
-            if (values.length === 0 || values.length < cadIndex + 1) {
-                updatedLines.push(lines[i]);
-                continue;
+            updatedLines = [headers.join(',')];
+            
+            for (let i = 1; i < currentLines.length; i++) {
+                const values = parseCSVLineForUpdate(currentLines[i]);
+                if (values.length === 0 || values.length < cadIndex + 1) {
+                    updatedLines.push(currentLines[i]);
+                    continue;
+                }
+                
+                const cadNumber = values[cadIndex] || '';
+                const nspdValue = nspdMap[cadNumber] || '';
+                
+                values.push(nspdValue);
+                if (nspdValue) updatedCount++;
+                updatedLines.push(values.join(','));
             }
+        } else {
+            // Столбец уже есть — обновляем только изменённые строки
+            updatedLines = [headers.join(',')];
             
-            const cadNumber = values[cadIndex] || '';
-            const nspdValue = nspdMap[cadNumber] || '';
-            
-            if (hasNspdColumn) {
-                if (nspdValue && values[nspdIndex] !== nspdValue) {
-                    values[nspdIndex] = nspdValue;
+            for (let i = 1; i < currentLines.length; i++) {
+                const values = parseCSVLineForUpdate(currentLines[i]);
+                if (values.length === 0 || values.length < cadIndex + 1) {
+                    updatedLines.push(currentLines[i]);
+                    continue;
+                }
+                
+                const cadNumber = values[cadIndex] || '';
+                const currentNspd = values[nspdIndex] || '';
+                const newNspd = nspdMap[cadNumber] || '';
+                
+                // ✅ ОБНОВЛЯЕМ ТОЛЬКО ЕСЛИ ЗНАЧЕНИЕ ИЗМЕНИЛОСЬ
+                if (newNspd && currentNspd !== newNspd) {
+                    values[nspdIndex] = newNspd;
                     updatedCount++;
                 }
-                updatedLines.push(values.join(','));
-            } else {
-                values.push(nspdValue || '');
                 updatedLines.push(values.join(','));
             }
         }
         
         console.log(`🔄 Обновлено ${updatedCount} строк`);
+        
+        // Если нет изменений — выходим
+        if (updatedCount === 0) {
+            console.log('ℹ️ Нет изменений для обновления');
+            return { success: true, updated: 0, message: 'Нет изменений' };
+        }
         
         const newCSV = updatedLines.join('\n');
         console.log(`📏 Новый CSV: ${newCSV.length} символов, ${updatedLines.length} строк`);
@@ -6680,7 +6701,7 @@ async function updateGitHubCSVWithNSPD(token) {
         // ✅ 6. КОДИРУЕМ В BASE64
         const contentEncoded = btoa(unescape(encodeURIComponent(newCSV)));
         
-        // ✅ 7. ПОЛУЧАЕМ SHA ЧЕРЕЗ API (только метаданные)
+        // ✅ 7. ПОЛУЧАЕМ SHA ЧЕРЕЗ API
         const getResponse = await fetch(apiUrl, {
             headers: { 'Authorization': `token ${token}` }
         });
@@ -6713,6 +6734,35 @@ async function updateGitHubCSVWithNSPD(token) {
         } else {
             const error = await putResponse.json();
             console.error('❌ Ошибка ответа GitHub:', error);
+            
+            // ✅ ЕСЛИ ОШИБКА ИЗ-ЗА РАЗМЕРА — ПЫТАЕМСЯ ОБНОВИТЬ ЧЕРЕЗ PATCH
+            if (error.status === '422' && error.message && error.message.includes('too large')) {
+                console.warn('⚠️ Файл слишком большой для API');
+                console.log('💡 Совет: Используйте GitHub Desktop или CLI для загрузки');
+                console.log(`📊 Сохранено ${updatedCount} номеров локально`);
+                
+                // Сохраняем номера в localStorage как fallback
+                try {
+                    const nspdData = {};
+                    for (const deal of allDealsFlat) {
+                        if (deal.cad_nspd) {
+                            nspdData[deal.cad_number] = deal.cad_nspd;
+                        }
+                    }
+                    localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+                    console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
+                } catch(e) {
+                    console.error('❌ Ошибка сохранения в localStorage:', e);
+                }
+                
+                return { 
+                    success: false, 
+                    error: 'Файл слишком большой для API, номера сохранены локально',
+                    updated: updatedCount,
+                    fallback: 'localStorage'
+                };
+            }
+            
             throw new Error(error.message || 'Ошибка обновления');
         }
         
