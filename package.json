@@ -1,11 +1,8 @@
 {
-  "name": "a13y-gko-registry-system",
+  "name": "gko-registry-system",
   "version": "1.0.0",
-  "description": "GKO Registry System with CORS Proxy",
-  "scripts": {
-    "start": "node api/index.js",
-    "dev": "node api/index.js"
-  },
+  "description": "Статический сайт с прокси для GitHub Releases",
+  "scripts": {},
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
