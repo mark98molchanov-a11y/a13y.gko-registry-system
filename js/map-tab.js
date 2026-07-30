@@ -6732,15 +6732,24 @@ try {
     console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
     
     // ✅ 2.2. ЗАГРУЖАЕМ НАПРЯМУЮ В BLOB ИЗ БРАУЗЕРА (ОБХОДИТ ЛИМИТ 4.5 МБ!)
-    console.log('📤 Загрузка CSV напрямую в Blob...');
-    const uploadResponse = await fetch(urlData.uploadUrl, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'text/csv',
-            'Content-Length': csv.length.toString()
-        },
-        body: csv
-    });
+console.log('📤 Загрузка CSV напрямую в Blob...');
+
+// Создаём Blob из CSV строки
+const csvBlob = new Blob([csv], { type: 'text/csv' });
+
+const uploadResponse = await fetch(urlData.uploadUrl, {
+    method: 'POST',  // ← PUT заменён на POST!
+    headers: {
+        'Content-Type': 'text/csv',
+        'x-amz-acl': 'public-read'  // ← Добавляем для публичного доступа
+    },
+    body: csvBlob  // ← передаём Blob, а не строку
+});
+
+if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+}
     
     if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
