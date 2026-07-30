@@ -6687,7 +6687,7 @@ async function syncWithNSPD() {
     // ============================================================
     // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
     // ============================================================
-  if (foundCount > 0) {
+if (foundCount > 0) {
     console.log(`📤 Обновление CSV через Vercel Blob + GitHub Actions (найдено ${foundCount} номеров)...`);
     showNotification(`⏳ Подготовка CSV для обновления...`, 'info');
     
@@ -6713,84 +6713,77 @@ async function syncWithNSPD() {
     }
     console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     
-   console.log('📤 Загрузка в Vercel Blob...');
-try {
-    // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ (ЭТОТ ЗАПРОС МАЛЕНЬКИЙ)
-    console.log('📤 Получение URL для загрузки...');
-    const urlResponse = await fetch('/api/get-upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: 'deals_clean.csv', fileType: 'text/csv' })
-    });
-    
-    if (!urlResponse.ok) {
-        const errorData = await urlResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка получения URL: ${urlResponse.status} - ${errorData.error || ''}`);
+    // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB
+    console.log('📤 Загрузка в Vercel Blob...');
+    try {
+        // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ
+        console.log('📤 Получение URL для загрузки...');
+        const urlResponse = await fetch('/api/get-upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: 'deals_clean.csv', fileType: 'text/csv' })
+        });
+        
+        if (!urlResponse.ok) {
+            const errorData = await urlResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка получения URL: ${urlResponse.status} - ${errorData.error || ''}`);
+        }
+        
+        const urlData = await urlResponse.json();
+        console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
+        
+        // ✅ 2.2. ЗАГРУЖАЕМ НАПРЯМУЮ В BLOB
+        console.log('📤 Загрузка CSV напрямую в Blob...');
+        const csvBlob = new Blob([csv], { type: 'text/csv' });
+        
+        const uploadResponse = await fetch(urlData.uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/csv'
+            },
+            body: csvBlob
+        });
+        
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+        }
+        
+        const finalBlobUrl = uploadResponse.url || urlData.uploadUrl;
+        console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
+        showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
+        
+        // ✅ 3. ЗАПРАШИВАЕМ GITHUB TOKEN
+        const token = prompt('Введите GitHub Token для обновления CSV:');
+        if (!token || !token.trim()) {
+            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+            return;
+        }
+        
+        // ✅ 4. ТРИГГЕРИМ GITHUB ACTION
+        console.log('📤 Запуск GitHub Action...');
+        const triggerResponse = await fetch('/api/trigger-github-action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                blobUrl: finalBlobUrl, 
+                token: token.trim(),
+                fileName: 'deals_clean.csv'
+            })
+        });
+        
+        if (!triggerResponse.ok) {
+            const errorData = await triggerResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка запуска Action: ${triggerResponse.status} - ${errorData.error || ''}`);
+        }
+        
+        console.log(`✅ GitHub Action запущен!`);
+        showNotification(`✅ GitHub Action запущен! CSV обновится через 1-2 минуты`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления CSV:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
-    
-    const urlData = await urlResponse.json();
-    console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
-    
-    // ✅ 2.2. ЗАГРУЖАЕМ НАПРЯМУЮ В BLOB ИЗ БРАУЗЕРА (ОБХОДИТ ЛИМИТ 4.5 МБ!)
-console.log('📤 Загрузка CSV напрямую в Blob...');
-
-// Создаём Blob из CSV строки
-const csvBlob = new Blob([csv], { type: 'text/csv' });
-
-const uploadResponse = await fetch(urlData.uploadUrl, {
-    method: 'POST',  // ← PUT заменён на POST!
-    headers: {
-        'Content-Type': 'text/csv',
-        'x-amz-acl': 'public-read'  // ← Добавляем для публичного доступа
-    },
-    body: csvBlob  // ← передаём Blob, а не строку
-});
-
-if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
-}
-    
-    if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
-    }
-    
-    const finalBlobUrl = uploadResponse.url || urlData.uploadUrl;
-    console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
-    showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
-    
-    // ✅ 3. ЗАПРАШИВАЕМ GITHUB TOKEN
-    const token = prompt('Введите GitHub Token для обновления CSV:');
-    if (!token || !token.trim()) {
-        showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
-        return;
-    }
-    
-    // ✅ 4. ТРИГГЕРИМ GITHUB ACTION
-    console.log('📤 Запуск GitHub Action...');
-    const triggerResponse = await fetch('/api/trigger-github-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            blobUrl: finalBlobUrl, 
-            token: token.trim(),
-            fileName: 'deals_clean.csv'
-        })
-    });
-    
-    if (!triggerResponse.ok) {
-        const errorData = await triggerResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка запуска Action: ${triggerResponse.status} - ${errorData.error || ''}`);
-    }
-    
-    console.log(`✅ GitHub Action запущен!`);
-    showNotification(`✅ GitHub Action запущен! CSV обновится через 1-2 минуты`, 'success');
-    
-} catch (error) {
-    console.error('❌ Ошибка обновления CSV:', error);
-    showNotification(`❌ Ошибка: ${error.message}`, 'error');
-}
     
 } else {
     console.log('ℹ️ Нет новых номеров для обновления CSV');
