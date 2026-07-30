@@ -6687,25 +6687,87 @@ async function syncWithNSPD() {
     // ============================================================
     // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
     // ============================================================
-    if (foundCount > 0) {
-        console.log(`📤 Обновление CSV через GitHub Releases (найдено ${foundCount} номеров)...`);
-        showNotification(`⏳ Обновление CSV (${foundCount} номеров)...`, 'info');
-        
-        const token = prompt('Введите GitHub Token для обновления CSV через Releases:');
-        if (token && token.trim()) {
-            const result = await updateGitHubCSVWithNSPD(token.trim());
-            if (result.success) {
-                showNotification(`✅ CSV обновлен! Новая версия: ${result.downloadUrl}`, 'success');
-            } else {
-                showNotification(`❌ Ошибка: ${result.error}`, 'error');
+  if (foundCount > 0) {
+    console.log(`📤 Обновление CSV через Vercel Blob + GitHub Actions (найдено ${foundCount} номеров)...`);
+    showNotification(`⏳ Подготовка CSV для обновления...`, 'info');
+    
+    // ✅ 1. ФОРМИРУЕМ CSV
+    console.log('📊 Формирование CSV...');
+    const headers = [
+        'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
+        'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
+        'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
+        'floor', 'location', 'street', 'cad_nspd'
+    ];
+    
+    let csv = headers.join(',') + '\n';
+    for (const deal of allDealsFlat) {
+        const row = headers.map(h => {
+            let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+                val = '"' + val.replace(/"/g, '""') + '"';
             }
-        } else {
-            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
-        }
-    } else {
-        console.log('ℹ️ Нет новых номеров для обновления CSV');
-        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+            return val;
+        });
+        csv += row.join(',') + '\n';
     }
+    console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
+    
+    // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB (ОБХОДИТ ЛИМИТ 4.5 МБ)
+    console.log('📤 Загрузка в Vercel Blob...');
+    try {
+        const blobResponse = await fetch('/api/upload-to-blob', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: 'deals_clean.csv', content: csv })
+        });
+        
+        if (!blobResponse.ok) {
+            const errorData = await blobResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка загрузки в Blob: ${blobResponse.status} - ${errorData.error || ''}`);
+        }
+        
+        const blobData = await blobResponse.json();
+        console.log(`✅ CSV загружен в Blob: ${blobData.url}`);
+        showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
+        
+        // ✅ 3. ЗАПРАШИВАЕМ GITHUB TOKEN
+        const token = prompt('Введите GitHub Token для обновления CSV:');
+        if (!token || !token.trim()) {
+            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+            return;
+        }
+        
+        // ✅ 4. ТРИГГЕРИМ GITHUB ACTION
+        console.log('📤 Запуск GitHub Action...');
+        const triggerResponse = await fetch('/api/trigger-github-action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                blobUrl: blobData.url, 
+                token: token.trim(),
+                fileName: 'deals_clean.csv'
+            })
+        });
+        
+        if (!triggerResponse.ok) {
+            const errorData = await triggerResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка запуска Action: ${triggerResponse.status} - ${errorData.error || ''}`);
+        }
+        
+        const triggerData = await triggerResponse.json();
+        console.log(`✅ GitHub Action запущен!`);
+        showNotification(`✅ GitHub Action запущен! CSV обновится через 1-2 минуты`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления CSV:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+    }
+    
+} else {
+    console.log('ℹ️ Нет новых номеров для обновления CSV');
+    showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+}
     
     // Восстанавливаем кнопку
     if (btn) {
