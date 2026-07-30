@@ -20,11 +20,39 @@
     {
       "src": "api/index.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/upload-to-blob.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/trigger-github-action.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api/upload-to-blob",
+      "dest": "/api/upload-to-blob.js"
+    },
+    {
+      "src": "/api/trigger-github-action",
+      "dest": "/api/trigger-github-action.js"
+    },
+    {
+      "src": "/api/release/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/api/asset/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/api/upload/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/api/check-token",
       "dest": "/api/index.js"
     },
     {
