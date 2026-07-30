@@ -2,7 +2,6 @@
 import { put } from '@vercel/blob';
 
 export default async function handler(req, res) {
-    // ✅ Разрешаем CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -22,7 +21,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName and content required' });
         }
 
-        // ✅ Загружаем в Vercel Blob (ОБХОДИТ ЛИМИТ 4.5 МБ)
+
         const blob = await put(fileName, content, {
             access: 'public',
             contentType: 'text/csv',
