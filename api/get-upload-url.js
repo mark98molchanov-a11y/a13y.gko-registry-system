@@ -15,7 +15,6 @@ export default async function handler(req, res) {
     }
 
     try {
-        // ✅ ПРИНИМАЕМ access (НЕ content!)
         const { fileName, fileType, access } = req.body;
 
         if (!fileName) {
@@ -25,9 +24,9 @@ export default async function handler(req, res) {
         const TOKEN = 'vercel_blob_rw_vY4BahfMyj9BWxPQ_gbUEC6RbCTBBIyADw4zf1r7IdZ9iKn';
         const STORE_ID = 'store_vY4BahfMyj9BWxPQ';
 
-        // ✅ СОЗДАЁМ ПУСТОЙ ФАЙЛ, ЧТОБЫ ПОЛУЧИТЬ URL ДЛЯ ЗАГРУЗКИ
+        // ✅ СОЗДАЁМ ПУСТОЙ ФАЙЛ ДЛЯ ПОЛУЧЕНИЯ URL
         const blob = await put(fileName, new ArrayBuffer(0), {
-            access: access || 'public',  // ← ИСПОЛЬЗУЕМ access ИЗ ЗАПРОСА
+            access: access || 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
             token: TOKEN,
