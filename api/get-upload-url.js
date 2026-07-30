@@ -21,13 +21,19 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ЯВНО ПЕРЕДАЁМ ТОКЕН И STORE ID
+        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: БЕРЁМ ИЗ process.env
+        const token = process.env.BLOB_READ_WRITE_TOKEN;
+        const storeId = process.env.BLOB_READ_WRITE_TOKEN_STORE_ID;
+
+        console.log('🔑 Токен:', token ? 'найден' : 'НЕ НАЙДЕН');
+        console.log('🏷️ Store ID:', storeId ? 'найден' : 'НЕ НАЙДЕН');
+
         const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
-            token: 'vercel_blob_rw_GHUuQNpnP4KGCAiN_iNWeKLjJ1ttORWitFf1K8wgXsFuU9',
-            storeId: 'store_GHUuQNapnP4KGCaN'
+            token: token,
+            storeId: storeId,
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
