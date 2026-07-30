@@ -6408,26 +6408,28 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
 async function loadDealsFromRelease() {
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
-    const releaseTag = 'v1.0.0';
+    // Используем основную ветку 'main', так как файл там точно есть
+    const branch = 'main';
     const fileName = 'deals_clean.csv';
     
-    const url = `https://github.com/${owner}/${repo}/releases/download/${releaseTag}/${fileName}`;
+    // ✅ ИСПРАВЛЕННЫЙ URL, который вы проверили
+    const url = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${branch}/data/${fileName}`;
     
     try {
-        console.log('📥 Загрузка CSV из релиза...');
+        console.log('📥 Загрузка CSV из репозитория (raw)...');
         const response = await fetch(url);
         
         if (!response.ok) {
-            console.warn(`⚠️ Файл не найден в релизе (${response.status}), загружаем из репозитория`);
+            console.warn(`⚠️ Файл не найден (${response.status})`);
             return null;
         }
         
         const csvText = await response.text();
-        console.log(`✅ CSV загружен из релиза: ${(csvText.length / 1024 / 1024).toFixed(2)} МБ`);
+        console.log(`✅ CSV загружен, размер: ${(csvText.length / 1024 / 1024).toFixed(2)} МБ`);
         return csvText;
         
     } catch (error) {
-        console.warn('⚠️ Ошибка загрузки из релиза:', error);
+        console.warn('⚠️ Ошибка загрузки CSV:', error);
         return null;
     }
 }
