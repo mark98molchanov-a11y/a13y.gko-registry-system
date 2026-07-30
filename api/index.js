@@ -1,109 +1,103 @@
-// api/index.js - CORS Proxy сервер для GitHub Releases (Vercel Serverless)
+// api/index.js - CORS Proxy для GitHub API (Vercel Serverless)
 
 export default async function handler(req, res) {
-    // ✅ РАЗРЕШАЕМ CORS ДЛЯ ВСЕХ
+    // ✅ РАЗРЕШАЕМ CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     
-    // ✅ ОТВЕТ НА PREFLIGHT (OPTIONS)
+    // ✅ ОТВЕТ НА PREFLIGHT
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
     
-    const { method } = req;
     const token = req.headers.authorization?.replace('Bearer ', '') || 
                   req.headers.authorization?.replace('token ', '');
     
-    // ============================================================
-    // 1. ПРОВЕРКА ТОКЕНА
-    // ============================================================
-    if (method === 'GET' && req.url === '/api/check-token') {
-        if (!token) {
-            return res.status(401).json({ valid: false, error: 'Token required' });
-        }
-        
-        try {
-            const response = await fetch('https://api.github.com/user', {
-                headers: { 'Authorization': `token ${token}` }
-            });
-            
-            if (response.ok) {
-                const user = await response.json();
-                return res.json({ valid: true, user: user.login });
-            } else {
-                return res.json({ valid: false, error: 'Invalid token' });
-            }
-        } catch (error) {
-            return res.json({ valid: false, error: error.message });
-        }
-    }
+    console.log(`📥 ${req.method} ${req.url}`);
     
-    // ============================================================
-    // 2. ПОЛУЧЕНИЕ ИНФОРМАЦИИ О РЕЛИЗЕ
-    // ============================================================
-    if (method === 'GET' && req.url?.startsWith('/api/release/')) {
-        const parts = req.url.replace('/api/release/', '').split('/');
-        const [owner, repo, tag] = parts;
-        
-        try {
+    try {
+        // ============================================================
+        // 1. ПОЛУЧЕНИЕ РЕЛИЗА: /api/release/:owner/:repo/:tag
+        // ============================================================
+        if (req.method === 'GET' && req.url?.startsWith('/api/release/')) {
+            const parts = req.url.replace('/api/release/', '').split('/');
+            const [owner, repo, tag] = parts;
+            
+            console.log(`📥 Получение релиза: ${owner}/${repo}/${tag}`);
+            
             const url = `https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`;
             const response = await fetch(url, {
-                headers: token ? { 'Authorization': `token ${token}` } : {}
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
             
+            if (!response.ok) {
+                console.error(`❌ GitHub API ошибка: ${response.status}`);
+                return res.status(response.status).json({ 
+                    error: `GitHub API error: ${response.status}` 
+                });
+            }
+            
             const data = await response.json();
-            return res.json(data);
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-    
-    // ============================================================
-    // 3. УДАЛЕНИЕ ASSET
-    // ============================================================
-    if (method === 'DELETE' && req.url?.startsWith('/api/asset/')) {
-        if (!token) {
-            return res.status(401).json({ error: 'Token required' });
+            console.log(`✅ Релиз найден: ${data.tag_name}, ID: ${data.id}, assets: ${data.assets?.length || 0}`);
+            
+            // ✅ ВОЗВРАЩАЕМ ПОЛНЫЙ ОБЪЕКТ ОТ GITHUB
+            return res.status(200).json(data);
         }
         
-        const parts = req.url.replace('/api/asset/', '').split('/');
-        const [owner, repo, assetId] = parts;
-        
-        try {
+        // ============================================================
+        // 2. УДАЛЕНИЕ ASSET: /api/asset/:owner/:repo/:assetId
+        // ============================================================
+        if (req.method === 'DELETE' && req.url?.startsWith('/api/asset/')) {
+            if (!token) {
+                return res.status(401).json({ error: 'Token required' });
+            }
+            
+            const parts = req.url.replace('/api/asset/', '').split('/');
+            const [owner, repo, assetId] = parts;
+            
+            console.log(`🗑️ Удаление asset: ${assetId}`);
+            
             const url = `https://api.github.com/repos/${owner}/${repo}/releases/assets/${assetId}`;
             const response = await fetch(url, {
                 method: 'DELETE',
-                headers: { 'Authorization': `token ${token}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            return res.status(response.status).json({ success: response.ok });
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-    
-    // ============================================================
-    // 4. ЗАГРУЗКА ASSET (ГЛАВНАЯ ФУНКЦИЯ)
-    // ============================================================
-    if (method === 'POST' && req.url?.startsWith('/api/upload/')) {
-        if (!token) {
-            return res.status(401).json({ error: 'Token required' });
+            if (!response.ok && response.status !== 204) {
+                console.error(`❌ Ошибка удаления: ${response.status}`);
+                return res.status(response.status).json({ error: `Delete failed: ${response.status}` });
+            }
+            
+            return res.status(200).json({ success: true });
         }
         
-        const parts = req.url.replace('/api/upload/', '').split('/');
-        const [owner, repo, releaseId] = parts;
-        
-        const fileName = req.query?.name || 'deals_clean.csv';
-        const content = req.body;
-        
-        try {
+        // ============================================================
+        // 3. ЗАГРУЗКА ASSET: /api/upload/:owner/:repo/:releaseId
+        // ============================================================
+        if (req.method === 'POST' && req.url?.startsWith('/api/upload/')) {
+            if (!token) {
+                return res.status(401).json({ error: 'Token required' });
+            }
+            
+            const parts = req.url.replace('/api/upload/', '').split('/');
+            const [owner, repo, releaseId] = parts;
+            
+            const fileName = req.query?.name || 'deals_clean.csv';
+            const content = req.body;
+            
+            console.log(`📤 Загрузка файла: ${fileName}, размер: ${content?.length || 0} байт`);
+            
+            if (!content || content.length === 0) {
+                return res.status(400).json({ error: 'Empty content' });
+            }
+            
             const url = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
             
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/octet-stream',
                     'Content-Length': Buffer.byteLength(content)
                 },
@@ -112,23 +106,46 @@ export default async function handler(req, res) {
             
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`❌ Ошибка загрузки: ${response.status} - ${errorText}`);
                 return res.status(response.status).json({ 
-                    error: `GitHub API error: ${response.status}`,
+                    error: `Upload failed: ${response.status}`,
                     details: errorText
                 });
             }
             
             const data = await response.json();
-            return res.json(data);
+            console.log(`✅ Файл загружен: ${data.browser_download_url}`);
             
-        } catch (error) {
-            console.error('Upload error:', error);
-            return res.status(500).json({ error: error.message });
+            return res.status(200).json(data);
         }
+        
+        // ============================================================
+        // 4. ПРОВЕРКА ТОКЕНА: /api/check-token
+        // ============================================================
+        if (req.method === 'GET' && req.url?.startsWith('/api/check-token')) {
+            if (!token) {
+                return res.status(401).json({ valid: false, error: 'Token required' });
+            }
+            
+            const response = await fetch('https://api.github.com/user', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const user = await response.json();
+                return res.json({ valid: true, user: user.login });
+            } else {
+                return res.json({ valid: false, error: 'Invalid token' });
+            }
+        }
+        
+        // ============================================================
+        // 5. НЕИЗВЕСТНЫЙ ЭНДПОИНТ
+        // ============================================================
+        return res.status(404).json({ error: 'Endpoint not found' });
+        
+    } catch (error) {
+        console.error('❌ Ошибка API:', error);
+        return res.status(500).json({ error: error.message });
     }
-    
-    // ============================================================
-    // 5. НЕИЗВЕСТНЫЙ ЭНДПОИНТ
-    // ============================================================
-    return res.status(404).json({ error: 'Endpoint not found' });
 }
