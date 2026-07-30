@@ -21,12 +21,13 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: передаём токен явно
+        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: передаём ТОКЕН и STORE_ID
         const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
-            token: process.env.BLOB_READ_WRITE_TOKEN  // ← ДОБАВЬТЕ ЭТУ СТРОКУ!
+            token: process.env.BLOB_READ_WRITE_TOKEN,
+            storeId: process.env.BLOB_READ_WRITE_TOKEN_STORE_ID   // ← ДОБАВЬТЕ ЭТУ СТРОКУ!
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
