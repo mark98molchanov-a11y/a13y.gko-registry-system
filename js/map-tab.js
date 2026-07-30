@@ -6573,10 +6573,10 @@ async function updateGitHubCSVWithNSPD(token) {
     const proxyUrl = 'https://a13y-gko-registry-system.vercel.app';
     
     try {
-        // ✅ 1. ПОЛУЧАЕМ ID РЕЛИЗА (через прокси)
+        // ✅ 1. ПОЛУЧАЕМ ID РЕЛИЗА
         console.log('📥 Получение информации о релизе...');
-        const releaseResponse = await fetch(`${proxyUrl}/api/github?endpoint=releases/tags/${releaseTag}`, {
-            headers: { 'Authorization': `token ${token}` }
+        const releaseResponse = await fetch(`${proxyUrl}/api/release/${owner}/${repo}/${releaseTag}`, {
+            headers: token ? { 'Authorization': `token ${token}` } : {}
         });
         
         if (!releaseResponse.ok) {
@@ -6606,10 +6606,10 @@ async function updateGitHubCSVWithNSPD(token) {
         const contentLength = newCSV.length;
         console.log(`📏 Размер CSV: ${(contentLength / 1024 / 1024).toFixed(2)} МБ`);
         
-        // ✅ 4. УДАЛЯЕМ СТАРЫЙ ASSET (через прокси)
-        if (assetId && assetUrl) {
+        // ✅ 4. УДАЛЯЕМ СТАРЫЙ ASSET (ЕСЛИ ЕСТЬ)
+        if (assetId) {
             console.log('🗑️ Удаление старого asset...');
-            const deleteResponse = await fetch(`${proxyUrl}/api/github?endpoint=releases/assets/${assetId}`, {
+            const deleteResponse = await fetch(`${proxyUrl}/api/asset/${owner}/${repo}/${assetId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `token ${token}` }
             });
@@ -6621,21 +6621,17 @@ async function updateGitHubCSVWithNSPD(token) {
             }
         }
         
-        // ✅ 5. ЗАГРУЖАЕМ НОВЫЙ ASSET (через прокси)
+        // ✅ 5. ЗАГРУЖАЕМ НОВЫЙ ASSET
         console.log('📤 Загрузка нового CSV в релиз...');
-        const uploadResponse = await fetch(`${proxyUrl}/api/github/upload`, {
+        const uploadUrl = `${proxyUrl}/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`;
+        
+        const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `token ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/octet-stream'
             },
-            body: JSON.stringify({
-                owner: owner,
-                repo: repo,
-                releaseId: releaseId,
-                fileName: fileName,
-                content: newCSV
-            })
+            body: newCSV
         });
         
         if (!uploadResponse.ok) {
@@ -6643,14 +6639,28 @@ async function updateGitHubCSVWithNSPD(token) {
             throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
         }
         
-        const result = await uploadResponse.json();
+        const uploadedAsset = await uploadResponse.json();
         console.log(`✅ CSV обновлен!`);
-        console.log(`🔗 ${result.browser_download_url}`);
+        console.log(`🔗 ${uploadedAsset.browser_download_url}`);
+        
+        // ✅ 6. ОБНОВЛЯЕМ localStorage
+        try {
+            const nspdData = {};
+            for (const deal of allDealsFlat) {
+                if (deal.cad_nspd) {
+                    nspdData[deal.cad_number] = deal.cad_nspd;
+                }
+            }
+            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
+        } catch(e) {
+            console.error('❌ Ошибка сохранения в localStorage:', e);
+        }
         
         return { 
             success: true, 
-            updated: result.updated || 0,
-            downloadUrl: result.browser_download_url
+            updated: Object.keys(nspdData).length,
+            downloadUrl: uploadedAsset.browser_download_url
         };
         
     } catch (error) {
