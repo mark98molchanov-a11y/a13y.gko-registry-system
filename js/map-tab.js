@@ -4929,161 +4929,6 @@ function updateActiveFiltersDisplay() {
         container.style.color = '#1e293b';
     }
 }
-
-function renderDealsTable() {
-    const container = document.getElementById('deals-table-container');
-    if (!container) return;
-    
-    const selectedQuarter = window.selectedQuarterCadNumber || null;
-    
-    let filteredDeals = allDealsFlat.filter(deal => {
-        const isWrapperSelected = selectedQuarter ? (
-            selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
-        ) : false;
-        
-        if (selectedQuarter) {
-            if (isWrapperSelected) {
-                if (deal.cad_number !== selectedQuarter) return false;
-            } else {
-                if (deal.cad_number !== selectedQuarter) return false;
-            }
-        } else if (currentDistrictFilter) {
-            const prefix = String(currentDistrictFilter).substring(0, 5);
-            if (!deal.cad_number.startsWith(prefix)) return false;
-        }
-        
-        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
-        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
-        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
-        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-        return true;
-    });
-    
-    // ✅ СОРТИРУЕМ ПО РАЗНИЦЕ (кадастр - цена) от самой низкой к самой высокой (по умолчанию)
-    filteredDeals.sort((a, b) => {
-        const cadCostA = a.cad_cost || 0;
-        const priceA = a.deal_price_rub || 0;
-        const diffA = cadCostA > 0 ? cadCostA - priceA : null;
-        
-        const cadCostB = b.cad_cost || 0;
-        const priceB = b.deal_price_rub || 0;
-        const diffB = cadCostB > 0 ? cadCostB - priceB : null;
-        
-        if (diffA === null && diffB === null) return 0;
-        if (diffA === null) return 1;
-        if (diffB === null) return -1;
-        return diffA - diffB;
-    });
-    
-    // ✅ ИСПРАВЛЕНО: увеличен шрифт до 11px, колонки адаптивные
-    let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
-            <thead>
-                <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_number')">Кад. квартал ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('area')">Площадь ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('purpose_text')">Назначение ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('cad_cost')">Кад. стоимость ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('upks')">УПКС ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('city')">Город ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_kind_text')">Тип сделки ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('obj_kind_text')">Тип объекта ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('vri')">ВРИ ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('quarter')">Квартал ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('street')">Улица ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_price_rub')">Цена сделки ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('uprs_rub')">УПРС ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('diff_abs')">Разница (абс.) ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('diff_percent')">Разница (%) ↕</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    if (filteredDeals.length === 0) {
-        html += `
-                <tr>
-                    <td colspan="18" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
-                        Нет данных для отображения
-                    </td>
-                </tr>
-        `;
-    } else {
-        const displayDeals = filteredDeals.slice(0, 100);
-        
-        displayDeals.forEach((deal, index) => {
-            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-            
-            // ✅ ВЫЧИСЛЯЕМ РАЗНИЦУ (кадастр - цена)
-            const cadCost = deal.cad_cost || 0;
-            const price = deal.deal_price_rub || 0;
-            const hasCadCost = cadCost > 0;
-            
-            let diffAbs = null;
-            let diffPercent = null;
-            let diffColor = '#64748b';
-            let diffPercentColor = '#64748b';
-            
-            if (hasCadCost) {
-                diffAbs = cadCost - price;
-                diffPercent = (diffAbs / cadCost) * 100;
-                
-                if (diffAbs > 0) {
-                    diffColor = '#22c55e';
-                    diffPercentColor = '#22c55e';
-                } else if (diffAbs < 0) {
-                    diffColor = '#ef4444';
-                    diffPercentColor = '#ef4444';
-                }
-            }
-            
-            // ✅ ФОРМАТИРОВАНИЕ
-            const diffAbsFormatted = (hasCadCost && diffAbs !== 0) ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
-            const diffPercentFormatted = (hasCadCost && diffPercent !== null && diffPercent !== 0) 
-                ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%' 
-                : '—';
-            
-            html += `
-                <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
-                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
-                   <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.street || 'nan'}">${deal.street || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: ${diffPercentColor}; font-weight: 600; font-size: 10px;">${diffPercentFormatted}</td>
-                </tr>
-            `;
-        });
-    }
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = html;
-}
 let dealsSortField = 'diff_abs';
 let dealsSortAsc = true;
 
@@ -6560,118 +6405,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         return null;
     }
 }
-
-async function updateGitHubCSVWithNSPD(token) {
-    console.log('📤 Обновление CSV через GitHub Releases (через прокси)...');
-    
-    const owner = 'mark98molchanov-a11y';
-    const repo = 'a13y.gko-registry-system';
-    const releaseTag = 'v1.0.0';
-    const fileName = 'deals_clean.csv';
-    
-    // ✅ ВАШ VERCEL ПРОКСИ
-    const proxyUrl = 'https://a13y-gko-registry-system.vercel.app';
-    
-    try {
-        // ✅ 1. ПОЛУЧАЕМ ID РЕЛИЗА
-        console.log('📥 Получение информации о релизе...');
-        const releaseResponse = await fetch(`${proxyUrl}/api/release/${owner}/${repo}/${releaseTag}`, {
-            headers: token ? { 'Authorization': `token ${token}` } : {}
-        });
-        
-        if (!releaseResponse.ok) {
-            throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
-        }
-        
-        const releaseData = await releaseResponse.json();
-        const releaseId = releaseData.id;
-        console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
-        
-        // ✅ 2. ИЩЕМ СУЩЕСТВУЮЩИЙ ASSET
-        let assetId = null;
-        let assetUrl = null;
-        
-        for (const asset of releaseData.assets) {
-            if (asset.name === fileName) {
-                assetId = asset.id;
-                assetUrl = asset.url;
-                console.log(`✅ Найден существующий asset: ${fileName}, ID: ${assetId}`);
-                break;
-            }
-        }
-        
-        // ✅ 3. СОЗДАЁМ НОВЫЙ CSV
-        console.log('📊 Создание нового CSV...');
-        const newCSV = await createCSVFromData();
-        const contentLength = newCSV.length;
-        console.log(`📏 Размер CSV: ${(contentLength / 1024 / 1024).toFixed(2)} МБ`);
-        
-        // ✅ 4. УДАЛЯЕМ СТАРЫЙ ASSET (ЕСЛИ ЕСТЬ)
-        if (assetId) {
-            console.log('🗑️ Удаление старого asset...');
-            const deleteResponse = await fetch(`${proxyUrl}/api/asset/${owner}/${repo}/${assetId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `token ${token}` }
-            });
-            
-            if (!deleteResponse.ok) {
-                console.warn(`⚠️ Не удалось удалить старый asset: ${deleteResponse.status}`);
-            } else {
-                console.log('✅ Старый asset удален');
-            }
-        }
-        
-        // ✅ 5. ЗАГРУЖАЕМ НОВЫЙ ASSET
-        console.log('📤 Загрузка нового CSV в релиз...');
-        const uploadUrl = `${proxyUrl}/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`;
-        
-        const uploadResponse = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `token ${token}`,
-                'Content-Type': 'application/octet-stream'
-            },
-            body: newCSV
-        });
-        
-        if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
-        }
-        
-        const uploadedAsset = await uploadResponse.json();
-        console.log(`✅ CSV обновлен!`);
-        console.log(`🔗 ${uploadedAsset.browser_download_url}`);
-        
-        // ✅ 6. ОБНОВЛЯЕМ localStorage
-        try {
-            const nspdData = {};
-            for (const deal of allDealsFlat) {
-                if (deal.cad_nspd) {
-                    nspdData[deal.cad_number] = deal.cad_nspd;
-                }
-            }
-            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
-        } catch(e) {
-            console.error('❌ Ошибка сохранения в localStorage:', e);
-        }
-        
-        return { 
-            success: true, 
-            updated: Object.keys(nspdData).length,
-            downloadUrl: uploadedAsset.browser_download_url
-        };
-        
-    } catch (error) {
-        console.error('❌ Ошибка обновления через Releases:', error);
-        return { success: false, error: error.message };
-    }
-}
 async function loadDealsFromRelease() {
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
-    const releaseTag = 'v1.0.0';  // ← ТОТ ЖЕ ТЕГ
+    const releaseTag = 'v1.0.0';
     const fileName = 'deals_clean.csv';
     
     const url = `https://github.com/${owner}/${repo}/releases/download/${releaseTag}/${fileName}`;
@@ -6716,461 +6453,111 @@ async function createCSVFromData() {
     }
     return rows.join('\n');
 }
-
-function parseCSVLineForUpdate(line) {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
+async function updateGitHubCSVWithNSPD(token) {
+    console.log('📤 Обновление CSV через GitHub Releases (через прокси)...');
     
-    for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        
-        if (char === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-                current += '"';
-                i++;
-            } else {
-                inQuotes = !inQuotes;
-            }
-        } else if (char === ',' && !inQuotes) {
-            result.push(current.trim());
-            current = '';
-        } else {
-            current += char;
-        }
-    }
-    result.push(current.trim());
-    return result;
-}
-window.abortSyncWithNSPD = function() {
-    if (syncAbortController) {
-        console.log('🛑 Прерывание синхронизации...');
-        syncAbortController.abort();
-        syncAbortController = null;
-        
-        const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
-        if (btn) {
-            btn.innerHTML = '🔄 Синхронизация прервана';
-            btn.style.background = '#ef4444';
-            btn.style.color = 'white';
-            setTimeout(() => {
-                btn.innerHTML = 'Синхронизация с НСПД';
-                btn.style.background = '#2563eb';
-                btn.style.color = 'white';
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                btn.style.cursor = 'pointer';
-            }, 2000);
-        }
-        
-        showNotification('⛔ Синхронизация прервана', 'warning');
-        isSyncRunning = false;
-    }
-};
-
-window.syncWithNSPD = async function() {
-    // ✅ ЕСЛИ СИНХРОНИЗАЦИЯ УЖЕ ЗАПУЩЕНА - НЕ ЗАПУСКАЕМ НОВУЮ
-    if (isSyncRunning) {
-        showNotification('⚠️ Синхронизация уже выполняется', 'warning');
-        return;
-    }
+    const owner = 'mark98molchanov-a11y';
+    const repo = 'a13y.gko-registry-system';
+    const releaseTag = 'v1.0.0';
+    const fileName = 'deals_clean.csv';
     
-    console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД');
-    isSyncRunning = true;
+    const proxyUrl = 'https://a13y-gko-registry-system.vercel.app';
     
-    // Проверяем, есть ли данные
-    if (typeof allDealsFlat === 'undefined' || allDealsFlat.length === 0) {
-        showNotification('⚠️ Нет данных для синхронизации', 'warning');
-        isSyncRunning = false;
-        return;
-    }
-    
-    // Показываем индикатор загрузки
-    const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
-    const originalHTML = btn?.innerHTML || 'Синхронизация с НСПД';
-    
-    // ✅ СОЗДАЕМ КНОПКУ ПРЕРЫВАНИЯ
-    const syncContainer = btn?.parentElement;
-    let abortBtn = document.getElementById('abort-sync-btn');
-    
-    if (btn) {
-        btn.innerHTML = '⏳ Синхронизация... 0%';
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.style.cursor = 'wait';
-        btn.style.background = '#2563eb';
-        
-        // ✅ ДОБАВЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
-        if (!abortBtn && syncContainer) {
-            abortBtn = document.createElement('button');
-            abortBtn.id = 'abort-sync-btn';
-            abortBtn.innerHTML = '⛔ Остановить';
-            abortBtn.style.cssText = `
-                padding: 4px 14px;
-                background: #ef4444;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-family: 'Inter', sans-serif;
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                margin-left: 8px;
-            `;
-            abortBtn.onmouseover = function() { this.style.background = '#dc2626'; };
-            abortBtn.onmouseout = function() { this.style.background = '#ef4444'; };
-            abortBtn.onclick = function() {
-                if (confirm('Остановить синхронизацию? Будет сохранен текущий прогресс.')) {
-                    window.abortSyncWithNSPD();
-                }
-            };
-            syncContainer.appendChild(abortBtn);
-        }
-    }
-    
-    // ✅ СЧИТАЕМ СКОЛЬКО УЖЕ ЕСТЬ ЗАПОЛНЕННЫХ
-    let alreadyFilled = 0;
-    for (const deal of allDealsFlat) {
-        if (deal.cad_nspd) alreadyFilled++;
-    }
-    console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
-    
-    // ✅ СОБИРАЕМ УНИКАЛЬНЫЕ КОМБИНАЦИИ (ТОЛЬКО ДЛЯ ТЕХ, У КОГО НЕТ cad_nspd)
-    const uniqueObjects = [];
-    const processedKeys = new Set();
-    
-    for (const deal of allDealsFlat) {
-        // ✅ ПРОПУСКАЕМ, ЕСЛИ УЖЕ ЕСТЬ КАДАСТРОВЫЙ НОМЕР ИЗ НСПД
-        if (deal.cad_nspd) continue;
-        
-        const quarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-        if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
-        
-        const area = deal.area || 0;
-        if (area <= 0) continue;
-        
-        const objType = deal.obj_kind_text || 'Здание';
-        const location = deal.city || '';
-        
-        const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
-        if (processedKeys.has(key)) continue;
-        processedKeys.add(key);
-        
-        uniqueObjects.push({
-            quarter: quarter,
-            area: area,
-            type: objType,
-            location: location,
-            locationKeywords: [location, deal.street || ''].filter(Boolean)
+    try {
+        console.log('📥 Получение информации о релизе...');
+        const releaseResponse = await fetch(`${proxyUrl}/api/release/${owner}/${repo}/${releaseTag}`, {
+            headers: token ? { 'Authorization': `token ${token}` } : {}
         });
-    }
-    
-    console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
-    console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
-    
-    // ✅ ЕСЛИ НЕТ ОБЪЕКТОВ ДЛЯ ПОИСКА
-    if (uniqueObjects.length === 0) {
-        showNotification('✅ Все объекты уже синхронизированы', 'success');
-        if (btn) {
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.style.background = '#2563eb';
-        }
-        if (abortBtn) abortBtn.remove();
-        isSyncRunning = false;
-        return;
-    }
-    
-    let foundCount = 0;
-    let totalProcessed = 0;
-    let wasAborted = false;
-    
-    // ✅ СОЗДАЕМ AbortController ДЛЯ ПРЕРЫВАНИЯ
-    syncAbortController = new AbortController();
-    
-    // Обрабатываем с задержкой, чтобы не перегружать API
-    for (const obj of uniqueObjects) {
-        // ✅ ПРОВЕРЯЕМ: если syncAbortController === null — значит была команда на остановку
-        if (syncAbortController === null) {
-            console.log('⛔ Синхронизация прервана пользователем (controller = null)');
-            wasAborted = true;
-            break;
+        
+        if (!releaseResponse.ok) {
+            throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
         }
         
-        // ✅ ПРОВЕРЯЕМ signal.aborted
-        if (syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
-            wasAborted = true;
-            break;
+        const releaseData = await releaseResponse.json();
+        const releaseId = releaseData.id;
+        console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
+        
+        let assetId = null;
+        let assetUrl = null;
+        
+        // ✅ ПРОВЕРКА НА assets
+        if (releaseData.assets && Array.isArray(releaseData.assets)) {
+            for (const asset of releaseData.assets) {
+                if (asset.name === fileName) {
+                    assetId = asset.id;
+                    assetUrl = asset.url;
+                    console.log(`✅ Найден существующий asset: ${fileName}, ID: ${assetId}`);
+                    break;
+                }
+            }
+        } else {
+            console.log('ℹ️ Нет assets в релизе или assets не массив');
         }
         
-        totalProcessed++;
-        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+        console.log('📊 Создание нового CSV...');
+        const newCSV = await createCSVFromData();
+        const contentLength = newCSV.length;
+        console.log(`📏 Размер CSV: ${(contentLength / 1024 / 1024).toFixed(2)} МБ`);
         
-        // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null ПЕРЕД ИСПОЛЬЗОВАНИЕМ
-        const controllerSignal = syncAbortController ? syncAbortController.signal : null;
-        
-        const cadNspd = await searchNSPD(
-            obj.quarter,
-            obj.area,
-            obj.type,
-            obj.locationKeywords,
-            1,
-            controllerSignal
-        );
-        
-        // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА (controller мог стать null)
-        if (syncAbortController === null || syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана после запроса');
-            wasAborted = true;
-            break;
+        if (assetId) {
+            console.log('🗑️ Удаление старого asset...');
+            const deleteResponse = await fetch(`${proxyUrl}/api/asset/${owner}/${repo}/${assetId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `token ${token}` }
+            });
+            
+            if (!deleteResponse.ok) {
+                console.warn(`⚠️ Не удалось удалить старый asset: ${deleteResponse.status}`);
+            } else {
+                console.log('✅ Старый asset удален');
+            }
         }
         
-        if (cadNspd) {
-            foundCount++;
+        console.log('📤 Загрузка нового CSV в релиз...');
+        const uploadUrl = `${proxyUrl}/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`;
+        
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `token ${token}`,
+                'Content-Type': 'application/octet-stream'
+            },
+            body: newCSV
+        });
+        
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+        }
+        
+        const uploadedAsset = await uploadResponse.json();
+        console.log(`✅ CSV обновлен!`);
+        console.log(`🔗 ${uploadedAsset.browser_download_url}`);
+        
+        try {
+            const nspdData = {};
             for (const deal of allDealsFlat) {
-                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-                if (dealQuarter === obj.quarter && 
-                    Math.abs(deal.area - obj.area) <= 1 && 
-                    deal.obj_kind_text === obj.type) {
-                    deal.cad_nspd = cadNspd;
+                if (deal.cad_nspd) {
+                    nspdData[deal.cad_number] = deal.cad_nspd;
                 }
             }
+            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
+        } catch(e) {
+            console.error('❌ Ошибка сохранения в localStorage:', e);
         }
         
-        await new Promise(resolve => setTimeout(resolve, 300));
+        return { 
+            success: true, 
+            updated: Object.keys(nspdData).length,
+            downloadUrl: uploadedAsset.browser_download_url
+        };
         
-        if (btn) {
-            const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
-            btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
-        }
+    } catch (error) {
+        console.error('❌ Ошибка обновления через Releases:', error);
+        return { success: false, error: error.message };
     }
-    
-    // ✅ ОЧИЩАЕМ AbortController
-    syncAbortController = null;
-    
-    // ✅ УДАЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
-    if (abortBtn) abortBtn.remove();
-    
-    // ❌ УДАЛЯЕМ СОХРАНЕНИЕ В localStorage
-    // saveDealsDataWithNSPD();
-    
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (ДАННЫЕ УЖЕ В allDealsFlat)
-    if (typeof renderDealsTable === 'function') {
-        renderDealsTable();
-    }
-    
-    // ✅ ПОКАЗЫВАЕМ РЕЗУЛЬТАТ
-    const processedCount = wasAborted ? totalProcessed : uniqueObjects.length;
-    const resultMessage = wasAborted 
-        ? `⛔ Синхронизация прервана! Найдено ${foundCount} из ${processedCount} обработанных объектов`
-        : `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
-    showNotification(resultMessage, wasAborted ? 'warning' : 'success');
-    console.log(resultMessage);
-    
-    // ============================================================
-    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
-    // ============================================================
-       if (foundCount > 0) {
-        console.log(`📤 Обновление CSV через GitHub Releases (найдено ${foundCount} номеров)...`);
-        showNotification(`⏳ Обновление CSV (${foundCount} номеров)...`, 'info');
-        
-        const token = prompt('Введите GitHub Token для обновления CSV через Releases:');
-        if (token && token.trim()) {
-            const result = await updateGitHubCSVWithNSPD(token.trim());
-            if (result.success) {
-                showNotification(`✅ CSV обновлен! Новая версия: ${result.downloadUrl}`, 'success');
-            } else {
-                showNotification(`❌ Ошибка: ${result.error}`, 'error');
-            }
-        } else {
-            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
-        }
-    } else {
-        console.log('ℹ️ Нет новых номеров для обновления CSV');
-        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
-    }
-    
-    // Восстанавливаем кнопку
-    if (btn) {
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.style.background = '#2563eb';
-    }
-    
-    isSyncRunning = false;
-};
-
-
-// ✅ ДОБАВЛЯЕМ СТОЛБЕЦ "Кад. номер НСПД" В ТАБЛИЦУ
-// Сохраняем оригинальную функцию renderDealsTable
-window.renderDealsTable = function() {
-    const container = document.getElementById('deals-table-container');
-    if (!container) return;
-    
-    const selectedQuarter = window.selectedQuarterCadNumber || null;
-    
-    // Фильтруем сделки
-    let filteredDeals = allDealsFlat.filter(deal => {
-        const isWrapperSelected = selectedQuarter ? (
-            selectedQuarter.endsWith('000000') || selectedQuarter.match(/^\d{2}:\d{2}:000000$/)
-        ) : false;
-        
-        if (selectedQuarter) {
-            if (isWrapperSelected) {
-                if (deal.cad_number !== selectedQuarter) return false;
-            } else {
-                if (deal.cad_number !== selectedQuarter) return false;
-            }
-        } else if (currentDistrictFilter) {
-            const prefix = String(currentDistrictFilter).substring(0, 5);
-            if (!deal.cad_number.startsWith(prefix)) return false;
-        }
-        
-        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
-        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
-        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
-        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-        return true;
-    });
-    
-    // Сортируем по разнице (кадастр - цена)
-    filteredDeals.sort((a, b) => {
-        const cadCostA = a.cad_cost || 0;
-        const priceA = a.deal_price_rub || 0;
-        const diffA = cadCostA > 0 ? cadCostA - priceA : null;
-        
-        const cadCostB = b.cad_cost || 0;
-        const priceB = b.deal_price_rub || 0;
-        const diffB = cadCostB > 0 ? cadCostB - priceB : null;
-        
-        if (diffA === null && diffB === null) return 0;
-        if (diffA === null) return 1;
-        if (diffB === null) return -1;
-        return diffA - diffB;
-    });
-    
-    // Отрисовываем таблицу целиком с новым столбцом
-    let html = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
-            <thead>
-                <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_number')">Кад. квартал ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_nspd')">Кад. номер НСПД ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('area')">Площадь ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('purpose_text')">Назначение ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('cad_cost')">Кад. стоимость ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('upks')">УПКС ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('city')">Город ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_kind_text')">Тип сделки ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('obj_kind_text')">Тип объекта ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('vri')">ВРИ ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('quarter')">Квартал ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('street')">Улица ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_price_rub')">Цена сделки ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('uprs_rub')">УПРС ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('diff_abs')">Разница (абс.) ↕</th>
-                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('diff_percent')">Разница (%) ↕</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    if (filteredDeals.length === 0) {
-        html += `
-                <tr>
-                    <td colspan="20" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
-                        Нет данных для отображения
-                    </td>
-                </tr>
-        `;
-    } else {
-        const displayDeals = filteredDeals.slice(0, 100);
-        
-        displayDeals.forEach((deal, index) => {
-            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-            
-            // Вычисляем разницу (кадастр - цена)
-            const cadCost = deal.cad_cost || 0;
-            const price = deal.deal_price_rub || 0;
-            const hasCadCost = cadCost > 0;
-            
-            let diffAbs = null;
-            let diffPercent = null;
-            let diffColor = '#64748b';
-            let diffPercentColor = '#64748b';
-            
-            if (hasCadCost) {
-                diffAbs = cadCost - price;
-                diffPercent = (diffAbs / cadCost) * 100;
-                
-                if (diffAbs > 0) {
-                    diffColor = '#22c55e';
-                    diffPercentColor = '#22c55e';
-                } else if (diffAbs < 0) {
-                    diffColor = '#ef4444';
-                    diffPercentColor = '#ef4444';
-                }
-            }
-            
-            const diffAbsFormatted = (hasCadCost && diffAbs !== 0) ? diffAbs.toLocaleString('ru-RU') + ' ₽' : '—';
-            const diffPercentFormatted = (hasCadCost && diffPercent !== null && diffPercent !== 0) 
-                ? (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%' 
-                : '—';
-            
-            html += `
-                <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
-                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400;">
-    ${deal.cad_nspd || 'nan'}
-</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.upks ? deal.upks.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.city || 'nan'}">${deal.city || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.deal_kind_text || 'nan'}">${deal.deal_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.street || 'nan'}">${deal.street || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
-                    <td style="text-align: center; padding: 6px 6px; color: ${diffPercentColor}; font-weight: 600; font-size: 10px;">${diffPercentFormatted}</td>
-                </tr>
-            `;
-        });
-    }
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = html;
-};
-
+}
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
