@@ -11,10 +11,20 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
     
-    const token = req.headers.authorization?.replace('Bearer ', '') || 
-                  req.headers.authorization?.replace('token ', '');
+    // ✅ БОЛЕЕ НАДЁЖНОЕ ИЗВЛЕЧЕНИЕ ТОКЕНА
+    const authHeader = req.headers.authorization || '';
+    let token = null;
+    
+    if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+    } else if (authHeader.startsWith('token ')) {
+        token = authHeader.slice(6);
+    } else {
+        token = authHeader;
+    }
     
     console.log(`📥 ${req.method} ${req.url}`);
+    console.log('🔑 Token present:', !!token);
     
     try {
         // ============================================================
@@ -28,7 +38,6 @@ export default async function handler(req, res) {
             
             const url = `https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`;
             const response = await fetch(url, {
-                // ✅ ИСПРАВЛЕНО: token вместо Bearer
                 headers: token ? { 'Authorization': `token ${token}` } : {}
             });
             
@@ -40,7 +49,7 @@ export default async function handler(req, res) {
             }
             
             const data = await response.json();
-            console.log(`✅ Релиз найден: ${data.tag_name}, ID: ${data.id}, assets: ${data.assets?.length || 0}`);
+            console.log(`✅ Релиз найден: ${data.tag_name}, ID: ${data.id}`);
             
             return res.status(200).json(data);
         }
@@ -61,7 +70,6 @@ export default async function handler(req, res) {
             const url = `https://api.github.com/repos/${owner}/${repo}/releases/assets/${assetId}`;
             const response = await fetch(url, {
                 method: 'DELETE',
-                // ✅ ИСПРАВЛЕНО: token вместо Bearer
                 headers: { 'Authorization': `token ${token}` }
             });
             
@@ -97,7 +105,6 @@ export default async function handler(req, res) {
             
             const response = await fetch(url, {
                 method: 'POST',
-                // ✅ ИСПРАВЛЕНО: token вместо Bearer
                 headers: {
                     'Authorization': `token ${token}`,
                     'Content-Type': 'application/octet-stream',
@@ -130,7 +137,6 @@ export default async function handler(req, res) {
             }
             
             const response = await fetch('https://api.github.com/user', {
-                // ✅ ИСПРАВЛЕНО: token вместо Bearer
                 headers: { 'Authorization': `token ${token}` }
             });
             
