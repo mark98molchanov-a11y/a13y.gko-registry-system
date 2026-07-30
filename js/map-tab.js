@@ -723,9 +723,17 @@ const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-
 async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
-        const response = await fetch(DEALS_CSV_URL);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const csvText = await response.text();
+        
+        // ✅ СНАЧАЛА ПЫТАЕМСЯ ЗАГРУЗИТЬ ИЗ РЕЛИЗА
+        let csvText = await loadDealsFromRelease();
+        
+        // ✅ ЕСЛИ НЕТ В РЕЛИЗЕ — ГРУЗИМ ИЗ РЕПОЗИТОРИЯ
+        if (!csvText) {
+            console.log('📥 Загрузка из репозитория (fallback)...');
+            const response = await fetch(DEALS_CSV_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            csvText = await response.text();
+        }
         
         // Функция для правильного парсинга CSV с кавычками
         function parseCSVLine(line) {
@@ -6552,264 +6560,140 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         return null;
     }
 }
-/**
- * Обновление CSV файла на GitHub с новым столбцом cad_nspd
- */
+
 async function updateGitHubCSVWithNSPD(token) {
-    console.log('📤 Обновление CSV на GitHub (только изменения)...');
+    console.log('📤 Обновление CSV через GitHub Releases...');
     
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
-    const path = 'data/deals_clean.csv';
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/main/${path}`;
+    const releaseTag = 'v1.0.0';  // ← ВАШ ТЕГ!
+    const fileName = 'deals_clean.csv';
+    
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/releases/tags/${releaseTag}`;
     
     try {
-        // ✅ 1. ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ
-        console.log('📥 Загрузка текущего CSV через raw URL...');
-        const rawResponse = await fetch(rawUrl);
-        
-        if (!rawResponse.ok) {
-            throw new Error(`Ошибка загрузки raw файла: ${rawResponse.status}`);
-        }
-        
-        const currentContent = await rawResponse.text();
-        console.log(`📄 Загружено ${currentContent.length} символов`);
-        console.log(`📄 Первые 100 символов: ${currentContent.substring(0, 100)}`);
-        
-        // ✅ 2. РАЗБИВАЕМ НА СТРОКИ
-        const currentLines = currentContent.split('\n')
-            .filter(line => line.trim() !== '')
-            .map(line => line.trim());
-        
-        console.log(`📄 Найдено строк: ${currentLines.length}`);
-        
-        if (currentLines.length < 2) {
-            console.warn('⚠️ CSV файл содержит меньше 2 строк');
-            console.log('📄 Содержимое файла (первые 500 символов):');
-            console.log(currentContent.substring(0, 500));
-            
-            // Создаём новый CSV из allDealsFlat
-            const newContent = await createCSVFromData();
-            const contentEncoded = btoa(unescape(encodeURIComponent(newContent)));
-            
-            const getResponse = await fetch(apiUrl, {
-                headers: { 'Authorization': `token ${token}` }
-            });
-            let sha = null;
-            if (getResponse.ok) {
-                const fileData = await getResponse.json();
-                sha = fileData.sha;
-                console.log(`📄 SHA для обновления: ${sha}`);
-            }
-            
-            const putResponse = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `Восстановление CSV: ${allDealsFlat.length} сделок`,
-                    content: contentEncoded,
-                    sha: sha || undefined
-                })
-            });
-            
-            if (putResponse.ok) {
-                console.log('✅ CSV восстановлен!');
-                return { success: true, updated: allDealsFlat.length };
-            } else {
-                const error = await putResponse.json();
-                throw new Error(error.message || 'Ошибка восстановления');
-            }
-        }
-        
-        // ✅ 3. ПАРСИМ ЗАГОЛОВКИ
-        function parseCSVLineForUpdate(line) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-            
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                
-                if (char === '"') {
-                    if (inQuotes && line[i + 1] === '"') {
-                        current += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === ',' && !inQuotes) {
-                    result.push(current.trim());
-                    current = '';
-                } else {
-                    current += char;
-                }
-            }
-            result.push(current.trim());
-            return result;
-        }
-        
-        const headers = parseCSVLineForUpdate(currentLines[0]);
-        console.log(`📋 Заголовки: ${headers.length} колонок`);
-        
-        const cadIndex = headers.indexOf('cad_number');
-        if (cadIndex === -1) {
-            throw new Error('Столбец cad_number не найден');
-        }
-        
-        // Проверяем, есть ли уже столбец cad_nspd
-        let nspdIndex = headers.indexOf('cad_nspd');
-        const hasNspdColumn = nspdIndex !== -1;
-        
-        // ✅ 4. СОЗДАЁМ КАРТУ cad_number -> cad_nspd ИЗ allDealsFlat
-        const nspdMap = {};
-        for (const deal of allDealsFlat) {
-            if (deal.cad_nspd && deal.cad_nspd !== 'nan' && deal.cad_nspd !== '') {
-                nspdMap[deal.cad_number] = deal.cad_nspd;
-            }
-        }
-        console.log(`📊 Найдено ${Object.keys(nspdMap).length} номеров НСПД`);
-        
-        // ✅ 5. ОБНОВЛЯЕМ ТОЛЬКО СТРОКИ, ГДЕ ПОЯВИЛСЯ НОВЫЙ НОМЕР
-        // Если столбца cad_nspd нет — добавляем его
-        let updatedLines;
-        let updatedCount = 0;
-        
-        if (!hasNspdColumn) {
-            // Добавляем новый столбец
-            headers.push('cad_nspd');
-            nspdIndex = headers.length - 1;
-            console.log('➕ Добавлен столбец cad_nspd');
-            
-            updatedLines = [headers.join(',')];
-            
-            for (let i = 1; i < currentLines.length; i++) {
-                const values = parseCSVLineForUpdate(currentLines[i]);
-                if (values.length === 0 || values.length < cadIndex + 1) {
-                    updatedLines.push(currentLines[i]);
-                    continue;
-                }
-                
-                const cadNumber = values[cadIndex] || '';
-                const nspdValue = nspdMap[cadNumber] || '';
-                
-                values.push(nspdValue);
-                if (nspdValue) updatedCount++;
-                updatedLines.push(values.join(','));
-            }
-        } else {
-            // Столбец уже есть — обновляем только изменённые строки
-            updatedLines = [headers.join(',')];
-            
-            for (let i = 1; i < currentLines.length; i++) {
-                const values = parseCSVLineForUpdate(currentLines[i]);
-                if (values.length === 0 || values.length < cadIndex + 1) {
-                    updatedLines.push(currentLines[i]);
-                    continue;
-                }
-                
-                const cadNumber = values[cadIndex] || '';
-                const currentNspd = values[nspdIndex] || '';
-                const newNspd = nspdMap[cadNumber] || '';
-                
-                // ✅ ОБНОВЛЯЕМ ТОЛЬКО ЕСЛИ ЗНАЧЕНИЕ ИЗМЕНИЛОСЬ
-                if (newNspd && currentNspd !== newNspd) {
-                    values[nspdIndex] = newNspd;
-                    updatedCount++;
-                }
-                updatedLines.push(values.join(','));
-            }
-        }
-        
-        console.log(`🔄 Обновлено ${updatedCount} строк`);
-        
-        // Если нет изменений — выходим
-        if (updatedCount === 0) {
-            console.log('ℹ️ Нет изменений для обновления');
-            return { success: true, updated: 0, message: 'Нет изменений' };
-        }
-        
-        const newCSV = updatedLines.join('\n');
-        console.log(`📏 Новый CSV: ${newCSV.length} символов, ${updatedLines.length} строк`);
-        
-        // ✅ 6. КОДИРУЕМ В BASE64
-        const contentEncoded = btoa(unescape(encodeURIComponent(newCSV)));
-        
-        // ✅ 7. ПОЛУЧАЕМ SHA ЧЕРЕЗ API
-        const getResponse = await fetch(apiUrl, {
+        // ✅ 1. ПОЛУЧАЕМ ID РЕЛИЗА
+        console.log('📥 Получение информации о релизе...');
+        const releaseResponse = await fetch(apiUrl, {
             headers: { 'Authorization': `token ${token}` }
         });
         
-        if (!getResponse.ok) {
-            throw new Error(`Ошибка получения SHA: ${getResponse.status}`);
+        if (!releaseResponse.ok) {
+            throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
         }
         
-        const fileData = await getResponse.json();
-        console.log(`📄 SHA для обновления: ${fileData.sha}`);
+        const releaseData = await releaseResponse.json();
+        const releaseId = releaseData.id;
+        console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
         
-        // ✅ 8. ОТПРАВЛЯЕМ НА GITHUB
-        console.log('📤 Отправка на GitHub...');
-        const putResponse = await fetch(apiUrl, {
-            method: 'PUT',
+        // ✅ 2. ИЩЕМ СУЩЕСТВУЮЩИЙ ASSET
+        let assetId = null;
+        let assetUrl = null;
+        
+        for (const asset of releaseData.assets) {
+            if (asset.name === fileName) {
+                assetId = asset.id;
+                assetUrl = asset.url;
+                console.log(`✅ Найден существующий asset: ${fileName}, ID: ${assetId}`);
+                break;
+            }
+        }
+        
+        // ✅ 3. СОЗДАЁМ НОВЫЙ CSV ИЗ allDealsFlat
+        console.log('📊 Создание нового CSV...');
+        const newCSV = await createCSVFromData();
+        const contentLength = newCSV.length;
+        console.log(`📏 Размер CSV: ${(contentLength / 1024 / 1024).toFixed(2)} МБ`);
+        
+        // ✅ 4. УДАЛЯЕМ СТАРЫЙ ASSET (ЕСЛИ ЕСТЬ) — ЭТО АВТОМАТИЧЕСКАЯ ПЕРЕЗАПИСЬ!
+        if (assetId && assetUrl) {
+            console.log('🗑️ Удаление старого asset (автоматическая перезапись)...');
+            const deleteResponse = await fetch(assetUrl, {
+                method: 'DELETE',
+                headers: { 'Authorization': `token ${token}` }
+            });
+            
+            if (!deleteResponse.ok) {
+                console.warn(`⚠️ Не удалось удалить старый asset: ${deleteResponse.status}`);
+            } else {
+                console.log('✅ Старый asset удален');
+            }
+        }
+        
+        // ✅ 5. ЗАГРУЖАЕМ НОВЫЙ ASSET
+        console.log('📤 Загрузка нового CSV в релиз...');
+        const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
+        
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
             headers: {
                 'Authorization': `token ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/octet-stream',
+                'Content-Length': contentLength
             },
-            body: JSON.stringify({
-                message: `Обновление cad_nspd: добавлено ${updatedCount} номеров из НСПД`,
-                content: contentEncoded,
-                sha: fileData.sha
-            })
+            body: newCSV
         });
         
-        if (putResponse.ok) {
-            console.log(`✅ CSV обновлен: добавлено ${updatedCount} номеров НСПД`);
-            return { success: true, updated: updatedCount };
-        } else {
-            const error = await putResponse.json();
-            console.error('❌ Ошибка ответа GitHub:', error);
-            
-            // ✅ ЕСЛИ ОШИБКА ИЗ-ЗА РАЗМЕРА — ПЫТАЕМСЯ ОБНОВИТЬ ЧЕРЕЗ PATCH
-            if (error.status === '422' && error.message && error.message.includes('too large')) {
-                console.warn('⚠️ Файл слишком большой для API');
-                console.log('💡 Совет: Используйте GitHub Desktop или CLI для загрузки');
-                console.log(`📊 Сохранено ${updatedCount} номеров локально`);
-                
-                // Сохраняем номера в localStorage как fallback
-                try {
-                    const nspdData = {};
-                    for (const deal of allDealsFlat) {
-                        if (deal.cad_nspd) {
-                            nspdData[deal.cad_number] = deal.cad_nspd;
-                        }
-                    }
-                    localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-                    console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
-                } catch(e) {
-                    console.error('❌ Ошибка сохранения в localStorage:', e);
-                }
-                
-                return { 
-                    success: false, 
-                    error: 'Файл слишком большой для API, номера сохранены локально',
-                    updated: updatedCount,
-                    fallback: 'localStorage'
-                };
-            }
-            
-            throw new Error(error.message || 'Ошибка обновления');
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
         }
         
+        const uploadedAsset = await uploadResponse.json();
+        console.log(`✅ CSV обновлен! Новая версия доступна по ссылке:`);
+        console.log(`🔗 ${uploadedAsset.browser_download_url}`);
+        
+        // ✅ 6. ОБНОВЛЯЕМ localStorage (кэш)
+        try {
+            const nspdData = {};
+            for (const deal of allDealsFlat) {
+                if (deal.cad_nspd) {
+                    nspdData[deal.cad_number] = deal.cad_nspd;
+                }
+            }
+            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
+        } catch(e) {
+            console.error('❌ Ошибка сохранения в localStorage:', e);
+        }
+        
+        return { 
+            success: true, 
+            updated: Object.keys(nspdData).length,
+            downloadUrl: uploadedAsset.browser_download_url
+        };
+        
     } catch (error) {
-        console.error('❌ Ошибка обновления CSV:', error);
+        console.error('❌ Ошибка обновления через Releases:', error);
         return { success: false, error: error.message };
     }
 }
-
-// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ СОЗДАНИЯ CSV ИЗ ДАННЫХ
+async function loadDealsFromRelease() {
+    const owner = 'mark98molchanov-a11y';
+    const repo = 'a13y.gko-registry-system';
+    const releaseTag = 'v1.0.0';  // ← ТОТ ЖЕ ТЕГ
+    const fileName = 'deals_clean.csv';
+    
+    const url = `https://github.com/${owner}/${repo}/releases/download/${releaseTag}/${fileName}`;
+    
+    try {
+        console.log('📥 Загрузка CSV из релиза...');
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            console.warn(`⚠️ Файл не найден в релизе (${response.status}), загружаем из репозитория`);
+            return null;
+        }
+        
+        const csvText = await response.text();
+        console.log(`✅ CSV загружен из релиза: ${(csvText.length / 1024 / 1024).toFixed(2)} МБ`);
+        return csvText;
+        
+    } catch (error) {
+        console.warn('⚠️ Ошибка загрузки из релиза:', error);
+        return null;
+    }
+}
 async function createCSVFromData() {
     const headers = [
         'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
@@ -7093,18 +6977,17 @@ window.syncWithNSPD = async function() {
     // ============================================================
     // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
     // ============================================================
-    if (foundCount > 0) {
-        console.log(`📤 Автоматическое обновление CSV на GitHub (найдено ${foundCount} номеров)...`);
-        showNotification(`⏳ Обновление CSV на GitHub (${foundCount} номеров)...`, 'info');
+       if (foundCount > 0) {
+        console.log(`📤 Обновление CSV через GitHub Releases (найдено ${foundCount} номеров)...`);
+        showNotification(`⏳ Обновление CSV (${foundCount} номеров)...`, 'info');
         
-        // Запрашиваем токен у пользователя
-        const token = prompt('Введите GitHub Token для обновления CSV:');
+        const token = prompt('Введите GitHub Token для обновления CSV через Releases:');
         if (token && token.trim()) {
             const result = await updateGitHubCSVWithNSPD(token.trim());
             if (result.success) {
-                showNotification(`✅ CSV обновлен: добавлено ${result.updated} номеров НСПД`, 'success');
+                showNotification(`✅ CSV обновлен! Новая версия: ${result.downloadUrl}`, 'success');
             } else {
-                showNotification(`❌ Ошибка обновления CSV: ${result.error}`, 'error');
+                showNotification(`❌ Ошибка: ${result.error}`, 'error');
             }
         } else {
             showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
