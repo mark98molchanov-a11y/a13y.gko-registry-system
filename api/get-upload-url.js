@@ -21,8 +21,9 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ Генерируем URL для загрузки (НО НЕ ЗАГРУЖАЕМ САМ ФАЙЛ!)
-        const blob = await put(fileName, {
+        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: используем put() с пустым буфером
+        // Это создаёт "пустой" файл в Blob, но мы получим URL для загрузки
+        const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
