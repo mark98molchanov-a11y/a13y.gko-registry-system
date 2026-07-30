@@ -21,13 +21,16 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ИСПОЛЬЗУЕМ ТОЛЬКО ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ (ОНИ БУДУТ АВТОМАТИЧЕСКИ ПОДСТАВЛЕНЫ)
+        // ✅ ВСТАВЬТЕ storeId ИЗ URL ВАШЕГО ХРАНИЛИЩА
+        const TOKEN = 'vercel_blob_rw_vY4BahfMyj9BWxPQ_gbUEC6RbCTBBIyADw4zf1r7IdZ9iKn';
+        const STORE_ID = 'store_vY4BahfMyj9BWxPQ'; // ← СКОПИРУЙТЕ ИЗ URL!
+
         const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
-            token: process.env.BLOB_READ_WRITE_TOKEN,
-            storeId: process.env.BLOB_READ_WRITE_TOKEN_STORE_ID
+            token: TOKEN,
+            storeId: STORE_ID,
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
