@@ -6716,26 +6716,44 @@ if (foundCount > 0) {
     // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB
 console.log('📤 Загрузка в Vercel Blob...');
 try {
-    // ✅ 2. ЗАГРУЖАЕМ CSV НАПРЯМУЮ В BLOB (ОДНИМ ЗАПРОСОМ!)
-    console.log('📤 Загрузка CSV в Blob...');
-    
-    const blobResponse = await fetch('/api/get-upload-url', {
+    // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ (ЭТОТ ЗАПРОС МАЛЕНЬКИЙ, ОБХОДИТ ЛИМИТ 4.5 МБ)
+    console.log('📤 Получение URL для загрузки...');
+    const urlResponse = await fetch('/api/get-upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             fileName: 'deals_clean.csv', 
             fileType: 'text/csv',
-            content: csv  // ← ПЕРЕДАЁМ САМ CSV!
+            access: 'public'
         })
     });
     
-    if (!blobResponse.ok) {
-        const errorData = await blobResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка загрузки в Blob: ${blobResponse.status} - ${errorData.error || ''}`);
+    if (!urlResponse.ok) {
+        const errorData = await urlResponse.json().catch(() => ({}));
+        throw new Error(`Ошибка получения URL: ${urlResponse.status} - ${errorData.error || ''}`);
     }
     
-    const blobData = await blobResponse.json();
-    const finalBlobUrl = blobData.url;
+    const urlData = await urlResponse.json();
+    console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
+    
+    // ✅ 2.2. ЗАГРУЖАЕМ НАПРЯМУЮ В BLOB ИЗ БРАУЗЕРА (ОБХОДИТ ЛИМИТ 4.5 МБ!)
+    console.log('📤 Загрузка CSV напрямую в Blob...');
+    const csvBlob = new Blob([csv], { type: 'text/csv' });
+    
+    const uploadResponse = await fetch(urlData.uploadUrl, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'text/csv'
+        },
+        body: csvBlob
+    });
+    
+    if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+    }
+    
+    const finalBlobUrl = uploadResponse.url || urlData.uploadUrl;
     console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
     showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
     
