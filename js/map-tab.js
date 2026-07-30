@@ -6718,11 +6718,15 @@ if (foundCount > 0) {
     try {
         // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ
         console.log('📤 Получение URL для загрузки...');
-        const urlResponse = await fetch('/api/get-upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: 'deals_clean.csv', fileType: 'text/csv' })
-        });
+const urlResponse = await fetch('/api/get-upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+        fileName: 'deals_clean.csv', 
+        fileType: 'text/csv',
+        access: 'public'  // ← ДОБАВЛЯЕМ ПАРАМЕТР!
+    })
+});
         
         if (!urlResponse.ok) {
             const errorData = await urlResponse.json().catch(() => ({}));
