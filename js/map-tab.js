@@ -6719,7 +6719,7 @@ async function syncWithNSPD() {
     isSyncRunning = false;
 }
 async function updateGitHubCSVWithNSPD(token) {
-    console.log('📤 Обновление CSV через GitHub API (напрямую)...');
+    console.log('📤 Обновление CSV через прокси-сервер...');
     
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
@@ -6727,20 +6727,20 @@ async function updateGitHubCSVWithNSPD(token) {
     const fileName = 'deals_clean.csv';
     
     try {
-        // ✅ 1. Получаем информацию о релизе НАПРЯМУЮ из GitHub API
+        // ✅ 1. Получаем информацию о релизе ЧЕРЕЗ ПРОКСИ
         const releaseResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/releases/tags/${releaseTag}`,
+            `/api/release/${owner}/${repo}/${releaseTag}`,
             {
                 headers: {
                     'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/json'
                 }
             }
         );
         
         if (!releaseResponse.ok) {
             const errorData = await releaseResponse.json().catch(() => ({}));
-            throw new Error(`Ошибка получения релиза: ${releaseResponse.status} - ${errorData.message || ''}`);
+            throw new Error(`Ошибка получения релиза: ${releaseResponse.status} - ${errorData.error || ''}`);
         }
         
         const releaseData = await releaseResponse.json();
@@ -6765,44 +6765,45 @@ async function updateGitHubCSVWithNSPD(token) {
         const contentLength = newCSV.length;
         console.log(`📏 Размер CSV: ${(contentLength / 1024 / 1024).toFixed(2)} МБ`);
         
-        // ✅ 4. Удаляем старый asset (если есть)
+        // ✅ 4. Удаляем старый asset (если есть) ЧЕРЕЗ ПРОКСИ
         if (assetId) {
             console.log('🗑️ Удаление старого asset...');
             const deleteResponse = await fetch(
-                `https://api.github.com/repos/${owner}/${repo}/releases/assets/${assetId}`,
+                `/api/asset/${owner}/${repo}/${assetId}`,
                 {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `token ${token}`,
-                        'Accept': 'application/vnd.github.v3+json'
+                        'Accept': 'application/json'
                     }
                 }
             );
             
-            if (!deleteResponse.ok) {
-                console.warn(`⚠️ Не удалось удалить старый asset: ${deleteResponse.status}`);
+            if (!deleteResponse.ok && deleteResponse.status !== 204) {
+                const errorData = await deleteResponse.json().catch(() => ({}));
+                console.warn(`⚠️ Не удалось удалить старый asset: ${deleteResponse.status} - ${errorData.error || ''}`);
             } else {
                 console.log('✅ Старый asset удален');
             }
         }
         
-        // ✅ 5. Загружаем новый файл в релиз
-        console.log('📤 Загрузка нового CSV в релиз...');
-        const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
+        // ✅ 5. Загружаем новый файл ЧЕРЕЗ ПРОКСИ
+        console.log('📤 Загрузка нового CSV в релиз через прокси...');
+        const uploadUrl = `/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`;
         
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `token ${token}`,
                 'Content-Type': 'application/octet-stream',
-                'Accept': 'application/vnd.github.v3+json'
+                'Accept': 'application/json'
             },
             body: newCSV
         });
         
         if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+            const errorData = await uploadResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorData.error || errorData.details || ''}`);
         }
         
         const uploadedAsset = await uploadResponse.json();
@@ -6826,10 +6827,11 @@ async function updateGitHubCSVWithNSPD(token) {
         };
         
     } catch (error) {
-        console.error('❌ Ошибка обновления:', error);
+        console.error('❌ Ошибка обновления через прокси:', error);
         return { success: false, error: error.message };
     }
 }
+
 function renderDealsTable() {
     const container = document.getElementById('deals-table-container');
     if (!container) return;
