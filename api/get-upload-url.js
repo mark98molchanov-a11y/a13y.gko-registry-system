@@ -15,18 +15,17 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { fileName, fileType } = req.body;
+        const { fileName, fileType, access } = req.body;  // ← ДОБАВЛЯЕМ access
 
         if (!fileName) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ВСТАВЬТЕ storeId ИЗ URL ВАШЕГО ХРАНИЛИЩА
         const TOKEN = 'vercel_blob_rw_vY4BahfMyj9BWxPQ_gbUEC6RbCTBBIyADw4zf1r7IdZ9iKn';
-        const STORE_ID = 'store_vY4BahfMyj9BWxPQ'; // ← СКОПИРУЙТЕ ИЗ URL!
+        const STORE_ID = 'store_vY4BahfMyj9BWxPQ';
 
         const blob = await put(fileName, new ArrayBuffer(0), {
-            access: 'public',
+            access: access || 'public',  // ← ПО УМОЛЧАНИЮ ПУБЛИЧНЫЙ
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
             token: TOKEN,
