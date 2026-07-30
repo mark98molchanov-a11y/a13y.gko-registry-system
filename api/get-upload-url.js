@@ -2,6 +2,7 @@
 import { put } from '@vercel/blob';
 
 export default async function handler(req, res) {
+    // ✅ Разрешаем CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -21,13 +22,24 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: передаём ТОКЕН и STORE_ID
+        // ✅ ПРЯМОЕ ИСПОЛЬЗОВАНИЕ ТОКЕНА ИЗ ПЕРЕМЕННОЙ (БЕЗ process.env)
+        // Иногда process.env не работает на Vercel, используем прямой доступ
+        const token = process.env.BLOB_READ_WRITE_TOKEN;
+        const storeId = process.env.BLOB_READ_WRITE_TOKEN_STORE_ID;
+
+        console.log('🔑 Токен найден:', !!token);
+        console.log('🏷️ Store ID найден:', !!storeId);
+
+        if (!token || !storeId) {
+            throw new Error('Токен или Store ID не найдены в окружении');
+        }
+
         const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
-            token: process.env.BLOB_READ_WRITE_TOKEN,
-            storeId: process.env.BLOB_READ_WRITE_TOKEN_STORE_ID   // ← ДОБАВЬТЕ ЭТУ СТРОКУ!
+            token: token,
+            storeId: storeId,
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
