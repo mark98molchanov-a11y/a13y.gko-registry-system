@@ -6716,7 +6716,7 @@ if (foundCount > 0) {
     // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB
 console.log('📤 Загрузка в Vercel Blob...');
 try {
-    // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ (ЭТОТ ЗАПРОС МАЛЕНЬКИЙ, ОБХОДИТ ЛИМИТ 4.5 МБ)
+    // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ (МАЛЕНЬКИЙ ЗАПРОС)
     console.log('📤 Получение URL для загрузки...');
     const urlResponse = await fetch('/api/get-upload-url', {
         method: 'POST',
@@ -6736,12 +6736,12 @@ try {
     const urlData = await urlResponse.json();
     console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
     
-    // ✅ 2.2. ЗАГРУЖАЕМ НАПРЯМУЮ В BLOB ИЗ БРАУЗЕРА (ОБХОДИТ ЛИМИТ 4.5 МБ!)
+    // ✅ 2.2. ЗАГРУЖАЕМ CSV НАПРЯМУЮ В BLOB (ОБХОДИТ ЛИМИТ 4.5 МБ!)
     console.log('📤 Загрузка CSV напрямую в Blob...');
     const csvBlob = new Blob([csv], { type: 'text/csv' });
     
     const uploadResponse = await fetch(urlData.uploadUrl, {
-        method: 'PUT',
+        method: 'PUT',  // ← PUT, а не POST!
         headers: {
             'Content-Type': 'text/csv'
         },
