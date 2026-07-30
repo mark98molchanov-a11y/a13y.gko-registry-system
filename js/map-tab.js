@@ -6453,6 +6453,269 @@ async function createCSVFromData() {
     }
     return rows.join('\n');
 }
+window.abortSyncWithNSPD = function() {
+    if (syncAbortController) {
+        console.log('🛑 Прерывание синхронизации...');
+        syncAbortController.abort();
+        syncAbortController = null;
+        
+        const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
+        if (btn) {
+            btn.innerHTML = '🔄 Синхронизация прервана';
+            btn.style.background = '#ef4444';
+            btn.style.color = 'white';
+            setTimeout(() => {
+                btn.innerHTML = 'Синхронизация с НСПД';
+                btn.style.background = '#2563eb';
+                btn.style.color = 'white';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }, 2000);
+        }
+        
+        showNotification('⛔ Синхронизация прервана', 'warning');
+        isSyncRunning = false;
+    }
+};
+
+async function syncWithNSPD() {
+    // ✅ ЕСЛИ СИНХРОНИЗАЦИЯ УЖЕ ЗАПУЩЕНА - НЕ ЗАПУСКАЕМ НОВУЮ
+    if (isSyncRunning) {
+        showNotification('⚠️ Синхронизация уже выполняется', 'warning');
+        return;
+    }
+    
+    console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД');
+    isSyncRunning = true;
+    
+    // Проверяем, есть ли данные
+    if (typeof allDealsFlat === 'undefined' || allDealsFlat.length === 0) {
+        showNotification('⚠️ Нет данных для синхронизации', 'warning');
+        isSyncRunning = false;
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
+    const originalHTML = btn?.innerHTML || 'Синхронизация с НСПД';
+    
+    // ✅ СОЗДАЕМ КНОПКУ ПРЕРЫВАНИЯ
+    const syncContainer = btn?.parentElement;
+    let abortBtn = document.getElementById('abort-sync-btn');
+    
+    if (btn) {
+        btn.innerHTML = '⏳ Синхронизация... 0%';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'wait';
+        btn.style.background = '#2563eb';
+        
+        // ✅ ДОБАВЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
+        if (!abortBtn && syncContainer) {
+            abortBtn = document.createElement('button');
+            abortBtn.id = 'abort-sync-btn';
+            abortBtn.innerHTML = '⛔ Остановить';
+            abortBtn.style.cssText = `
+                padding: 4px 14px;
+                background: #ef4444;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-family: 'Inter', sans-serif;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                margin-left: 8px;
+            `;
+            abortBtn.onmouseover = function() { this.style.background = '#dc2626'; };
+            abortBtn.onmouseout = function() { this.style.background = '#ef4444'; };
+            abortBtn.onclick = function() {
+                if (confirm('Остановить синхронизацию? Будет сохранен текущий прогресс.')) {
+                    window.abortSyncWithNSPD();
+                }
+            };
+            syncContainer.appendChild(abortBtn);
+        }
+    }
+    
+    // ✅ СЧИТАЕМ СКОЛЬКО УЖЕ ЕСТЬ ЗАПОЛНЕННЫХ
+    let alreadyFilled = 0;
+    for (const deal of allDealsFlat) {
+        if (deal.cad_nspd) alreadyFilled++;
+    }
+    console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
+    
+    // ✅ СОБИРАЕМ УНИКАЛЬНЫЕ КОМБИНАЦИИ (ТОЛЬКО ДЛЯ ТЕХ, У КОГО НЕТ cad_nspd)
+    const uniqueObjects = [];
+    const processedKeys = new Set();
+    
+    for (const deal of allDealsFlat) {
+        // ✅ ПРОПУСКАЕМ, ЕСЛИ УЖЕ ЕСТЬ КАДАСТРОВЫЙ НОМЕР ИЗ НСПД
+        if (deal.cad_nspd) continue;
+        
+        const quarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+        if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
+        
+        const area = deal.area || 0;
+        if (area <= 0) continue;
+        
+        const objType = deal.obj_kind_text || 'Здание';
+        const location = deal.city || '';
+        
+        const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
+        if (processedKeys.has(key)) continue;
+        processedKeys.add(key);
+        
+        uniqueObjects.push({
+            quarter: quarter,
+            area: area,
+            type: objType,
+            location: location,
+            locationKeywords: [location, deal.street || ''].filter(Boolean)
+        });
+    }
+    
+    console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
+    console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
+    
+    // ✅ ЕСЛИ НЕТ ОБЪЕКТОВ ДЛЯ ПОИСКА
+    if (uniqueObjects.length === 0) {
+        showNotification('✅ Все объекты уже синхронизированы', 'success');
+        if (btn) {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.style.background = '#2563eb';
+        }
+        if (abortBtn) abortBtn.remove();
+        isSyncRunning = false;
+        return;
+    }
+    
+    let foundCount = 0;
+    let totalProcessed = 0;
+    let wasAborted = false;
+    
+    // ✅ СОЗДАЕМ AbortController ДЛЯ ПРЕРЫВАНИЯ
+    syncAbortController = new AbortController();
+    
+    // Обрабатываем с задержкой, чтобы не перегружать API
+    for (const obj of uniqueObjects) {
+        // ✅ ПРОВЕРЯЕМ: если syncAbortController === null — значит была команда на остановку
+        if (syncAbortController === null) {
+            console.log('⛔ Синхронизация прервана пользователем (controller = null)');
+            wasAborted = true;
+            break;
+        }
+        
+        // ✅ ПРОВЕРЯЕМ signal.aborted
+        if (syncAbortController.signal.aborted) {
+            console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
+            wasAborted = true;
+            break;
+        }
+        
+        totalProcessed++;
+        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+        
+        // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null ПЕРЕД ИСПОЛЬЗОВАНИЕМ
+        const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+        
+        const cadNspd = await searchNSPD(
+            obj.quarter,
+            obj.area,
+            obj.type,
+            obj.locationKeywords,
+            1,
+            controllerSignal
+        );
+        
+        // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА (controller мог стать null)
+        if (syncAbortController === null || syncAbortController.signal.aborted) {
+            console.log('⛔ Синхронизация прервана после запроса');
+            wasAborted = true;
+            break;
+        }
+        
+        if (cadNspd) {
+            foundCount++;
+            for (const deal of allDealsFlat) {
+                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                if (dealQuarter === obj.quarter && 
+                    Math.abs(deal.area - obj.area) <= 1 && 
+                    deal.obj_kind_text === obj.type) {
+                    deal.cad_nspd = cadNspd;
+                }
+            }
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (btn) {
+            const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
+            btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
+        }
+    }
+    
+    // ✅ ОЧИЩАЕМ AbortController
+    syncAbortController = null;
+    
+    // ✅ УДАЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
+    if (abortBtn) abortBtn.remove();
+    
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (ДАННЫЕ УЖЕ В allDealsFlat)
+    if (typeof renderDealsTable === 'function') {
+        renderDealsTable();
+    }
+    
+    // ✅ ПОКАЗЫВАЕМ РЕЗУЛЬТАТ
+    const processedCount = wasAborted ? totalProcessed : uniqueObjects.length;
+    const resultMessage = wasAborted 
+        ? `⛔ Синхронизация прервана! Найдено ${foundCount} из ${processedCount} обработанных объектов`
+        : `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
+    showNotification(resultMessage, wasAborted ? 'warning' : 'success');
+    console.log(resultMessage);
+    
+    // ============================================================
+    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
+    // ============================================================
+    if (foundCount > 0) {
+        console.log(`📤 Обновление CSV через GitHub Releases (найдено ${foundCount} номеров)...`);
+        showNotification(`⏳ Обновление CSV (${foundCount} номеров)...`, 'info');
+        
+        const token = prompt('Введите GitHub Token для обновления CSV через Releases:');
+        if (token && token.trim()) {
+            const result = await updateGitHubCSVWithNSPD(token.trim());
+            if (result.success) {
+                showNotification(`✅ CSV обновлен! Новая версия: ${result.downloadUrl}`, 'success');
+            } else {
+                showNotification(`❌ Ошибка: ${result.error}`, 'error');
+            }
+        } else {
+            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+        }
+    } else {
+        console.log('ℹ️ Нет новых номеров для обновления CSV');
+        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+    }
+    
+    // Восстанавливаем кнопку
+    if (btn) {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.style.background = '#2563eb';
+    }
+    
+    isSyncRunning = false;
+}
 async function updateGitHubCSVWithNSPD(token) {
     console.log('📤 Обновление CSV через GitHub Releases (через прокси)...');
     
@@ -6710,6 +6973,7 @@ function renderDealsTable() {
     
     container.innerHTML = html;
 }
+
 window.renderDealsTable = renderDealsTable;
 window.syncWithNSPD = syncWithNSPD;
 window.abortSyncWithNSPD = abortSyncWithNSPD;
