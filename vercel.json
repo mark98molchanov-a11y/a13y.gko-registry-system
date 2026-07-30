@@ -28,9 +28,17 @@
     {
       "src": "api/trigger-github-action.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/get-upload-url.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/get-upload-url",
+      "dest": "/api/get-upload-url.js"
+    },
     {
       "src": "/api/upload-to-blob",
       "dest": "/api/upload-to-blob.js"
