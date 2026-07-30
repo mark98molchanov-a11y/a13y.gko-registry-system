@@ -27,7 +27,7 @@ export default async function handler(req, res) {
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
             token: 'vercel_blob_rw_GHUuQNpnP4KGCAiN_iNWeKLjJ1ttORWitFf1K8wgXsFuU9',
-            storeId: 'store_GHUuQNpnP4KGCAiN'
+            storeId: 'store_GHUuQNapnP4KGCaN'
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
