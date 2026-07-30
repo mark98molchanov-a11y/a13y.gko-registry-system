@@ -28,7 +28,8 @@ export default async function handler(req, res) {
             
             const url = `https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`;
             const response = await fetch(url, {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                // ✅ ИСПРАВЛЕНО: token вместо Bearer
+                headers: token ? { 'Authorization': `token ${token}` } : {}
             });
             
             if (!response.ok) {
@@ -41,7 +42,6 @@ export default async function handler(req, res) {
             const data = await response.json();
             console.log(`✅ Релиз найден: ${data.tag_name}, ID: ${data.id}, assets: ${data.assets?.length || 0}`);
             
-            // ✅ ВОЗВРАЩАЕМ ПОЛНЫЙ ОБЪЕКТ ОТ GITHUB
             return res.status(200).json(data);
         }
         
@@ -61,7 +61,8 @@ export default async function handler(req, res) {
             const url = `https://api.github.com/repos/${owner}/${repo}/releases/assets/${assetId}`;
             const response = await fetch(url, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                // ✅ ИСПРАВЛЕНО: token вместо Bearer
+                headers: { 'Authorization': `token ${token}` }
             });
             
             if (!response.ok && response.status !== 204) {
@@ -96,8 +97,9 @@ export default async function handler(req, res) {
             
             const response = await fetch(url, {
                 method: 'POST',
+                // ✅ ИСПРАВЛЕНО: token вместо Bearer
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    'Authorization': `token ${token}`,
                     'Content-Type': 'application/octet-stream',
                     'Content-Length': Buffer.byteLength(content)
                 },
@@ -128,7 +130,8 @@ export default async function handler(req, res) {
             }
             
             const response = await fetch('https://api.github.com/user', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                // ✅ ИСПРАВЛЕНО: token вместо Bearer
+                headers: { 'Authorization': `token ${token}` }
             });
             
             if (response.ok) {
