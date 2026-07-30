@@ -21,12 +21,12 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: используем put() с пустым буфером
-        // Это создаёт "пустой" файл в Blob, но мы получим URL для загрузки
+        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: передаём токен явно
         const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
+            token: process.env.BLOB_READ_WRITE_TOKEN  // ← ДОБАВЬТЕ ЭТУ СТРОКУ!
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
