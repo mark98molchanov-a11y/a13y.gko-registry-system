@@ -6710,6 +6710,13 @@ function renderDealsTable() {
     
     container.innerHTML = html;
 }
+window.renderDealsTable = renderDealsTable;
+window.syncWithNSPD = syncWithNSPD;
+window.abortSyncWithNSPD = abortSyncWithNSPD;
+window.updateGitHubCSVWithNSPD = updateGitHubCSVWithNSPD;
+window.searchNSPD = searchNSPD;
+window.loadDealsFromRelease = loadDealsFromRelease;
+window.createCSVFromData = createCSVFromData;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
