@@ -21,19 +21,13 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
-        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: БЕРЁМ ИЗ process.env
-        const token = process.env.BLOB_READ_WRITE_TOKEN;
-        const storeId = process.env.BLOB_READ_WRITE_TOKEN_STORE_ID;
-
-        console.log('🔑 Токен:', token ? 'найден' : 'НЕ НАЙДЕН');
-        console.log('🏷️ Store ID:', storeId ? 'найден' : 'НЕ НАЙДЕН');
-
+        // ✅ ТОЛЬКО ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ
         const blob = await put(fileName, new ArrayBuffer(0), {
             access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
-            token: token,
-            storeId: storeId,
+            token: process.env.BLOB_READ_WRITE_TOKEN,
+            storeId: process.env.BLOB_READ_WRITE_TOKEN_STORE_ID
         });
 
         console.log(`✅ Получен URL для загрузки: ${blob.url}`);
