@@ -7019,6 +7019,7 @@ if (btn) {
 }
 
 isSyncRunning = false;
+    }
 async function updateGitHubCSVWithNSPD(token) {
     console.log('📤 Обновление CSV через прокси-сервер...');
     
