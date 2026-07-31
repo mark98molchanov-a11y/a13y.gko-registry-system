@@ -1,5 +1,5 @@
 // api/get-upload-url.js
-import { put } from '@vercel/blob';
+import { handleUpload } from '@vercel/blob/client';
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,40 +15,20 @@ export default async function handler(req, res) {
     }
 
     try {
-        // ✅ ПРИНИМАЕМ content С ДАННЫМИ
-        const { fileName, fileType, content } = req.body;
-
-        if (!fileName) {
-            return res.status(400).json({ error: 'fileName required' });
-        }
-
-        if (!content) {
-            return res.status(400).json({ error: 'content required' });
-        }
-
-        const TOKEN = 'vercel_blob_rw_vY4BahfMyj9BWxPQ_gbUEC6RbCTBBIyADw4zf1r7IdZ9iKn';
-        const STORE_ID = 'store_vY4BahfMyj9BWxPQ';
-
-        // ✅ ЗАГРУЖАЕМ ФАЙЛ С ДАННЫМИ ЧЕРЕЗ API (ОБХОД CORS!)
-        const blob = await put(fileName, content, {
-            access: 'public',
-            contentType: fileType || 'text/csv',
-            addRandomSuffix: false,
-            token: TOKEN,
-            storeId: STORE_ID,
+        // ✅ ГЕНЕРИРУЕМ ТОКЕН ДЛЯ КЛИЕНТСКОЙ ЗАГРУЗКИ
+        const result = await handleUpload({
+            body: req.body,
+            request: req,
+            onBeforeGenerateToken: async (pathname) => ({
+                allowedContentTypes: ['text/csv'],
+                maximumSizeInBytes: 100 * 1024 * 1024, // 100 МБ
+            }),
         });
 
-        console.log(`✅ CSV загружен в Blob: ${blob.url}`);
-        console.log(`📏 Размер: ${(content.length / 1024 / 1024).toFixed(2)} МБ`);
-
-        return res.status(200).json({
-            success: true,
-            url: blob.url,
-            downloadUrl: blob.downloadUrl
-        });
+        return res.status(200).json(result);
 
     } catch (error) {
-        console.error('❌ Ошибка:', error);
+        console.error('❌ Ошибка генерации токена для загрузки:', error);
         return res.status(500).json({ error: error.message });
     }
 }
