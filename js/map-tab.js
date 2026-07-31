@@ -6933,56 +6933,56 @@ if (foundCount > 0) {
 } else {
     // ✅ СОЗДАЕМ НОВЫЙ GIST
 // ✅ СОЗДАЕМ НОВЫЙ GIST
-console.log('📝 Создание нового Gist...');
-showNotification('📝 Создание нового Gist...', 'info');
+} else {
+    // ✅ СОЗДАЕМ НОВЫЙ GIST
+    console.log('📝 Создание нового Gist...');
+    showNotification('📝 Создание нового Gist...', 'info');
 
-const createResponse = await fetch('https://api.github.com/gists', {
-    method: 'POST',
-    headers: {
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    },
-    body: JSON.stringify({
-        description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
-        public: false,
-        files: {
-            'deals_clean.csv': {
-                content: csv
+    const createResponse = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+            'Authorization': `token ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+            public: false,
+            files: {
+                'deals_clean.csv': {
+                    content: csv
+                }
             }
-        }
-    })
-});
+        })
+    });
 
-if (!createResponse.ok) {
-    const errorData = await createResponse.json().catch(() => ({}));
-    throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
-}
+    if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => ({}));
+        throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+    }
 
-gistData = await createResponse.json();
-console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+    gistData = await createResponse.json();
+    console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
 
-// ════════════════════════════════════════════════════════════════
-// 🔥 ДОБАВЬТЕ ЭТОТ БЛОК ПОСЛЕ СОЗДАНИЯ GIST
-// ════════════════════════════════════════════════════════════════
-const newGistId = gistData.id;
-console.log(`📋 НОВЫЙ GIST ID: ${newGistId}`);
-console.log('⚠️ ОБНОВИТЕ HARDCODED_GIST_ID В КОДЕ НА ЭТОТ ID!');
+    // ════════════════════════════════════════════════════════════════
+    // 🔥 БЛОК ПОСЛЕ СОЗДАНИЯ GIST
+    // ════════════════════════════════════════════════════════════════
+    const newGistId = gistData.id;
+    console.log(`📋 НОВЫЙ GIST ID: ${newGistId}`);
+    console.log('⚠️ ОБНОВИТЕ HARDCODED_GIST_ID В КОДЕ НА ЭТОТ ID!');
 
-// Показываем уведомление с ID
-showNotification(`✅ Создан Gist! ID: ${newGistId}. Обновите код!`, 'warning');
+    showNotification(`✅ Создан Gist! ID: ${newGistId}. Обновите код!`, 'warning');
 
-// ✅ СОХРАНЯЕМ ID В localStorage (для быстрой загрузки)
-localStorage.setItem('deals_csv_gist_id', newGistId);
-localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
+    localStorage.setItem('deals_csv_gist_id', newGistId);
+    localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
 
-// ✅ КОПИРУЕМ ID В БУФЕР ОБМЕНА (удобно!)
-try {
-    await navigator.clipboard.writeText(newGistId);
-    console.log('📋 ID скопирован в буфер обмена!');
-} catch(e) {
-    console.log('📋 ID: ' + newGistId);
-}
+    try {
+        await navigator.clipboard.writeText(newGistId);
+        console.log('📋 ID скопирован в буфер обмена!');
+    } catch(e) {
+        console.log('📋 ID: ' + newGistId);
+    }
+}  // ← ТОЛЬКО ОДНА СКОБКА ЗАКРЫВАЕТ else!
 
 // ✅ 3. СОХРАНЯЕМ URL И ID
 const rawUrl = gistData.files['deals_clean.csv'].raw_url;
