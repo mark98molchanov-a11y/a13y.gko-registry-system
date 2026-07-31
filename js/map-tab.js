@@ -6222,6 +6222,15 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const opts = props.options || {};
             
             const cad = opts.cad_number || props.externalKey || '';
+            
+            // ✅ ПРОВЕРЯЕМ, ЧТО ОБЪЕКТ ПРИНАДЛЕЖИТ ИСКОМОМУ КВАРТАЛУ
+            // Сравниваем первые 11 символов (формат XX:XX:XXXXXX)
+            const cadQuarter = cad.slice(0, 11);
+            if (cadQuarter !== quarter) {
+                // Пропускаем объекты из других кварталов
+                continue;
+            }
+            
             const objType = opts.object_type_value || props.categoryName || '';
             
             let area = parseFloat(opts.params_area) || 
