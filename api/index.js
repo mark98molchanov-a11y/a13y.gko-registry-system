@@ -4,7 +4,7 @@ export default async function handler(req, res) {
     // ✅ РАЗРЕШАЕМ CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Content-Length');
     
     // ✅ ОТВЕТ НА PREFLIGHT
     if (req.method === 'OPTIONS') {
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
         }
         
         // ============================================================
-        // 3. ЗАГРУЗКА ASSET: /api/upload/:owner/:repo/:releaseId
+        // 3. ПРОКСИ ДЛЯ ЗАГРУЗКИ В RELEASE: /api/upload/:owner/:repo/:releaseId
         // ============================================================
         if (req.method === 'POST' && req.url?.startsWith('/api/upload/')) {
             if (!token) {
@@ -92,64 +92,57 @@ export default async function handler(req, res) {
             const parts = req.url.replace('/api/upload/', '').split('/');
             const [owner, repo, releaseId] = parts;
             
+            // Извлекаем имя файла из query
             const fileName = req.query?.name || 'deals_clean.csv';
+            
+            // Получаем тело запроса (это бинарные данные!)
             const content = req.body;
             
-            console.log(`📤 Загрузка файла: ${fileName}, размер: ${content?.length || 0} байт`);
+            console.log(`📤 Прокси загрузки: ${fileName}, размер: ${content?.length || 0} байт`);
+            console.log(`📤 В релиз: ${owner}/${repo}/releases/${releaseId}`);
             
             if (!content || content.length === 0) {
                 return res.status(400).json({ error: 'Empty content' });
             }
             
-            // ⚠️ ВАЖНО: Vercel имеет лимит 4.5 МБ на тело запроса!
-            // Для больших файлов используем GitHub API напрямую (PUT /contents)
-            const url = `https://api.github.com/repos/${owner}/${repo}/contents/data/${fileName}`;
+            // ✅ ПРОКСИРУЕМ ЗАПРОС К GITHUB UPLOADS
+            const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${encodeURIComponent(fileName)}`;
             
-            // Кодируем содержимое в Base64
-            const base64Content = Buffer.from(content).toString('base64');
+            console.log(`📤 Проксируем к: ${uploadUrl}`);
             
-            // Пытаемся получить SHA существующего файла
-            let sha = null;
-            try {
-                const checkResponse = await fetch(url, {
-                    headers: { 'Authorization': `token ${token}` }
-                });
-                if (checkResponse.ok) {
-                    const data = await checkResponse.json();
-                    sha = data.sha;
-                }
-            } catch(e) {
-                // Файл не существует, создадим новый
-            }
-            
-            // Загружаем через GitHub API (поддерживает до 100 МБ!)
-            const response = await fetch(url, {
-                method: 'PUT',
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
                 headers: {
                     'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/octet-stream',
+                    'Content-Length': Buffer.byteLength(content).toString()
                 },
-                body: JSON.stringify({
-                    message: `Update ${fileName}`,
-                    content: base64Content,
-                    sha: sha,
-                    branch: 'main'
-                })
+                body: content
             });
             
+            // Получаем ответ от GitHub
+            const responseText = await response.text();
+            let responseData;
+            try {
+                responseData = JSON.parse(responseText);
+            } catch(e) {
+                responseData = { text: responseText };
+            }
+            
+            console.log(`📥 Ответ GitHub: ${response.status}`);
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error(`❌ Ошибка загрузки: ${response.status} - ${JSON.stringify(errorData)}`);
+                console.error(`❌ Ошибка загрузки в GitHub: ${response.status}`);
+                console.error(`❌ Детали: ${responseText}`);
                 return res.status(response.status).json({ 
-                    error: `Upload failed: ${response.status}`,
-                    details: errorData
+                    error: `GitHub upload failed: ${response.status}`,
+                    details: responseData
                 });
             }
             
-            const data = await response.json();
-            console.log(`✅ Файл загружен: ${data.content.html_url}`);
+            console.log(`✅ Файл загружен в релиз!`);
             
-            return res.status(200).json(data);
+            return res.status(200).json(responseData);
         }
         
         // ============================================================
