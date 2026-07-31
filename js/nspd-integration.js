@@ -49,104 +49,132 @@ class NSPDIntegration {
     // ПОИСК ПО КАДАСТРОВОМУ НОМЕРУ
     // ============================================================
     
-    async search() {
-        console.log('🔍 Поиск запущен');
-        const input = document.getElementById('cadSearchInput');
-        if (!input) {
-            console.warn('⚠️ Поле cadSearchInput не найдено в HTML');
-            this.showError('Поле поиска не найдено. Обновите страницу.');
-            return;
-        }
-        
-        const cadNumber = input.value.trim();
-        if (!cadNumber) {
-            this.showError('Введите кадастровый номер');
-            return;
-        }
-
-        console.log(`📤 Ищем кадастровый номер: ${cadNumber}`);
-        this.showLoading();
-
-        try {
-            const response = await this.makeRequest(cadNumber);
-            console.log('📥 Ответ от НСПД получен:', response);
-            
-            if (response && response.error) {
-                console.warn('⚠️ Ошибка в ответе:', response.error);
-                this.showError(response.error);
-                return;
-            }
-
-            if (!response || !response.cadastral_number) {
-                console.warn('⚠️ Объект не найден');
-                this.showError('Объект с таким номером не найден');
-                return;
-            }
-
-            console.log('✅ Объект найден:', response.cadastral_number);
-            this.currentResult = response;
-            this.displayResult(response);
-            this.showNotification('Объект найден в НСПД', 'success');
-
-        } catch (error) {
-            console.error('❌ Ошибка запроса к НСПД:', error);
-            this.showError('Не удалось получить данные. Проверьте номер или попробуйте позже.');
-        }
+  async search() {
+    console.log('🔍 Поиск запущен (широкий поиск как в синхронизации)');
+    const input = document.getElementById('cadSearchInput');
+    if (!input) {
+        console.warn('⚠️ Поле cadSearchInput не найдено');
+        this.showError('Поле поиска не найдено. Обновите страницу.');
+        return;
     }
-
-    // ============================================================
-    // ЗАПРОС К НСПД
-    // ============================================================
     
-    async makeRequest(cadNumber) {
-        const url = `${this.baseUrl}?thematicSearchId=1&query=${encodeURIComponent(cadNumber)}&limit=10&offset=0&geometry=true`;
-        
-        console.log(`📤 Запрос к НСПД: ${url}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-        try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    const errorData = await response.json();
-                    if (errorData.code === 204) {
-                        return { error: 'Объект не найден в НСПД' };
-                    }
-                }
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('📥 Ответ от НСПД (сырой):', data);
-            
-            const normalized = this.normalizeResponse(data);
-            console.log('📦 Нормализованные данные:', normalized);
-            return normalized;
-
-        } catch (error) {
-            clearTimeout(timeoutId);
-            if (error.name === 'AbortError') {
-                throw new Error('Превышено время ожидания ответа от НСПД');
-            }
-            throw error;
-        }
+    const cadNumber = input.value.trim();
+    if (!cadNumber) {
+        this.showError('Введите кадастровый номер');
+        return;
     }
 
-    // ============================================================
-    // НОРМАЛИЗАЦИЯ ОТВЕТА — ВСЕ ПОЛЯ
-    // ============================================================
+    // ✅ Извлекаем квартал (первые 11 цифр) — КАК В searchNSPD
+    const quarter = cadNumber.slice(0, 11);
+    console.log(`📍 Квартал: ${quarter}`);
+    console.log(`📤 Ищем объекты в квартале (как в синхронизации)`);
+    this.showLoading();
+
+    try {
+        // ✅ Ищем ВСЕ объекты в квартале (КАК В searchNSPD)
+        const response = await this.makeRequest(quarter);
+        console.log('📥 Ответ от НСПД получен:', response);
+        
+        if (response && response.error) {
+            console.warn('⚠️ Ошибка в ответе:', response.error);
+            this.showError(response.error);
+            return;
+        }
+
+        if (!response || !response.features || response.features.length === 0) {
+            console.warn('⚠️ Объекты не найдены');
+            this.showError(`В квартале ${quarter} ничего не найдено`);
+            return;
+        }
+
+        console.log(`✅ Найдено объектов в квартале: ${response.features.length}`);
+        
+        // ✅ ИЩЕМ КОНКРЕТНЫЙ НОМЕР СРЕДИ НАЙДЕННЫХ
+        const exactMatch = this.findExactMatch(response.features, cadNumber);
+        
+        if (exactMatch) {
+            console.log(`✅ Найден точный объект: ${exactMatch.cadastral_number}`);
+            this.currentResult = exactMatch;
+            this.displayResult(exactMatch);
+            this.showNotification(`Найден объект: ${exactMatch.cadastral_number}`, 'success');
+        } else {
+            console.warn(`⚠️ Объект ${cadNumber} не найден в квартале ${quarter}`);
+            this.showError(`Объект ${cadNumber} не найден в квартале ${quarter}`);
+        }
+
+    } catch (error) {
+        console.error('❌ Ошибка запроса к НСПД:', error);
+        this.showError('Не удалось получить данные. Проверьте номер или попробуйте позже.');
+    }
+}
+   findExactMatch(features, targetCadNumber) {
+    console.log(`🔍 Ищем точное совпадение: ${targetCadNumber} среди ${features.length} объектов`);
+    
+    // ✅ Ищем ПОЛНОЕ совпадение
+    for (const item of features) {
+        if (item.cadastral_number === targetCadNumber) {
+            console.log(`✅ Точное совпадение найдено: ${item.cadastral_number}`);
+            return item;
+        }
+    }
+    
+    // ✅ Если полного нет — ищем частичное (на случай разных форматов)
+    const normalizedTarget = targetCadNumber.replace(/\s/g, '').toUpperCase();
+    for (const item of features) {
+        const normalizedItem = item.cadastral_number.replace(/\s/g, '').toUpperCase();
+        if (normalizedItem === normalizedTarget) {
+            console.log(`✅ Частичное совпадение: ${item.cadastral_number}`);
+            return item;
+        }
+    }
+    
+    console.log(`❌ Точное совпадение для ${targetCadNumber} не найдено`);
+    return null;
+}
+    
+    async makeRequest(quarter) {
+    // ✅ ТОЧНО КАК В searchNSPD: ищем по кварталу с limit=500
+    const url = `${this.baseUrl}?thematicSearchId=1&query=${encodeURIComponent(quarter)}&limit=500`;
+    
+    console.log(`📤 Запрос к НСПД (как в синхронизации): ${url}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                return { error: 'Квартал не найден в НСПД', features: [] };
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('📥 Ответ от НСПД (сырой):', data);
+        
+        const normalized = this.normalizeResponse(data);
+        console.log('📦 Нормализованные данные:', normalized);
+        return normalized;
+
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Превышено время ожидания ответа от НСПД');
+        }
+        throw error;
+    }
+}
     
 normalizeResponse(data) {
     console.log('🔄 Нормализация ответа...');
