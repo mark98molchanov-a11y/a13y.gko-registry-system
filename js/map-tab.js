@@ -6159,6 +6159,14 @@ async function generateReport() {
 window.generateReport = generateReport;
 window.loadScript = loadScript;
 window.generateDocxReport = generateReport;
+// ✅ ФУНКЦИЯ ДЛЯ ИЗВЛЕЧЕНИЯ КВАРТАЛА ИЗ КАДАСТРОВОГО НОМЕРА
+function getQuarter(cadNumber) {
+    if (!cadNumber) return '';
+    const parts = cadNumber.split(':');
+    // Берем первые 3 части: регион:район:квартал
+    return parts.slice(0, 3).join(':');
+}
+
 async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1, signal = null) {
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     if (locationKeywords && locationKeywords.length > 0) {
@@ -6223,11 +6231,12 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             
             const cad = opts.cad_number || props.externalKey || '';
             
-            // ✅ ПРОВЕРЯЕМ, ЧТО ОБЪЕКТ ПРИНАДЛЕЖИТ ИСКОМОМУ КВАРТАЛУ
-            // Сравниваем первые 11 символов (формат XX:XX:XXXXXX)
-            const cadQuarter = cad.slice(0, 11);
+            // ✅ ИЗВЛЕКАЕМ КВАРТАЛ ПРАВИЛЬНО (по двоеточиям)
+            const cadQuarter = getQuarter(cad);
+            
+            // ✅ ПРОВЕРЯЕМ СОВПАДЕНИЕ
             if (cadQuarter !== quarter) {
-                // Пропускаем объекты из других кварталов
+                console.log(`⏭️ Пропускаем ${cad} (квартал ${cadQuarter} !== искомый ${quarter})`);
                 continue;
             }
             
