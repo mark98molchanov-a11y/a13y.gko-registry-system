@@ -811,7 +811,7 @@ async function loadDealsCSV() {
         const areaIndex = headers.indexOf('area');
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
-        const quarterIndex = headers.indexOf('quarter');
+        const quarterIndex = headers.indexOf('Квартал сделки');
         const yearBuildIndex = headers.indexOf('year_build'); 
         const purposeIndex = headers.indexOf('purpose_text'); 
         const vriIndex = headers.indexOf('vri');  
