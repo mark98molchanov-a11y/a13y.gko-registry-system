@@ -726,15 +726,46 @@ async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
         
-        // ✅ СНАЧАЛА ПЫТАЕМСЯ ЗАГРУЗИТЬ ИЗ РЕЛИЗА
-        let csvText = await loadDealsFromRelease();
+        // ✅ 1. Загружаем основные данные из репозитория
+        const response = await fetch(DEALS_CSV_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        let csvText = await response.text();
         
-        // ✅ ЕСЛИ НЕТ В РЕЛИЗЕ — ГРУЗИМ ИЗ РЕПОЗИТОРИЯ
-        if (!csvText) {
-            console.log('📥 Загрузка из репозитория (fallback)...');
-            const response = await fetch(DEALS_CSV_URL);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            csvText = await response.text();
+        // ✅ 2. Пробуем загрузить номера НСПД из Gist
+        let nspdMap = {};
+        const gistUrl = localStorage.getItem('deals_csv_gist_url');
+        if (gistUrl) {
+            try {
+                console.log('📥 Загрузка номеров НСПД из Gist...');
+                const nspdResponse = await fetch(gistUrl);
+                if (nspdResponse.ok) {
+                    const nspdText = await nspdResponse.text();
+                    const nspdLines = nspdText.split('\n').filter(line => line.trim());
+                    if (nspdLines.length > 1) {
+                        const nspdHeaders = parseCSVLine(nspdLines[0]);
+                        const nspdCadIndex = nspdHeaders.indexOf('cad_number');
+                        const nspdNspdIndex = nspdHeaders.indexOf('cad_nspd');
+                        
+                        if (nspdCadIndex !== -1 && nspdNspdIndex !== -1) {
+                            for (let i = 1; i < nspdLines.length; i++) {
+                                const values = parseCSVLine(nspdLines[i]);
+                                if (values.length > Math.max(nspdCadIndex, nspdNspdIndex)) {
+                                    const cad = values[nspdCadIndex] || '';
+                                    const nspd = values[nspdNspdIndex] && values[nspdNspdIndex].trim() !== '' 
+                                        ? values[nspdNspdIndex].trim() 
+                                        : null;
+                                    if (cad && nspd) {
+                                        nspdMap[cad] = nspd;
+                                    }
+                                }
+                            }
+                            console.log(`📊 Загружено ${Object.keys(nspdMap).length} номеров НСПД из Gist`);
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('⚠️ Не удалось загрузить номера НСПД из Gist:', e.message);
+            }
         }
         
         // Функция для правильного парсинга CSV с кавычками
@@ -780,8 +811,7 @@ async function loadDealsCSV() {
         const areaIndex = headers.indexOf('area');
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
-        // ✅ ИСПРАВЛЕНО: используем 'quarter' вместо 'Квартал сделки'
-        const quarterIndex = headers.indexOf('quarter');  // ← ИСПРАВЛЕНО!
+        const quarterIndex = headers.indexOf('quarter');
         const yearBuildIndex = headers.indexOf('year_build'); 
         const purposeIndex = headers.indexOf('purpose_text'); 
         const vriIndex = headers.indexOf('vri');  
@@ -789,7 +819,6 @@ async function loadDealsCSV() {
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
         const streetIndex = headers.indexOf('street');
-        const nspdIndex = headers.indexOf('cad_nspd');
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -828,10 +857,8 @@ async function loadDealsCSV() {
             const location = values[locationIndex] || 'nan';
             const street = values[streetIndex] || 'nan';
             
-            let cadNspd = null;
-            if (nspdIndex !== -1 && values[nspdIndex] && values[nspdIndex].trim() !== '') {
-                cadNspd = values[nspdIndex].trim();
-            }
+            // ✅ Берем cad_nspd из загруженного словаря (из Gist)
+            const cadNspd = nspdMap[cadNum] || null;
             
             if (!cadNum) continue;
             
@@ -860,7 +887,7 @@ async function loadDealsCSV() {
                 floor: values[floorIndex] || 'nan',
                 location: values[locationIndex] || 'nan',
                 street: values[streetIndex] || 'nan',
-                cad_nspd: cadNspd
+                cad_nspd: cadNspd  // ← Берем из Gist
             });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
@@ -884,6 +911,7 @@ async function loadDealsCSV() {
                 cad_nspd: cadNspd
             });
             
+            // ✅ ИСПОЛЬЗУЕМ ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
             typesCount[kind] = (typesCount[kind] || 0) + 1;
             citiesCount[city] = (citiesCount[city] || 0) + 1;
             objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
@@ -907,6 +935,7 @@ async function loadDealsCSV() {
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Сделок с quarter:', allDealsFlat.filter(d => d.quarter && d.quarter !== 'nan').length);
+        console.log('📊 Сделок с cad_nspd:', allDealsFlat.filter(d => d.cad_nspd).length);
         
         // Обновляем UI
         renderDealTypeFilters();
@@ -929,8 +958,6 @@ async function loadDealsCSV() {
             console.log('🔄 Перерисовка карты после загрузки CSV...');
             renderMapLevel(currentLevel || 0, currentParentId);
         }
-        
-        console.log(`✅ Номера НСПД загружены из CSV (поле cad_nspd)`);
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -6441,7 +6468,7 @@ function refreshCSVFromGist() {
         return;
     }
     
-    showNotification('🔄 Обновление CSV из Gist...', 'info');
+    showNotification('🔄 Загрузка номеров НСПД из Gist...', 'info');
     
     fetch(`https://api.github.com/gists/${gistId}`, {
         headers: {
@@ -6456,35 +6483,9 @@ function refreshCSVFromGist() {
     .then(data => {
         const file = data.files?.['deals_clean.csv'];
         if (file && file.content) {
-            // ✅ Сохраняем в localStorage для быстрого доступа
-            localStorage.setItem('deals_csv_gist_url', file.raw_url);
+            console.log('📥 Загрузка номеров НСПД из Gist...');
             
-            // ════════════════════════════════════════════════════════════════
-            // 🔥 ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ИЗ НОВОГО CSV
-            // ════════════════════════════════════════════════════════════════
-            console.log('📥 Перезагрузка данных из нового CSV...');
-            
-            // ✅ Очищаем старые данные
-            allDealsFlat = [];
-            dealsData = {};
-            dealTypes = {};
-            cityTypes = {};
-            objectTypes = {};
-            wallMaterialTypes = {};
-            quarterTypes = {};
-            yearBuildTypes = {};
-            purposeCount = {};
-            vriCount = {};
-            
-            // ✅ Парсим новый CSV
-            const csvContent = file.content;
-            const lines = csvContent.split('\n').filter(line => line.trim());
-            
-            if (lines.length < 2) {
-                showNotification('❌ CSV пустой', 'error');
-                return;
-            }
-            
+            // ✅ Парсим CSV из Gist (только cad_number и cad_nspd)
             function parseCSVLine(line) {
                 const result = [];
                 let current = '';
@@ -6511,87 +6512,66 @@ function refreshCSVFromGist() {
                 return result;
             }
             
+            const csvContent = file.content;
+            const lines = csvContent.split('\n').filter(line => line.trim());
+            
+            if (lines.length < 2) {
+                showNotification('❌ CSV пустой', 'error');
+                return;
+            }
+            
             const headers = parseCSVLine(lines[0]);
             const cadIndex = headers.indexOf('cad_number');
-            const kindIndex = headers.indexOf('deal_kind_text');
-            const cityIndex = headers.indexOf('city');
-            const priceIndex = headers.indexOf('deal_price_rub');
-            const uprsIndex = headers.indexOf('uprs_rub');
-            const upksIndex = headers.indexOf('upks');
-            const areaIndex = headers.indexOf('area');
-            const objKindIndex = headers.indexOf('obj_kind_text');
-            const wallMaterialIndex = headers.indexOf('wall_material_name');
-            const quarterIndex = headers.indexOf('quarter');  // ← ВАЖНО!
-            const yearBuildIndex = headers.indexOf('year_build');
-            const purposeIndex = headers.indexOf('purpose_text');
-            const vriIndex = headers.indexOf('vri');
-            const cadCostIndex = headers.indexOf('cad_cost');
-            const floorIndex = headers.indexOf('floor');
-            const locationIndex = headers.indexOf('location');
-            const streetIndex = headers.indexOf('street');
             const nspdIndex = headers.indexOf('cad_nspd');
+            
+            if (cadIndex === -1 || nspdIndex === -1) {
+                showNotification('❌ В CSV нет столбцов cad_number или cad_nspd', 'error');
+                return;
+            }
+            
+            // ✅ Собираем номера НСПД из Gist
+            const nspdMap = {};
+            let foundCount = 0;
             
             for (let i = 1; i < lines.length; i++) {
                 const values = parseCSVLine(lines[i]);
-                if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
+                if (values.length < Math.max(cadIndex, nspdIndex) + 1) continue;
                 
                 const cadNum = values[cadIndex] || '';
-                if (!cadNum) continue;
+                const cadNspd = values[nspdIndex] && values[nspdIndex].trim() !== '' 
+                    ? values[nspdIndex].trim() 
+                    : null;
                 
-                const deal = {
-                    cad_number: cadNum,
-                    area: parseFloat(values[areaIndex]) || 0,
-                    purpose_text: values[purposeIndex] || 'nan',
-                    cad_cost: parseFloat(values[cadCostIndex]) || 0,
-                    upks: parseFloat(values[upksIndex]) || 0,
-                    uprs: parseFloat(values[uprsIndex]) || 0,
-                    city: values[cityIndex] || 'nan',
-                    deal_kind_text: values[kindIndex] || 'nan',
-                    obj_kind_text: values[objKindIndex] || 'nan',
-                    vri: values[vriIndex] || 'nan',
-                    quarter: values[quarterIndex] || 'nan',  // ← Сохраняем квартал!
-                    year_build: values[yearBuildIndex] || 'nan',
-                    wall_material_name: values[wallMaterialIndex] || 'nan',
-                    deal_price_rub: parseFloat(values[priceIndex]) || 0,
-                    uprs_rub: parseFloat(values[uprsIndex]) || 0,
-                    floor: values[floorIndex] || 'nan',
-                    location: values[locationIndex] || 'nan',
-                    street: values[streetIndex] || 'nan',
-                    cad_nspd: values[nspdIndex] && values[nspdIndex].trim() !== '' ? values[nspdIndex].trim() : null
-                };
-                
-                allDealsFlat.push(deal);
-                
-                // Обновляем счетчики
-                dealTypes[deal.deal_kind_text] = (dealTypes[deal.deal_kind_text] || 0) + 1;
-                cityTypes[deal.city] = (cityTypes[deal.city] || 0) + 1;
-                objectTypes[deal.obj_kind_text] = (objectTypes[deal.obj_kind_text] || 0) + 1;
-                wallMaterialTypes[deal.wall_material_name] = (wallMaterialTypes[deal.wall_material_name] || 0) + 1;
-                quarterTypes[deal.quarter] = (quarterTypes[deal.quarter] || 0) + 1;
-                yearBuildTypes[deal.year_build] = (yearBuildTypes[deal.year_build] || 0) + 1;
-                purposeCount[deal.purpose_text] = (purposeCount[deal.purpose_text] || 0) + 1;
-                vriCount[deal.vri] = (vriCount[deal.vri] || 0) + 1;
+                if (cadNum && cadNspd) {
+                    nspdMap[cadNum] = cadNspd;
+                    foundCount++;
+                }
             }
             
-            console.log(`✅ Загружено ${allDealsFlat.length} сделок из Gist`);
+            console.log(`📊 Найдено ${foundCount} номеров НСПД в Gist`);
             
-            // ✅ Обновляем UI
-            renderDealTypeFilters();
-            renderCityFilters();
-            renderObjectTypeFilters();
-            renderWallMaterialFilters();
-            renderQuarterFilters();
-            renderYearBuildFilters();
-            renderPurposeFilters();
-            renderVriFilters();
-            renderDealsTable();
-            
-            if (mapData) {
-                renderMapLevel(currentLevel || 0, currentParentId);
+            // ✅ Обновляем только cad_nspd в существующих сделках
+            let updatedCount = 0;
+            for (const deal of allDealsFlat) {
+                if (nspdMap[deal.cad_number]) {
+                    deal.cad_nspd = nspdMap[deal.cad_number];
+                    updatedCount++;
+                }
             }
             
-            showNotification(`✅ CSV обновлен! Загружено ${allDealsFlat.length} сделок`, 'success');
-            console.log('✅ CSV обновлен и данные перезагружены');
+            console.log(`✅ Обновлено ${updatedCount} сделок номерами НСПД из Gist`);
+            
+            // ✅ Обновляем таблицу
+            if (typeof renderDealsTable === 'function') {
+                renderDealsTable();
+            }
+            
+            // ✅ Если есть updateTableFull — используем её
+            if (typeof updateTableFull === 'function') {
+                updateTableFull();
+            }
+            
+            showNotification(`✅ Загружено ${foundCount} номеров НСПД, обновлено ${updatedCount} сделок`, 'success');
             
         } else {
             showNotification('❌ Файл не найден в Gist', 'error');
@@ -6746,7 +6726,7 @@ async function syncWithNSPD() {
     const processedKeys = new Set();
 
     for (const deal of allDealsFlat) {
-        if (deal.cad_nspd) continue;  // ← теперь здесь ТОЛЬКО правильные номера!
+        if (deal.cad_nspd) continue;
         
         const quarter = getQuarter(deal.cad_number);
         if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
@@ -6957,27 +6937,32 @@ async function syncWithNSPD() {
     showNotification(resultMessage, wasAborted ? 'warning' : 'success');
     console.log(resultMessage);
     
+    // ════════════════════════════════════════════════════════════════
+    // 🔥 ИЗМЕНЕННАЯ ЧАСТЬ: СОХРАНЯЕМ ТОЛЬКО cad_number И cad_nspd
+    // ════════════════════════════════════════════════════════════════
     if (foundCount > 0) {
-        console.log('📊 Формирование CSV...');
-        const headers = [
-            'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
-            'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
-            'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
-            'floor', 'location', 'street', 'cad_nspd'
-        ];
+        console.log('📊 Формирование CSV с номерами НСПД...');
         
-        let csv = headers.join(',') + '\n';
+        // ✅ ТОЛЬКО 2 КОЛОНКИ
+        let csv = 'cad_number,cad_nspd\n';
+        let exportedCount = 0;
+        
         for (const deal of allDealsFlat) {
-            const row = headers.map(h => {
-                let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
-                if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-                    val = '"' + val.replace(/"/g, '""') + '"';
+            if (deal.cad_nspd) {
+                let nspd = deal.cad_nspd;
+                // Экранируем кавычки и запятые
+                if (typeof nspd === 'string') {
+                    if (nspd.includes(',') || nspd.includes('"') || nspd.includes('\n')) {
+                        nspd = '"' + nspd.replace(/"/g, '""') + '"';
+                    }
+                    csv += `${deal.cad_number},${nspd}\n`;
+                    exportedCount++;
                 }
-                return val;
-            });
-            csv += row.join(',') + '\n';
+            }
         }
-        console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
+        
+        console.log(`📏 Размер CSV с номерами НСПД: ${(csv.length / 1024).toFixed(2)} КБ`);
+        console.log(`📊 Экспортировано ${exportedCount} номеров НСПД`);
         
         const token = prompt('Введите GitHub Token для обновления CSV (нужны права gist):');
         if (!token || !token.trim()) {
@@ -7017,7 +7002,6 @@ async function syncWithNSPD() {
                         });
                         
                         if (getGistResponse.status === 404) {
-                            // ✅ GIST НЕ СУЩЕСТВУЕТ — УДАЛЯЕМ ID И СОЗДАЕМ НОВЫЙ
                             console.warn(`⚠️ Gist ${existingGistId} не найден (404), создаем новый...`);
                             localStorage.removeItem('deals_csv_gist_id');
                             localStorage.removeItem('deals_csv_gist_url');
@@ -7040,7 +7024,7 @@ async function syncWithNSPD() {
                                 'Accept': 'application/json'
                             },
                             body: JSON.stringify({
-                                description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
+                                description: `Номера НСПД ${new Date().toISOString().slice(0,10)}`,
                                 files: {
                                     'deals_clean.csv': {
                                         content: csv,
@@ -7071,7 +7055,7 @@ async function syncWithNSPD() {
                                     'Accept': 'application/json'
                                 },
                                 body: JSON.stringify({
-                                    description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+                                    description: `Номера НСПД ${new Date().toISOString().slice(0,10)}`,
                                     public: false,
                                     files: {
                                         'deals_clean.csv': {
@@ -7105,7 +7089,7 @@ async function syncWithNSPD() {
                             'Accept': 'application/json'
                         },
                         body: JSON.stringify({
-                            description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+                            description: `Номера НСПД ${new Date().toISOString().slice(0,10)}`,
                             public: false,
                             files: {
                                 'deals_clean.csv': {
@@ -7123,14 +7107,10 @@ async function syncWithNSPD() {
                     gistData = await createResponse.json();
                     console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
 
-                    // ════════════════════════════════════════════════════════════════
-                    // 🔥 БЛОК ПОСЛЕ СОЗДАНИЯ GIST
-                    // ════════════════════════════════════════════════════════════════
                     const newGistId = gistData.id;
                     console.log(`📋 НОВЫЙ GIST ID: ${newGistId}`);
-                    console.log('⚠️ ОБНОВИТЕ HARDCODED_GIST_ID В КОДЕ НА ЭТОТ ID!');
 
-                    showNotification(`✅ Создан Gist! ID: ${newGistId}. Обновите код!`, 'warning');
+                    showNotification(`✅ Создан Gist! ID: ${newGistId}`, 'success');
 
                     localStorage.setItem('deals_csv_gist_id', newGistId);
                     localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
@@ -7148,20 +7128,10 @@ async function syncWithNSPD() {
                 localStorage.setItem('deals_csv_gist_url', rawUrl);
                 localStorage.setItem('deals_csv_gist_id', gistData.id);
 
-                console.log(`✅ CSV сохранен в Gist: ${rawUrl}`);
+                console.log(`✅ CSV с номерами НСПД сохранен в Gist: ${rawUrl}`);
                 console.log(`📋 Gist ID: ${gistData.id}`);
 
-                showNotification(`✅ CSV сохранен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
-
-                // ✅ Сохраняем номера НСПД (вдруг пригодятся)
-                const nspdData = {};
-                for (const deal of allDealsFlat) {
-                    if (deal.cad_nspd) {
-                        nspdData[deal.cad_number] = deal.cad_nspd;
-                    }
-                }
-                localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-                console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
+                showNotification(`✅ Номера НСПД сохранены в Gist! (${(csv.length / 1024).toFixed(2)} КБ)`, 'success');
 
             } catch (error) {
                 console.error('❌ Ошибка:', error);
