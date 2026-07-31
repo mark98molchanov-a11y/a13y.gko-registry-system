@@ -6350,7 +6350,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
 async function loadDealsFromRelease() {
     // 🔥 ЖЕСТКО ЗАШИТЫЙ ID (ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ)
     // ⚠️ ОБНОВЛЯЙТЕ ЕГО ТОЛЬКО КОГДА МЕНЯЕТЕ GIST!
-    const HARDCODED_GIST_ID = '9a7fa0d0ba8a8dfb23036d49144aa08a';
+    const HARDCODED_GIST_ID = '691d0b6b65d14839cfcf6a55f0d4c15d';
     
     // ✅ 1. Сначала пробуем загрузить по URL из localStorage
     //    (для вас — быстро, без запроса к API)
