@@ -7051,6 +7051,10 @@ window.toggleAllQuarters = toggleAllQuarters;
 window.toggleAllYearBuilds = toggleAllYearBuilds;
 window.toggleAllPurposes = toggleAllPurposes;
 window.toggleAllVri = toggleAllVri;
+window.setChartGroupBy = setChartGroupBy; 
+window.refreshPriceChart = refreshPriceChart;
+window.getMedianSync = getMedianSync;
+window.formatPriceShort = formatPriceShort;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
