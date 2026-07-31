@@ -6736,13 +6736,13 @@ try {
     const urlData = await urlResponse.json();
     console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
     
-    // ✅ 2.2. ЗАГРУЖАЕМ CSV НАПРЯМУЮ В BLOB (ПРЯМОЙ POST, ОБХОДИТ ЛИМИТ 4.5 МБ!)
-    console.log('📤 Загрузка CSV напрямую в Blob (прямой запрос, без Serverless)...');
+    // ✅ 2.2. ЗАГРУЖАЕМ CSV НАПРЯМУЮ В BLOB (ЧЕРЕЗ POST, БЕЗ CORS!)
+    console.log('📤 Загрузка CSV напрямую в Blob через POST...');
     const csvBlob = new Blob([csv], { type: 'text/csv' });
     
-    // ⚠️ ВАЖНО: используем ПРЯМОЙ запрос к URL от Vercel Blob
+    // ✅ ИСПОЛЬЗУЕМ POST (НЕ PUT!)
     const uploadResponse = await fetch(urlData.uploadUrl, {
-        method: 'PUT',  // Vercel Blob ожидает PUT для загрузки
+        method: 'POST',  // ← POST!
         headers: {
             'Content-Type': 'text/csv'
         },
@@ -6755,7 +6755,7 @@ try {
     }
     
     // ✅ Получаем финальный URL
-    const finalBlobUrl = urlData.uploadUrl; // или uploadResponse.url
+    const finalBlobUrl = urlData.uploadUrl;
     console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
     console.log(`📏 Размер: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
@@ -6791,7 +6791,6 @@ try {
     console.error('❌ Ошибка обновления CSV:', error);
     showNotification(`❌ Ошибка: ${error.message}`, 'error');
 }
-
     
 } else {
     console.log('ℹ️ Нет новых номеров для обновления CSV');
