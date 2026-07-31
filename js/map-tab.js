@@ -6983,7 +6983,6 @@ try {
 } catch(e) {
     console.log('📋 ID: ' + newGistId);
 }
-}
 
 // ✅ 3. СОХРАНЯЕМ URL И ID
 const rawUrl = gistData.files['deals_clean.csv'].raw_url;
