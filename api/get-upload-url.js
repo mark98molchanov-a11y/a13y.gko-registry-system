@@ -15,29 +15,35 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { fileName, fileType, access } = req.body;
+        // ✅ ПРИНИМАЕМ content С ДАННЫМИ
+        const { fileName, fileType, content } = req.body;
 
         if (!fileName) {
             return res.status(400).json({ error: 'fileName required' });
         }
 
+        if (!content) {
+            return res.status(400).json({ error: 'content required' });
+        }
+
         const TOKEN = 'vercel_blob_rw_vY4BahfMyj9BWxPQ_gbUEC6RbCTBBIyADw4zf1r7IdZ9iKn';
         const STORE_ID = 'store_vY4BahfMyj9BWxPQ';
 
-        // ✅ СОЗДАЁМ ПУСТОЙ ФАЙЛ ДЛЯ ПОЛУЧЕНИЯ URL
-        const blob = await put(fileName, new ArrayBuffer(0), {
-            access: access || 'public',
+        // ✅ ЗАГРУЖАЕМ ФАЙЛ С ДАННЫМИ ЧЕРЕЗ API (ОБХОД CORS!)
+        const blob = await put(fileName, content, {
+            access: 'public',
             contentType: fileType || 'text/csv',
             addRandomSuffix: false,
             token: TOKEN,
             storeId: STORE_ID,
         });
 
-        console.log(`✅ Получен URL для загрузки: ${blob.url}`);
+        console.log(`✅ CSV загружен в Blob: ${blob.url}`);
+        console.log(`📏 Размер: ${(content.length / 1024 / 1024).toFixed(2)} МБ`);
 
         return res.status(200).json({
             success: true,
-            uploadUrl: blob.url,
+            url: blob.url,
             downloadUrl: blob.downloadUrl
         });
 
