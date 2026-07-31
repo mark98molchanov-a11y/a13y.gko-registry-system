@@ -6592,34 +6592,34 @@ async function syncWithNSPD() {
     }
     console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
     
-    // ✅ СОБИРАЕМ УНИКАЛЬНЫЕ КОМБИНАЦИИ (ТОЛЬКО ДЛЯ ТЕХ, У КОГО НЕТ cad_nspd)
     const uniqueObjects = [];
-    const processedKeys = new Set();
+const processedKeys = new Set();
+
+for (const deal of allDealsFlat) {
+    if (deal.cad_nspd) continue;
     
-    for (const deal of allDealsFlat) {
-        if (deal.cad_nspd) continue;
-        
-        const quarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-        if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
-        
-        const area = deal.area || 0;
-        if (area <= 0) continue;
-        
-        const objType = deal.obj_kind_text || 'Здание';
-        const location = deal.city || '';
-        
-        const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
-        if (processedKeys.has(key)) continue;
-        processedKeys.add(key);
-        
-        uniqueObjects.push({
-            quarter: quarter,
-            area: area,
-            type: objType,
-            location: location,
-            locationKeywords: [location, deal.street || ''].filter(Boolean)
-        });
-    }
+    // ✅ ИСПРАВЛЕНО: извлекаем квартал правильно
+    const quarter = getQuarter(deal.cad_number);
+    if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
+    
+    const area = deal.area || 0;
+    if (area <= 0) continue;
+    
+    const objType = deal.obj_kind_text || 'Здание';
+    const location = deal.city || '';
+    
+    const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
+    if (processedKeys.has(key)) continue;
+    processedKeys.add(key);
+    
+    uniqueObjects.push({
+        quarter: quarter,  // ← теперь правильный квартал!
+        area: area,
+        type: objType,
+        location: location,
+        locationKeywords: [location, deal.street || ''].filter(Boolean)
+    });
+}
     
     console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
     console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
