@@ -6711,8 +6711,7 @@ for (const deal of allDealsFlat) {
             
             // ✅ 1. ТОЧНОЕ СОВПАДЕНИЕ (ГОРОД + УЛИЦА)
             for (const deal of allDealsFlat) {
-                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-                
+                const dealQuarter = getQuarter(deal.cad_number);
                 let streetMatch = true;
                 if (obj.locationKeywords && obj.locationKeywords.length > 0) {
                     streetMatch = obj.locationKeywords.some(kw => {
