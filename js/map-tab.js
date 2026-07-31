@@ -7000,10 +7000,11 @@ for (const deal of allDealsFlat) {
 localStorage.setItem('nspd_data', JSON.stringify(nspdData));
 console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
 
-} catch (error) {
+} catch (error) {   // ← try закрывается ОДНОЙ СКОБКОЙ
     console.error('❌ Ошибка:', error);
     showNotification(`❌ Ошибка: ${error.message}`, 'error');
-} else {
+}
+} else {  // ← else от if (foundCount > 0)
 console.log('ℹ️ Нет новых номеров для обновления CSV');
 showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
 }
