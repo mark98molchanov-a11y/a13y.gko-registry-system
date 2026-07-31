@@ -11,7 +11,7 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
     
-    // ✅ БОЛЕЕ НАДЁЖНОЕ ИЗВЛЕЧЕНИЕ ТОКЕНА
+    // ✅ ИЗВЛЕЧЕНИЕ ТОКЕНА
     const authHeader = req.headers.authorization || '';
     let token = null;
     
@@ -101,29 +101,53 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'Empty content' });
             }
             
-            const url = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
+            // ⚠️ ВАЖНО: Vercel имеет лимит 4.5 МБ на тело запроса!
+            // Для больших файлов используем GitHub API напрямую (PUT /contents)
+            const url = `https://api.github.com/repos/${owner}/${repo}/contents/data/${fileName}`;
             
+            // Кодируем содержимое в Base64
+            const base64Content = Buffer.from(content).toString('base64');
+            
+            // Пытаемся получить SHA существующего файла
+            let sha = null;
+            try {
+                const checkResponse = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if (checkResponse.ok) {
+                    const data = await checkResponse.json();
+                    sha = data.sha;
+                }
+            } catch(e) {
+                // Файл не существует, создадим новый
+            }
+            
+            // Загружаем через GitHub API (поддерживает до 100 МБ!)
             const response = await fetch(url, {
-                method: 'POST',
+                method: 'PUT',
                 headers: {
                     'Authorization': `token ${token}`,
-                    'Content-Type': 'application/octet-stream',
-                    'Content-Length': Buffer.byteLength(content)
+                    'Content-Type': 'application/json'
                 },
-                body: content
+                body: JSON.stringify({
+                    message: `Update ${fileName}`,
+                    content: base64Content,
+                    sha: sha,
+                    branch: 'main'
+                })
             });
             
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`❌ Ошибка загрузки: ${response.status} - ${errorText}`);
+                const errorData = await response.json();
+                console.error(`❌ Ошибка загрузки: ${response.status} - ${JSON.stringify(errorData)}`);
                 return res.status(response.status).json({ 
                     error: `Upload failed: ${response.status}`,
-                    details: errorText
+                    details: errorData
                 });
             }
             
             const data = await response.json();
-            console.log(`✅ Файл загружен: ${data.browser_download_url}`);
+            console.log(`✅ Файл загружен: ${data.content.html_url}`);
             
             return res.status(200).json(data);
         }
