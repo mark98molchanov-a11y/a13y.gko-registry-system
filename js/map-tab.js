@@ -954,42 +954,7 @@ async function loadDealsCSV() {
             renderDealsTable();
         }
         
-        // ✅ ============================================================
-        // ✅ ЗАГРУЗКА СОХРАНЁННЫХ НОМЕРОВ НСПД ИЗ localStorage
-        // ✅ ============================================================
-        try {
-            const savedNspd = localStorage.getItem('nspd_data');
-            if (savedNspd) {
-                const nspdMap = JSON.parse(savedNspd);
-                let loadedCount = 0;
-                for (const deal of allDealsFlat) {
-                    if (nspdMap[deal.cad_number]) {
-                        deal.cad_nspd = nspdMap[deal.cad_number];
-                        loadedCount++;
-                    }
-                }
-                console.log(`✅ Загружено ${loadedCount} номеров НСПД из localStorage (${Object.keys(nspdMap).length} уникальных)`);
-                
-                // Обновляем dealsData (для карты и попапов)
-                for (const cadNum in dealsData) {
-                    const deals = dealsData[cadNum] || [];
-                    for (const deal of deals) {
-                        if (nspdMap[cadNum]) {
-                            deal.cad_nspd = nspdMap[cadNum];
-                        }
-                    }
-                }
-                
-                // Перерисовываем таблицу, чтобы показать номера
-                if (typeof renderDealsTable === 'function') {
-                    renderDealsTable();
-                }
-            } else {
-                console.log('ℹ️ Нет сохранённых номеров НСПД в localStorage');
-            }
-        } catch(e) {
-            console.error('❌ Ошибка загрузки из localStorage:', e);
-        }
+      console.log(`✅ Номера НСПД загружены из CSV (поле cad_nspd)`);
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
@@ -6374,7 +6339,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     }
 }
 async function loadDealsFromRelease() {
-    // ✅ 1. Пробуем загрузить из Gist (сохраненный URL)
+    // ✅ 1. Пробуем загрузить из Gist (сохраненный URL в localStorage)
     const gistUrl = localStorage.getItem('deals_csv_gist_url');
     if (gistUrl) {
         try {
@@ -6385,7 +6350,6 @@ async function loadDealsFromRelease() {
                 const sizeMB = (text.length / 1024 / 1024).toFixed(2);
                 console.log(`✅ CSV загружен из Gist, размер: ${sizeMB} МБ`);
                 
-                // ✅ Проверяем, что это валидный CSV
                 if (text.trim().startsWith('cad_number')) {
                     return text;
                 } else {
@@ -6405,9 +6369,7 @@ async function loadDealsFromRelease() {
         try {
             console.log(`📥 Загрузка Gist по ID: ${gistId}...`);
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: { 'Accept': 'application/json' }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -6418,7 +6380,6 @@ async function loadDealsFromRelease() {
                     console.log(`✅ CSV загружен из Gist (по ID), размер: ${sizeMB} МБ`);
                     
                     if (text.trim().startsWith('cad_number')) {
-                        // ✅ Обновляем URL в localStorage
                         localStorage.setItem('deals_csv_gist_url', file.raw_url);
                         return text;
                     }
@@ -6429,7 +6390,7 @@ async function loadDealsFromRelease() {
         }
     }
     
-    // ✅ 3. Fallback: загрузка из репозитория (если файл есть)
+    // ✅ 3. Fallback: загрузка из репозитория
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
     const branch = 'main';
@@ -6449,7 +6410,6 @@ async function loadDealsFromRelease() {
         console.warn('⚠️ Ошибка загрузки из репозитория:', error.message);
     }
     
-    // ✅ 4. Если ничего не работает
     console.error('❌ Не удалось загрузить CSV ни из одного источника');
     return null;
 }
@@ -6821,15 +6781,6 @@ if (foundCount > 0) {
             
             showNotification(`✅ CSV загружен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
             
-            // ✅ Сохраняем номера НСПД
-            const nspdData = {};
-            for (const deal of allDealsFlat) {
-                if (deal.cad_nspd) {
-                    nspdData[deal.cad_number] = deal.cad_nspd;
-                }
-            }
-            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
             
         } catch (error) {
             console.error('❌ Ошибка:', error);
