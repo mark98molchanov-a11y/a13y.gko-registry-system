@@ -7368,6 +7368,10 @@ window.setChartGroupBy = setChartGroupBy;
 window.refreshPriceChart = refreshPriceChart;
 window.getMedianSync = getMedianSync;
 window.formatPriceShort = formatPriceShort;
+window.allDealsFlat = allDealsFlat;
+window.getQuarter = getQuarter;
+window.dealsData = dealsData;
+window.mapData = mapData;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
