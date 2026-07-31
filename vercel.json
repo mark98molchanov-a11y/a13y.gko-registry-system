@@ -35,10 +35,6 @@
       "dest": "/api/index.js"
     },
     {
-      "src": "/api/upload/(.*)",
-      "dest": "/api/index.js"
-    },
-    {
       "src": "/api/check-token",
       "dest": "/api/index.js"
     },
