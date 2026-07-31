@@ -6592,7 +6592,7 @@ async function syncWithNSPD() {
     }
     console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
     
-    const uniqueObjects = [];
+  const uniqueObjects = [];
 const processedKeys = new Set();
 
 for (const deal of allDealsFlat) {
