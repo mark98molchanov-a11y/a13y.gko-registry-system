@@ -6663,9 +6663,7 @@ async function syncWithNSPD() {
         }
         console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
         
-        // ✅ 2. ЗАГРУЗКА В GITHUB API (ПРЯМО В РЕПОЗИТОРИЙ)
-        console.log(`📤 Загрузка CSV в репозиторий (${(csv.length / 1024 / 1024).toFixed(2)} МБ)...`);
-        
+        // ✅ 2. ЗАПРАШИВАЕМ ТОКЕН
         const token = prompt('Введите GitHub Token для обновления CSV:');
         if (!token || !token.trim()) {
             showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
@@ -6673,55 +6671,107 @@ async function syncWithNSPD() {
             try {
                 const owner = 'mark98molchanov-a11y';
                 const repo = 'a13y.gko-registry-system';
-                const branch = 'main';
-                const path = 'data/deals_clean.csv';
+                const releaseTag = 'v1.0.0';
+                const fileName = 'deals_clean.csv';
                 
-                // ✅ 2.1. Кодируем CSV в Base64
-                const content = btoa(unescape(encodeURIComponent(csv)));
+                showNotification('📤 Загрузка в GitHub Release...', 'info');
                 
-                // ✅ 2.2. Получаем SHA файла (если существует)
-                let sha = null;
-                try {
-                    const fileCheck = await fetch(
-                        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-                        { headers: { 'Authorization': `token ${token}` } }
-                    );
-                    if (fileCheck.ok) {
-                        const data = await fileCheck.json();
-                        sha = data.sha;
-                        console.log(`✅ Найден существующий файл, SHA: ${sha}`);
-                    }
-                } catch(e) {
-                    console.log('ℹ️ Файл будет создан заново');
-                }
-                
-                // ✅ 2.3. Загружаем файл через GitHub API (поддерживает до 100 МБ!)
-                const uploadResponse = await fetch(
-                    `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-                    {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            message: `Обновление CSV с данными НСПД (${new Date().toLocaleDateString('ru-RU')})`,
-                            content: content,
-                            sha: sha,
-                            branch: branch
-                        })
-                    }
+                // ✅ 2.1. ПОЛУЧАЕМ RELEASE ID
+                console.log('📥 Получение информации о релизе...');
+                const releaseResponse = await fetch(
+                    `https://api.github.com/repos/${owner}/${repo}/releases/tags/${releaseTag}`,
+                    { headers: { 'Authorization': `token ${token}` } }
                 );
                 
-                if (!uploadResponse.ok) {
-                    const errorData = await uploadResponse.json();
-                    throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorData.message || errorData.details || ''}`);
+                if (!releaseResponse.ok) {
+                    throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
                 }
                 
-                const result = await uploadResponse.json();
-                console.log(`✅ CSV обновлен!`);
-                console.log(`🔗 ${result.content.html_url}`);
-                showNotification(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в репозитории!`, 'success');
+                const releaseData = await releaseResponse.json();
+                const releaseId = releaseData.id;
+                console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
+                
+                // ✅ 2.2. УДАЛЯЕМ СТАРЫЙ ASSET (ЕСЛИ ЕСТЬ)
+                let assetId = null;
+                if (releaseData.assets) {
+                    for (const asset of releaseData.assets) {
+                        if (asset.name === fileName) {
+                            assetId = asset.id;
+                            break;
+                        }
+                    }
+                }
+                
+                if (assetId) {
+                    console.log('🗑️ Удаление старого asset...');
+                    await fetch(
+                        `https://api.github.com/repos/${owner}/${repo}/releases/assets/${assetId}`,
+                        {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `token ${token}` }
+                        }
+                    );
+                    console.log('✅ Старый asset удален');
+                }
+                
+                // ✅ 2.3. ЗАГРУЗКА ЧЕРЕЗ XMLHttpRequest (ОБХОД CORS!)
+                console.log(`📤 Загрузка файла (${(csv.length / 1024 / 1024).toFixed(2)} МБ) в Release...`);
+                
+                const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
+                
+                // Создаем Blob из CSV
+                const blob = new Blob([csv], { type: 'text/csv' });
+                
+                // Используем XMLHttpRequest для обхода CORS
+                const uploadResult = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    
+                    // Прогресс загрузки
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            const percent = Math.round((e.loaded / e.total) * 100);
+                            console.log(`📤 Загрузка: ${percent}%`);
+                            if (btn) {
+                                btn.innerHTML = `⏳ Загрузка... ${percent}%`;
+                            }
+                        }
+                    };
+                    
+                    xhr.onload = function() {
+                        if (xhr.status === 201) {
+                            try {
+                                const result = JSON.parse(xhr.responseText);
+                                console.log(`✅ Файл загружен в Release!`);
+                                console.log(`🔗 ${result.browser_download_url}`);
+                                resolve(result);
+                            } catch(e) {
+                                reject(new Error('Ошибка парсинга ответа'));
+                            }
+                        } else {
+                            reject(new Error(`Ошибка загрузки: ${xhr.status} - ${xhr.responseText}`));
+                        }
+                    };
+                    
+                    xhr.onerror = function() {
+                        reject(new Error('Ошибка сети при загрузке'));
+                    };
+                    
+                    xhr.ontimeout = function() {
+                        reject(new Error('Таймаут загрузки'));
+                    };
+                    
+                    // Открываем соединение
+                    xhr.open('POST', uploadUrl);
+                    xhr.setRequestHeader('Authorization', `token ${token}`);
+                    xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+                    xhr.timeout = 600000; // 10 минут таймаут
+                    
+                    // Отправляем Blob
+                    xhr.send(blob);
+                });
+                
+                console.log(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в GitHub Release!`);
+                showNotification(`✅ CSV обновлен в GitHub Release!`, 'success');
                 
                 // ✅ 2.4. Сохраняем номера НСПД в localStorage
                 const nspdData = {};
