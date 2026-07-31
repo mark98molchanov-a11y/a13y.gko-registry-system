@@ -6716,17 +6716,26 @@ if (foundCount > 0) {
     // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB
 console.log('📤 Загрузка в Vercel Blob...');
 try {
-    console.log(`📤 Загрузка CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) через handleUpload...`);
+    // ✅ ЗАГРУЖАЕМ CSV В BLOB ЧЕРЕЗ API (ОДНИМ ЗАПРОСОМ!)
+    console.log('📤 Загрузка CSV в Blob...');
     
-    // Создаём File из CSV
-    const file = new File([csv], 'deals_clean.csv', { type: 'text/csv' });
+    const blobResponse = await fetch('/api/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            fileName: 'deals_clean.csv', 
+            fileType: 'text/csv',
+            content: csv  // ← ПЕРЕДАЁМ САМ CSV!
+        })
+    });
     
-const result = await window.upload(file.name, file, {
-    access: 'public',
-    handleUploadUrl: '/api/get-upload-url',
-});
+    if (!blobResponse.ok) {
+        const errorData = await blobResponse.json().catch(() => ({}));
+        throw new Error(`Ошибка загрузки в Blob: ${blobResponse.status} - ${errorData.error || ''}`);
+    }
     
-    const finalBlobUrl = result.url;
+    const blobData = await blobResponse.json();
+    const finalBlobUrl = blobData.url;
     console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
     console.log(`📏 Размер: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
