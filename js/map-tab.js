@@ -6716,46 +6716,26 @@ if (foundCount > 0) {
     // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB
 console.log('📤 Загрузка в Vercel Blob...');
 try {
-    // ✅ 2.1. ПОЛУЧАЕМ URL ДЛЯ ЗАГРУЗКИ (МАЛЕНЬКИЙ ЗАПРОС)
-    console.log('📤 Получение URL для загрузки...');
-    const urlResponse = await fetch('/api/get-upload-url', {
+    // ✅ ЗАГРУЖАЕМ CSV В BLOB ЧЕРЕЗ API (ОДНИМ ЗАПРОСОМ!)
+    console.log('📤 Загрузка CSV в Blob...');
+    
+    const blobResponse = await fetch('/api/get-upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             fileName: 'deals_clean.csv', 
             fileType: 'text/csv',
-            access: 'public'
+            content: csv  // ← ПЕРЕДАЁМ САМ CSV!
         })
     });
     
-    if (!urlResponse.ok) {
-        const errorData = await urlResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка получения URL: ${urlResponse.status} - ${errorData.error || ''}`);
+    if (!blobResponse.ok) {
+        const errorData = await blobResponse.json().catch(() => ({}));
+        throw new Error(`Ошибка загрузки в Blob: ${blobResponse.status} - ${errorData.error || ''}`);
     }
     
-    const urlData = await urlResponse.json();
-    console.log(`✅ Получен URL для загрузки: ${urlData.uploadUrl}`);
-    
-    // ✅ 2.2. ЗАГРУЖАЕМ CSV НАПРЯМУЮ В BLOB (ЧЕРЕЗ POST, БЕЗ CORS!)
-    console.log('📤 Загрузка CSV напрямую в Blob через POST...');
-    const csvBlob = new Blob([csv], { type: 'text/csv' });
-    
-    // ✅ ИСПОЛЬЗУЕМ POST (НЕ PUT!)
-    const uploadResponse = await fetch(urlData.uploadUrl, {
-        method: 'POST',  // ← POST!
-        headers: {
-            'Content-Type': 'text/csv'
-        },
-        body: csvBlob
-    });
-    
-    if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Ошибка загрузки в Blob: ${uploadResponse.status} - ${errorText}`);
-    }
-    
-    // ✅ Получаем финальный URL
-    const finalBlobUrl = urlData.uploadUrl;
+    const blobData = await blobResponse.json();
+    const finalBlobUrl = blobData.url;
     console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
     console.log(`📏 Размер: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
