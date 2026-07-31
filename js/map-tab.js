@@ -5774,6 +5774,8 @@ window.searchQuarterByCadNumber = searchQuarterByCadNumber;
 window.exportDealsTableToExcel = exportDealsTableToExcel;
 window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
+window.toggleHeatmapMode = toggleHeatmapMode;  // ✅ ДОБАВЬТЕ ЭТО
+window.togglePriceFilter = togglePriceFilter; 
 function addHeatmapLegend() {
     // Удаляем старую легенду если есть
     const oldLegend = document.querySelector('.heatmap-legend');
