@@ -23,33 +23,9 @@
     {
       "src": "api/index.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "api/upload-to-blob.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/trigger-github-action.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/get-upload-url.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
-    {
-      "src": "/api/get-upload-url",
-      "dest": "/api/get-upload-url.js"
-    },
-    {
-      "src": "/api/upload-to-blob",
-      "dest": "/api/upload-to-blob.js"
-    },
-    {
-      "src": "/api/trigger-github-action",
-      "dest": "/api/trigger-github-action.js"
-    },
     {
       "src": "/api/release/(.*)",
       "dest": "/api/index.js"
