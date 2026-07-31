@@ -6162,9 +6162,35 @@ window.generateDocxReport = generateReport;
 // ✅ ФУНКЦИЯ ДЛЯ ИЗВЛЕЧЕНИЯ КВАРТАЛА ИЗ КАДАСТРОВОГО НОМЕРА
 function getQuarter(cadNumber) {
     if (!cadNumber) return '';
+    
+    cadNumber = cadNumber.trim();
     const parts = cadNumber.split(':');
-    // Берем первые 3 части: регион:район:квартал
-    return parts.slice(0, 3).join(':');
+    
+    // Если 3 части — это уже квартал
+    if (parts.length === 3) {
+        // Проверяем, что все части не пустые
+        if (parts.every(p => p.length > 0)) {
+            return cadNumber;
+        }
+    }
+    
+    // Если 4+ части — берем первые 3
+    if (parts.length >= 4) {
+        const quarter = parts.slice(0, 3).join(':');
+        // Проверяем, что получился валидный квартал
+        if (quarter.length >= 10) {
+            return quarter;
+        }
+    }
+    
+    // Если ничего не подошло — пытаемся взять первые 11 символов
+    // (но только если это похоже на кадастровый номер)
+    const first11 = cadNumber.slice(0, 11);
+    if (first11.match(/^\d{2}:\d{2}:\d{6}$/)) {
+        return first11;
+    }
+    
+    return cadNumber;
 }
 
 async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 1, signal = null) {
