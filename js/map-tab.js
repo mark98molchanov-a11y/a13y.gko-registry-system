@@ -6688,7 +6688,7 @@ async function syncWithNSPD() {
     // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
     // ============================================================
 if (foundCount > 0) {
-    console.log(`📤 Обновление CSV через Vercel Blob + GitHub Actions (найдено ${foundCount} номеров)...`);
+    console.log(`📤 Обновление CSV через GitHub Release (найдено ${foundCount} номеров)...`);
     showNotification(`⏳ Подготовка CSV для обновления...`, 'info');
     
     // ✅ 1. ФОРМИРУЕМ CSV
@@ -6713,64 +6713,100 @@ if (foundCount > 0) {
     }
     console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     
-    // ✅ 2. ЗАГРУЖАЕМ В VERCEL BLOB
-console.log('📤 Загрузка в Vercel Blob...');
-try {
-    // ✅ ЗАГРУЖАЕМ CSV В BLOB ЧЕРЕЗ API (ОДНИМ ЗАПРОСОМ!)
-    console.log('📤 Загрузка CSV в Blob...');
-    
-    const blobResponse = await fetch('/api/get-upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            fileName: 'deals_clean.csv', 
-            fileType: 'text/csv',
-            content: csv  // ← ПЕРЕДАЁМ САМ CSV!
-        })
-    });
-    
-    if (!blobResponse.ok) {
-        const errorData = await blobResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка загрузки в Blob: ${blobResponse.status} - ${errorData.error || ''}`);
-    }
-    
-    const blobData = await blobResponse.json();
-    const finalBlobUrl = blobData.url;
-    console.log(`✅ CSV загружен в Blob: ${finalBlobUrl}`);
-    console.log(`📏 Размер: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
-    showNotification(`✅ CSV загружен в Blob (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
-    
-    // ✅ 3. ЗАПРАШИВАЕМ GITHUB TOKEN
+    // ✅ 2. ЗАПРАШИВАЕМ GITHUB TOKEN
     const token = prompt('Введите GitHub Token для обновления CSV:');
     if (!token || !token.trim()) {
         showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
         return;
     }
     
-    // ✅ 4. ТРИГГЕРИМ GITHUB ACTION
-    console.log('📤 Запуск GitHub Action...');
-    const triggerResponse = await fetch('/api/trigger-github-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            blobUrl: finalBlobUrl, 
-            token: token.trim(),
-            fileName: 'deals_clean.csv'
-        })
-    });
-    
-    if (!triggerResponse.ok) {
-        const errorData = await triggerResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка запуска Action: ${triggerResponse.status} - ${errorData.error || ''}`);
+    // ✅ 3. ЗАГРУЖАЕМ ЧЕРЕЗ ПРОКСИ (ПРЯМО В RELEASE)
+    console.log('📤 Загрузка CSV в GitHub Release...');
+    try {
+        const owner = 'mark98molchanov-a11y';
+        const repo = 'a13y.gko-registry-system';
+        const releaseTag = 'v1.0.0';
+        const fileName = 'deals_clean.csv';
+        
+        // ✅ 3.1. ПОЛУЧАЕМ ИНФОРМАЦИЮ О РЕЛИЗЕ
+        const releaseResponse = await fetch(
+            `/api/release/${owner}/${repo}/${releaseTag}`,
+            {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/json'
+                }
+            }
+        );
+        
+        if (!releaseResponse.ok) {
+            throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
+        }
+        
+        const releaseData = await releaseResponse.json();
+        const releaseId = releaseData.id;
+        console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
+        
+        // ✅ 3.2. ИЩЕМ СУЩЕСТВУЮЩИЙ ASSET
+        let assetId = null;
+        if (releaseData.assets && Array.isArray(releaseData.assets)) {
+            for (const asset of releaseData.assets) {
+                if (asset.name === fileName) {
+                    assetId = asset.id;
+                    console.log(`✅ Найден существующий asset: ${fileName}, ID: ${assetId}`);
+                    break;
+                }
+            }
+        }
+        
+        // ✅ 3.3. УДАЛЯЕМ СТАРЫЙ ASSET (ЕСЛИ ЕСТЬ)
+        if (assetId) {
+            console.log('🗑️ Удаление старого asset...');
+            const deleteResponse = await fetch(
+                `/api/asset/${owner}/${repo}/${assetId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/json'
+                    }
+                }
+            );
+            
+            if (!deleteResponse.ok && deleteResponse.status !== 204) {
+                console.warn(`⚠️ Не удалось удалить старый asset: ${deleteResponse.status}`);
+            } else {
+                console.log('✅ Старый asset удален');
+            }
+        }
+        
+        // ✅ 3.4. ЗАГРУЖАЕМ НОВЫЙ ФАЙЛ (ПРЯМОЙ POST, БЕЗ VERCEL!)
+        console.log(`📤 Загрузка ${fileName} (${(csv.length / 1024 / 1024).toFixed(2)} МБ)...`);
+        
+        const uploadResponse = await fetch(`/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `token ${token}`,
+                'Content-Type': 'application/octet-stream',
+                'Accept': 'application/json'
+            },
+            body: csv
+        });
+        
+        if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorData.error || errorData.details || ''}`);
+        }
+        
+        const uploadedAsset = await uploadResponse.json();
+        console.log(`✅ CSV обновлен!`);
+        console.log(`🔗 ${uploadedAsset.browser_download_url}`);
+        showNotification(`✅ CSV обновлен в GitHub Release!`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления CSV:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
     }
-    
-    console.log(`✅ GitHub Action запущен!`);
-    showNotification(`✅ GitHub Action запущен! CSV обновится через 1-2 минуты`, 'success');
-    
-} catch (error) {
-    console.error('❌ Ошибка обновления CSV:', error);
-    showNotification(`❌ Ошибка: ${error.message}`, 'error');
-}
     
 } else {
     console.log('ℹ️ Нет новых номеров для обновления CSV');
