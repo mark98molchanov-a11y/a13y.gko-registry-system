@@ -7024,6 +7024,33 @@ window.updateGitHubCSVWithNSPD = updateGitHubCSVWithNSPD;
 window.searchNSPD = searchNSPD;
 window.loadDealsFromRelease = loadDealsFromRelease;
 window.createCSVFromData = createCSVFromData;
+window.generateReport = generateReport;
+window.loadScript = loadScript;
+window.generateDocxReport = generateReport;
+window.searchCadastralByNumber = searchCadastralByNumber;
+window.sortDealsTable = sortDealsTable;
+window.resetAllFiltersMap = resetAllFiltersMap;
+
+// ✅ ДОБАВЬТЕ ФУНКЦИИ ФИЛЬТРОВ:
+window.applyDealTypeFilter = applyDealTypeFilter;
+window.applyCityFilter = applyCityFilter;
+window.applyObjectTypeFilter = applyObjectTypeFilter;
+window.applyWallMaterialFilter = applyWallMaterialFilter;
+window.applyQuarterFilter = applyQuarterFilter;
+window.applyYearBuildFilter = applyYearBuildFilter;
+window.applyPurposeFilter = applyPurposeFilter;
+window.applyVriFilter = applyVriFilter;
+window.applyFiltersAndUpdate = applyFiltersAndUpdate;
+
+// ✅ ФУНКЦИИ "ВЫДЕЛИТЬ ВСЕ" / "СБРОСИТЬ":
+window.toggleAllDealTypes = toggleAllDealTypes;
+window.toggleAllCities = toggleAllCities;
+window.toggleAllObjectTypes = toggleAllObjectTypes;
+window.toggleAllWallMaterials = toggleAllWallMaterials;
+window.toggleAllQuarters = toggleAllQuarters;
+window.toggleAllYearBuilds = toggleAllYearBuilds;
+window.toggleAllPurposes = toggleAllPurposes;
+window.toggleAllVri = toggleAllVri;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
