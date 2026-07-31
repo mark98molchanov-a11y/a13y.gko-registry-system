@@ -6513,7 +6513,6 @@ async function syncWithNSPD() {
         btn.style.cursor = 'wait';
         btn.style.background = '#2563eb';
         
-        // ✅ ДОБАВЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
         if (!abortBtn && syncContainer) {
             abortBtn = document.createElement('button');
             abortBtn.id = 'abort-sync-btn';
@@ -6557,7 +6556,6 @@ async function syncWithNSPD() {
     const processedKeys = new Set();
     
     for (const deal of allDealsFlat) {
-        // ✅ ПРОПУСКАЕМ, ЕСЛИ УЖЕ ЕСТЬ КАДАСТРОВЫЙ НОМЕР ИЗ НСПД
         if (deal.cad_nspd) continue;
         
         const quarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
@@ -6585,7 +6583,6 @@ async function syncWithNSPD() {
     console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
     console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
     
-    // ✅ ЕСЛИ НЕТ ОБЪЕКТОВ ДЛЯ ПОИСКА
     if (uniqueObjects.length === 0) {
         showNotification('✅ Все объекты уже синхронизированы', 'success');
         if (btn) {
@@ -6609,14 +6606,12 @@ async function syncWithNSPD() {
     
     // Обрабатываем с задержкой, чтобы не перегружать API
     for (const obj of uniqueObjects) {
-        // ✅ ПРОВЕРЯЕМ: если syncAbortController === null — значит была команда на остановку
         if (syncAbortController === null) {
             console.log('⛔ Синхронизация прервана пользователем (controller = null)');
             wasAborted = true;
             break;
         }
         
-        // ✅ ПРОВЕРЯЕМ signal.aborted
         if (syncAbortController.signal.aborted) {
             console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
             wasAborted = true;
@@ -6626,7 +6621,6 @@ async function syncWithNSPD() {
         totalProcessed++;
         console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
         
-        // ✅ ПРОВЕРЯЕМ, ЧТО syncAbortController НЕ null ПЕРЕД ИСПОЛЬЗОВАНИЕМ
         const controllerSignal = syncAbortController ? syncAbortController.signal : null;
         
         const cadNspd = await searchNSPD(
@@ -6638,7 +6632,6 @@ async function syncWithNSPD() {
             controllerSignal
         );
         
-        // ✅ ПРОВЕРЯЕМ ПРЕРЫВАНИЕ ПОСЛЕ ЗАПРОСА (controller мог стать null)
         if (syncAbortController === null || syncAbortController.signal.aborted) {
             console.log('⛔ Синхронизация прервана после запроса');
             wasAborted = true;
@@ -6667,11 +6660,9 @@ async function syncWithNSPD() {
     
     // ✅ ОЧИЩАЕМ AbortController
     syncAbortController = null;
-    
-    // ✅ УДАЛЯЕМ КНОПКУ ПРЕРЫВАНИЯ
     if (abortBtn) abortBtn.remove();
     
-    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ (ДАННЫЕ УЖЕ В allDealsFlat)
+    // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     if (typeof renderDealsTable === 'function') {
         renderDealsTable();
     }
@@ -6685,76 +6676,106 @@ async function syncWithNSPD() {
     console.log(resultMessage);
     
     // ============================================================
-    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB (ВСЕГДА, ЕСЛИ ЕСТЬ НАЙДЕННЫЕ)
+    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB
     // ============================================================
-// В syncWithNSPD() - ПРЯМАЯ ЗАГРУЗКА (МИНУЯ VERCEL)
-
-if (foundCount > 0) {
-    console.log(`📤 Прямая загрузка CSV в GitHub Release (${(csv.length / 1024 / 1024).toFixed(2)} МБ)...`);
-    
-    const token = prompt('Введите GitHub Token:');
-    if (!token) return;
-    
-    try {
-        const owner = 'mark98molchanov-a11y';
-        const repo = 'a13y.gko-registry-system';
-        const releaseTag = 'v1.0.0';
-        const fileName = 'deals_clean.csv';
+    if (foundCount > 0) {
+        // ✅ 1. ФОРМИРУЕМ CSV ЗДЕСЬ!
+        console.log('📊 Формирование CSV...');
+        const headers = [
+            'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
+            'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
+            'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
+            'floor', 'location', 'street', 'cad_nspd'
+        ];
         
-        // ✅ 1. ПОЛУЧАЕМ РЕЛИЗ (через Vercel - маленький запрос)
-        const releaseResponse = await fetch(`/api/release/${owner}/${repo}/${releaseTag}`, {
-            headers: { 'Authorization': `token ${token}` }
-        });
-        const releaseData = await releaseResponse.json();
-        const releaseId = releaseData.id;
-        
-        // ✅ 2. УДАЛЯЕМ СТАРЫЙ ASSET (через Vercel - маленький запрос)
-        let assetId = null;
-        if (releaseData.assets) {
-            for (const asset of releaseData.assets) {
-                if (asset.name === fileName) {
-                    assetId = asset.id;
-                    break;
+        let csv = headers.join(',') + '\n';
+        for (const deal of allDealsFlat) {
+            const row = headers.map(h => {
+                let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
+                if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+                    val = '"' + val.replace(/"/g, '""') + '"';
                 }
+                return val;
+            });
+            csv += row.join(',') + '\n';
+        }
+        console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
+        
+        // ✅ 2. ПРЯМАЯ ЗАГРУЗКА В GITHUB
+        console.log(`📤 Прямая загрузка CSV в GitHub Release (${(csv.length / 1024 / 1024).toFixed(2)} МБ)...`);
+        
+        const token = prompt('Введите GitHub Token для обновления CSV:');
+        if (!token || !token.trim()) {
+            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+        } else {
+            try {
+                const owner = 'mark98molchanov-a11y';
+                const repo = 'a13y.gko-registry-system';
+                const releaseTag = 'v1.0.0';
+                const fileName = 'deals_clean.csv';
+                
+                // ✅ 2.1. ПОЛУЧАЕМ РЕЛИЗ (через Vercel)
+                const releaseResponse = await fetch(`/api/release/${owner}/${repo}/${releaseTag}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                
+                if (!releaseResponse.ok) {
+                    throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
+                }
+                
+                const releaseData = await releaseResponse.json();
+                const releaseId = releaseData.id;
+                console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
+                
+                // ✅ 2.2. УДАЛЯЕМ СТАРЫЙ ASSET
+                let assetId = null;
+                if (releaseData.assets) {
+                    for (const asset of releaseData.assets) {
+                        if (asset.name === fileName) {
+                            assetId = asset.id;
+                            break;
+                        }
+                    }
+                }
+                if (assetId) {
+                    console.log('🗑️ Удаление старого asset...');
+                    await fetch(`/api/asset/${owner}/${repo}/${assetId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `token ${token}` }
+                    });
+                }
+                
+                // ✅ 2.3. ПРЯМАЯ ЗАГРУЗКА В GITHUB
+                const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
+                
+                const uploadResponse = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: csv  // ⬅️ 35 МБ напрямую в GitHub!
+                });
+                
+                if (!uploadResponse.ok) {
+                    const errorText = await uploadResponse.text();
+                    throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+                }
+                
+                const result = await uploadResponse.json();
+                console.log(`✅ CSV обновлен! ${result.browser_download_url}`);
+                showNotification(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в GitHub Release!`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Ошибка:', error);
+                showNotification(`❌ Ошибка: ${error.message}`, 'error');
             }
         }
-        if (assetId) {
-            await fetch(`/api/asset/${owner}/${repo}/${assetId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `token ${token}` }
-            });
-        }
         
-        // ✅ 3. ПРЯМАЯ ЗАГРУЗКА В GITHUB (БЕЗ VERCEL!)
-        const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
-        
-        const uploadResponse = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `token ${token}`,
-                'Content-Type': 'application/octet-stream'
-            },
-            body: csv  // ⬅️ 35 МБ напрямую в GitHub, минуя Vercel!
-        });
-        
-        if (!uploadResponse.ok) {
-            throw new Error(`Ошибка загрузки: ${uploadResponse.status}`);
-        }
-        
-        const result = await uploadResponse.json();
-        console.log(`✅ CSV обновлен! ${result.browser_download_url}`);
-        showNotification(`✅ CSV (35 МБ) обновлен в GitHub Release!`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Ошибка:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+    } else {
+        console.log('ℹ️ Нет новых номеров для обновления CSV');
+        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
     }
-}
-    
-} else {
-    console.log('ℹ️ Нет новых номеров для обновления CSV');
-    showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
-}
     
     // Восстанавливаем кнопку
     if (btn) {
