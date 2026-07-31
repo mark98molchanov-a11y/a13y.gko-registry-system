@@ -78,6 +78,7 @@ function toggleHeatmapMode() {
 let uprsThresholds = {}; 
 let isPriceFilterEnabled = false;
 let originalAllDealsFlat = []; 
+let priceThresholds = {}; 
 
 // Синхронная версия (для быстрых расчетов)
 function getMedianSync(arr) {
