@@ -780,7 +780,8 @@ async function loadDealsCSV() {
         const areaIndex = headers.indexOf('area');
         const objKindIndex = headers.indexOf('obj_kind_text');
         const wallMaterialIndex = headers.indexOf('wall_material_name');
-        const quarterIndex = headers.indexOf('Квартал сделки');
+        // ✅ ИСПРАВЛЕНО: используем 'quarter' вместо 'Квартал сделки'
+        const quarterIndex = headers.indexOf('quarter');  // ← ИСПРАВЛЕНО!
         const yearBuildIndex = headers.indexOf('year_build'); 
         const purposeIndex = headers.indexOf('purpose_text'); 
         const vriIndex = headers.indexOf('vri');  
@@ -788,7 +789,7 @@ async function loadDealsCSV() {
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
         const streetIndex = headers.indexOf('street');
-        const nspdIndex = headers.indexOf('cad_nspd'); // ✅ НОВЫЙ СТОЛБЕЦ
+        const nspdIndex = headers.indexOf('cad_nspd');
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -827,7 +828,6 @@ async function loadDealsCSV() {
             const location = values[locationIndex] || 'nan';
             const street = values[streetIndex] || 'nan';
             
-            // ✅ ЧИТАЕМ cad_nspd ИЗ CSV (ЕСЛИ ЕСТЬ)
             let cadNspd = null;
             if (nspdIndex !== -1 && values[nspdIndex] && values[nspdIndex].trim() !== '') {
                 cadNspd = values[nspdIndex].trim();
@@ -860,7 +860,7 @@ async function loadDealsCSV() {
                 floor: values[floorIndex] || 'nan',
                 location: values[locationIndex] || 'nan',
                 street: values[streetIndex] || 'nan',
-                cad_nspd: cadNspd  // ✅ ЗАГРУЖАЕМ ИЗ CSV
+                cad_nspd: cadNspd
             });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
@@ -881,10 +881,9 @@ async function loadDealsCSV() {
                 floor: floor,
                 location: location,
                 street: street,
-                cad_nspd: cadNspd  // ✅ ЗАГРУЖАЕМ ИЗ CSV
+                cad_nspd: cadNspd
             });
             
-            // ✅ ИСПОЛЬЗУЕМ ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
             typesCount[kind] = (typesCount[kind] || 0) + 1;
             citiesCount[city] = (citiesCount[city] || 0) + 1;
             objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
@@ -893,31 +892,6 @@ async function loadDealsCSV() {
             yearBuildTypesLocal[yearBuild] = (yearBuildTypesLocal[yearBuild] || 0) + 1; 
             purposeCountLocal[purposeText] = (purposeCountLocal[purposeText] || 0) + 1;
             vriCountLocal[vri] = (vriCountLocal[vri] || 0) + 1;
-        }
-        
-        // ============================================================
-        // 🆕 ФИЛЬТРАЦИЯ ПО 10% НИЗКИХ И 10% ВЫСОКИХ ЦЕН
-        // ============================================================
-        
-        console.log('Всего сделок загружено:', allDealsFlat.length);
-        
-        // Сохраняем оригинальные данные (на случай если понадобится)
-        originalAllDealsFlat = [...allDealsFlat];
-        
-        // Рассчитываем пороговые цены для каждого типа сделки
-        priceThresholds = calculatePriceThresholds();
-        console.log('Пороговые цены рассчитаны');
-        
-        // Применяем фильтрацию (по умолчанию включена)
-        if (isPriceFilterEnabled && Object.keys(priceThresholds).length > 0) {
-            const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
-            console.log(`После фильтрации по ценам: ${filteredDeals.length} сделок (исключено ${allDealsFlat.length - filteredDeals.length})`);
-            
-            // Обновляем глобальные данные
-            allDealsFlat = filteredDeals;
-            rebuildDealsData(filteredDeals);
-        } else {
-            rebuildDealsData(allDealsFlat);
         }
         
         // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -932,29 +906,31 @@ async function loadDealsCSV() {
         vriCount = vriCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
-        console.log('Типы сделок:', dealTypes);
-        console.log('📊 Столбец cad_nspd найден:', nspdIndex !== -1);
+        console.log('📊 Сделок с quarter:', allDealsFlat.filter(d => d.quarter && d.quarter !== 'nan').length);
         
+        // Обновляем UI
         renderDealTypeFilters();
         renderCityFilters();
         renderObjectTypeFilters();
         renderWallMaterialFilters();
         renderQuarterFilters();
         renderYearBuildFilters();
-        renderDealsTable(); 
         renderPurposeFilters();
         renderVriFilters();
+        
+        // ✅ ИСПОЛЬЗУЕМ ПОЛНУЮ ТАБЛИЦУ
+        if (typeof updateTableFull === 'function') {
+            updateTableFull();
+        } else {
+            renderDealsTable();
+        }
         
         if (mapData) {
             console.log('🔄 Перерисовка карты после загрузки CSV...');
             renderMapLevel(currentLevel || 0, currentParentId);
         }
         
-        if (typeof renderDealsTable === 'function') {
-            renderDealsTable();
-        }
-        
-      console.log(`✅ Номера НСПД загружены из CSV (поле cad_nspd)`);
+        console.log(`✅ Номера НСПД загружены из CSV (поле cad_nspd)`);
         
     } catch (error) {
         console.error('❌ Ошибка загрузки CSV:', error);
