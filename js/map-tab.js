@@ -6641,7 +6641,7 @@ async function syncWithNSPD() {
     // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB
     // ============================================================
     if (foundCount > 0) {
-        // ✅ 1. ФОРМИРУЕМ CSV ЗДЕСЬ!
+        // ✅ 1. ФОРМИРУЕМ CSV
         console.log('📊 Формирование CSV...');
         const headers = [
             'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
@@ -6663,8 +6663,8 @@ async function syncWithNSPD() {
         }
         console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
         
-        // ✅ 2. ПРЯМАЯ ЗАГРУЗКА В GITHUB
-        console.log(`📤 Прямая загрузка CSV в GitHub Release (${(csv.length / 1024 / 1024).toFixed(2)} МБ)...`);
+        // ✅ 2. ЗАГРУЗКА В GITHUB API (ПРЯМО В РЕПОЗИТОРИЙ)
+        console.log(`📤 Загрузка CSV в репозиторий (${(csv.length / 1024 / 1024).toFixed(2)} МБ)...`);
         
         const token = prompt('Введите GitHub Token для обновления CSV:');
         if (!token || !token.trim()) {
@@ -6673,60 +6673,65 @@ async function syncWithNSPD() {
             try {
                 const owner = 'mark98molchanov-a11y';
                 const repo = 'a13y.gko-registry-system';
-                const releaseTag = 'v1.0.0';
-                const fileName = 'deals_clean.csv';
+                const branch = 'main';
+                const path = 'data/deals_clean.csv';
                 
-                // ✅ 2.1. ПОЛУЧАЕМ РЕЛИЗ (через Vercel)
-                const releaseResponse = await fetch(`/api/release/${owner}/${repo}/${releaseTag}`, {
-                    headers: { 'Authorization': `token ${token}` }
-                });
+                // ✅ 2.1. Кодируем CSV в Base64
+                const content = btoa(unescape(encodeURIComponent(csv)));
                 
-                if (!releaseResponse.ok) {
-                    throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
-                }
-                
-                const releaseData = await releaseResponse.json();
-                const releaseId = releaseData.id;
-                console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
-                
-                // ✅ 2.2. УДАЛЯЕМ СТАРЫЙ ASSET
-                let assetId = null;
-                if (releaseData.assets) {
-                    for (const asset of releaseData.assets) {
-                        if (asset.name === fileName) {
-                            assetId = asset.id;
-                            break;
-                        }
+                // ✅ 2.2. Получаем SHA файла (если существует)
+                let sha = null;
+                try {
+                    const fileCheck = await fetch(
+                        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+                        { headers: { 'Authorization': `token ${token}` } }
+                    );
+                    if (fileCheck.ok) {
+                        const data = await fileCheck.json();
+                        sha = data.sha;
+                        console.log(`✅ Найден существующий файл, SHA: ${sha}`);
                     }
-                }
-                if (assetId) {
-                    console.log('🗑️ Удаление старого asset...');
-                    await fetch(`/api/asset/${owner}/${repo}/${assetId}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `token ${token}` }
-                    });
+                } catch(e) {
+                    console.log('ℹ️ Файл будет создан заново');
                 }
                 
-                // ✅ 2.3. ПРЯМАЯ ЗАГРУЗКА В GITHUB
-                const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
-                
-                const uploadResponse = await fetch(uploadUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/octet-stream'
-                    },
-                    body: csv  // ⬅️ 35 МБ напрямую в GitHub!
-                });
+                // ✅ 2.3. Загружаем файл через GitHub API (поддерживает до 100 МБ!)
+                const uploadResponse = await fetch(
+                    `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: `Обновление CSV с данными НСПД (${new Date().toLocaleDateString('ru-RU')})`,
+                            content: content,
+                            sha: sha,
+                            branch: branch
+                        })
+                    }
+                );
                 
                 if (!uploadResponse.ok) {
-                    const errorText = await uploadResponse.text();
-                    throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorText}`);
+                    const errorData = await uploadResponse.json();
+                    throw new Error(`Ошибка загрузки: ${uploadResponse.status} - ${errorData.message || errorData.details || ''}`);
                 }
                 
                 const result = await uploadResponse.json();
-                console.log(`✅ CSV обновлен! ${result.browser_download_url}`);
-                showNotification(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в GitHub Release!`, 'success');
+                console.log(`✅ CSV обновлен!`);
+                console.log(`🔗 ${result.content.html_url}`);
+                showNotification(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в репозитории!`, 'success');
+                
+                // ✅ 2.4. Сохраняем номера НСПД в localStorage
+                const nspdData = {};
+                for (const deal of allDealsFlat) {
+                    if (deal.cad_nspd) {
+                        nspdData[deal.cad_number] = deal.cad_nspd;
+                    }
+                }
+                localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+                console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
                 
             } catch (error) {
                 console.error('❌ Ошибка:', error);
