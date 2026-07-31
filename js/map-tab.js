@@ -6666,17 +6666,110 @@ async function syncWithNSPD() {
             break;
         }
         
-        if (cadNspd) {
-            foundCount++;
-            for (const deal of allDealsFlat) {
-                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-                if (dealQuarter === obj.quarter && 
-                    Math.abs(deal.area - obj.area) <= 1 && 
-                    deal.obj_kind_text === obj.type) {
-                    deal.cad_nspd = cadNspd;
-                }
+if (cadNspd) {
+    foundCount++;
+    let saved = false;
+    
+    // ✅ 1. ТОЧНОЕ СОВПАДЕНИЕ (ГОРОД + УЛИЦА)
+    for (const deal of allDealsFlat) {
+        const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+        
+        let streetMatch = true;
+        if (obj.locationKeywords && obj.locationKeywords.length > 0) {
+            streetMatch = obj.locationKeywords.some(kw => {
+                if (!kw || kw === '') return false;
+                const searchStr = kw.toLowerCase();
+                const dealStreet = (deal.street || '').toLowerCase();
+                const dealLocation = (deal.location || '').toLowerCase();
+                return dealStreet.includes(searchStr) || 
+                       dealLocation.includes(searchStr) ||
+                       searchStr.includes(dealStreet) ||
+                       searchStr.includes(dealLocation);
+            });
+        }
+        
+        if (dealQuarter === obj.quarter && 
+            Math.abs(deal.area - obj.area) <= 1 && 
+            deal.obj_kind_text === obj.type &&
+            deal.city === obj.location &&
+            streetMatch &&
+            !saved) {
+            
+            deal.cad_nspd = cadNspd;
+            saved = true;
+            console.log(`✅ ТОЧНОЕ (город+улица): ${cadNspd} → ${deal.cad_number} (${deal.city}, ${deal.street})`);
+        }
+    }
+    
+    // ✅ 2. СОВПАДЕНИЕ ПО УЛИЦЕ
+    if (!saved) {
+        for (const deal of allDealsFlat) {
+            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+            
+            let streetMatch = true;
+            if (obj.locationKeywords && obj.locationKeywords.length > 0) {
+                streetMatch = obj.locationKeywords.some(kw => {
+                    if (!kw || kw === '') return false;
+                    const searchStr = kw.toLowerCase();
+                    const dealStreet = (deal.street || '').toLowerCase();
+                    const dealLocation = (deal.location || '').toLowerCase();
+                    return dealStreet.includes(searchStr) || 
+                           dealLocation.includes(searchStr) ||
+                           searchStr.includes(dealStreet) ||
+                           searchStr.includes(dealLocation);
+                });
+            }
+            
+            if (dealQuarter === obj.quarter && 
+                Math.abs(deal.area - obj.area) <= 1 && 
+                deal.obj_kind_text === obj.type &&
+                streetMatch &&
+                !saved) {
+                
+                deal.cad_nspd = cadNspd;
+                saved = true;
+                console.log(`⚠️ По улице: ${cadNspd} → ${deal.cad_number} (${deal.street})`);
             }
         }
+    }
+    
+    // ✅ 3. СОВПАДЕНИЕ ПО ГОРОДУ
+    if (!saved) {
+        for (const deal of allDealsFlat) {
+            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+            if (dealQuarter === obj.quarter && 
+                Math.abs(deal.area - obj.area) <= 1 && 
+                deal.obj_kind_text === obj.type &&
+                deal.city === obj.location &&
+                !saved) {
+                
+                deal.cad_nspd = cadNspd;
+                saved = true;
+                console.log(`⚠️ По городу: ${cadNspd} → ${deal.cad_number} (${deal.city})`);
+            }
+        }
+    }
+    
+    // ✅ 4. ПРИБЛИЗИТЕЛЬНОЕ
+    if (!saved) {
+        for (const deal of allDealsFlat) {
+            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+            if (dealQuarter === obj.quarter && 
+                Math.abs(deal.area - obj.area) <= 1 && 
+                deal.obj_kind_text === obj.type &&
+                !saved) {
+                
+                deal.cad_nspd = cadNspd;
+                saved = true;
+                console.log(`⚠️ Приблизительное: ${cadNspd} → ${deal.cad_number}`);
+            }
+        }
+    }
+    
+    if (!saved) {
+        console.log(`❌ Не найдено подходящей сделки для ${cadNspd}`);
+    }
+}
         
         await new Promise(resolve => setTimeout(resolve, 300));
         
