@@ -6640,159 +6640,167 @@ async function syncWithNSPD() {
     // ============================================================
     // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB
     // ============================================================
-    if (foundCount > 0) {
-        // ✅ 1. ФОРМИРУЕМ CSV
-        console.log('📊 Формирование CSV...');
-        const headers = [
-            'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
-            'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
-            'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
-            'floor', 'location', 'street', 'cad_nspd'
-        ];
-        
-        let csv = headers.join(',') + '\n';
-        for (const deal of allDealsFlat) {
-            const row = headers.map(h => {
-                let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
-                if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-                    val = '"' + val.replace(/"/g, '""') + '"';
-                }
-                return val;
-            });
-            csv += row.join(',') + '\n';
-        }
-        console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
-        
-        // ✅ 2. ЗАПРАШИВАЕМ ТОКЕН
-        const token = prompt('Введите GitHub Token для обновления CSV:');
-        if (!token || !token.trim()) {
-            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
-        } else {
-            try {
-                const owner = 'mark98molchanov-a11y';
-                const repo = 'a13y.gko-registry-system';
-                const releaseTag = 'v1.0.0';
-                const fileName = 'deals_clean.csv';
-                
-                showNotification('📤 Загрузка в GitHub Release...', 'info');
-                
-                // ✅ 2.1. ПОЛУЧАЕМ RELEASE ID
-                console.log('📥 Получение информации о релизе...');
-                const releaseResponse = await fetch(
-                    `https://api.github.com/repos/${owner}/${repo}/releases/tags/${releaseTag}`,
-                    { headers: { 'Authorization': `token ${token}` } }
-                );
-                
-                if (!releaseResponse.ok) {
-                    throw new Error(`Ошибка получения релиза: ${releaseResponse.status}`);
-                }
-                
-                const releaseData = await releaseResponse.json();
-                const releaseId = releaseData.id;
-                console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
-                
-                // ✅ 2.2. УДАЛЯЕМ СТАРЫЙ ASSET (ЕСЛИ ЕСТЬ)
-                let assetId = null;
-                if (releaseData.assets) {
-                    for (const asset of releaseData.assets) {
-                        if (asset.name === fileName) {
-                            assetId = asset.id;
-                            break;
-                        }
-                    }
-                }
-                
-                if (assetId) {
-                    console.log('🗑️ Удаление старого asset...');
-                    await fetch(
-                        `https://api.github.com/repos/${owner}/${repo}/releases/assets/${assetId}`,
-                        {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `token ${token}` }
-                        }
-                    );
-                    console.log('✅ Старый asset удален');
-                }
-                
-                // ✅ 2.3. ЗАГРУЗКА ЧЕРЕЗ XMLHttpRequest (ОБХОД CORS!)
-                console.log(`📤 Загрузка файла (${(csv.length / 1024 / 1024).toFixed(2)} МБ) в Release...`);
-                
-                const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${fileName}`;
-                
-                // Создаем Blob из CSV
-                const blob = new Blob([csv], { type: 'text/csv' });
-                
-                // Используем XMLHttpRequest для обхода CORS
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    
-                    // Прогресс загрузки
-                    xhr.upload.onprogress = function(e) {
-                        if (e.lengthComputable) {
-                            const percent = Math.round((e.loaded / e.total) * 100);
-                            console.log(`📤 Загрузка: ${percent}%`);
-                            if (btn) {
-                                btn.innerHTML = `⏳ Загрузка... ${percent}%`;
-                            }
-                        }
-                    };
-                    
-                    xhr.onload = function() {
-                        if (xhr.status === 201) {
-                            try {
-                                const result = JSON.parse(xhr.responseText);
-                                console.log(`✅ Файл загружен в Release!`);
-                                console.log(`🔗 ${result.browser_download_url}`);
-                                resolve(result);
-                            } catch(e) {
-                                reject(new Error('Ошибка парсинга ответа'));
-                            }
-                        } else {
-                            reject(new Error(`Ошибка загрузки: ${xhr.status} - ${xhr.responseText}`));
-                        }
-                    };
-                    
-                    xhr.onerror = function() {
-                        reject(new Error('Ошибка сети при загрузке'));
-                    };
-                    
-                    xhr.ontimeout = function() {
-                        reject(new Error('Таймаут загрузки'));
-                    };
-                    
-                    // Открываем соединение
-                    xhr.open('POST', uploadUrl);
-                    xhr.setRequestHeader('Authorization', `token ${token}`);
-                    xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-                    xhr.timeout = 600000; // 10 минут таймаут
-                    
-                    // Отправляем Blob
-                    xhr.send(blob);
-                });
-                
-                console.log(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в GitHub Release!`);
-                showNotification(`✅ CSV обновлен в GitHub Release!`, 'success');
-                
-                // ✅ 2.4. Сохраняем номера НСПД в localStorage
-                const nspdData = {};
-                for (const deal of allDealsFlat) {
-                    if (deal.cad_nspd) {
-                        nspdData[deal.cad_number] = deal.cad_nspd;
-                    }
-                }
-                localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-                console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
-                
-            } catch (error) {
-                console.error('❌ Ошибка:', error);
-                showNotification(`❌ Ошибка: ${error.message}`, 'error');
+    // ============================================================
+// ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB RELEASE
+// ============================================================
+if (foundCount > 0) {
+    console.log('📊 Формирование CSV...');
+    const headers = [
+        'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
+        'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
+        'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
+        'floor', 'location', 'street', 'cad_nspd'
+    ];
+    
+    let csv = headers.join(',') + '\n';
+    for (const deal of allDealsFlat) {
+        const row = headers.map(h => {
+            let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+                val = '"' + val.replace(/"/g, '""') + '"';
             }
-        }
-        
-    } else {
-        console.log('ℹ️ Нет новых номеров для обновления CSV');
-        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+            return val;
+        });
+        csv += row.join(',') + '\n';
     }
+    console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
+    
+    const token = prompt('Введите GitHub Token для обновления CSV:');
+    if (!token || !token.trim()) {
+        showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+    } else {
+        try {
+            const owner = 'mark98molchanov-a11y';
+            const repo = 'a13y.gko-registry-system';
+            const releaseTag = 'v1.0.0';
+            const fileName = 'deals_clean.csv';
+            
+            showNotification('📤 Загрузка в GitHub Release...', 'info');
+            
+            // ✅ 1. ПОЛУЧАЕМ RELEASE ID ЧЕРЕЗ ВАШ ПРОКСИ
+            console.log('📥 Получение информации о релизе...');
+            const releaseResponse = await fetch(
+                `/api/release/${owner}/${repo}/${releaseTag}`,
+                { 
+                    headers: { 
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/json'
+                    } 
+                }
+            );
+            
+            if (!releaseResponse.ok) {
+                const errorText = await releaseResponse.text();
+                throw new Error(`Ошибка получения релиза: ${releaseResponse.status} - ${errorText}`);
+            }
+            
+            const releaseData = await releaseResponse.json();
+            const releaseId = releaseData.id;
+            console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
+            
+            // ✅ 2. УДАЛЯЕМ СТАРЫЙ ASSET ЧЕРЕЗ ВАШ ПРОКСИ
+            let assetId = null;
+            if (releaseData.assets) {
+                for (const asset of releaseData.assets) {
+                    if (asset.name === fileName) {
+                        assetId = asset.id;
+                        break;
+                    }
+                }
+            }
+            
+            if (assetId) {
+                console.log('🗑️ Удаление старого asset...');
+                const deleteResponse = await fetch(
+                    `/api/asset/${owner}/${repo}/${assetId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { 
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/json'
+                        }
+                    }
+                );
+                if (deleteResponse.ok || deleteResponse.status === 204) {
+                    console.log('✅ Старый asset удален');
+                } else {
+                    console.warn('⚠️ Не удалось удалить старый asset');
+                }
+            }
+            
+            // ✅ 3. ЗАГРУЗКА ЧЕРЕЗ ВАШ ПРОКСИ!
+            console.log(`📤 Загрузка файла (${(csv.length / 1024 / 1024).toFixed(2)} МБ) через прокси...`);
+            
+            // ✅ ВАЖНО: используем /api/upload/ — ваш прокси на Vercel!
+            const uploadUrl = `/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`;
+            const blob = new Blob([csv], { type: 'text/csv' });
+            
+            const uploadResult = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        console.log(`📤 Загрузка: ${percent}%`);
+                        if (btn) {
+                            btn.innerHTML = `⏳ Загрузка... ${percent}%`;
+                        }
+                    }
+                };
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200 || xhr.status === 201) {
+                        try {
+                            const result = JSON.parse(xhr.responseText);
+                            console.log(`✅ Файл загружен в Release через прокси!`);
+                            resolve(result);
+                        } catch(e) {
+                            console.log('📥 Ответ (не JSON):', xhr.responseText);
+                            resolve({ success: true });
+                        }
+                    } else {
+                        reject(new Error(`Ошибка загрузки: ${xhr.status} - ${xhr.responseText}`));
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    reject(new Error('Ошибка сети при загрузке'));
+                };
+                
+                xhr.ontimeout = function() {
+                    reject(new Error('Таймаут загрузки'));
+                };
+                
+                xhr.open('POST', uploadUrl);
+                xhr.setRequestHeader('Authorization', `token ${token}`);
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.timeout = 600000;
+                
+                xhr.send(blob);
+            });
+            
+            console.log(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в GitHub Release!`);
+            showNotification(`✅ CSV обновлен в GitHub Release!`, 'success');
+            
+            // Сохраняем номера НСПД в localStorage
+            const nspdData = {};
+            for (const deal of allDealsFlat) {
+                if (deal.cad_nspd) {
+                    nspdData[deal.cad_number] = deal.cad_nspd;
+                }
+            }
+            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
+            
+        } catch (error) {
+            console.error('❌ Ошибка:', error);
+            showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        }
+    }
+} else {
+    console.log('ℹ️ Нет новых номеров для обновления CSV');
+    showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+}
     
     // Восстанавливаем кнопку
     if (btn) {
