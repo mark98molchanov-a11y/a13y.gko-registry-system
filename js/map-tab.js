@@ -6339,78 +6339,73 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     }
 }
 async function loadDealsFromRelease() {
-    // ✅ 1. Пробуем загрузить из Gist (сохраненный URL в localStorage)
+    // 🔥 ЖЕСТКО ЗАШИТЫЙ ID (ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ)
+    // ⚠️ ОБНОВЛЯЙТЕ ЕГО ТОЛЬКО КОГДА МЕНЯЕТЕ GIST!
+    const HARDCODED_GIST_ID = '94e2a3ad52838c4972d489399a85b61a';
+    
+    // ✅ 1. Сначала пробуем загрузить по URL из localStorage
+    //    (для вас — быстро, без запроса к API)
     const gistUrl = localStorage.getItem('deals_csv_gist_url');
     if (gistUrl) {
         try {
-            console.log('📥 Загрузка CSV из Gist...');
+            console.log('📥 Загрузка CSV из локального Gist URL...');
             const response = await fetch(gistUrl);
             if (response.ok) {
                 const text = await response.text();
-                const sizeMB = (text.length / 1024 / 1024).toFixed(2);
-                console.log(`✅ CSV загружен из Gist, размер: ${sizeMB} МБ`);
-                
-                if (text.trim().startsWith('cad_number')) {
-                    return text;
-                } else {
-                    console.warn('⚠️ Файл из Gist не является валидным CSV');
-                }
-            } else {
-                console.warn(`⚠️ Ошибка загрузки из Gist: ${response.status}`);
+                if (text.trim().startsWith('cad_number')) return text;
             }
-        } catch(e) {
-            console.warn('⚠️ Ошибка загрузки из Gist:', e.message);
-        }
+        } catch(e) {}
     }
     
-    // ✅ 2. Если Gist не работает — пробуем загрузить из Gist по ID
-    const gistId = localStorage.getItem('deals_csv_gist_id');
-    if (gistId) {
-        try {
-            console.log(`📥 Загрузка Gist по ID: ${gistId}...`);
-            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const file = data.files?.['deals_clean.csv'];
-                if (file && file.content) {
-                    const text = file.content;
-                    const sizeMB = (text.length / 1024 / 1024).toFixed(2);
-                    console.log(`✅ CSV загружен из Gist (по ID), размер: ${sizeMB} МБ`);
-                    
-                    if (text.trim().startsWith('cad_number')) {
-                        localStorage.setItem('deals_csv_gist_url', file.raw_url);
-                        return text;
-                    }
-                }
-            }
-        } catch(e) {
-            console.warn('⚠️ Ошибка загрузки Gist по ID:', e.message);
-        }
+    // ✅ 2. Пробуем загрузить по ID из localStorage
+    //    (если у вас сохранился ID, но нет URL)
+    let gistId = localStorage.getItem('deals_csv_gist_id');
+    
+    // ✅ 3. Если в localStorage нет — используем жестко зашитый
+    //    🔥 ЭТОТ ШАГ ДЛЯ ВСЕХ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ!
+    if (!gistId) {
+        gistId = HARDCODED_GIST_ID;
+        console.log(`📋 Используем жестко зашитый Gist ID: ${gistId}`);
     }
     
-    // ✅ 3. Fallback: загрузка из репозитория
-    const owner = 'mark98molchanov-a11y';
-    const repo = 'a13y.gko-registry-system';
-    const branch = 'main';
-    const fileName = 'deals_clean.csv';
-    const fallbackUrl = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${branch}/data/${fileName}`;
-    
+    // ✅ 4. Загружаем из Gist
     try {
-        console.log('📥 Загрузка CSV из репозитория (fallback)...');
-        const response = await fetch(fallbackUrl);
+        console.log(`📥 Загрузка CSV из Gist: ${gistId}`);
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        
         if (response.ok) {
-            const text = await response.text();
-            const sizeMB = (text.length / 1024 / 1024).toFixed(2);
-            console.log(`✅ CSV загружен из репозитория, размер: ${sizeMB} МБ`);
-            return text;
+            const data = await response.json();
+            const file = data.files?.['deals_clean.csv'];
+            if (file && file.content) {
+                // ✅ Сохраняем URL и ID в localStorage для быстрой загрузки
+                localStorage.setItem('deals_csv_gist_url', file.raw_url);
+                localStorage.setItem('deals_csv_gist_id', gistId);
+                console.log(`✅ CSV загружен из Gist: ${gistId}`);
+                return file.content;
+            }
+        } else if (response.status === 404) {
+            console.warn(`⚠️ Gist ${gistId} не найден (404)`);
+            // Если жесткий ID не работает — удаляем из localStorage
+            if (gistId === HARDCODED_GIST_ID) {
+                console.warn('⚠️ Жестко зашитый Gist ID не работает! Обновите HARDCODED_GIST_ID в коде.');
+            }
         }
-    } catch(error) {
-        console.warn('⚠️ Ошибка загрузки из репозитория:', error.message);
+    } catch(e) {
+        console.warn('⚠️ Ошибка загрузки Gist:', e.message);
     }
     
-    console.error('❌ Не удалось загрузить CSV ни из одного источника');
+    // ✅ 5. Fallback из репозитория
+    console.log('📥 Загрузка CSV из репозитория (fallback)...');
+    const fallbackUrl = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/refs/heads/main/data/deals_clean.csv';
+    try {
+        const response = await fetch(fallbackUrl);
+        if (response.ok) return await response.text();
+    } catch(e) {
+        console.warn('⚠️ Ошибка загрузки из репозитория:', e.message);
+    }
+    
     return null;
 }
 function refreshCSVFromGist() {
@@ -6841,126 +6836,194 @@ if (foundCount > 0) {
             
             let gistData;
             
-            if (existingGistId) {
-                // ✅ ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЙ GIST
-                console.log(`🔄 Обновление существующего Gist: ${existingGistId}`);
-                showNotification('🔄 Обновление существующего Gist...', 'info');
-                
-                // Получаем текущий SHA файла
-                const getGistResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Accept': 'application/json'
+           if (existingGistId) {
+    // ✅ ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЙ GIST
+    console.log(`🔄 Обновление существующего Gist: ${existingGistId}`);
+    showNotification('🔄 Обновление существующего Gist...', 'info');
+    
+    try {
+        // ✅ ПРОВЕРЯЕМ, СУЩЕСТВУЕТ ЛИ GIST
+        const getGistResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
+            headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (getGistResponse.status === 404) {
+            // ✅ GIST НЕ СУЩЕСТВУЕТ — УДАЛЯЕМ ID И СОЗДАЕМ НОВЫЙ
+            console.warn(`⚠️ Gist ${existingGistId} не найден (404), создаем новый...`);
+            localStorage.removeItem('deals_csv_gist_id');
+            localStorage.removeItem('deals_csv_gist_url');
+            // Переходим к созданию нового Gist
+            throw new Error('GIST_NOT_FOUND');
+        }
+        
+        if (!getGistResponse.ok) {
+            throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
+        }
+        
+        const currentGist = await getGistResponse.json();
+        const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
+        
+        // Обновляем Gist через PATCH
+        const updateResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
+                files: {
+                    'deals_clean.csv': {
+                        content: csv,
+                        sha: fileSha || undefined
                     }
-                });
-                
-                if (!getGistResponse.ok) {
-                    throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
                 }
-                
-                const currentGist = await getGistResponse.json();
-                const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
-                
-                // Обновляем Gist через PATCH
-                const updateResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
-                        files: {
-                            'deals_clean.csv': {
-                                content: csv,
-                                sha: fileSha || undefined
-                            }
+            })
+        });
+        
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json().catch(() => ({}));
+            throw new Error(`Ошибка обновления Gist (${updateResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+        }
+        
+        gistData = await updateResponse.json();
+        console.log(`✅ Gist обновлен: ${gistData.html_url}`);
+        
+    } catch (error) {
+        // ✅ ЕСЛИ GIST НЕ НАЙДЕН — СОЗДАЕМ НОВЫЙ
+        if (error.message === 'GIST_NOT_FOUND') {
+            console.log('📝 Создание нового Gist (после 404)...');
+            showNotification('📝 Создание нового Gist...', 'info');
+            
+            const createResponse = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+                    public: false,
+                    files: {
+                        'deals_clean.csv': {
+                            content: csv
                         }
-                    })
-                });
-                
-                if (!updateResponse.ok) {
-                    const errorData = await updateResponse.json().catch(() => ({}));
-                    throw new Error(`Ошибка обновления Gist (${updateResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
-                }
-                
-                gistData = await updateResponse.json();
-                console.log(`✅ Gist обновлен: ${gistData.html_url}`);
-                
-            } else {
-                // ✅ СОЗДАЕМ НОВЫЙ GIST
-                console.log('📝 Создание нового Gist...');
-                showNotification('📝 Создание нового Gist...', 'info');
-                
-                const createResponse = await fetch('https://api.github.com/gists', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
-                        public: false,
-                        files: {
-                            'deals_clean.csv': {
-                                content: csv
-                            }
-                        }
-                    })
-                });
-                
-                if (!createResponse.ok) {
-                    const errorData = await createResponse.json().catch(() => ({}));
-                    throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
-                }
-                
-                gistData = await createResponse.json();
-                console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+                    }
+                })
+            });
+            
+            if (!createResponse.ok) {
+                const errorData = await createResponse.json().catch(() => ({}));
+                throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
             }
             
-            // ✅ 3. СОХРАНЯЕМ URL И ID
-            const rawUrl = gistData.files['deals_clean.csv'].raw_url;
-            localStorage.setItem('deals_csv_gist_url', rawUrl);
-            localStorage.setItem('deals_csv_gist_id', gistData.id);
-            
-            console.log(`✅ CSV сохранен в Gist: ${rawUrl}`);
-            console.log(`📋 Gist ID: ${gistData.id}`);
-            
-            showNotification(`✅ CSV сохранен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
-            
-            // ✅ Сохраняем номера НСПД (вдруг пригодятся)
-            const nspdData = {};
-            for (const deal of allDealsFlat) {
-                if (deal.cad_nspd) {
-                    nspdData[deal.cad_number] = deal.cad_nspd;
-                }
-            }
-            localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
-            
-        } catch (error) {
-            console.error('❌ Ошибка:', error);
-            showNotification(`❌ Ошибка: ${error.message}`, 'error');
+            gistData = await createResponse.json();
+            console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+        } else {
+            // ДРУГАЯ ОШИБКА — ПРОБРАСЫВАЕМ ДАЛЬШЕ
+            throw error;
         }
     }
+    
 } else {
-    console.log('ℹ️ Нет новых номеров для обновления CSV');
-    showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+    // ✅ СОЗДАЕМ НОВЫЙ GIST
+// ✅ СОЗДАЕМ НОВЫЙ GIST
+console.log('📝 Создание нового Gist...');
+showNotification('📝 Создание нового Gist...', 'info');
+
+const createResponse = await fetch('https://api.github.com/gists', {
+    method: 'POST',
+    headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+        description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+        public: false,
+        files: {
+            'deals_clean.csv': {
+                content: csv
+            }
+        }
+    })
+});
+
+if (!createResponse.ok) {
+    const errorData = await createResponse.json().catch(() => ({}));
+    throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
 }
-    
-    // Восстанавливаем кнопку
-    if (btn) {
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.style.background = '#2563eb';
+
+gistData = await createResponse.json();
+console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+
+// ════════════════════════════════════════════════════════════════
+// 🔥 ДОБАВЬТЕ ЭТОТ БЛОК ПОСЛЕ СОЗДАНИЯ GIST
+// ════════════════════════════════════════════════════════════════
+const newGistId = gistData.id;
+console.log(`📋 НОВЫЙ GIST ID: ${newGistId}`);
+console.log('⚠️ ОБНОВИТЕ HARDCODED_GIST_ID В КОДЕ НА ЭТОТ ID!');
+
+// Показываем уведомление с ID
+showNotification(`✅ Создан Gist! ID: ${newGistId}. Обновите код!`, 'warning');
+
+// ✅ СОХРАНЯЕМ ID В localStorage (для быстрой загрузки)
+localStorage.setItem('deals_csv_gist_id', newGistId);
+localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
+
+// ✅ КОПИРУЕМ ID В БУФЕР ОБМЕНА (удобно!)
+try {
+    await navigator.clipboard.writeText(newGistId);
+    console.log('📋 ID скопирован в буфер обмена!');
+} catch(e) {
+    console.log('📋 ID: ' + newGistId);
+}
+}
+
+// ✅ 3. СОХРАНЯЕМ URL И ID
+const rawUrl = gistData.files['deals_clean.csv'].raw_url;
+localStorage.setItem('deals_csv_gist_url', rawUrl);
+localStorage.setItem('deals_csv_gist_id', gistData.id);
+
+console.log(`✅ CSV сохранен в Gist: ${rawUrl}`);
+console.log(`📋 Gist ID: ${gistData.id}`);
+
+showNotification(`✅ CSV сохранен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
+
+// ✅ Сохраняем номера НСПД (вдруг пригодятся)
+const nspdData = {};
+for (const deal of allDealsFlat) {
+    if (deal.cad_nspd) {
+        nspdData[deal.cad_number] = deal.cad_nspd;
     }
-    
-    isSyncRunning = false;
 }
+localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
+
+} catch (error) {
+    console.error('❌ Ошибка:', error);
+    showNotification(`❌ Ошибка: ${error.message}`, 'error');
+}
+} else {
+console.log('ℹ️ Нет новых номеров для обновления CSV');
+showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
+}
+
+// Восстанавливаем кнопку
+if (btn) {
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.style.background = '#2563eb';
+}
+
+isSyncRunning = false;
 async function updateGitHubCSVWithNSPD(token) {
     console.log('📤 Обновление CSV через прокси-сервер...');
     
