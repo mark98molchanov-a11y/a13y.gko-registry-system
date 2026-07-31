@@ -6368,32 +6368,132 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     }
 }
 async function loadDealsFromRelease() {
+    // ✅ 1. Пробуем загрузить из Gist (сохраненный URL)
+    const gistUrl = localStorage.getItem('deals_csv_gist_url');
+    if (gistUrl) {
+        try {
+            console.log('📥 Загрузка CSV из Gist...');
+            const response = await fetch(gistUrl);
+            if (response.ok) {
+                const text = await response.text();
+                const sizeMB = (text.length / 1024 / 1024).toFixed(2);
+                console.log(`✅ CSV загружен из Gist, размер: ${sizeMB} МБ`);
+                
+                // ✅ Проверяем, что это валидный CSV
+                if (text.trim().startsWith('cad_number')) {
+                    return text;
+                } else {
+                    console.warn('⚠️ Файл из Gist не является валидным CSV');
+                }
+            } else {
+                console.warn(`⚠️ Ошибка загрузки из Gist: ${response.status}`);
+            }
+        } catch(e) {
+            console.warn('⚠️ Ошибка загрузки из Gist:', e.message);
+        }
+    }
+    
+    // ✅ 2. Если Gist не работает — пробуем загрузить из Gist по ID
+    const gistId = localStorage.getItem('deals_csv_gist_id');
+    if (gistId) {
+        try {
+            console.log(`📥 Загрузка Gist по ID: ${gistId}...`);
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const file = data.files?.['deals_clean.csv'];
+                if (file && file.content) {
+                    const text = file.content;
+                    const sizeMB = (text.length / 1024 / 1024).toFixed(2);
+                    console.log(`✅ CSV загружен из Gist (по ID), размер: ${sizeMB} МБ`);
+                    
+                    if (text.trim().startsWith('cad_number')) {
+                        // ✅ Обновляем URL в localStorage
+                        localStorage.setItem('deals_csv_gist_url', file.raw_url);
+                        return text;
+                    }
+                }
+            }
+        } catch(e) {
+            console.warn('⚠️ Ошибка загрузки Gist по ID:', e.message);
+        }
+    }
+    
+    // ✅ 3. Fallback: загрузка из репозитория (если файл есть)
     const owner = 'mark98molchanov-a11y';
     const repo = 'a13y.gko-registry-system';
-    // Используем основную ветку 'main', так как файл там точно есть
     const branch = 'main';
     const fileName = 'deals_clean.csv';
-    
-    // ✅ ИСПРАВЛЕННЫЙ URL, который вы проверили
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${branch}/data/${fileName}`;
+    const fallbackUrl = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${branch}/data/${fileName}`;
     
     try {
-        console.log('📥 Загрузка CSV из репозитория (raw)...');
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            console.warn(`⚠️ Файл не найден (${response.status})`);
-            return null;
+        console.log('📥 Загрузка CSV из репозитория (fallback)...');
+        const response = await fetch(fallbackUrl);
+        if (response.ok) {
+            const text = await response.text();
+            const sizeMB = (text.length / 1024 / 1024).toFixed(2);
+            console.log(`✅ CSV загружен из репозитория, размер: ${sizeMB} МБ`);
+            return text;
         }
-        
-        const csvText = await response.text();
-        console.log(`✅ CSV загружен, размер: ${(csvText.length / 1024 / 1024).toFixed(2)} МБ`);
-        return csvText;
-        
-    } catch (error) {
-        console.warn('⚠️ Ошибка загрузки CSV:', error);
-        return null;
+    } catch(error) {
+        console.warn('⚠️ Ошибка загрузки из репозитория:', error.message);
     }
+    
+    // ✅ 4. Если ничего не работает
+    console.error('❌ Не удалось загрузить CSV ни из одного источника');
+    return null;
+}
+function refreshCSVFromGist() {
+    const token = prompt('Введите GitHub Token для обновления CSV из Gist:');
+    if (!token || !token.trim()) {
+        showNotification('⚠️ Токен не введен', 'warning');
+        return;
+    }
+    
+    const gistId = localStorage.getItem('deals_csv_gist_id');
+    if (!gistId) {
+        showNotification('⚠️ Нет сохраненного Gist ID', 'warning');
+        return;
+    }
+    
+    showNotification('🔄 Обновление CSV из Gist...', 'info');
+    
+    fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        const file = data.files?.['deals_clean.csv'];
+        if (file && file.content) {
+            // ✅ Сохраняем в localStorage для быстрого доступа
+            localStorage.setItem('deals_csv_gist_url', file.raw_url);
+            showNotification('✅ CSV обновлен! Перезагрузите страницу для применения', 'success');
+            console.log('✅ CSV обновлен из Gist');
+            
+            // ✅ Опционально: перезагружаем данные сразу
+            setTimeout(() => {
+                if (confirm('Перезагрузить страницу для применения обновлений?')) {
+                    location.reload();
+                }
+            }, 1000);
+        } else {
+            showNotification('❌ Файл не найден в Gist', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Ошибка:', error);
+        showNotification(`❌ Ошибка: ${error.message}`, 'error');
+    });
 }
 async function createCSVFromData() {
     const headers = [
@@ -6665,124 +6765,57 @@ if (foundCount > 0) {
     }
     console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     
-    const token = prompt('Введите GitHub Token для обновления CSV:');
+    // ✅ Проверяем размер
+    if (csv.length > 100 * 1024 * 1024) {
+        showNotification('⚠️ CSV слишком большой (>100 МБ), Gist не примет', 'error');
+        // Продолжаем, но предупреждаем
+    }
+    
+    const token = prompt('Введите GitHub Token для обновления CSV (будет загружен в Gist):');
     if (!token || !token.trim()) {
         showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
     } else {
         try {
-            const owner = 'mark98molchanov-a11y';
-            const repo = 'a13y.gko-registry-system';
-            const releaseTag = 'v1.0.0';
-            const fileName = 'deals_clean.csv';
+            showNotification('📤 Загрузка в GitHub Gist...', 'info');
             
-            showNotification('📤 Загрузка в GitHub Release...', 'info');
-            
-            // ✅ 1. ПОЛУЧАЕМ RELEASE ID ЧЕРЕЗ ВАШ ПРОКСИ
-            console.log('📥 Получение информации о релизе...');
-            const releaseResponse = await fetch(
-                `/api/release/${owner}/${repo}/${releaseTag}`,
-                { 
-                    headers: { 
-                        'Authorization': `token ${token}`,
-                        'Accept': 'application/json'
-                    } 
-                }
-            );
-            
-            if (!releaseResponse.ok) {
-                const errorText = await releaseResponse.text();
-                throw new Error(`Ошибка получения релиза: ${releaseResponse.status} - ${errorText}`);
-            }
-            
-            const releaseData = await releaseResponse.json();
-            const releaseId = releaseData.id;
-            console.log(`✅ Релиз найден: ${releaseData.tag_name}, ID: ${releaseId}`);
-            
-            // ✅ 2. УДАЛЯЕМ СТАРЫЙ ASSET ЧЕРЕЗ ВАШ ПРОКСИ
-            let assetId = null;
-            if (releaseData.assets) {
-                for (const asset of releaseData.assets) {
-                    if (asset.name === fileName) {
-                        assetId = asset.id;
-                        break;
-                    }
-                }
-            }
-            
-            if (assetId) {
-                console.log('🗑️ Удаление старого asset...');
-                const deleteResponse = await fetch(
-                    `/api/asset/${owner}/${repo}/${assetId}`,
-                    {
-                        method: 'DELETE',
-                        headers: { 
-                            'Authorization': `token ${token}`,
-                            'Accept': 'application/json'
+            // ✅ Загружаем в Gist
+            const gistResponse = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
+                    public: false,
+                    files: {
+                        'deals_clean.csv': {
+                            content: csv
                         }
                     }
-                );
-                if (deleteResponse.ok || deleteResponse.status === 204) {
-                    console.log('✅ Старый asset удален');
-                } else {
-                    console.warn('⚠️ Не удалось удалить старый asset');
-                }
-            }
-            
-            // ✅ 3. ЗАГРУЗКА ЧЕРЕЗ ВАШ ПРОКСИ!
-            console.log(`📤 Загрузка файла (${(csv.length / 1024 / 1024).toFixed(2)} МБ) через прокси...`);
-            
-            // ✅ ВАЖНО: используем /api/upload/ — ваш прокси на Vercel!
-            const uploadUrl = `/api/upload/${owner}/${repo}/${releaseId}?name=${fileName}`;
-            const blob = new Blob([csv], { type: 'text/csv' });
-            
-            const uploadResult = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                
-                xhr.upload.onprogress = function(e) {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        console.log(`📤 Загрузка: ${percent}%`);
-                        if (btn) {
-                            btn.innerHTML = `⏳ Загрузка... ${percent}%`;
-                        }
-                    }
-                };
-                
-                xhr.onload = function() {
-                    if (xhr.status === 200 || xhr.status === 201) {
-                        try {
-                            const result = JSON.parse(xhr.responseText);
-                            console.log(`✅ Файл загружен в Release через прокси!`);
-                            resolve(result);
-                        } catch(e) {
-                            console.log('📥 Ответ (не JSON):', xhr.responseText);
-                            resolve({ success: true });
-                        }
-                    } else {
-                        reject(new Error(`Ошибка загрузки: ${xhr.status} - ${xhr.responseText}`));
-                    }
-                };
-                
-                xhr.onerror = function() {
-                    reject(new Error('Ошибка сети при загрузке'));
-                };
-                
-                xhr.ontimeout = function() {
-                    reject(new Error('Таймаут загрузки'));
-                };
-                
-                xhr.open('POST', uploadUrl);
-                xhr.setRequestHeader('Authorization', `token ${token}`);
-                xhr.setRequestHeader('Accept', 'application/json');
-                xhr.timeout = 600000;
-                
-                xhr.send(blob);
+                })
             });
             
-            console.log(`✅ CSV (${(csv.length / 1024 / 1024).toFixed(2)} МБ) обновлен в GitHub Release!`);
-            showNotification(`✅ CSV обновлен в GitHub Release!`, 'success');
+            if (!gistResponse.ok) {
+                const errorData = await gistResponse.json().catch(() => ({}));
+                throw new Error(`Ошибка загрузки в Gist: ${gistResponse.status} - ${errorData.message || 'Неизвестная ошибка'}`);
+            }
             
-            // Сохраняем номера НСПД в localStorage
+            const gistData = await gistResponse.json();
+            const rawUrl = gistData.files['deals_clean.csv'].raw_url;
+            
+            // ✅ Сохраняем URL в localStorage
+            localStorage.setItem('deals_csv_gist_url', rawUrl);
+            // ✅ Сохраняем ID Gist (для обновления)
+            localStorage.setItem('deals_csv_gist_id', gistData.id);
+            
+            console.log(`✅ CSV загружен в Gist: ${rawUrl}`);
+            console.log(`📋 Gist ID: ${gistData.id}`);
+            
+            showNotification(`✅ CSV загружен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
+            
+            // ✅ Сохраняем номера НСПД в localStorage
             const nspdData = {};
             for (const deal of allDealsFlat) {
                 if (deal.cad_nspd) {
@@ -6790,10 +6823,10 @@ if (foundCount > 0) {
                 }
             }
             localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров в localStorage`);
+            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД в localStorage`);
             
         } catch (error) {
-            console.error('❌ Ошибка:', error);
+            console.error('❌ Ошибка загрузки в Gist:', error);
             showNotification(`❌ Ошибка: ${error.message}`, 'error');
         }
     }
@@ -7086,6 +7119,7 @@ window.abortSyncWithNSPD = abortSyncWithNSPD;
 window.updateGitHubCSVWithNSPD = updateGitHubCSVWithNSPD;
 window.searchNSPD = searchNSPD;
 window.loadDealsFromRelease = loadDealsFromRelease;
+window.refreshCSVFromGist = refreshCSVFromGist;
 window.createCSVFromData = createCSVFromData;
 window.generateReport = generateReport;
 window.loadScript = loadScript;
