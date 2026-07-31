@@ -4949,7 +4949,6 @@ function sortDealsTable(field) {
             const priceB = b.deal_price_rub || 0;
             valB = cadCostB > 0 ? cadCostB - priceB : null;
             
-            // null (нет кадастра) идут в конец
             if (valA === null && valB === null) return 0;
             if (valA === null) return 1;
             if (valB === null) return -1;
@@ -4996,13 +4995,16 @@ function sortDealsTable(field) {
     const container = document.getElementById('deals-table-container');
     if (!container) return;
     
-    // Перерисовываем таблицу с отсортированными данными
-    // (используем ту же логику рендеринга, что и в renderDealsTable)
+    // ✅ ИСПРАВЛЕННАЯ ТАБЛИЦА С ДОБАВЛЕННЫМ СТОЛБЦОМ cad_nspd
     let html = `
         <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif; table-layout: fixed;">
             <thead>
                 <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_number')">Кад. квартал ↕</th>
+                    
+                    <!-- ✅ ДОБАВЛЯЕМ СТОЛБЕЦ cad_nspd -->
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_nspd')">Кад. номер НСПД ↕</th>
+                    
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('area')">Площадь ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('purpose_text')">Назначение ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('cad_cost')">Кад. стоимость ↕</th>
@@ -5012,11 +5014,11 @@ function sortDealsTable(field) {
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('obj_kind_text')">Тип объекта ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('vri')">ВРИ ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('quarter')">Квартал ↕</th>
-                   <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('street')">Улица ↕</th>
-<th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('year_build')">Год постр. ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 4%; cursor: pointer;" onclick="sortDealsTable('floor')">Этаж ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('location')">Локация ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('street')">Улица ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('wall_material_name')">Материал стен ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('deal_price_rub')">Цена сделки ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('uprs_rub')">УПРС ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 7%; cursor: pointer;" onclick="sortDealsTable('diff_abs')">Разница (абс.) ↕</th>
@@ -5029,7 +5031,7 @@ function sortDealsTable(field) {
     if (filteredDeals.length === 0) {
         html += `
                 <tr>
-                    <td colspan="18" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
+                    <td colspan="20" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
                         Нет данных для отображения
                     </td>
                 </tr>
@@ -5070,6 +5072,10 @@ function sortDealsTable(field) {
             html += `
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
                     <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
+                    
+                    <!-- ✅ ДОБАВЛЯЕМ ЯЧЕЙКУ cad_nspd -->
+                    <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400;">${deal.cad_nspd || 'nan'}</td>
+                    
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.cad_cost ? deal.cad_cost.toLocaleString('ru-RU') : 'nan'}</td>
@@ -5079,11 +5085,11 @@ function sortDealsTable(field) {
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.obj_kind_text || 'nan'}">${deal.obj_kind_text || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.vri || 'nan'}">${deal.vri || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.quarter || 'nan'}">${deal.quarter || 'nan'}</td>
-                   <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.street || 'nan'}">${deal.street || 'nan'}</td>
-<td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.year_build || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.floor || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.location || 'nan'}">${deal.location || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="${deal.street || 'nan'}">${deal.street || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.wall_material_name || 'nan'}">${deal.wall_material_name || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.deal_price_rub ? deal.deal_price_rub.toLocaleString('ru-RU') : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.uprs_rub ? deal.uprs_rub.toFixed(2) : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: ${diffColor}; font-weight: 600; font-size: 10px;">${diffAbsFormatted}</td>
