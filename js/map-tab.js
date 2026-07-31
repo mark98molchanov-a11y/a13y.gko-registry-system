@@ -6931,10 +6931,6 @@ if (foundCount > 0) {
     }
     
 } else {
-    // ✅ СОЗДАЕМ НОВЫЙ GIST
-// ✅ СОЗДАЕМ НОВЫЙ GIST
-} else {
-    // ✅ СОЗДАЕМ НОВЫЙ GIST
     console.log('📝 Создание нового Gist...');
     showNotification('📝 Создание нового Gist...', 'info');
 
