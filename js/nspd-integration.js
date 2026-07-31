@@ -198,101 +198,110 @@ class NSPDIntegration {
     // 📋 НОРМАЛИЗАЦИЯ ОТВЕТА
     // ============================================================
     
-    normalizeResponse(data) {
-        console.log('🔄 Нормализация ответа...');
-        
-        if (!data || !data.data || !data.data.features || data.data.features.length === 0) {
-            console.warn('⚠️ Нет данных в ответе');
-            return { error: 'Объект не найден', features: [] };
-        }
-
-        const features = data.data.features.map(feature => {
-            const props = feature.properties || {};
-            const options = props.options || {};
-            const systemInfo = props.systemInfo || {};
-            
-            return {
-                // Из properties
-                interactionId: props.interactionId || '',
-                category: props.category || '',
-                categoryName: props.categoryName || '',
-                subcategory: props.subcategory || '',
-                descr: props.descr || '',
-                externalKey: props.externalKey || '',
-                label: props.label || '',
-                cadastralDistrictsCode: props.cadastralDistrictsCode || '',
-                
-                // Из options (все поля)
-                cadastral_number: options.cad_num || props.externalKey || props.label || props.descr || '',
-                object_type: options.object_type_value || options.type || options.land_record_type || props.categoryName || '',
-                status: options.status || options.common_data_status || '',
-                ownership_type: options.ownership_type || '',
-                object_name: options.params_name || options.name || options.building_name || '',
-                purpose: options.params_purpose || options.purpose || options.permitted_use_established_by_document || '',
-                address: options.address_readable_address || options.readable_address || '',
-                quarter_cad_number: options.quarter_cad_number || '',
-                
-                // Площадь
-                area: parseFloat(options.params_area) || parseFloat(options.area) || parseFloat(options.build_record_area) || parseFloat(options.specified_area) || 0,
-                specified_area: parseFloat(options.specified_area) || 0,
-                
-                year_built: options.params_year_built || options.year_built || '',
-                year_commisioning: options.params_year_commisioning || options.year_commisioning || '',
-                params_extension: parseFloat(options.params_extension) || parseFloat(options.extension) || 0,
-                params_volume: parseFloat(options.params_volume) || parseFloat(options.volume) || 0,
-                params_height: parseFloat(options.params_height) || parseFloat(options.height) || 0,
-                params_depth: parseFloat(options.params_depth) || parseFloat(options.depth) || 0,
-                params_floors: options.params_floors || options.floors || '',
-                params_built_up_area: parseFloat(options.params_built_up_area) || parseFloat(options.built_up_area) || 0,
-                params_occurence_depth: parseFloat(options.params_occurence_depth) || parseFloat(options.occurence_depth) || 0,
-                params_underground_floors: options.params_underground_floors || options.underground_floors || '',
-                cadastral_value: parseFloat(options.cost_value) || 0,
-                cadastral_index: parseFloat(options.cost_index) || 0,
-                cost_determination_date: options.cost_determination_date || '',
-                cost_application_date: options.cost_application_date || '',
-                cost_registration_date: options.cost_registration_date || '',
-                cost_approvement_date: options.cost_approvement_date || '',
-                determination_couse: options.determination_couse || '',
-                registration_date: options.registration_date || options.build_record_registration_date || options.land_record_reg_date || '',
-                cultural_heritage_val: options.cultural_heritage_val || options.cultural_heritage_object || '',
-                facility_cad_number: options.facility_cad_number || '',
-                united_cad_number: options.united_cad_number || options.united_cad_numbers || '',
-                permitted_uses_name: options.permitted_uses_name || options.permitted_use_established_by_document || '',
-                degree_readiness: options.degree_readiness || '',
-                right_type: options.right_type || '',
-                built_up_area: parseFloat(options.built_up_area) || 0,
-                materials: options.materials || '',
-                floors: options.floors || '',
-                underground_floors: options.underground_floors || '',
-                building_name: options.building_name || '',
-                build_record_area: parseFloat(options.build_record_area) || 0,
-                name: options.name || '',
-                land_record_category_type: options.land_record_category_type || '',
-                land_record_subtype: options.land_record_subtype || '',
-                
-                // Системная информация
-                systemInfo: {
-                    inserted: systemInfo.inserted || '',
-                    insertedBy: systemInfo.insertedBy || '',
-                    updated: systemInfo.updated || '',
-                    updatedBy: systemInfo.updatedBy || ''
-                },
-                
-                // Геометрия
-                hasGeometry: !!feature.geometry,
-                geometryType: feature.geometry?.type || '',
-                
-                // Метаданные
-                totalCount: data.meta?.[0]?.totalCount || 0,
-                categoryId: data.meta?.[0]?.categoryId || '',
-                
-                raw: feature
-            };
-        });
-
-        return { features };
+  normalizeResponse(data) {
+    console.log('🔄 Нормализация ответа...');
+    
+    if (!data || !data.data || !data.data.features || data.data.features.length === 0) {
+        console.warn('⚠️ Нет данных в ответе');
+        return { error: 'Объект не найден', features: [] };
     }
 
+    const features = data.data.features.map(feature => {
+        const props = feature.properties || {};
+        const options = props.options || {};
+        const systemInfo = props.systemInfo || {};
+        
+        return {
+            // Из properties
+            interactionId: props.interactionId || '',
+            category: props.category || '',
+            categoryName: props.categoryName || '',
+            subcategory: props.subcategory || '',
+            descr: props.descr || '',
+            externalKey: props.externalKey || '',
+            label: props.label || '',
+            cadastralDistrictsCode: props.cadastralDistrictsCode || '',
+            
+            // ✅ ИСПРАВЛЕНО: Берем cad_number из options
+            cadastral_number: options.cad_number || props.externalKey || props.label || props.descr || '',
+            
+            // ✅ ИСПРАВЛЕНО: object_type берем из options.type
+            object_type: options.type || options.object_type_value || options.land_record_type || props.categoryName || '',
+            status: options.common_data_status || options.status || '',
+            ownership_type: options.ownership_type || '',
+            object_name: options.params_name || options.name || options.building_name || '',
+            purpose: options.purpose || options.params_purpose || options.permitted_use_established_by_document || '',
+            
+            // ✅ ИСПРАВЛЕНО: address берем из readable_address
+            address: options.readable_address || options.address_readable_address || '',
+            quarter_cad_number: options.parent_cad_number || options.quarter_cad_number || '',
+            
+            // Площадь
+            area: parseFloat(options.area) || parseFloat(options.params_area) || parseFloat(options.build_record_area) || parseFloat(options.specified_area) || 0,
+            specified_area: parseFloat(options.specified_area) || 0,
+            
+            year_built: options.year_built || options.params_year_built || '',
+            year_commisioning: options.year_commisioning || options.params_year_commisioning || '',
+            params_extension: parseFloat(options.params_extension) || parseFloat(options.extension) || 0,
+            params_volume: parseFloat(options.params_volume) || parseFloat(options.volume) || 0,
+            params_height: parseFloat(options.params_height) || parseFloat(options.height) || 0,
+            params_depth: parseFloat(options.params_depth) || parseFloat(options.depth) || 0,
+            params_floors: options.params_floors || options.floors || '',
+            params_built_up_area: parseFloat(options.params_built_up_area) || parseFloat(options.built_up_area) || 0,
+            params_occurence_depth: parseFloat(options.params_occurence_depth) || parseFloat(options.occurence_depth) || 0,
+            params_underground_floors: options.params_underground_floors || options.underground_floors || '',
+            
+            // ✅ ИСПРАВЛЕНО: cost_value и cost_index из options
+            cadastral_value: parseFloat(options.cost_value) || 0,
+            cadastral_index: parseFloat(options.cost_index) || 0,
+            
+            cost_determination_date: options.cost_determination_date || '',
+            cost_application_date: options.cost_application_date || '',
+            cost_registration_date: options.cost_registration_date || '',
+            cost_approvement_date: options.cost_approvement_date || '',
+            determination_couse: options.determination_couse || '',
+            
+            // ✅ ИСПРАВЛЕНО: registration_date из options
+            registration_date: options.registration_date || options.build_record_registration_date || options.land_record_reg_date || '',
+            
+            cultural_heritage_val: options.cultural_heritage_val || options.cultural_heritage_object || '',
+            facility_cad_number: options.facility_cad_number || '',
+            united_cad_number: options.united_cad_number || options.united_cad_numbers || '',
+            permitted_uses_name: options.permitted_uses_name || options.permitted_use_established_by_document || '',
+            degree_readiness: options.degree_readiness || '',
+            right_type: options.right_type || '',
+            built_up_area: parseFloat(options.built_up_area) || 0,
+            materials: options.materials || '',
+            floors: options.floors || '',
+            underground_floors: options.underground_floors || '',
+            building_name: options.building_name || '',
+            build_record_area: parseFloat(options.build_record_area) || 0,
+            name: options.name || '',
+            land_record_category_type: options.land_record_category_type || '',
+            land_record_subtype: options.land_record_subtype || '',
+            
+            // Системная информация
+            systemInfo: {
+                inserted: systemInfo.inserted || '',
+                insertedBy: systemInfo.insertedBy || '',
+                updated: systemInfo.updated || '',
+                updatedBy: systemInfo.updatedBy || ''
+            },
+            
+            // Геометрия
+            hasGeometry: !!feature.geometry,
+            geometryType: feature.geometry?.type || '',
+            
+            // Метаданные
+            totalCount: data.meta?.[0]?.totalCount || 0,
+            categoryId: data.meta?.[0]?.categoryId || '',
+            
+            raw: feature
+        };
+    });
+
+    return { features };
+}
     // ============================================================
     // 📋 ПОКАЗ ВСЕХ НАЙДЕННЫХ ОБЪЕКТОВ
     // ============================================================
