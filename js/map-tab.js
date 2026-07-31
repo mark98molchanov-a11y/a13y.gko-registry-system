@@ -6742,7 +6742,7 @@ for (const deal of allDealsFlat) {
             // ✅ 2. СОВПАДЕНИЕ ПО УЛИЦЕ
             if (!saved) {
                 for (const deal of allDealsFlat) {
-                    const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                   const dealQuarter = getQuarter(deal.cad_number);
                     
                     let streetMatch = true;
                     if (obj.locationKeywords && obj.locationKeywords.length > 0) {
@@ -6774,7 +6774,7 @@ for (const deal of allDealsFlat) {
             // ✅ 3. СОВПАДЕНИЕ ПО ГОРОДУ
             if (!saved) {
                 for (const deal of allDealsFlat) {
-                    const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                    const dealQuarter = getQuarter(deal.cad_number);
                     if (dealQuarter === obj.quarter && 
                         Math.abs(deal.area - obj.area) <= 1 && 
                         deal.obj_kind_text === obj.type &&
@@ -6791,7 +6791,7 @@ for (const deal of allDealsFlat) {
             // ✅ 4. ПРИБЛИЗИТЕЛЬНОЕ
             if (!saved) {
                 for (const deal of allDealsFlat) {
-                    const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                    const dealQuarter = getQuarter(deal.cad_number);
                     if (dealQuarter === obj.quarter && 
                         Math.abs(deal.area - obj.area) <= 1 && 
                         deal.obj_kind_text === obj.type &&
