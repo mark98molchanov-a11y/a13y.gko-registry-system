@@ -6737,12 +6737,6 @@ async function syncWithNSPD() {
     showNotification(resultMessage, wasAborted ? 'warning' : 'success');
     console.log(resultMessage);
     
-    // ============================================================
-    // ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB
-    // ============================================================
-    // ============================================================
-// ✅ АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ CSV НА GITHUB RELEASE
-// ============================================================
 if (foundCount > 0) {
     console.log('📊 Формирование CSV...');
     const headers = [
@@ -6765,20 +6759,27 @@ if (foundCount > 0) {
     }
     console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
     
-    // ✅ Проверяем размер
-    if (csv.length > 100 * 1024 * 1024) {
-        showNotification('⚠️ CSV слишком большой (>100 МБ), Gist не примет', 'error');
-        // Продолжаем, но предупреждаем
-    }
-    
-    const token = prompt('Введите GitHub Token для обновления CSV (будет загружен в Gist):');
+    const token = prompt('Введите GitHub Token для обновления CSV (нужны права gist):');
     if (!token || !token.trim()) {
         showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
     } else {
         try {
+            // ✅ 1. ПРОВЕРКА ТОКЕНА
+            console.log('🔑 Проверка токена...');
+            const testResponse = await fetch('https://api.github.com/user', {
+                headers: { 'Authorization': `token ${token}` }
+            });
+            
+            if (!testResponse.ok) {
+                throw new Error(`Невалидный токен: ${testResponse.status} - ${testResponse.statusText}`);
+            }
+            
+            const userData = await testResponse.json();
+            console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
+            
+            // ✅ 2. ЗАГРУЗКА В GIST
             showNotification('📤 Загрузка в GitHub Gist...', 'info');
             
-            // ✅ Загружаем в Gist
             const gistResponse = await fetch('https://api.github.com/gists', {
                 method: 'POST',
                 headers: {
@@ -6799,15 +6800,14 @@ if (foundCount > 0) {
             
             if (!gistResponse.ok) {
                 const errorData = await gistResponse.json().catch(() => ({}));
-                throw new Error(`Ошибка загрузки в Gist: ${gistResponse.status} - ${errorData.message || 'Неизвестная ошибка'}`);
+                throw new Error(`Ошибка Gist (${gistResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
             }
             
             const gistData = await gistResponse.json();
             const rawUrl = gistData.files['deals_clean.csv'].raw_url;
             
-            // ✅ Сохраняем URL в localStorage
+            // ✅ Сохраняем URL и ID
             localStorage.setItem('deals_csv_gist_url', rawUrl);
-            // ✅ Сохраняем ID Gist (для обновления)
             localStorage.setItem('deals_csv_gist_id', gistData.id);
             
             console.log(`✅ CSV загружен в Gist: ${rawUrl}`);
@@ -6815,7 +6815,7 @@ if (foundCount > 0) {
             
             showNotification(`✅ CSV загружен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
             
-            // ✅ Сохраняем номера НСПД в localStorage
+            // ✅ Сохраняем номера НСПД
             const nspdData = {};
             for (const deal of allDealsFlat) {
                 if (deal.cad_nspd) {
@@ -6823,10 +6823,10 @@ if (foundCount > 0) {
                 }
             }
             localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД в localStorage`);
+            console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки в Gist:', error);
+            console.error('❌ Ошибка:', error);
             showNotification(`❌ Ошибка: ${error.message}`, 'error');
         }
     }
