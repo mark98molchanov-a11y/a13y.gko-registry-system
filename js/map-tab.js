@@ -6385,7 +6385,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
 async function loadDealsFromRelease() {
     // 🔥 ЖЕСТКО ЗАШИТЫЙ ID (ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ)
     // ⚠️ ОБНОВЛЯЙТЕ ЕГО ТОЛЬКО КОГДА МЕНЯЕТЕ GIST!
-    const HARDCODED_GIST_ID = '691d0b6b65d14839cfcf6a55f0d4c15d';
+    const HARDCODED_GIST_ID = '2cf0b0ff94af9a404ed5d95ba9ede4fe';
     
     // ✅ 1. Сначала пробуем загрузить по URL из localStorage
     //    (для вас — быстро, без запроса к API)
@@ -6482,15 +6482,141 @@ function refreshCSVFromGist() {
         if (file && file.content) {
             // ✅ Сохраняем в localStorage для быстрого доступа
             localStorage.setItem('deals_csv_gist_url', file.raw_url);
-            showNotification('✅ CSV обновлен! Перезагрузите страницу для применения', 'success');
-            console.log('✅ CSV обновлен из Gist');
             
-            // ✅ Опционально: перезагружаем данные сразу
-            setTimeout(() => {
-                if (confirm('Перезагрузить страницу для применения обновлений?')) {
-                    location.reload();
+            // ════════════════════════════════════════════════════════════════
+            // 🔥 ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ИЗ НОВОГО CSV
+            // ════════════════════════════════════════════════════════════════
+            console.log('📥 Перезагрузка данных из нового CSV...');
+            
+            // ✅ Очищаем старые данные
+            allDealsFlat = [];
+            dealsData = {};
+            dealTypes = {};
+            cityTypes = {};
+            objectTypes = {};
+            wallMaterialTypes = {};
+            quarterTypes = {};
+            yearBuildTypes = {};
+            purposeCount = {};
+            vriCount = {};
+            
+            // ✅ Парсим новый CSV
+            const csvContent = file.content;
+            const lines = csvContent.split('\n').filter(line => line.trim());
+            
+            if (lines.length < 2) {
+                showNotification('❌ CSV пустой', 'error');
+                return;
+            }
+            
+            function parseCSVLine(line) {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
                 }
-            }, 1000);
+                result.push(current.trim());
+                return result;
+            }
+            
+            const headers = parseCSVLine(lines[0]);
+            const cadIndex = headers.indexOf('cad_number');
+            const kindIndex = headers.indexOf('deal_kind_text');
+            const cityIndex = headers.indexOf('city');
+            const priceIndex = headers.indexOf('deal_price_rub');
+            const uprsIndex = headers.indexOf('uprs_rub');
+            const upksIndex = headers.indexOf('upks');
+            const areaIndex = headers.indexOf('area');
+            const objKindIndex = headers.indexOf('obj_kind_text');
+            const wallMaterialIndex = headers.indexOf('wall_material_name');
+            const quarterIndex = headers.indexOf('quarter');  // ← ВАЖНО!
+            const yearBuildIndex = headers.indexOf('year_build');
+            const purposeIndex = headers.indexOf('purpose_text');
+            const vriIndex = headers.indexOf('vri');
+            const cadCostIndex = headers.indexOf('cad_cost');
+            const floorIndex = headers.indexOf('floor');
+            const locationIndex = headers.indexOf('location');
+            const streetIndex = headers.indexOf('street');
+            const nspdIndex = headers.indexOf('cad_nspd');
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
+                
+                const cadNum = values[cadIndex] || '';
+                if (!cadNum) continue;
+                
+                const deal = {
+                    cad_number: cadNum,
+                    area: parseFloat(values[areaIndex]) || 0,
+                    purpose_text: values[purposeIndex] || 'nan',
+                    cad_cost: parseFloat(values[cadCostIndex]) || 0,
+                    upks: parseFloat(values[upksIndex]) || 0,
+                    uprs: parseFloat(values[uprsIndex]) || 0,
+                    city: values[cityIndex] || 'nan',
+                    deal_kind_text: values[kindIndex] || 'nan',
+                    obj_kind_text: values[objKindIndex] || 'nan',
+                    vri: values[vriIndex] || 'nan',
+                    quarter: values[quarterIndex] || 'nan',  // ← Сохраняем квартал!
+                    year_build: values[yearBuildIndex] || 'nan',
+                    wall_material_name: values[wallMaterialIndex] || 'nan',
+                    deal_price_rub: parseFloat(values[priceIndex]) || 0,
+                    uprs_rub: parseFloat(values[uprsIndex]) || 0,
+                    floor: values[floorIndex] || 'nan',
+                    location: values[locationIndex] || 'nan',
+                    street: values[streetIndex] || 'nan',
+                    cad_nspd: values[nspdIndex] && values[nspdIndex].trim() !== '' ? values[nspdIndex].trim() : null
+                };
+                
+                allDealsFlat.push(deal);
+                
+                // Обновляем счетчики
+                dealTypes[deal.deal_kind_text] = (dealTypes[deal.deal_kind_text] || 0) + 1;
+                cityTypes[deal.city] = (cityTypes[deal.city] || 0) + 1;
+                objectTypes[deal.obj_kind_text] = (objectTypes[deal.obj_kind_text] || 0) + 1;
+                wallMaterialTypes[deal.wall_material_name] = (wallMaterialTypes[deal.wall_material_name] || 0) + 1;
+                quarterTypes[deal.quarter] = (quarterTypes[deal.quarter] || 0) + 1;
+                yearBuildTypes[deal.year_build] = (yearBuildTypes[deal.year_build] || 0) + 1;
+                purposeCount[deal.purpose_text] = (purposeCount[deal.purpose_text] || 0) + 1;
+                vriCount[deal.vri] = (vriCount[deal.vri] || 0) + 1;
+            }
+            
+            console.log(`✅ Загружено ${allDealsFlat.length} сделок из Gist`);
+            
+            // ✅ Обновляем UI
+            renderDealTypeFilters();
+            renderCityFilters();
+            renderObjectTypeFilters();
+            renderWallMaterialFilters();
+            renderQuarterFilters();
+            renderYearBuildFilters();
+            renderPurposeFilters();
+            renderVriFilters();
+            renderDealsTable();
+            
+            if (mapData) {
+                renderMapLevel(currentLevel || 0, currentParentId);
+            }
+            
+            showNotification(`✅ CSV обновлен! Загружено ${allDealsFlat.length} сделок`, 'success');
+            console.log('✅ CSV обновлен и данные перезагружены');
+            
         } else {
             showNotification('❌ Файл не найден в Gist', 'error');
         }
@@ -6565,6 +6691,25 @@ async function syncWithNSPD() {
         return;
     }
     
+    // ================================================================
+    // 🔥 ОЧИЩАЕМ ТОЛЬКО НЕПРАВИЛЬНЫЕ cad_nspd (из других кварталов)
+    // ================================================================
+    let clearedCount = 0;
+    for (const deal of allDealsFlat) {
+        if (!deal.cad_nspd) continue;
+        
+        const dealQuarter = getQuarter(deal.cad_number);
+        const nspdQuarter = getQuarter(deal.cad_nspd);
+        
+        // Если кварталы НЕ совпадают — очищаем (это чужой объект)
+        if (dealQuarter && nspdQuarter && dealQuarter !== nspdQuarter) {
+            deal.cad_nspd = null;
+            clearedCount++;
+            console.log(`🧹 Очищен: ${deal.cad_number} (было ${deal.cad_nspd} из ${nspdQuarter}, нужно ${dealQuarter})`);
+        }
+    }
+    console.log(`🧹 Очищено ${clearedCount} неправильных cad_nspd`);
+    
     // Показываем индикатор загрузки
     const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
     const originalHTML = btn?.innerHTML || 'Синхронизация с НСПД';
@@ -6611,41 +6756,43 @@ async function syncWithNSPD() {
         }
     }
     
-    // ✅ СЧИТАЕМ СКОЛЬКО УЖЕ ЕСТЬ ЗАПОЛНЕННЫХ
+    // ✅ СЧИТАЕМ СКОЛЬКО УЖЕ ЕСТЬ ЗАПОЛНЕННЫХ (ПРАВИЛЬНЫХ)
     let alreadyFilled = 0;
     for (const deal of allDealsFlat) {
         if (deal.cad_nspd) alreadyFilled++;
     }
-    console.log(`📊 Уже заполнено: ${alreadyFilled} объектов`);
+    console.log(`📊 Уже заполнено (правильных): ${alreadyFilled} объектов`);
     
-  const uniqueObjects = [];
-const processedKeys = new Set();
+    // ================================================================
+    // ✅ ТЕПЕРЬ СОБИРАЕМ УНИКАЛЬНЫЕ ОБЪЕКТЫ (только с пустым cad_nspd)
+    // ================================================================
+    const uniqueObjects = [];
+    const processedKeys = new Set();
 
-for (const deal of allDealsFlat) {
-    if (deal.cad_nspd) continue;
-    
-    // ✅ ИСПРАВЛЕНО: извлекаем квартал правильно
-    const quarter = getQuarter(deal.cad_number);
-    if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
-    
-    const area = deal.area || 0;
-    if (area <= 0) continue;
-    
-    const objType = deal.obj_kind_text || 'Здание';
-    const location = deal.city || '';
-    
-    const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
-    if (processedKeys.has(key)) continue;
-    processedKeys.add(key);
-    
-    uniqueObjects.push({
-        quarter: quarter,  // ← теперь правильный квартал!
-        area: area,
-        type: objType,
-        location: location,
-        locationKeywords: [location, deal.street || ''].filter(Boolean)
-    });
-}
+    for (const deal of allDealsFlat) {
+        if (deal.cad_nspd) continue;  // ← теперь здесь ТОЛЬКО правильные номера!
+        
+        const quarter = getQuarter(deal.cad_number);
+        if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
+        
+        const area = deal.area || 0;
+        if (area <= 0) continue;
+        
+        const objType = deal.obj_kind_text || 'Здание';
+        const location = deal.city || '';
+        
+        const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
+        if (processedKeys.has(key)) continue;
+        processedKeys.add(key);
+        
+        uniqueObjects.push({
+            quarter: quarter,
+            area: area,
+            type: objType,
+            location: location,
+            locationKeywords: [location, deal.street || ''].filter(Boolean)
+        });
+    }
     
     console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
     console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
