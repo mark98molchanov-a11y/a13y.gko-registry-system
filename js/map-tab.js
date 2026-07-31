@@ -6661,110 +6661,110 @@ async function syncWithNSPD() {
             break;
         }
         
-if (cadNspd) {
-    foundCount++;
-    let saved = false;
-    
-    // ✅ 1. ТОЧНОЕ СОВПАДЕНИЕ (ГОРОД + УЛИЦА)
-    for (const deal of allDealsFlat) {
-        const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-        
-        let streetMatch = true;
-        if (obj.locationKeywords && obj.locationKeywords.length > 0) {
-            streetMatch = obj.locationKeywords.some(kw => {
-                if (!kw || kw === '') return false;
-                const searchStr = kw.toLowerCase();
-                const dealStreet = (deal.street || '').toLowerCase();
-                const dealLocation = (deal.location || '').toLowerCase();
-                return dealStreet.includes(searchStr) || 
-                       dealLocation.includes(searchStr) ||
-                       searchStr.includes(dealStreet) ||
-                       searchStr.includes(dealLocation);
-            });
-        }
-        
-        if (dealQuarter === obj.quarter && 
-            Math.abs(deal.area - obj.area) <= 1 && 
-            deal.obj_kind_text === obj.type &&
-            deal.city === obj.location &&
-            streetMatch &&
-            !saved) {
+        if (cadNspd) {
+            foundCount++;
+            let saved = false;
             
-            deal.cad_nspd = cadNspd;
-            saved = true;
-            console.log(`✅ ТОЧНОЕ (город+улица): ${cadNspd} → ${deal.cad_number} (${deal.city}, ${deal.street})`);
-        }
-    }
-    
-    // ✅ 2. СОВПАДЕНИЕ ПО УЛИЦЕ
-    if (!saved) {
-        for (const deal of allDealsFlat) {
-            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-            
-            let streetMatch = true;
-            if (obj.locationKeywords && obj.locationKeywords.length > 0) {
-                streetMatch = obj.locationKeywords.some(kw => {
-                    if (!kw || kw === '') return false;
-                    const searchStr = kw.toLowerCase();
-                    const dealStreet = (deal.street || '').toLowerCase();
-                    const dealLocation = (deal.location || '').toLowerCase();
-                    return dealStreet.includes(searchStr) || 
-                           dealLocation.includes(searchStr) ||
-                           searchStr.includes(dealStreet) ||
-                           searchStr.includes(dealLocation);
-                });
+            // ✅ 1. ТОЧНОЕ СОВПАДЕНИЕ (ГОРОД + УЛИЦА)
+            for (const deal of allDealsFlat) {
+                const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                
+                let streetMatch = true;
+                if (obj.locationKeywords && obj.locationKeywords.length > 0) {
+                    streetMatch = obj.locationKeywords.some(kw => {
+                        if (!kw || kw === '') return false;
+                        const searchStr = kw.toLowerCase();
+                        const dealStreet = (deal.street || '').toLowerCase();
+                        const dealLocation = (deal.location || '').toLowerCase();
+                        return dealStreet.includes(searchStr) || 
+                               dealLocation.includes(searchStr) ||
+                               searchStr.includes(dealStreet) ||
+                               searchStr.includes(dealLocation);
+                    });
+                }
+                
+                if (dealQuarter === obj.quarter && 
+                    Math.abs(deal.area - obj.area) <= 1 && 
+                    deal.obj_kind_text === obj.type &&
+                    deal.city === obj.location &&
+                    streetMatch &&
+                    !saved) {
+                    
+                    deal.cad_nspd = cadNspd;
+                    saved = true;
+                    console.log(`✅ ТОЧНОЕ (город+улица): ${cadNspd} → ${deal.cad_number} (${deal.city}, ${deal.street})`);
+                }
             }
             
-            if (dealQuarter === obj.quarter && 
-                Math.abs(deal.area - obj.area) <= 1 && 
-                deal.obj_kind_text === obj.type &&
-                streetMatch &&
-                !saved) {
-                
-                deal.cad_nspd = cadNspd;
-                saved = true;
-                console.log(`⚠️ По улице: ${cadNspd} → ${deal.cad_number} (${deal.street})`);
+            // ✅ 2. СОВПАДЕНИЕ ПО УЛИЦЕ
+            if (!saved) {
+                for (const deal of allDealsFlat) {
+                    const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                    
+                    let streetMatch = true;
+                    if (obj.locationKeywords && obj.locationKeywords.length > 0) {
+                        streetMatch = obj.locationKeywords.some(kw => {
+                            if (!kw || kw === '') return false;
+                            const searchStr = kw.toLowerCase();
+                            const dealStreet = (deal.street || '').toLowerCase();
+                            const dealLocation = (deal.location || '').toLowerCase();
+                            return dealStreet.includes(searchStr) || 
+                                   dealLocation.includes(searchStr) ||
+                                   searchStr.includes(dealStreet) ||
+                                   searchStr.includes(dealLocation);
+                        });
+                    }
+                    
+                    if (dealQuarter === obj.quarter && 
+                        Math.abs(deal.area - obj.area) <= 1 && 
+                        deal.obj_kind_text === obj.type &&
+                        streetMatch &&
+                        !saved) {
+                        
+                        deal.cad_nspd = cadNspd;
+                        saved = true;
+                        console.log(`⚠️ По улице: ${cadNspd} → ${deal.cad_number} (${deal.street})`);
+                    }
+                }
+            }
+            
+            // ✅ 3. СОВПАДЕНИЕ ПО ГОРОДУ
+            if (!saved) {
+                for (const deal of allDealsFlat) {
+                    const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                    if (dealQuarter === obj.quarter && 
+                        Math.abs(deal.area - obj.area) <= 1 && 
+                        deal.obj_kind_text === obj.type &&
+                        deal.city === obj.location &&
+                        !saved) {
+                        
+                        deal.cad_nspd = cadNspd;
+                        saved = true;
+                        console.log(`⚠️ По городу: ${cadNspd} → ${deal.cad_number} (${deal.city})`);
+                    }
+                }
+            }
+            
+            // ✅ 4. ПРИБЛИЗИТЕЛЬНОЕ
+            if (!saved) {
+                for (const deal of allDealsFlat) {
+                    const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
+                    if (dealQuarter === obj.quarter && 
+                        Math.abs(deal.area - obj.area) <= 1 && 
+                        deal.obj_kind_text === obj.type &&
+                        !saved) {
+                        
+                        deal.cad_nspd = cadNspd;
+                        saved = true;
+                        console.log(`⚠️ Приблизительное: ${cadNspd} → ${deal.cad_number}`);
+                    }
+                }
+            }
+            
+            if (!saved) {
+                console.log(`❌ Не найдено подходящей сделки для ${cadNspd}`);
             }
         }
-    }
-    
-    // ✅ 3. СОВПАДЕНИЕ ПО ГОРОДУ
-    if (!saved) {
-        for (const deal of allDealsFlat) {
-            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-            if (dealQuarter === obj.quarter && 
-                Math.abs(deal.area - obj.area) <= 1 && 
-                deal.obj_kind_text === obj.type &&
-                deal.city === obj.location &&
-                !saved) {
-                
-                deal.cad_nspd = cadNspd;
-                saved = true;
-                console.log(`⚠️ По городу: ${cadNspd} → ${deal.cad_number} (${deal.city})`);
-            }
-        }
-    }
-    
-    // ✅ 4. ПРИБЛИЗИТЕЛЬНОЕ
-    if (!saved) {
-        for (const deal of allDealsFlat) {
-            const dealQuarter = deal.cad_number ? deal.cad_number.slice(0, 11) : null;
-            if (dealQuarter === obj.quarter && 
-                Math.abs(deal.area - obj.area) <= 1 && 
-                deal.obj_kind_text === obj.type &&
-                !saved) {
-                
-                deal.cad_nspd = cadNspd;
-                saved = true;
-                console.log(`⚠️ Приблизительное: ${cadNspd} → ${deal.cad_number}`);
-            }
-        }
-    }
-    
-    if (!saved) {
-        console.log(`❌ Не найдено подходящей сделки для ${cadNspd}`);
-    }
-}
         
         await new Promise(resolve => setTimeout(resolve, 300));
         
@@ -6791,235 +6791,233 @@ if (cadNspd) {
     showNotification(resultMessage, wasAborted ? 'warning' : 'success');
     console.log(resultMessage);
     
-if (foundCount > 0) {
-    console.log('📊 Формирование CSV...');
-    const headers = [
-        'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
-        'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
-        'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
-        'floor', 'location', 'street', 'cad_nspd'
-    ];
-    
-    let csv = headers.join(',') + '\n';
-    for (const deal of allDealsFlat) {
-        const row = headers.map(h => {
-            let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
-            if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-                val = '"' + val.replace(/"/g, '""') + '"';
-            }
-            return val;
-        });
-        csv += row.join(',') + '\n';
-    }
-    console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
-    
-    const token = prompt('Введите GitHub Token для обновления CSV (нужны права gist):');
-    if (!token || !token.trim()) {
-        showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
-    } else {
-        try {
-            // ✅ 1. ПРОВЕРКА ТОКЕНА
-            console.log('🔑 Проверка токена...');
-            const testResponse = await fetch('https://api.github.com/user', {
-                headers: { 'Authorization': `token ${token}` }
-            });
-            
-            if (!testResponse.ok) {
-                throw new Error(`Невалидный токен: ${testResponse.status} - ${testResponse.statusText}`);
-            }
-            
-            const userData = await testResponse.json();
-            console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
-            
-            // ✅ 2. ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ GIST ID
-            const existingGistId = localStorage.getItem('deals_csv_gist_id');
-            
-            let gistData;
-            
-           if (existingGistId) {
-    // ✅ ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЙ GIST
-    console.log(`🔄 Обновление существующего Gist: ${existingGistId}`);
-    showNotification('🔄 Обновление существующего Gist...', 'info');
-    
-    try {
-        // ✅ ПРОВЕРЯЕМ, СУЩЕСТВУЕТ ЛИ GIST
-        const getGistResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/json'
-            }
-        });
+    if (foundCount > 0) {
+        console.log('📊 Формирование CSV...');
+        const headers = [
+            'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
+            'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
+            'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
+            'floor', 'location', 'street', 'cad_nspd'
+        ];
         
-        if (getGistResponse.status === 404) {
-            // ✅ GIST НЕ СУЩЕСТВУЕТ — УДАЛЯЕМ ID И СОЗДАЕМ НОВЫЙ
-            console.warn(`⚠️ Gist ${existingGistId} не найден (404), создаем новый...`);
-            localStorage.removeItem('deals_csv_gist_id');
-            localStorage.removeItem('deals_csv_gist_url');
-            // Переходим к созданию нового Gist
-            throw new Error('GIST_NOT_FOUND');
-        }
-        
-        if (!getGistResponse.ok) {
-            throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
-        }
-        
-        const currentGist = await getGistResponse.json();
-        const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
-        
-        // Обновляем Gist через PATCH
-        const updateResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `token ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
-                files: {
-                    'deals_clean.csv': {
-                        content: csv,
-                        sha: fileSha || undefined
-                    }
+        let csv = headers.join(',') + '\n';
+        for (const deal of allDealsFlat) {
+            const row = headers.map(h => {
+                let val = deal[h] !== undefined && deal[h] !== null ? deal[h] : 'nan';
+                if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+                    val = '"' + val.replace(/"/g, '""') + '"';
                 }
-            })
-        });
-        
-        if (!updateResponse.ok) {
-            const errorData = await updateResponse.json().catch(() => ({}));
-            throw new Error(`Ошибка обновления Gist (${updateResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+                return val;
+            });
+            csv += row.join(',') + '\n';
         }
+        console.log(`📏 Размер CSV: ${(csv.length / 1024 / 1024).toFixed(2)} МБ`);
         
-        gistData = await updateResponse.json();
-        console.log(`✅ Gist обновлен: ${gistData.html_url}`);
-        
-    } catch (error) {
-        // ✅ ЕСЛИ GIST НЕ НАЙДЕН — СОЗДАЕМ НОВЫЙ
-        if (error.message === 'GIST_NOT_FOUND') {
-            console.log('📝 Создание нового Gist (после 404)...');
-            showNotification('📝 Создание нового Gist...', 'info');
-            
-            const createResponse = await fetch('https://api.github.com/gists', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
-                    public: false,
-                    files: {
-                        'deals_clean.csv': {
-                            content: csv
+        const token = prompt('Введите GitHub Token для обновления CSV (нужны права gist):');
+        if (!token || !token.trim()) {
+            showNotification('⚠️ Токен не введен, CSV не обновлен', 'warning');
+        } else {
+            try {
+                // ✅ 1. ПРОВЕРКА ТОКЕНА
+                console.log('🔑 Проверка токена...');
+                const testResponse = await fetch('https://api.github.com/user', {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                
+                if (!testResponse.ok) {
+                    throw new Error(`Невалидный токен: ${testResponse.status} - ${testResponse.statusText}`);
+                }
+                
+                const userData = await testResponse.json();
+                console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
+                
+                // ✅ 2. ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ GIST ID
+                const existingGistId = localStorage.getItem('deals_csv_gist_id');
+                
+                let gistData;
+                
+                if (existingGistId) {
+                    // ✅ ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЙ GIST
+                    console.log(`🔄 Обновление существующего Gist: ${existingGistId}`);
+                    showNotification('🔄 Обновление существующего Gist...', 'info');
+                    
+                    try {
+                        // ✅ ПРОВЕРЯЕМ, СУЩЕСТВУЕТ ЛИ GIST
+                        const getGistResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
+                            headers: {
+                                'Authorization': `token ${token}`,
+                                'Accept': 'application/json'
+                            }
+                        });
+                        
+                        if (getGistResponse.status === 404) {
+                            // ✅ GIST НЕ СУЩЕСТВУЕТ — УДАЛЯЕМ ID И СОЗДАЕМ НОВЫЙ
+                            console.warn(`⚠️ Gist ${existingGistId} не найден (404), создаем новый...`);
+                            localStorage.removeItem('deals_csv_gist_id');
+                            localStorage.removeItem('deals_csv_gist_url');
+                            throw new Error('GIST_NOT_FOUND');
+                        }
+                        
+                        if (!getGistResponse.ok) {
+                            throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
+                        }
+                        
+                        const currentGist = await getGistResponse.json();
+                        const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
+                        
+                        // Обновляем Gist через PATCH
+                        const updateResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': `token ${token}`,
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                description: `Обновленные данные сделок ${new Date().toISOString().slice(0,10)}`,
+                                files: {
+                                    'deals_clean.csv': {
+                                        content: csv,
+                                        sha: fileSha || undefined
+                                    }
+                                }
+                            })
+                        });
+                        
+                        if (!updateResponse.ok) {
+                            const errorData = await updateResponse.json().catch(() => ({}));
+                            throw new Error(`Ошибка обновления Gist (${updateResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+                        }
+                        
+                        gistData = await updateResponse.json();
+                        console.log(`✅ Gist обновлен: ${gistData.html_url}`);
+                        
+                    } catch (error) {
+                        if (error.message === 'GIST_NOT_FOUND') {
+                            console.log('📝 Создание нового Gist (после 404)...');
+                            showNotification('📝 Создание нового Gist...', 'info');
+                            
+                            const createResponse = await fetch('https://api.github.com/gists', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `token ${token}`,
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+                                    public: false,
+                                    files: {
+                                        'deals_clean.csv': {
+                                            content: csv
+                                        }
+                                    }
+                                })
+                            });
+                            
+                            if (!createResponse.ok) {
+                                const errorData = await createResponse.json().catch(() => ({}));
+                                throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+                            }
+                            
+                            gistData = await createResponse.json();
+                            console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+                        } else {
+                            throw error;
                         }
                     }
-                })
-            });
-            
-            if (!createResponse.ok) {
-                const errorData = await createResponse.json().catch(() => ({}));
-                throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
-            }
-            
-            gistData = await createResponse.json();
-            console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
-        } else {
-            // ДРУГАЯ ОШИБКА — ПРОБРАСЫВАЕМ ДАЛЬШЕ
-            throw error;
-        }
-    }
-    
-} else {
-    console.log('📝 Создание нового Gist...');
-    showNotification('📝 Создание нового Gist...', 'info');
+                    
+                } else {
+                    console.log('📝 Создание нового Gist...');
+                    showNotification('📝 Создание нового Gist...', 'info');
 
-    const createResponse = await fetch('https://api.github.com/gists', {
-        method: 'POST',
-        headers: {
-            'Authorization': `token ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
-            public: false,
-            files: {
-                'deals_clean.csv': {
-                    content: csv
+                    const createResponse = await fetch('https://api.github.com/gists', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            description: `Данные сделок ${new Date().toISOString().slice(0,10)}`,
+                            public: false,
+                            files: {
+                                'deals_clean.csv': {
+                                    content: csv
+                                }
+                            }
+                        })
+                    });
+
+                    if (!createResponse.ok) {
+                        const errorData = await createResponse.json().catch(() => ({}));
+                        throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+                    }
+
+                    gistData = await createResponse.json();
+                    console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+
+                    // ════════════════════════════════════════════════════════════════
+                    // 🔥 БЛОК ПОСЛЕ СОЗДАНИЯ GIST
+                    // ════════════════════════════════════════════════════════════════
+                    const newGistId = gistData.id;
+                    console.log(`📋 НОВЫЙ GIST ID: ${newGistId}`);
+                    console.log('⚠️ ОБНОВИТЕ HARDCODED_GIST_ID В КОДЕ НА ЭТОТ ID!');
+
+                    showNotification(`✅ Создан Gist! ID: ${newGistId}. Обновите код!`, 'warning');
+
+                    localStorage.setItem('deals_csv_gist_id', newGistId);
+                    localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
+
+                    try {
+                        await navigator.clipboard.writeText(newGistId);
+                        console.log('📋 ID скопирован в буфер обмена!');
+                    } catch(e) {
+                        console.log('📋 ID: ' + newGistId);
+                    }
                 }
+
+                // ✅ 3. СОХРАНЯЕМ URL И ID
+                const rawUrl = gistData.files['deals_clean.csv'].raw_url;
+                localStorage.setItem('deals_csv_gist_url', rawUrl);
+                localStorage.setItem('deals_csv_gist_id', gistData.id);
+
+                console.log(`✅ CSV сохранен в Gist: ${rawUrl}`);
+                console.log(`📋 Gist ID: ${gistData.id}`);
+
+                showNotification(`✅ CSV сохранен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
+
+                // ✅ Сохраняем номера НСПД (вдруг пригодятся)
+                const nspdData = {};
+                for (const deal of allDealsFlat) {
+                    if (deal.cad_nspd) {
+                        nspdData[deal.cad_number] = deal.cad_nspd;
+                    }
+                }
+                localStorage.setItem('nspd_data', JSON.stringify(nspdData));
+                console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
+
+            } catch (error) {
+                console.error('❌ Ошибка:', error);
+                showNotification(`❌ Ошибка: ${error.message}`, 'error');
             }
-        })
-    });
-
-    if (!createResponse.ok) {
-        const errorData = await createResponse.json().catch(() => ({}));
-        throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+        }
+    } else {
+        console.log('ℹ️ Нет новых номеров для обновления CSV');
+        showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
     }
 
-    gistData = await createResponse.json();
-    console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
-
-    // ════════════════════════════════════════════════════════════════
-    // 🔥 БЛОК ПОСЛЕ СОЗДАНИЯ GIST
-    // ════════════════════════════════════════════════════════════════
-    const newGistId = gistData.id;
-    console.log(`📋 НОВЫЙ GIST ID: ${newGistId}`);
-    console.log('⚠️ ОБНОВИТЕ HARDCODED_GIST_ID В КОДЕ НА ЭТОТ ID!');
-
-    showNotification(`✅ Создан Gist! ID: ${newGistId}. Обновите код!`, 'warning');
-
-    localStorage.setItem('deals_csv_gist_id', newGistId);
-    localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
-
-    try {
-        await navigator.clipboard.writeText(newGistId);
-        console.log('📋 ID скопирован в буфер обмена!');
-    } catch(e) {
-        console.log('📋 ID: ' + newGistId);
+    // Восстанавливаем кнопку
+    if (btn) {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.style.background = '#2563eb';
     }
-}  // ← ТОЛЬКО ОДНА СКОБКА ЗАКРЫВАЕТ else!
 
-// ✅ 3. СОХРАНЯЕМ URL И ID
-const rawUrl = gistData.files['deals_clean.csv'].raw_url;
-localStorage.setItem('deals_csv_gist_url', rawUrl);
-localStorage.setItem('deals_csv_gist_id', gistData.id);
-
-console.log(`✅ CSV сохранен в Gist: ${rawUrl}`);
-console.log(`📋 Gist ID: ${gistData.id}`);
-
-showNotification(`✅ CSV сохранен в Gist! (${(csv.length / 1024 / 1024).toFixed(2)} МБ)`, 'success');
-
-// ✅ Сохраняем номера НСПД (вдруг пригодятся)
-const nspdData = {};
-for (const deal of allDealsFlat) {
-    if (deal.cad_nspd) {
-        nspdData[deal.cad_number] = deal.cad_nspd;
-    }
+    isSyncRunning = false;
 }
-localStorage.setItem('nspd_data', JSON.stringify(nspdData));
-console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеров НСПД`);
-
-} catch (error) {
-    console.error('❌ Ошибка:', error);
-    showNotification(`❌ Ошибка: ${error.message}`, 'error');
-}
-} else {
-console.log('ℹ️ Нет новых номеров для обновления CSV');
-showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
-}
-
-// Восстанавливаем кнопку
-if (btn) {
-    btn.innerHTML = originalHTML;
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.style.cursor = 'pointer';
-    btn.style.background = '#2563eb';
-}
-
-isSyncRunning = false;
-    }
 async function updateGitHubCSVWithNSPD(token) {
     console.log('📤 Обновление CSV через прокси-сервер...');
     
