@@ -6740,14 +6740,14 @@ try {
     console.log('📤 Загрузка CSV напрямую в Blob...');
     const csvBlob = new Blob([csv], { type: 'text/csv' });
     
-const uploadResponse = await fetch(urlData.uploadUrl, {
-    method: 'POST',  // ← PUT заменён на POST!
-    headers: {
-        'Content-Type': 'text/csv',
-        'x-amz-acl': 'public-read'
-    },
-    body: csvBlob
-});
+    // ✅ БЕЗ x-amz-acl!
+    const uploadResponse = await fetch(urlData.uploadUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/csv'
+        },
+        body: csvBlob
+    });
     
     if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
