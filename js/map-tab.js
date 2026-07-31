@@ -7003,7 +7003,6 @@ console.log(`✅ Сохранено ${Object.keys(nspdData).length} номеро
 } catch (error) {
     console.error('❌ Ошибка:', error);
     showNotification(`❌ Ошибка: ${error.message}`, 'error');
-}
 } else {
 console.log('ℹ️ Нет новых номеров для обновления CSV');
 showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
