@@ -1,3 +1,4 @@
+window.mapInstance = null;
 let mapData = null;
 let currentLevel = 0;
 let currentParentId = null;
@@ -3286,43 +3287,40 @@ function initMapTab(containerId) {
         return;
     }
 
-    mapInstance = L.map(container, {
+    window.mapInstance = L.map(container, {
         center: [66.0, 76.0],
         zoom: 5,
         zoomControl: true,
         boxZoom: false 
     });
 
-    mapInstance.attributionControl.remove();
+    window.mapInstance.attributionControl.remove();
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap'
-    }).addTo(mapInstance);
+    }).addTo(window.mapInstance);
 
     setTimeout(() => {
-        if (mapInstance) {
-            mapInstance.invalidateSize();
+        if (window.mapInstance) {
+            window.mapInstance.invalidateSize();
             console.log('📏 invalidateSize() выполнен после инициализации');
         }
     }, 100);
 
-    // ✅ ЗАГРУЖАЕМ ДАННЫЕ ПАРАЛЛЕЛЬНО
     Promise.all([
         loadMapData(),
         loadDealsCSV()
     ]).then(() => {
         console.log('✅ Карта и данные загружены!');
-        // После загрузки обоих — перерисовываем карту
         if (mapData) {
             renderMapLevel(currentLevel || 0, currentParentId);
             
-            // ✅ ПРИНУДИТЕЛЬНОЕ ЦЕНТРИРОВАНИЕ ПОСЛЕ ЗАГРУЗКИ
             setTimeout(() => {
                 console.log('📍 Принудительное центрирование после загрузки');
-                if (mapInstance) {
-                    mapInstance.invalidateSize();
-                    mapInstance.setView([66.0, 76.0], 5);
+                if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                    window.mapInstance.invalidateSize();
+                    window.mapInstance.setView([66.0, 76.0], 5);
                 }
             }, 500);
         }
@@ -3381,8 +3379,8 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
         currentDistrictFilter = null;
     }
     
-    if (!mapData || !mapInstance) {
-        console.warn('⚠️ mapData или mapInstance не инициализированы');
+    if (!mapData || !window.mapInstance) {
+        console.warn('⚠️ mapData или window.mapInstance не инициализированы');
         return;
     }
 
@@ -3391,16 +3389,18 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
 
     // ✅ СБРАСЫВАЕМ ВЫДЕЛЕНИЕ ПРИ ПЕРЕХОДЕ НА КВАРТАЛЫ
     if (level === 2) {
-        mapInstance.eachLayer(function(layer) {
-            if (layer.setStyle && layer.options && layer.options.weight) {
-                layer.setStyle({
-                    weight: 1,
-                    color: '#ff0000',
-                    opacity: 0.4,
-                    fillOpacity: 0.25
-                });
-            }
-        });
+        if (window.mapInstance) {
+            window.mapInstance.eachLayer(function(layer) {
+                if (layer.setStyle && layer.options && layer.options.weight) {
+                    layer.setStyle({
+                        weight: 1,
+                        color: '#ff0000',
+                        opacity: 0.4,
+                        fillOpacity: 0.25
+                    });
+                }
+            });
+        }
     }
 
     // Фильтруем объекты
@@ -3409,19 +3409,16 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
         const cadNum = props.cadastral_number || '';
         const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000');
         
-        // Уровень 0: только округ (level: 0)
         if (level === 0) {
             return props.level === 0;
         }
         
-        // Уровень 1: районы (level: 1) + обертки (level: 2 с 000000)
         if (level === 1) {
             if (props.level === 1) return true;
             if (props.level === 2 && isWrapper) return true;
             return false;
         }
         
-        // Уровень 2: кварталы (level: 2) в конкретном районе
         if (level === 2) {
             if (props.level !== 2) return false;
             if (parentId) {
@@ -3445,12 +3442,16 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
 
     // Удаляем старые слои
     if (window.mapLayer) {
-        mapInstance.removeLayer(window.mapLayer);
+        if (window.mapInstance) {
+            window.mapInstance.removeLayer(window.mapLayer);
+        }
         window.mapLayer.off();
         window.mapLayer = null;
     }
     if (window.wrapperLayer) {
-        mapInstance.removeLayer(window.wrapperLayer);
+        if (window.mapInstance) {
+            window.mapInstance.removeLayer(window.wrapperLayer);
+        }
         window.wrapperLayer = null;
     }
     clearAllLabels();
@@ -3467,135 +3468,126 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
     });
     console.log(`Оберток: ${wrapperQuarters.length}, кварталов: ${normalQuarters.length}`);
 
- if (wrapperQuarters.length > 0) {
-    window.wrapperLayer = L.geoJSON(wrapperQuarters, {
-        style: function(feature) {
-            return {
-                fillColor: 'transparent',
-                fillOpacity: 0,
-                color: '#dc2626',
-                weight: 2.5,
-                opacity: 0.8,
-                dashArray: '6 4'
-            };
-        },
-        onEachFeature: function(feature, layer) {
-            const cadNum = feature.properties.cadastral_number || '—';
-            
-            // ✅ ФУНКЦИЯ ДЛЯ ПОСТРОЕНИЯ ПОПАПА (как у обычных кварталов)
-            function buildWrapperPopupContent() {
-                const deals = dealsData[cadNum] || [];
-                const filteredDeals = deals.filter(deal => {
-                    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-                    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-                    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-                    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-                    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-                    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-                    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-                    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-                    return true;
-                });
+    // 🔥 ДОБАВЛЯЕМ ОБЕРТКИ
+    if (wrapperQuarters.length > 0) {
+        window.wrapperLayer = L.geoJSON(wrapperQuarters, {
+            style: function(feature) {
+                return {
+                    fillColor: 'transparent',
+                    fillOpacity: 0,
+                    color: '#dc2626',
+                    weight: 2.5,
+                    opacity: 0.8,
+                    dashArray: '6 4'
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                const cadNum = feature.properties.cadastral_number || '—';
                 
-                const dealsCount = filteredDeals.length;
-                const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-                const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-                const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
-                const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+                function buildWrapperPopupContent() {
+                    const deals = dealsData[cadNum] || [];
+                    const filteredDeals = deals.filter(deal => {
+                        if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                        if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                        if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                        if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                        if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                        if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                        if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                        if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                        return true;
+                    });
+                    
+                    const dealsCount = filteredDeals.length;
+                    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+                    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
+                    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
+                    const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+                    
+                    const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
+                    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+                    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+                    const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
+                    const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
+                    const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
+                    
+                    return `
+                        <div class="popup-title">${cadNum}</div>
+                        <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
+                        ${dealsCount > 0 ? `
+                        <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
+                        <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
+                        <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
+                        <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
+                        <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
+                        ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+                    `;
+                }
                 
-                const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
-                const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-                const uprsMedian = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
-                const upksMedian = upksValues.length > 0 ? getMedianSync(upksValues) : 0;
-                const cadCostMedian = cadCostValues.length > 0 ? getMedianSync(cadCostValues) : 0;
-                
-                return `
-                    <div class="popup-title">${cadNum}</div>
-                    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${dealsCount}</span></div>
-                    ${dealsCount > 0 ? `
-                    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${medianPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${minPrice.toLocaleString()} / ${maxPrice.toLocaleString()} ₽</span></div>
-                    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${uprsMedian.toFixed(2)} ₽/м²</span></div>
-                    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${upksMedian.toFixed(2)} ₽/м²</span></div>
-                    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${cadCostMedian.toLocaleString()} ₽</span></div>
-                    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-                `;
-            }
-            
-            // ✅ ПРИВЯЗЫВАЕМ ПОПАП (как у обычных кварталов)
-            layer.bindPopup(buildWrapperPopupContent(), {
-                className: 'custom-popup',
-                maxWidth: 300,
-                closeButton: true
-            });
-            
-            // ✅ КЛИК - ОТКРЫВАЕМ ПОПАП
-            layer.on('click', function(e) {
-                // Обновляем попап перед открытием
-                this.bindPopup(buildWrapperPopupContent(), {
+                layer.bindPopup(buildWrapperPopupContent(), {
                     className: 'custom-popup',
                     maxWidth: 300,
                     closeButton: true
                 });
                 
-                // Устанавливаем выбранный квартал
-                window.selectedQuarterCadNumber = cadNum;
-                
-                // Открываем попап
-                this.openPopup();
-                
-                // Приближаем
-                if (this.getBounds && this.getBounds().isValid()) {
-                    mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
-                }
-                
-                // Обновляем таблицу сделок
-                renderDealsTable();
-                
-                console.log(`🔄 Обертка ${cadNum} выбрана, попап открыт`);
-                L.DomEvent.stopPropagation(e);
-            });
-            
-            // ✅ ХОВЕР - просто подсветка, без тултипа
-            layer.on('mouseover', function() {
-                this.setStyle({
-                    fillOpacity: 0.3,
-                    weight: 3,
-                    color: '#ff0000',
-                    opacity: 0.9
+                layer.on('click', function(e) {
+                    this.bindPopup(buildWrapperPopupContent(), {
+                        className: 'custom-popup',
+                        maxWidth: 300,
+                        closeButton: true
+                    });
+                    
+                    window.selectedQuarterCadNumber = cadNum;
+                    this.openPopup();
+                    
+                    if (this.getBounds && this.getBounds().isValid()) {
+                        if (window.mapInstance) {
+                            window.mapInstance.fitBounds(this.getBounds(), { padding: [40, 40] });
+                        }
+                    }
+                    
+                    renderDealsTable();
+                    console.log(`🔄 Обертка ${cadNum} выбрана, попап открыт`);
+                    L.DomEvent.stopPropagation(e);
                 });
-            });
-            
-            layer.on('mouseout', function() {
-                this.setStyle({
-                    fillOpacity: 0.25,
-                    weight: 2.5,
-                    color: '#dc2626',
-                    opacity: 0.8
+                
+                layer.on('mouseover', function() {
+                    this.setStyle({
+                        fillOpacity: 0.3,
+                        weight: 3,
+                        color: '#ff0000',
+                        opacity: 0.9
+                    });
                 });
-            });
-            
-            // ✅ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-            layer.on('popupclose', function(e) {
-                // Сбрасываем выбранный квартал, если это была обертка
-                if (window.selectedQuarterCadNumber === cadNum) {
-                    // Проверяем, не был ли это клик по обертке
-                    setTimeout(() => {
-                        // Если попап закрыт, сбрасываем выбор
-                        window.selectedQuarterCadNumber = null;
-                        renderDealsTable();
-                        console.log(`🔄 Попап обертки ${cadNum} закрыт, таблица обновлена`);
-                    }, 200);
-                }
-            });
+                
+                layer.on('mouseout', function() {
+                    this.setStyle({
+                        fillOpacity: 0.25,
+                        weight: 2.5,
+                        color: '#dc2626',
+                        opacity: 0.8
+                    });
+                });
+                
+                layer.on('popupclose', function(e) {
+                    if (window.selectedQuarterCadNumber === cadNum) {
+                        setTimeout(() => {
+                            window.selectedQuarterCadNumber = null;
+                            renderDealsTable();
+                            console.log(`🔄 Попап обертки ${cadNum} закрыт, таблица обновлена`);
+                        }, 200);
+                    }
+                });
+            }
+        });
+        
+        if (window.mapInstance) {
+            window.wrapperLayer.addTo(window.mapInstance);
         }
-    }).addTo(mapInstance);
-    
-    console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
-}
+        console.log(`✅ Добавлена обертка (${wrapperQuarters.length} шт.) СНИЗУ`);
+    }
 
-    // 🔥 ПОТОМ ДОБАВЛЯЕМ КВАРТАЛЫ (БУДУТ СВЕРХУ)
+    // 🔥 ДОБАВЛЯЕМ КВАРТАЛЫ
     if (normalQuarters.length > 0) {
         const normalLayer = L.geoJSON(normalQuarters, {
             style: function(feature) {
@@ -3640,32 +3632,37 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
             },
             onEachFeature: onMapFeatureClick
         });
+        
         window.mapLayer = normalLayer;
-        window.mapLayer.addTo(mapInstance);
-    if (mapInstance) {
-    mapInstance.invalidateSize();
-    console.log('📏 invalidateSize() выполнен после добавления слоев');
-  }
-}
-    if (window.mapLayer) {
-    let targetObjects = [];
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === parentId;
-        });
+        if (window.mapInstance) {
+            window.mapLayer.addTo(window.mapInstance);
+        }
     }
-    updateQuartersStyle(targetObjects);
-    console.log('🔥 Стили обновлены сразу после добавления слоев, isHeatmapEnabled =', isHeatmapEnabled);
-}
+    
+    // ✅ invalidateSize() с проверкой
+    if (window.mapInstance) {
+        window.mapInstance.invalidateSize();
+        console.log('📏 invalidateSize() выполнен после добавления слоев');
+    }
+
+    if (window.mapLayer) {
+        let targetObjects = [];
+        const allObjects = mapData.features.filter(f => f.properties.level === 2);
+        
+        if (level === 0 || level === 1) {
+            targetObjects = allObjects;
+        } else if (level === 2) {
+            targetObjects = allObjects.filter(f => {
+                const fParentId = f.properties.parent_id || f.properties.district_id;
+                return fParentId === parentId;
+            });
+        }
+        updateQuartersStyle(targetObjects);
+        console.log('🔥 Стили обновлены сразу после добавления слоев, isHeatmapEnabled =', isHeatmapEnabled);
+    }
 
     // ✅ ФУНКЦИЯ ЦЕНТРИРОВАНИЯ С ПРОВЕРКОЙ skipAutoCenter
     function centerMap(attempt) {
-        // ✅ ЕСЛИ skipAutoCenter = true — ПРОПУСКАЕМ ВСЕ ПОПЫТКИ
         if (skipAutoCenter) {
             console.log(`⏳ Пропускаем центрирование (skipAutoCenter=true), attempt=${attempt}`);
             return true;
@@ -3677,7 +3674,9 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
         try {
             if (level === 0) {
                 console.log('📍 УРОВЕНЬ ОКРУГА: центрируем на ЯНАО');
-                mapInstance.setView([66.0, 76.0], 5);
+                if (window.mapInstance) {
+                    window.mapInstance.setView([66.0, 76.0], 5);
+                }
                 return true;
             }
             
@@ -3698,11 +3697,15 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                 }
                 
                 if (bounds && bounds.isValid()) {
-                    mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+                    if (window.mapInstance) {
+                        window.mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+                    }
                     console.log('✅ Карта отцентрирована по районам');
                     return true;
                 } else {
-                    mapInstance.setView([66.0, 76.0], 6);
+                    if (window.mapInstance) {
+                        window.mapInstance.setView([66.0, 76.0], 6);
+                    }
                     console.log('⚠️ Fallback: центрируем на ЯНАО с зумом 6');
                     return true;
                 }
@@ -3725,7 +3728,9 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                 }
                 
                 if (bounds && bounds.isValid()) {
-                    mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+                    if (window.mapInstance) {
+                        window.mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+                    }
                     console.log('✅ Карта отцентрирована по кварталам');
                     return true;
                 } else {
@@ -3742,26 +3747,34 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                                 coords.forEach(c => { lat += c[1]; lng += c[0]; });
                                 lat /= coords.length;
                                 lng /= coords.length;
-                                mapInstance.setView([lat, lng], 10);
+                                if (window.mapInstance) {
+                                    window.mapInstance.setView([lat, lng], 10);
+                                }
                                 console.log('📍 Центрируем на центр района');
                                 return true;
                             }
                         }
                     }
-                    mapInstance.setView([66.0, 76.0], 6);
+                    if (window.mapInstance) {
+                        window.mapInstance.setView([66.0, 76.0], 6);
+                    }
                     console.log('⚠️ Fallback: центрируем на ЯНАО с зумом 6');
                     return true;
                 }
             }
             
             console.warn('⚠️ Неизвестный уровень, центрируем на ЯНАО');
-            mapInstance.setView([66.0, 76.0], 5);
+            if (window.mapInstance) {
+                window.mapInstance.setView([66.0, 76.0], 5);
+            }
             return true;
             
         } catch(e) {
             console.warn('⚠️ Ошибка центрирования:', e);
             try {
-                mapInstance.setView([66.0, 76.0], 5);
+                if (window.mapInstance) {
+                    window.mapInstance.setView([66.0, 76.0], 5);
+                }
             } catch(err) {
                 console.error('❌ Критическая ошибка центрирования:', err);
             }
@@ -3799,7 +3812,7 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
         });
     }
     
-    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ С УЧЕТОМ ФИЛЬТРА
+    // ✅ ОБНОВЛЯЕМ СТАТИСТИКУ
     let targetObjects = [];
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     
@@ -3812,26 +3825,26 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
         });
     }
     
-updateMapStatsFromDeals(level, parentId);
-updatePopupsAndTooltips(level);
-updateQuartersListWithFilteredObjects(null);
-addMapLegend();
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
 
-// Обновляем стили кварталов с учетом Heatmap
-if (window.mapLayer) {
-    let targetObjects = [];
-    const allObjects = mapData.features.filter(f => f.properties.level === 2);
-    
-    if (level === 0 || level === 1) {
-        targetObjects = allObjects;
-    } else if (level === 2) {
-        targetObjects = allObjects.filter(f => {
-            const fParentId = f.properties.parent_id || f.properties.district_id;
-            return fParentId === parentId;
-        });
+    if (window.mapLayer) {
+        let targetObjectsLocal = [];
+        const allObjectsLocal = mapData.features.filter(f => f.properties.level === 2);
+        
+        if (level === 0 || level === 1) {
+            targetObjectsLocal = allObjectsLocal;
+        } else if (level === 2) {
+            targetObjectsLocal = allObjectsLocal.filter(f => {
+                const fParentId = f.properties.parent_id || f.properties.district_id;
+                return fParentId === parentId;
+            });
+        }
+        updateQuartersStyle(targetObjectsLocal);
     }
-    updateQuartersStyle(targetObjects);
-}
+    
     if (level === 1 && window.mapLayer) {
         addLabelsToPolygons(window.mapLayer, filtered, level);
     }
@@ -3855,17 +3868,12 @@ if (window.mapLayer) {
     
     updateActiveFiltersDisplay();
     renderDealsTable();
-}
-const originalRenderMapLevel = renderMapLevel;
-
-renderMapLevel = function(level, parentId) {
-    originalRenderMapLevel.call(this, level, parentId);
-    setTimeout(() => {
+   setTimeout(function() {
         if (typeof renderPriceChart === 'function') {
             renderPriceChart();
         }
     }, 800);
-};
+}
 function getMapColor(dealsCount) {
     if (!dealsCount || dealsCount === 0) return '#f1f5f9';  // нет сделок
     
@@ -3892,46 +3900,42 @@ function onMapFeatureClick(feature, layer) {
     let popupContent = buildPopupContent(feature);
     layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 300 });
     
-if (levelName === 'district') {
-    const cadNum = props.cadastral_number || props.district_id || '—';
-    const districtName = props.district_name || cadNum;
-    const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
-    const districtId = props.district_id || cadNum;
-    
-    // ✅ 1. Берем ВСЕ кварталы из dealsData для этого района
-    const prefix = String(districtId).substring(0, 5);
-    const allCadNumbers = Object.keys(dealsData);
-    const allQuartersFromDeals = allCadNumbers
-        .filter(cad => cad.startsWith(prefix))
-        .map(cad => ({
-            properties: { 
-                cadastral_number: cad,
-                level: 2,
-                district_id: districtId
-            }
-        }));
-
-    // ✅ 2. Берем кварталы из GeoJSON (на случай, если есть без сделок)
-    const districtObjects = mapData.features.filter(f => {
-        if (f.properties.level !== 2) return false;
-        const fParentId = f.properties.parent_id || f.properties.district_id;
-        return String(fParentId) === String(districtId) || 
-               String(f.properties.district_id) === String(districtId);
-    });
-
-    // ✅ 3. Объединяем: сначала все из dealsData, потом добавляем недостающие из GeoJSON
-    const allQuarters = [...allQuartersFromDeals];
-
-    districtObjects.forEach(f => {
-        const cadNumFeature = f.properties.cadastral_number;
-        if (cadNumFeature && !allQuarters.some(q => q.properties.cadastral_number === cadNumFeature)) {
-            allQuarters.push(f);
-        }
-    });
-
-    console.log(`Попап: всего кварталов для района ${districtId}: ${allQuarters.length}`);
+    if (levelName === 'district') {
+        const cadNum = props.cadastral_number || props.district_id || '—';
+        const districtName = props.district_name || cadNum;
+        const displayCad = cadNum !== '—' ? cadNum : props.district_id || '—';
+        const districtId = props.district_id || cadNum;
         
-        // ✅ 4. РАСЧЕТ СТАТИСТИКИ ПО allQuarters
+        const prefix = String(districtId).substring(0, 5);
+        const allCadNumbers = Object.keys(dealsData);
+        const allQuartersFromDeals = allCadNumbers
+            .filter(cad => cad.startsWith(prefix))
+            .map(cad => ({
+                properties: { 
+                    cadastral_number: cad,
+                    level: 2,
+                    district_id: districtId
+                }
+            }));
+
+        const districtObjects = mapData.features.filter(f => {
+            if (f.properties.level !== 2) return false;
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(districtId) || 
+                   String(f.properties.district_id) === String(districtId);
+        });
+
+        const allQuarters = [...allQuartersFromDeals];
+
+        districtObjects.forEach(f => {
+            const cadNumFeature = f.properties.cadastral_number;
+            if (cadNumFeature && !allQuarters.some(q => q.properties.cadastral_number === cadNumFeature)) {
+                allQuarters.push(f);
+            }
+        });
+
+        console.log(`Попап: всего кварталов для района ${districtId}: ${allQuarters.length}`);
+        
         const quarterStats = [];
         let totalDeals = 0;
         let allMins = [];
@@ -3940,43 +3944,21 @@ if (levelName === 'district') {
         let allUprs = [];
         
         allQuarters.forEach(f => {
-    const cadNumFeature = f.properties.cadastral_number;
-    if (!cadNumFeature) return;
-    
-const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
-});
+            const cadNumFeature = f.properties.cadastral_number;
+            if (!cadNumFeature) return;
+            
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                return true;
+            });
             
             if (filteredDeals.length > 0) {
                 totalDeals += filteredDeals.length;
@@ -3984,23 +3966,23 @@ const filteredDeals = deals.filter(deal => {
                 const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
                 const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
                 const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
-const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+                const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
                 
                 allPrices = allPrices.concat(prices);
                 allUprs = allUprs.concat(uprs);
                 
                 if (prices.length > 0) {
-const medianPrice = getMedianSync(prices);
-const medianUprs = getMedianSync(uprs);
-const medianUpks = getMedianSync(upks);
-const medianCadCost = getMedianSync(cadCosts);
+                    const medianPrice = getMedianSync(prices);
+                    const medianUprs = getMedianSync(uprs);
+                    const medianUpks = getMedianSync(upks);
+                    const medianCadCost = getMedianSync(cadCosts);
                     
                     quarterStats.push({
                         count: filteredDeals.length,
                         medianPrice: medianPrice,
                         medianUprs: medianUprs,
                         medianUpks: medianUpks,
-                medianCadCost: medianCadCost,
+                        medianCadCost: medianCadCost,
                         min: Math.min(...prices),
                         max: Math.max(...prices)
                     });
@@ -4011,116 +3993,106 @@ const medianCadCost = getMedianSync(cadCosts);
             }
         });
         
-        
         let weightedMedianPrice = 0;
-let weightedMedianUprs = 0;
-let weightedMedianUpks = 0;      
-let weightedMedianCadCost = 0;
+        let weightedMedianUprs = 0;
+        let weightedMedianUpks = 0;      
+        let weightedMedianCadCost = 0;
         let minPrice = 0;
         let maxPrice = 0;
         
-if (quarterStats.length > 0) {
-    // ✅ Медианная цена — ОБЫЧНАЯ МЕДИАНА
-    const priceValues = quarterStats
-        .map(q => q.medianPrice)
-        .filter(p => p > 0)
-        .sort((a, b) => a - b);
-    if (priceValues.length > 0) {
-        const mid = Math.floor(priceValues.length / 2);
-        if (priceValues.length % 2 === 0) {
-            weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
-        } else {
-            weightedMedianPrice = priceValues[mid];
-        }
-    }
+        if (quarterStats.length > 0) {
+            const priceValues = quarterStats
+                .map(q => q.medianPrice)
+                .filter(p => p > 0)
+                .sort((a, b) => a - b);
+            if (priceValues.length > 0) {
+                const mid = Math.floor(priceValues.length / 2);
+                if (priceValues.length % 2 === 0) {
+                    weightedMedianPrice = (priceValues[mid - 1] + priceValues[mid]) / 2;
+                } else {
+                    weightedMedianPrice = priceValues[mid];
+                }
+            }
 
-    // ✅ Медианная УПРС — ОБЫЧНАЯ МЕДИАНА
-    const uprsValues = quarterStats
-        .map(q => q.medianUprs)
-        .filter(u => u > 0)
-        .sort((a, b) => a - b);
-    if (uprsValues.length > 0) {
-        const mid = Math.floor(uprsValues.length / 2);
-        if (uprsValues.length % 2 === 0) {
-            weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
-        } else {
-            weightedMedianUprs = uprsValues[mid];
+            const uprsValues = quarterStats
+                .map(q => q.medianUprs)
+                .filter(u => u > 0)
+                .sort((a, b) => a - b);
+            if (uprsValues.length > 0) {
+                const mid = Math.floor(uprsValues.length / 2);
+                if (uprsValues.length % 2 === 0) {
+                    weightedMedianUprs = (uprsValues[mid - 1] + uprsValues[mid]) / 2;
+                } else {
+                    weightedMedianUprs = uprsValues[mid];
+                }
+            }
+            
+            const upksValues = quarterStats
+                .map(q => q.medianUpks)
+                .filter(u => u > 0)
+                .sort((a, b) => a - b);
+            if (upksValues.length > 0) {
+                const mid = Math.floor(upksValues.length / 2);
+                if (upksValues.length % 2 === 0) {
+                    weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
+                } else {
+                    weightedMedianUpks = upksValues[mid];
+                }
+            }
+            
+            const cadCostValues = quarterStats
+                .map(q => q.medianCadCost)
+                .filter(c => c > 0)
+                .sort((a, b) => a - b);
+            if (cadCostValues.length > 0) {
+                const mid = Math.floor(cadCostValues.length / 2);
+                if (cadCostValues.length % 2 === 0) {
+                    weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
+                } else {
+                    weightedMedianCadCost = cadCostValues[mid];
+                }
+            }
+            
+            minPrice = Math.min(...allMins);
+            maxPrice = Math.max(...allMaxs);
         }
-    }
-    
-    // ✅ Медианная УПКС — ОБЫЧНАЯ МЕДИАНА
-    const upksValues = quarterStats
-        .map(q => q.medianUpks)
-        .filter(u => u > 0)
-        .sort((a, b) => a - b);
-    if (upksValues.length > 0) {
-        const mid = Math.floor(upksValues.length / 2);
-        if (upksValues.length % 2 === 0) {
-            weightedMedianUpks = (upksValues[mid - 1] + upksValues[mid]) / 2;
-        } else {
-            weightedMedianUpks = upksValues[mid];
-        }
-    }
-    
-    // ✅ Кадастровая стоимость — ОБЫЧНАЯ МЕДИАНА
-    const cadCostValues = quarterStats
-        .map(q => q.medianCadCost)
-        .filter(c => c > 0)
-        .sort((a, b) => a - b);
-    if (cadCostValues.length > 0) {
-        const mid = Math.floor(cadCostValues.length / 2);
-        if (cadCostValues.length % 2 === 0) {
-            weightedMedianCadCost = (cadCostValues[mid - 1] + cadCostValues[mid]) / 2;
-        } else {
-            weightedMedianCadCost = cadCostValues[mid];
-        }
-    }
-    
-    minPrice = Math.min(...allMins);
-    maxPrice = Math.max(...allMaxs);
-}
 
-        
         const formatNum = (num) => num.toLocaleString();
         const formatPrice = (num) => num.toLocaleString() + ' ₽';
         const formatUprs = (num) => num.toFixed(2) + ' ₽/м²';
         
-        // ✅ КОНТЕНТ ДЛЯ ПОПАПА (клик)
         const popupContent = `
-       <div class="popup-title">${districtName}</div>
-    <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-    ${totalDeals > 0 ? `
-    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
-    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
-    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
-    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
-    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
-    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
-    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-`;
+            <div class="popup-title">${districtName}</div>
+            <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+            ${totalDeals > 0 ? `
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
+            <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
+            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
+            <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
+            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+        `;
         
-        // ✅ ПРИВЯЗЫВАЕМ ПОПАП (клик)
         layer.bindPopup(popupContent, { 
             className: 'custom-popup', 
             maxWidth: 300,
             closeButton: true
         });
         
-        // ✅ КОНТЕНТ ДЛЯ ТУЛТИПА (наведение)
         const tooltipContent = `
-          <div class="popup-title">${districtName}</div>
-    <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
-    ${totalDeals > 0 ? `
-    <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
-    <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
-    <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
-    <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
-    <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
-    <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
-    ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
-`;
+            <div class="popup-title">${districtName}</div>
+            <div class="popup-row"><span class="popup-label">${displayCad}</span></div>
+            ${totalDeals > 0 ? `
+            <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
+            <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
+            <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
+            <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
+            <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
+            <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
+            ` : `<div class="popup-row"><span class="popup-label" style="color:#94a3b8;">Нет сделок</span></div>`}
+        `;
         
-        // ✅ ПРИВЯЗЫВАЕМ ТУЛТИП (наведение)
         layer.bindTooltip(tooltipContent, {
             className: 'custom-popup',
             permanent: false,
@@ -4135,16 +4107,14 @@ if (quarterStats.length > 0) {
     // ===== 🖱️ КЛИК =====
     layer.on('click', function(e) {
         if (levelName === 'okrug') {
-            // Переход на уровень районов
             renderMapLevel(1);
             updateBreadcrumb('okrug');
-            // Центрируем карту на районах
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                    window.mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                }
             }
         } else if (levelName === 'district') {
-            // ✅ СНАЧАЛА СБРАСЫВАЕМ ВЫДЕЛЕНИЕ
-            // Сбрасываем стиль текущего слоя (района)
             if (layer && layer.setStyle) {
                 layer.setStyle({
                     weight: 2.5,
@@ -4154,7 +4124,6 @@ if (quarterStats.length > 0) {
                 });
             }
             
-            // Сбрасываем обертку
             if (window.wrapperLayer) {
                 window.wrapperLayer.setStyle({
                     fillOpacity: 0.25,
@@ -4165,253 +4134,247 @@ if (quarterStats.length > 0) {
                 });
             }
             
-            // Сбрасываем все слои на карте
-            mapInstance.eachLayer(function(layer) {
-                if (layer.setStyle && layer.options && layer.options.weight) {
-                    layer.setStyle({
-                        weight: 1,
-                        color: '#ff0000',
-                        opacity: 0.4,
-                        fillOpacity: 0.25
-                    });
-                }
-            });
+            if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                window.mapInstance.eachLayer(function(layer) {
+                    if (layer.setStyle && layer.options && layer.options.weight) {
+                        layer.setStyle({
+                            weight: 1,
+                            color: '#ff0000',
+                            opacity: 0.4,
+                            fillOpacity: 0.25
+                        });
+                    }
+                });
+            }
             
             const districtId = props.district_id || props.cadastral_number;
             renderMapLevel(2, districtId);
             updateBreadcrumb('district', districtId, props.district_name);
             if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-                mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                    window.mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+                }
             }
-} else if (levelName === 'quarter') {
-    const cadNum = props.cadastral_number;
-    const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
-    console.log('Квартал выбран:', cadNum);
-    console.log('Сделок:', dealsCount);
-    
-    // ✅ УСТАНАВЛИВАЕМ ФЛАГ ОТКРЫТИЯ ПОПАПА
-    window._isPopupOpening = true;
-    window._popupOpenCadNum = cadNum; // ← ДОБАВЬТЕ ЭТУ СТРОКУ
-    console.log('🔒 Флаг _isPopupOpening = true, cadNum =', cadNum);
-    
-    window.selectedQuarterCadNumber = cadNum;
-    
-    renderDealsTable();
-    
-    const districtId = props.parent_id || props.district_id;
-    
-    if (layer.getBounds && layer.getBounds().isValid()) {
-        mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
-    } else if (layer.getLatLng) {
-        mapInstance.setView(layer.getLatLng(), 15);
-    }
-    
-    layer.openPopup();
-    
-    // ✅ УВЕЛИЧИВАЕМ ВРЕМЯ УДЕРЖАНИЯ ФЛАГА ДО 1500ms
-    setTimeout(() => {
-        window._isPopupOpening = false;
-        console.log('🔓 Флаг _isPopupOpening = false');
-    }, 1500);
-    
-    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ЗАКРЫТИЯ ПОПАПА
-    layer.off('popupclose');
-layer.on('popupclose', function(e) {
-    if (window._isPopupOpening) {
-        console.log('⏳ Пропускаем close, идет открытие');
-        return;
-    }
-    
-    if (currentLevel === 2) {
-        console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
-        setTimeout(() => {
-            if (currentLevel === 2) {
-                onPopupClose('quarter', districtId);
+        } else if (levelName === 'quarter') {
+            const cadNum = props.cadastral_number;
+            const dealsCount = cadNum ? (dealsData[cadNum] || []).length : 0;
+            console.log('Квартал выбран:', cadNum);
+            console.log('Сделок:', dealsCount);
+            
+            window._isPopupOpening = true;
+            window._popupOpenCadNum = cadNum;
+            console.log('🔒 Флаг _isPopupOpening = true, cadNum =', cadNum);
+            
+            window.selectedQuarterCadNumber = cadNum;
+            
+            renderDealsTable();
+            
+            const districtId = props.parent_id || props.district_id;
+            
+            if (layer.getBounds && layer.getBounds().isValid()) {
+                if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                    window.mapInstance.fitBounds(layer.getBounds(), { padding: [20, 20] });
+                }
+            } else if (layer.getLatLng) {
+                if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                    window.mapInstance.setView(layer.getLatLng(), 15);
+                }
             }
-        }, 300);
+            
+            layer.openPopup();
+            
+            setTimeout(() => {
+                window._isPopupOpening = false;
+                console.log('🔓 Флаг _isPopupOpening = false');
+            }, 1500);
+            
+            layer.off('popupclose');
+            layer.on('popupclose', function(e) {
+                if (window._isPopupOpening) {
+                    console.log('⏳ Пропускаем close, идет открытие');
+                    return;
+                }
+                
+                if (currentLevel === 2) {
+                    console.log('🔄 Попап закрыт (из onMapFeatureClick) → обновление таблицы');
+                    setTimeout(() => {
+                        if (currentLevel === 2) {
+                            onPopupClose('quarter', districtId);
+                        }
+                    }, 300);
+                }
+            });
         }
-    });
-}
     });
 
     // ===== 🖱️ ХОВЕР (наведение) =====
-layer.on('mouseover', function(e) {
-    if (!this || !this.setStyle) return;
-    
-    const lvl = feature?.properties?.level || 0;
-    
-    if (lvl === 2) {
-        // ✅ КВАРТАЛЫ — подсвечиваем
-        const cadNum = feature?.properties?.cadastral_number;
-        const deals = cadNum ? (dealsData[cadNum] || []) : [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-            return true;
-        });
+    layer.on('mouseover', function(e) {
+        if (!this || !this.setStyle) return;
         
-        let fillColor = '#f1f5f9';
-        let fillOpacity = 0.35;
-        let borderColor = '#60a5fa';
-        let borderWeight = 2;
-        let borderOpacity = 0.8;
+        const lvl = feature?.properties?.level || 0;
         
-        if (isHeatmapEnabled) {
-            // 🔥 РЕЖИМ HEATMAP: цвет по УПРС/УПКС
-            if (filteredDeals.length > 0) {
-                let totalUprs = 0, totalUpks = 0, count = 0;
-           
-const uprsValues = [];
-const upksValues = [];
-filteredDeals.forEach(deal => {
-    const uprsValue = deal.uprs || 0;
-    const upksValue = deal.upks || 0;
-    if (uprsValue > 0 && upksValue > 0) {
-        uprsValues.push(uprsValue);
-        upksValues.push(upksValue);
-    }
-});
-if (uprsValues.length > 0 && upksValues.length > 0) {
-    const medianUprs = getMedianSync(uprsValues);
-    const medianUpks = getMedianSync(upksValues);
-    const diff = ((medianUprs - medianUpks) / medianUpks) * 100;
-                    
-                    // 🎨 Та же шкала, что и в updateQuartersStyle
-                    if (diff >= -5 && diff <= 5) {
-                        fillColor = '#22c55e';      // Зеленый — УПРС ≈ УПКС
-                    } else {
-                        const absDiff = Math.abs(diff);
-                        if (absDiff <= 20) {
-                            fillColor = '#f97316';  // Оранжевый
-                        } else {
-                            fillColor = '#ef4444';  // Красный
+        if (lvl === 2) {
+            const cadNum = feature?.properties?.cadastral_number;
+            const deals = cadNum ? (dealsData[cadNum] || []) : [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                return true;
+            });
+            
+            let fillColor = '#f1f5f9';
+            let fillOpacity = 0.35;
+            let borderColor = '#60a5fa';
+            let borderWeight = 2;
+            let borderOpacity = 0.8;
+            
+            if (isHeatmapEnabled) {
+                if (filteredDeals.length > 0) {
+                    const uprsValues = [];
+                    const upksValues = [];
+                    filteredDeals.forEach(deal => {
+                        const uprsValue = deal.uprs || 0;
+                        const upksValue = deal.upks || 0;
+                        if (uprsValue > 0 && upksValue > 0) {
+                            uprsValues.push(uprsValue);
+                            upksValues.push(upksValue);
                         }
-                    }
-                    fillOpacity = 0.5;
-                    borderColor = '#60a5fa';
-                    borderWeight = 2;
-                    borderOpacity = 0.8;
-                }
-            }
-        } else {
-            // ❌ ОБЫЧНЫЙ РЕЖИМ: по количеству сделок
-            const count = filteredDeals.length;
-            fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
-            fillOpacity = 0.35;
-            borderColor = '#60a5fa';
-            borderWeight = 2;
-            borderOpacity = 0.8;
-        }
-        
-        this.setStyle({
-            fillColor: fillColor,
-            fillOpacity: fillOpacity,
-            weight: borderWeight,
-            color: borderColor,
-            opacity: borderOpacity
-        });
-    }
-    
-    this.bringToFront();
-    if (this._container) {
-        this._container.style.cursor = 'pointer';
-    }
-});
-
-// ===== 🖱️ УХОД МЫШИ =====
-layer.on('mouseout', function(e) {
-    if (!this || !this.setStyle || !feature) return;
-    
-    const level = feature.properties?.level || 0;
-    const cadNum = feature.properties?.cadastral_number;
-    
-    if (level === 2) {
-        const deals = cadNum ? (dealsData[cadNum] || []) : [];
-        const filteredDeals = deals.filter(deal => {
-            if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
-            if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
-            if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
-            if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
-            if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
-            if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
-            if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
-            if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
-            return true;
-        });
-        
-        let fillColor = '#f1f5f9';
-        let fillOpacity = 0.2;
-        let borderColor = '#3b82f6';
-        let borderWeight = 2.5;
-        let borderOpacity = 0.6;
-        
-        if (isHeatmapEnabled) {
-            // 🔥 ВОССТАНАВЛИВАЕМ HEATMAP СТИЛЬ (ТА ЖЕ ЛОГИКА, ЧТО В updateQuartersStyle)
-            if (filteredDeals.length > 0) {
-                let totalUprs = 0, totalUpks = 0, count = 0;
-const uprsValues = [];
-const upksValues = [];
-filteredDeals.forEach(deal => {
-    const uprsValue = deal.uprs || 0;
-    const upksValue = deal.upks || 0;
-    if (uprsValue > 0 && upksValue > 0) {
-        uprsValues.push(uprsValue);
-        upksValues.push(upksValue);
-    }
-});
-if (uprsValues.length > 0 && upksValues.length > 0) {
-    const medianUprs = getMedianSync(uprsValues);
-    const medianUpks = getMedianSync(upksValues);
-    const diff = ((medianUprs - medianUpks) / medianUpks) * 100;
-                    
-                    // 🎨 Та же шкала, что и в updateQuartersStyle
-                    if (diff >= -5 && diff <= 5) {
-                        fillColor = '#22c55e';      // Зеленый — УПРС ≈ УПКС
-                    } else {
-                        const absDiff = Math.abs(diff);
-                        if (absDiff <= 20) {
-                            fillColor = '#f97316';  // Оранжевый
+                    });
+                    if (uprsValues.length > 0 && upksValues.length > 0) {
+                        const medianUprs = getMedianSync(uprsValues);
+                        const medianUpks = getMedianSync(upksValues);
+                        const diff = ((medianUprs - medianUpks) / medianUpks) * 100;
+                        
+                        if (diff >= -5 && diff <= 5) {
+                            fillColor = '#22c55e';
                         } else {
-                            fillColor = '#ef4444';  // Красный
+                            const absDiff = Math.abs(diff);
+                            if (absDiff <= 20) {
+                                fillColor = '#f97316';
+                            } else {
+                                fillColor = '#ef4444';
+                            }
                         }
+                        fillOpacity = 0.5;
+                        borderColor = '#60a5fa';
+                        borderWeight = 2;
+                        borderOpacity = 0.8;
                     }
-                    fillOpacity = 0.35;
-                    borderColor = '#475569';
-                    borderWeight = 2;
-                    borderOpacity = 0.7;
                 }
             } else {
-                fillColor = '#f1f5f9';
-                fillOpacity = 0.15;
-                borderColor = '#94a3b8';
-                borderWeight = 1.5;
-                borderOpacity = 0.4;
+                const count = filteredDeals.length;
+                fillColor = count > 0 ? getMapColor(count) : '#f1f5f9';
+                fillOpacity = 0.35;
+                borderColor = '#60a5fa';
+                borderWeight = 2;
+                borderOpacity = 0.8;
             }
-        } else {
-            // ❌ ОБЫЧНЫЙ РЕЖИМ
-            const hasDeals = filteredDeals.length > 0;
-            fillColor = hasDeals ? getMapColor(filteredDeals.length) : '#f1f5f9';
-            fillOpacity = 0.2;
-            borderColor = '#3b82f6';
-            borderWeight = 2.5;
-            borderOpacity = 0.6;
+            
+            this.setStyle({
+                fillColor: fillColor,
+                fillOpacity: fillOpacity,
+                weight: borderWeight,
+                color: borderColor,
+                opacity: borderOpacity
+            });
         }
         
-        this.setStyle({
-            fillColor: fillColor,
-            fillOpacity: fillOpacity,
-            color: borderColor,
-            weight: borderWeight,
-            opacity: borderOpacity
-        });
-    }
-});
+        this.bringToFront();
+        if (this._container) {
+            this._container.style.cursor = 'pointer';
+        }
+    });
+
+    // ===== 🖱️ УХОД МЫШИ =====
+    layer.on('mouseout', function(e) {
+        if (!this || !this.setStyle || !feature) return;
+        
+        const level = feature.properties?.level || 0;
+        const cadNum = feature.properties?.cadastral_number;
+        
+        if (level === 2) {
+            const deals = cadNum ? (dealsData[cadNum] || []) : [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                return true;
+            });
+            
+            let fillColor = '#f1f5f9';
+            let fillOpacity = 0.2;
+            let borderColor = '#3b82f6';
+            let borderWeight = 2.5;
+            let borderOpacity = 0.6;
+            
+            if (isHeatmapEnabled) {
+                if (filteredDeals.length > 0) {
+                    const uprsValues = [];
+                    const upksValues = [];
+                    filteredDeals.forEach(deal => {
+                        const uprsValue = deal.uprs || 0;
+                        const upksValue = deal.upks || 0;
+                        if (uprsValue > 0 && upksValue > 0) {
+                            uprsValues.push(uprsValue);
+                            upksValues.push(upksValue);
+                        }
+                    });
+                    if (uprsValues.length > 0 && upksValues.length > 0) {
+                        const medianUprs = getMedianSync(uprsValues);
+                        const medianUpks = getMedianSync(upksValues);
+                        const diff = ((medianUprs - medianUpks) / medianUpks) * 100;
+                        
+                        if (diff >= -5 && diff <= 5) {
+                            fillColor = '#22c55e';
+                        } else {
+                            const absDiff = Math.abs(diff);
+                            if (absDiff <= 20) {
+                                fillColor = '#f97316';
+                            } else {
+                                fillColor = '#ef4444';
+                            }
+                        }
+                        fillOpacity = 0.35;
+                        borderColor = '#475569';
+                        borderWeight = 2;
+                        borderOpacity = 0.7;
+                    }
+                } else {
+                    fillColor = '#f1f5f9';
+                    fillOpacity = 0.15;
+                    borderColor = '#94a3b8';
+                    borderWeight = 1.5;
+                    borderOpacity = 0.4;
+                }
+            } else {
+                const hasDeals = filteredDeals.length > 0;
+                fillColor = hasDeals ? getMapColor(filteredDeals.length) : '#f1f5f9';
+                fillOpacity = 0.2;
+                borderColor = '#3b82f6';
+                borderWeight = 2.5;
+                borderOpacity = 0.6;
+            }
+            
+            this.setStyle({
+                fillColor: fillColor,
+                fillOpacity: fillOpacity,
+                color: borderColor,
+                weight: borderWeight,
+                opacity: borderOpacity
+            });
+        }
+    });
 }
 function onPopupClose(levelName, districtId) {
     if (levelName === 'quarter' && districtId) {
@@ -4746,12 +4709,13 @@ function showMapError(message) {
 // ОЧИСТКА КАРТЫ (при переключении вкладок)
 // ============================================================
 function destroyMap() {
-    if (mapInstance) {
-        mapInstance.remove();
-        mapInstance = null;
-        window.mapLayer = null;
-        console.log('🗺️ Карта уничтожена');
+    if (window.mapInstance) {
+        window.mapInstance.remove();
+        window.mapInstance = null;
     }
+    window.mapLayer = null;
+    window.wrapperLayer = null;
+    console.log('🗺️ Карта уничтожена');
 }
 function addMapLegend() {
     // Удаляем старые легенды
@@ -5146,36 +5110,29 @@ function getSelectedQuarter() {
 function addLabelsToPolygons(layer, features, level) {
     if (!layer || !features) return;
     
-    // ✅ ТОЛЬКО ДЛЯ РАЙОНОВ (уровень 1)
     if (level !== 1) return;
     
-    // Удаляем старые подписи районов
     if (window.districtLabels) {
         window.districtLabels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
+            if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                window.mapInstance.removeLayer(label);
+            }
         });
         window.districtLabels = [];
     }
     
-    // Берем только районы
     const districtFeatures = features.filter(f => f.properties.level === 1);
-    
-    // Массив для хранения подписей
     const labels = [];
     
-    // Добавляем подписи
     districtFeatures.forEach(feature => {
         const props = feature.properties;
         const cadNum = props.district_id || props.cadastral_number || '';
         
-        // Показываем только если есть номер
         if (!cadNum) return;
         
-        // Находим центр полигона
         const coords = feature.geometry.coordinates[0];
         if (!coords || coords.length === 0) return;
         
-        // Вычисляем центр (среднее по координатам)
         let lat = 0, lng = 0;
         coords.forEach(coord => {
             lat += coord[1];
@@ -5184,7 +5141,6 @@ function addLabelsToPolygons(layer, features, level) {
         lat /= coords.length;
         lng /= coords.length;
         
-        // ✅ ТОЛЬКО ТЕКСТ, БЕЗ ФОНА И РАМКИ
         const label = L.marker([lat, lng], {
             icon: L.divIcon({
                 className: 'map-polygon-label',
@@ -5206,42 +5162,50 @@ function addLabelsToPolygons(layer, features, level) {
                 iconAnchor: [0, 0]
             }),
             interactive: false
-        }).addTo(mapInstance);
+        });
+        
+        if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+            label.addTo(window.mapInstance);
+        }
         
         labels.push(label);
     });
     
-    // Сохраняем подписи в глобальную переменную
     window.districtLabels = labels;
 }
 function clearAllLabels() {
-    // Очищаем подписи районов
     if (window.districtLabels) {
         window.districtLabels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
+            if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                window.mapInstance.removeLayer(label);
+            }
         });
         window.districtLabels = [];
     }
     
-    // Очищаем подписи кварталов
     if (window.quarterLabels) {
         window.quarterLabels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
+            if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                window.mapInstance.removeLayer(label);
+            }
         });
         window.quarterLabels = [];
     }
     
-    // Очищаем подписи в слоях
     if (window.mapLayer && window.mapLayer._labels) {
         window.mapLayer._labels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
+            if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                window.mapInstance.removeLayer(label);
+            }
         });
         window.mapLayer._labels = [];
     }
     
     if (window.wrapperLayer && window.wrapperLayer._labels) {
         window.wrapperLayer._labels.forEach(label => {
-            if (mapInstance) mapInstance.removeLayer(label);
+            if (window.mapInstance) {  // ✅ ИСПРАВЛЕНО
+                window.mapInstance.removeLayer(label);
+            }
         });
         window.wrapperLayer._labels = [];
     }
@@ -5263,7 +5227,6 @@ function searchQuarter() {
     
     console.log(`🔍 Поиск квартала: ${query}`);
     
-    // 1. Ищем в mapData (level 2 - кварталы)
     let found = mapData.features.find(f => {
         const cadNum = f.properties.cadastral_number || '';
         if (f.properties.level === 2) {
@@ -5272,7 +5235,6 @@ function searchQuarter() {
         return false;
     });
     
-    // 2. Ищем в mapData (level 1 - обертки)
     if (!found) {
         found = mapData.features.find(f => {
             const cadNum = f.properties.cadastral_number || '';
@@ -5283,7 +5245,6 @@ function searchQuarter() {
         });
     }
     
-    // 3. Если не нашли, проверяем dealsData
     if (!found) {
         const allCadNumbers = Object.keys(dealsData);
         const matchingCad = allCadNumbers.find(cad => 
@@ -5326,7 +5287,6 @@ function searchQuarter() {
     const cadNum = found.properties.cadastral_number || '';
     const isWrapper = cadNum.endsWith('000000') || cadNum.endsWith('0000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
-    // ✅ ДЛЯ ОБЕРТОК - ПОПАП
     if (isWrapper) {
         console.log(`🔴 Найдена обертка: ${cadNum}`);
         window.selectedQuarterCadNumber = cadNum;
@@ -5341,7 +5301,6 @@ function searchQuarter() {
         renderYearBuildFilters();
         renderDealsTable();
         
-        // Ищем слой и открываем попап
         let attempts = 0;
         const maxAttempts = 20;
         
@@ -5375,7 +5334,9 @@ function searchQuarter() {
                 console.log(`✅ Обертка ${cadNum} найдена на попытке #${attempts}`);
                 foundLayer.openPopup();
                 if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                    if (window.mapInstance) {
+                        window.mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                    }
                 }
                 return true;
             }
@@ -5393,7 +5354,6 @@ function searchQuarter() {
         return;
     }
     
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ — ПОПАП
     console.log(`🏘️ Обычный квартал: ${cadNum}`);
     
     const districtId = found.properties.parent_id || found.properties.district_id;
@@ -5420,7 +5380,9 @@ function searchQuarter() {
                 try {
                     const bounds = foundLayer.getBounds();
                     if (bounds && bounds.isValid && bounds.isValid()) {
-                        mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                        if (window.mapInstance) {
+                            window.mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                        }
                     }
                     setTimeout(() => {
                         foundLayer.openPopup();
@@ -5482,7 +5444,6 @@ function searchQuarterByCadNumber(cadNumber) {
     const cadNum = found.properties.cadastral_number || cadNumber;
     const isWrapper = cadNum.endsWith('000000') || cadNum.match(/^\d{2}:\d{2}:000000$/);
     
-    // ✅ ОБЕРТКА - ПОПАП
     if (isWrapper) {
         console.log(`🔴 Обертка: ${cadNum}`);
         window.selectedQuarterCadNumber = cadNum;
@@ -5528,7 +5489,9 @@ function searchQuarterByCadNumber(cadNumber) {
                 console.log(`✅ Обертка ${cadNum} найдена`);
                 foundLayer.openPopup();
                 if (foundLayer.getBounds && foundLayer.getBounds().isValid()) {
-                    mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                    if (window.mapInstance) {
+                        window.mapInstance.fitBounds(foundLayer.getBounds(), { padding: [40, 40] });
+                    }
                 }
                 isUpdatingFromSearch = false;
                 window._isPopupOpening = false;
@@ -5549,7 +5512,6 @@ function searchQuarterByCadNumber(cadNumber) {
         return;
     }
     
-    // ✅ ОБЫЧНЫЙ КВАРТАЛ
     console.log(`🏘️ Квартал: ${cadNum}`);
     
     const districtId = found.properties.parent_id || found.properties.district_id;
@@ -5574,7 +5536,9 @@ function searchQuarterByCadNumber(cadNumber) {
                 try {
                     const bounds = foundLayer.getBounds();
                     if (bounds && bounds.isValid && bounds.isValid()) {
-                        mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                        if (window.mapInstance) {
+                            window.mapInstance.fitBounds(bounds, { padding: [40, 40] });
+                        }
                     }
                     setTimeout(() => {
                         foundLayer.openPopup();
@@ -5590,7 +5554,6 @@ function searchQuarterByCadNumber(cadNumber) {
         window._isNSPDSearch = false;
     }, 1000);
 }
-
 function searchCadastralByNumber(cadNumber) {
     if (!cadNumber) return;
     
@@ -5767,39 +5730,35 @@ function exportDealsTableToExcel() {
 function closeWrapperTooltip(cadNum) {
     console.log(`🔄 Закрытие тултипа обертки: ${cadNum}`);
     
-    // ✅ СБРАСЫВАЕМ ВСЕ СОСТОЯНИЯ
     window.selectedQuarterCadNumber = null;
     currentLevel = 0;
     currentParentId = null;
     currentDistrictFilter = null;
     
-    // ✅ ЗАКРЫВАЕМ ВСЕ ТУЛТИПЫ В ОБЕРТКЕ
     if (window.wrapperLayer) {
         window.wrapperLayer.eachLayer(function(layer) {
             layer.closeTooltip();
         });
     }
     
-    // ✅ ЗАКРЫВАЕМ ВСЕ ТУЛТИПЫ НА КАРТЕ
-    if (mapInstance) {
-        mapInstance.closePopup();
+    if (window.mapInstance) {
+        window.mapInstance.closePopup();
     }
     
-    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ НА УРОВНЕ ОКРУГА
     renderMapLevel(0);
     updateBreadcrumb('okrug');
     
-    // ✅ ОБНОВЛЯЕМ ВСЕ ДАННЫЕ
     updateMapStatsFromDeals(0, null);
     updateQuartersListWithFilteredObjects(null);
     updateActiveFiltersDisplay();
     addMapLegend();
     renderDealsTable();
     
-    // Центрируем карту на округе
     setTimeout(function() {
         if (window.mapLayer && typeof window.mapLayer.getBounds === 'function' && window.mapLayer.getBounds().isValid()) {
-            mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+            if (window.mapInstance) {
+                window.mapInstance.fitBounds(window.mapLayer.getBounds(), { padding: [30, 30] });
+            }
         }
     }, 100);
     
@@ -7065,35 +7024,30 @@ window.createCSVFromData = createCSVFromData;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
-    // Проверяем, что mapInstance существует
-    if (typeof mapInstance !== 'undefined' && mapInstance) {
+    if (typeof window.mapInstance !== 'undefined' && window.mapInstance) {
         console.log('🔄 Автоматическое центрирование при загрузке');
-        mapInstance.invalidateSize();
-        mapInstance.setView([66.0, 76.0], 5);
+        window.mapInstance.invalidateSize();
+        window.mapInstance.setView([66.0, 76.0], 5);
         
-        // Повторная проверка через 1 секунду
         setTimeout(() => {
-            if (mapInstance) {
-                mapInstance.invalidateSize();
-                const center = mapInstance.getCenter();
+            if (window.mapInstance) {
+                window.mapInstance.invalidateSize();
+                const center = window.mapInstance.getCenter();
                 if (Math.abs(center.lat - 66.0) > 1 || Math.abs(center.lng - 76.0) > 1) {
-                    console.warn('⚠️ Центр сместился, восстанавливаем...');
-                    mapInstance.setView([66.0, 76.0], 5);
+                    window.mapInstance.setView([66.0, 76.0], 5);
                 }
             }
         }, 1000);
     } else {
-        // Если карта еще не создана - пробуем через 500ms
         console.log('⏳ Карта еще не создана, пробуем позже...');
         setTimeout(() => {
-            if (typeof mapInstance !== 'undefined' && mapInstance) {
+            if (typeof window.mapInstance !== 'undefined' && window.mapInstance) {  // ✅ ИСПРАВЛЕНО
                 console.log('🔄 Автоматическое центрирование (отложенное)');
-                mapInstance.invalidateSize();
-                mapInstance.setView([66.0, 76.0], 5);
+                window.mapInstance.invalidateSize();
+                window.mapInstance.setView([66.0, 76.0], 5);
             }
         }, 500);
     }
 }
 
-// 🔥 ВЫЗЫВАЕМ ФУНКЦИЮ ПОСЛЕ ОПРЕДЕЛЕНИЯ
 autoCenterOnLoad();
