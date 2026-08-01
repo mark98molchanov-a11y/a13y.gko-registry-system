@@ -617,7 +617,6 @@ normalizeResponse(data) {
     // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ (БЕЗ ИЗМЕНЕНИЙ)
     // ============================================================
     
-
 displayResult(data) {
     console.log('📊 displayResult вызван с данными:', data);
     
@@ -701,7 +700,7 @@ displayResult(data) {
             { label: 'Материал стен', value: data.materials || '—' },
         );
     } 
-    // ✅ ДЛЯ СООРУЖЕНИЙ — ДОБАВЛЯЕМ determination_couse
+    // ✅ ДЛЯ СООРУЖЕНИЙ
     else if (isStructure) {
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
@@ -709,6 +708,18 @@ displayResult(data) {
             { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
             { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : '—' },
             { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
+            { label: 'Год постройки', value: data.year_built || '—' },
+            { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+        );
+    } 
+    // ✅ ДЛЯ ОБЪЕКТОВ НЕЗАВЕРШЕННОГО СТРОИТЕЛЬСТВА — ДОБАВЛЯЕМ area И determination_couse
+    else if (isConstruction) {
+        fields.push(
+            { label: 'Наименование', value: data.object_name || '—' },
+            { label: 'Площадь застройки', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : (data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : '—'), important: true },
+            { label: 'Степень готовности', value: data.degree_readiness ? data.degree_readiness + '%' : '—' },
+            { label: 'Тип права', value: data.right_type || '—' },
+            { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
