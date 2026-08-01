@@ -6416,17 +6416,22 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const nspdStreet = normalizeStreet(extractStreetFromAddress(address));
             
             // Проверяем совпадения
-            function getTypeAliases(type) {
-                const map = {
-                    'помещение': ['помещение', 'квартира', 'нежилое', 'жилое'],
-                    'квартира': ['квартира', 'помещение', 'жилое'],
-                    'здание': ['здание', 'строение', 'сооружение'],
-                    'сооружение': ['сооружение', 'здание', 'строение']
-                };
-                const key = type.toLowerCase().slice(0, 5);
-                const aliases = map[key] || [type.toLowerCase()];
-                return aliases.concat(aliases.map(a => a.slice(0, 5)));
-            }
+function getTypeAliases(type) {
+    const map = {
+        'помещение': ['помещение', 'квартира', 'нежилое', 'жилое'],
+        'квартира': ['квартира', 'помещение', 'жилое'],
+        'здание': ['здание', 'строение', 'сооружение'],
+        'сооружение': ['сооружение', 'здание', 'строение']
+    };
+    const key = type.toLowerCase().slice(0, 5);
+    const aliases = map[key] || [type.toLowerCase()];
+    // ✅ Добавляем точное совпадение первым
+    const exact = type.toLowerCase();
+    if (!aliases.includes(exact)) {
+        aliases.unshift(exact);
+    }
+    return aliases.concat(aliases.map(a => a.slice(0, 5)));
+}
 
             const typeAliases = getTypeAliases(targetType);
             const typeMatch = typeAliases.some(alias => 
@@ -6613,7 +6618,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
 async function loadDealsFromRelease() {
     // 🔥 ЖЕСТКО ЗАШИТЫЙ ID (ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ)
     // ⚠️ ОБНОВЛЯЙТЕ ЕГО ТОЛЬКО КОГДА МЕНЯЕТЕ GIST!
-    const HARDCODED_GIST_ID = '7117a00515a26960d6a2869174cf8cde';
+    const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
     
     // ✅ 1. Сначала пробуем загрузить по URL из localStorage
     //    (для вас — быстро, без запроса к API)
