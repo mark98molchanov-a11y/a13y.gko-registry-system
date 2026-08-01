@@ -586,7 +586,7 @@ normalizeResponse(data) {
         if (buttonsContainer) {
             const btn = document.createElement('button');
             btn.className = 'nspd-quarter-btn';
-            btn.innerHTML = `🗺️ Найти квартал: ${quarter}`;
+            btn.innerHTML = `Найти квартал: ${quarter}`;
             btn.style.cssText = `
                 padding: 5px 14px;
                 background: #f0fdf4;
@@ -772,7 +772,7 @@ displayResult(data) {
                 ` : ''}
                 <button onclick="nspdApp.copyData()" 
                         style="padding: 5px 14px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; font-size: 10px;">
-                    📋 Копировать
+                    Копировать
                 </button>
             </div>
             
