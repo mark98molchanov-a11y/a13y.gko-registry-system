@@ -6616,39 +6616,11 @@ function getTypeAliases(type) {
     }
 }
 async function loadDealsFromRelease() {
-    // 🔥 ЖЕСТКО ЗАШИТЫЙ ID (ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ)
-    // ⚠️ ОБНОВЛЯЙТЕ ЕГО ТОЛЬКО КОГДА МЕНЯЕТЕ GIST!
     const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
     
-    // ✅ 1. Сначала пробуем загрузить по URL из localStorage
-    //    (для вас — быстро, без запроса к API)
-    const gistUrl = localStorage.getItem('deals_csv_gist_url');
-    if (gistUrl) {
-        try {
-            console.log('📥 Загрузка CSV из локального Gist URL...');
-            const response = await fetch(gistUrl);
-            if (response.ok) {
-                const text = await response.text();
-                if (text.trim().startsWith('cad_number')) return text;
-            }
-        } catch(e) {}
-    }
-    
-    // ✅ 2. Пробуем загрузить по ID из localStorage
-    //    (если у вас сохранился ID, но нет URL)
-    let gistId = localStorage.getItem('deals_csv_gist_id');
-    
-    // ✅ 3. Если в localStorage нет — используем жестко зашитый
-    //    🔥 ЭТОТ ШАГ ДЛЯ ВСЕХ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ!
-    if (!gistId) {
-        gistId = HARDCODED_GIST_ID;
-        console.log(`📋 Используем жестко зашитый Gist ID: ${gistId}`);
-    }
-    
-    // ✅ 4. Загружаем из Gist
+    console.log(`📥 Загрузка CSV из Gist: ${HARDCODED_GIST_ID}`);
     try {
-        console.log(`📥 Загрузка CSV из Gist: ${gistId}`);
-        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+        const response = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
             headers: { 'Accept': 'application/json' }
         });
         
@@ -6656,31 +6628,16 @@ async function loadDealsFromRelease() {
             const data = await response.json();
             const file = data.files?.['deals_clean.csv'];
             if (file && file.content) {
-                // ✅ Сохраняем URL и ID в localStorage для быстрой загрузки
                 localStorage.setItem('deals_csv_gist_url', file.raw_url);
-                localStorage.setItem('deals_csv_gist_id', gistId);
-                console.log(`✅ CSV загружен из Gist: ${gistId}`);
+                localStorage.setItem('deals_csv_gist_id', HARDCODED_GIST_ID);
+                console.log(`✅ CSV загружен из Gist: ${HARDCODED_GIST_ID}`);
                 return file.content;
             }
         } else if (response.status === 404) {
-            console.warn(`⚠️ Gist ${gistId} не найден (404)`);
-            // Если жесткий ID не работает — удаляем из localStorage
-            if (gistId === HARDCODED_GIST_ID) {
-                console.warn('⚠️ Жестко зашитый Gist ID не работает! Обновите HARDCODED_GIST_ID в коде.');
-            }
+            console.warn(`⚠️ Gist ${HARDCODED_GIST_ID} не найден (404)`);
         }
     } catch(e) {
         console.warn('⚠️ Ошибка загрузки Gist:', e.message);
-    }
-    
-    // ✅ 5. Fallback из репозитория
-    console.log('📥 Загрузка CSV из репозитория (fallback)...');
-    const fallbackUrl = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/refs/heads/main/data/deals_clean.csv';
-    try {
-        const response = await fetch(fallbackUrl);
-        if (response.ok) return await response.text();
-    } catch(e) {
-        console.warn('⚠️ Ошибка загрузки из репозитория:', e.message);
     }
     
     return null;
