@@ -617,6 +617,7 @@ normalizeResponse(data) {
     // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ (БЕЗ ИЗМЕНЕНИЙ)
     // ============================================================
     
+
 displayResult(data) {
     console.log('📊 displayResult вызван с данными:', data);
     
@@ -700,7 +701,7 @@ displayResult(data) {
             { label: 'Материал стен', value: data.materials || '—' },
         );
     } 
-    // ✅ ДЛЯ СООРУЖЕНИЙ
+    // ✅ ДЛЯ СООРУЖЕНИЙ — ДОБАВЛЯЕМ determination_couse
     else if (isStructure) {
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
@@ -709,9 +710,10 @@ displayResult(data) {
             { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : '—' },
             { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
+            { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
-    // ✅ ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ — ДОБАВЛЯЕМ determination_couse И land_record_subtype
+    // ✅ ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ
     else if (isLand) {
         const areaValue = data.specified_area > 0 
             ? data.specified_area.toFixed(1) + ' м²' 
