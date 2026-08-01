@@ -788,33 +788,33 @@ async function loadDealsCSV() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         let csvText = await response.text();
         
-        // ✅ 2. Загружаем номера НСПД из Gist (по row_id)
+        // ✅ 2. Загружаем номера НСПД НАПРЯМУЮ ИЗ GIST (БЕЗ localStorage!)
         let nspdMap = {}; // ключ: row_id → cad_nspd
-        const gistUrl = localStorage.getItem('deals_csv_gist_url');
-        if (gistUrl) {
-            try {
-                console.log('📥 Загрузка номеров НСПД из Gist...');
-                const nspdResponse = await fetch(gistUrl);
-                if (nspdResponse.ok) {
-                    const nspdText = await nspdResponse.text();
-                    const nspdLines = nspdText.split('\n').filter(line => line.trim());
+        const GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
+        
+        try {
+            console.log(`📥 Загрузка номеров НСПД из Gist: ${GIST_ID}`);
+            const gistResponse = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (gistResponse.ok) {
+                const gistData = await gistResponse.json();
+                const file = gistData.files?.['deals_clean.csv'];
+                if (file && file.content) {
+                    const nspdLines = file.content.split('\n').filter(line => line.trim());
                     if (nspdLines.length > 1) {
-                        const nspdHeaders = parseCSVLine(nspdLines[0]);
-                        // ✅ Ищем row_id вместо cad_number
+                        const nspdHeaders = nspdLines[0].split(',');
                         const nspdRowIdIndex = nspdHeaders.indexOf('row_id');
                         const nspdNspdIndex = nspdHeaders.indexOf('cad_nspd');
                         
                         if (nspdRowIdIndex !== -1 && nspdNspdIndex !== -1) {
                             for (let i = 1; i < nspdLines.length; i++) {
-                                const values = parseCSVLine(nspdLines[i]);
+                                const values = nspdLines[i].split(',');
                                 if (values.length > Math.max(nspdRowIdIndex, nspdNspdIndex)) {
-                                    const rowId = values[nspdRowIdIndex] || '';
-                                    const nspd = values[nspdNspdIndex] && values[nspdNspdIndex].trim() !== '' 
-                                        ? values[nspdNspdIndex].trim() 
-                                        : null;
-                                    
+                                    const rowId = values[nspdRowIdIndex]?.trim() || '';
+                                    const nspd = values[nspdNspdIndex]?.trim() || '';
                                     if (rowId && nspd) {
-                                        // ✅ Ключ = row_id
                                         nspdMap[rowId] = nspd;
                                     }
                                 }
@@ -823,9 +823,11 @@ async function loadDealsCSV() {
                         }
                     }
                 }
-            } catch(e) {
-                console.warn('⚠️ Не удалось загрузить номера НСПД из Gist:', e.message);
+            } else {
+                console.warn(`⚠️ Gist не найден (${gistResponse.status})`);
             }
+        } catch(e) {
+            console.warn('⚠️ Ошибка загрузки Gist:', e.message);
         }
         
         // Функция для правильного парсинга CSV с кавычками
@@ -879,6 +881,7 @@ async function loadDealsCSV() {
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
         const streetIndex = headers.indexOf('street');
+        const rowIdIndex = headers.indexOf('row_id'); // ← НАШЛИ row_id!
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -904,8 +907,9 @@ async function loadDealsCSV() {
             const values = parseCSVLine(lines[i]);
             if (values.length < Math.max(cadIndex, kindIndex) + 1) continue;
             
-            // ✅ Берем row_id из первого столбца (индекс 0)
-            const rowId = values[0] || '';
+            // ✅ Берем row_id ПО ИНДЕКСУ (НЕ ИЗ ПЕРВОЙ КОЛОНКИ!)
+            const rowId = rowIdIndex !== -1 && values[rowIdIndex] ? values[rowIdIndex].trim() : '';
+            
             const cadNum = values[cadIndex] || '';
             const kind = values[kindIndex] || 'nan';
             const city = values[cityIndex] || 'nan'; 
@@ -1028,7 +1032,6 @@ async function loadDealsCSV() {
         document.getElementById('deal-type-filters').innerHTML = '<div style="color: #ef4444; font-size: 12px; text-align: center; padding: 8px 0;">Ошибка загрузки данных</div>';
     }
 }
-
 function calculatePriceThresholds() {
     console.log('Расчет пороговых цен по типам сделок и муниципалитетам (10% низких и 10% высоких)...');
     
@@ -7608,6 +7611,7 @@ window.allDealsFlat = allDealsFlat;
 window.getQuarter = getQuarter;
 window.dealsData = dealsData;
 window.mapData = mapData;
+window.loadDealsCSV = loadDealsCSV;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
