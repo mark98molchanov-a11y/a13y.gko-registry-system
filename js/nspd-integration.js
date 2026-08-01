@@ -767,7 +767,7 @@ displayResult(data) {
                 ${quarter && quarter !== '—' && quarter !== '' ? `
                 <button onclick="window.nspdApp.searchQuarter('${quarter}')" 
                         style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px;">
-                    🗺️ Найти квартал: ${quarter}
+                    Найти квартал: ${quarter}
                 </button>
                 ` : ''}
                 <button onclick="nspdApp.copyData()" 
