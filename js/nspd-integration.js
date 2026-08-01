@@ -211,10 +211,14 @@ normalizeResponse(data) {
         const options = props.options || {};
         const systemInfo = props.systemInfo || {};
         
-        // ✅ ИЗВЛЕКАЕМ ЭТАЖ ИЗ МАССИВА
+        // ✅ ИЗВЛЕКАЕМ ЭТАЖ (поддерживаем и массив, и строку)
         let floorValue = '';
-        if (options.floor && Array.isArray(options.floor) && options.floor.length > 0) {
-            floorValue = options.floor[0]; // "04/Этаж"
+        if (options.floor) {
+            if (Array.isArray(options.floor) && options.floor.length > 0) {
+                floorValue = options.floor[0];
+            } else if (typeof options.floor === 'string') {
+                floorValue = options.floor; // "Паркинг/Подземный этаж"
+            }
         }
         
         // ✅ ИЗВЛЕКАЕМ ПАРАМЕТРЫ (params_type)
@@ -230,6 +234,12 @@ normalizeResponse(data) {
             if (parts.length >= 3) {
                 cadastralQuarter = parts.slice(0, 3).join(':');
             }
+        }
+        
+        // ✅ ОПРЕДЕЛЯЕМ ТИП ОБЪЕКТА (для машино-мест categoryName = "Машино-места")
+        let objectType = options.type || options.object_type_value || options.land_record_type || props.categoryName || '';
+        if (!objectType && props.categoryName) {
+            objectType = props.categoryName;
         }
         
         return {
@@ -250,7 +260,7 @@ normalizeResponse(data) {
             cadastral_quarter: cadastralQuarter,
             
             // ✅ ТИП ОБЪЕКТА
-            object_type: options.type || options.object_type_value || options.land_record_type || props.categoryName || '',
+            object_type: objectType,
             status: options.common_data_status || options.status || '',
             ownership_type: options.ownership_type || '',
             object_name: options.params_name || options.name || options.building_name || '',
@@ -269,7 +279,7 @@ normalizeResponse(data) {
             area: parseFloat(options.area) || parseFloat(options.params_area) || parseFloat(options.build_record_area) || parseFloat(options.specified_area) || 0,
             specified_area: parseFloat(options.specified_area) || 0,
             
-            // ✅ ЭТАЖ
+            // ✅ ЭТАЖ (теперь работает и для массива, и для строки)
             floor: floorValue,
             
             year_built: options.year_built || options.params_year_built || '',
