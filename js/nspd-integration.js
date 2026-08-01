@@ -654,6 +654,7 @@ displayResult(data) {
     const isConstruction = objectType.includes('Объект незавершенного строительства');
     const isComplex = objectType.includes('Единый недвижимый комплекс');
     const isLand = objectType.includes('Земельный участок');
+    const isParking = objectType.includes('Машино-место') || objectType.includes('Паркинг') || objectType.includes('машиноместо');
 
     // ВЫЧИСЛЯЕМ УПКС
     let upksValue = data.cadastral_index || 0;
@@ -678,8 +679,18 @@ displayResult(data) {
         { label: 'Назначение', value: data.purpose || '—' },
     ];
 
+    // ✅ ДЛЯ МАШИНО-МЕСТ / ПАРКИНГА
+    if (isParking) {
+        fields.push(
+            { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
+            { label: 'Этаж', value: data.floor || '—' },
+            { label: 'Родительский объект', value: data.parent_cad_number || '—' },
+            { label: 'Год постройки', value: data.year_built || '—' },
+            { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
+        );
+    } 
     // ✅ ДЛЯ ПОМЕЩЕНИЙ
-    if (isPremises) {
+    else if (isPremises) {
         fields.push(
             { label: 'Тип помещения', value: data.params_type || data.object_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
@@ -712,7 +723,7 @@ displayResult(data) {
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
-    // ✅ ДЛЯ ОБЪЕКТОВ НЕЗАВЕРШЕННОГО СТРОИТЕЛЬСТВА — ДОБАВЛЯЕМ area И determination_couse
+    // ✅ ДЛЯ ОБЪЕКТОВ НЕЗАВЕРШЕННОГО СТРОИТЕЛЬСТВА
     else if (isConstruction) {
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
