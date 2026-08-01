@@ -678,7 +678,7 @@ displayResult(data) {
         { label: 'Назначение', value: data.purpose || '—' },
     ];
 
-    // ✅ ДЛЯ ПОМЕЩЕНИЙ — ДОБАВЛЯЕМ СПЕЦИФИЧЕСКИЕ ПОЛЯ
+    // ✅ ДЛЯ ПОМЕЩЕНИЙ
     if (isPremises) {
         fields.push(
             { label: 'Тип помещения', value: data.params_type || data.object_name || '—' },
@@ -688,7 +688,9 @@ displayResult(data) {
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
         );
-    } else if (isBuilding) {
+    } 
+    // ✅ ДЛЯ ЗДАНИЙ
+    else if (isBuilding) {
         fields.push(
             { label: 'Наименование', value: data.object_name || data.building_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
@@ -697,7 +699,9 @@ displayResult(data) {
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
             { label: 'Материал стен', value: data.materials || '—' },
         );
-    } else if (isStructure) {
+    } 
+    // ✅ ДЛЯ СООРУЖЕНИЙ
+    else if (isStructure) {
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
             { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : '—' },
@@ -706,7 +710,9 @@ displayResult(data) {
             { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
         );
-    } else if (isLand) {
+    } 
+    // ✅ ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ — ДОБАВЛЯЕМ determination_couse И land_record_subtype
+    else if (isLand) {
         const areaValue = data.specified_area > 0 
             ? data.specified_area.toFixed(1) + ' м²' 
             : (data.area > 0 ? data.area.toFixed(1) + ' м²' : '—');
@@ -715,6 +721,8 @@ displayResult(data) {
             { label: 'Площадь', value: areaValue, important: true },
             { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
             { label: 'ВРИ', value: data.permitted_uses_name || data.purpose || '—' },
+            { label: 'Подтип', value: data.land_record_subtype || '—' },
+            { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     }
 
@@ -725,7 +733,7 @@ displayResult(data) {
 
     const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== '');
 
-    // КВАРТАЛ ДЛЯ КНОПКИ (используем кадастровый квартал)
+    // КВАРТАЛ ДЛЯ КНОПКИ
     const quarter = data.cadastral_quarter || this.extractQuarter(data.cadastral_number);
     console.log('🏠 Кадастровый квартал для кнопки:', quarter);
     
