@@ -676,7 +676,7 @@ displayResult(data) {
         }
     }
 
-    // ✅ БАЗОВЫЕ ПОЛЯ
+    // ✅ БАЗОВЫЕ ПОЛЯ (для ЕНК убираем Назначение из базовых)
     const fields = [
         { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
         { label: 'Кадастровый квартал', value: data.cadastral_quarter || '—' },
@@ -686,8 +686,12 @@ displayResult(data) {
         { label: 'Адрес', value: data.address || '—', important: true },
         { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
         { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
-        { label: 'Назначение', value: data.purpose || '—' },
     ];
+
+    // ✅ ДЛЯ ЕНК НЕ ДОБАВЛЯЕМ НАЗНАЧЕНИЕ В БАЗОВЫЕ ПОЛЯ (оно будет в специфических)
+    if (!isComplex) {
+        fields.push({ label: 'Назначение', value: data.purpose || '—' });
+    }
 
     // ✅ ДЛЯ МАШИНО-МЕСТ / ПАРКИНГА
     if (isParking) {
@@ -746,7 +750,7 @@ displayResult(data) {
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
-    // ✅ ДЛЯ ЕДИНЫХ НЕДВИЖИМЫХ КОМПЛЕКСОВ (ЕНК)
+    // ✅ ДЛЯ ЕДИНЫХ НЕДВИЖИМЫХ КОМПЛЕКСОВ (ЕНК) — без дублирования Назначения
     else if (isComplex) {
         fields.push(
             { label: 'Наименование', value: data.object_name || data.name || '—', important: true },
@@ -766,7 +770,6 @@ displayResult(data) {
             { label: 'Площадь', value: areaValue, important: true },
             { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
             { label: 'ВРИ', value: data.permitted_uses_name || data.purpose || '—' },
-            { label: 'Назначение', value: data.land_record_subtype || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     }
