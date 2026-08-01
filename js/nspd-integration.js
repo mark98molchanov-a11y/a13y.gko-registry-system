@@ -198,7 +198,7 @@ class NSPDIntegration {
     // 📋 НОРМАЛИЗАЦИЯ ОТВЕТА
     // ============================================================
     
- normalizeResponse(data) {
+normalizeResponse(data) {
     console.log('🔄 Нормализация ответа...');
     
     if (!data || !data.data || !data.data.features || data.data.features.length === 0) {
@@ -216,6 +216,9 @@ class NSPDIntegration {
         if (options.floor && Array.isArray(options.floor) && options.floor.length > 0) {
             floorValue = options.floor[0]; // "04/Этаж"
         }
+        
+        // ✅ ИЗВЛЕКАЕМ ПАРАМЕТРЫ (params_type)
+        let paramsType = options.params_type || '';
         
         return {
             // Из properties
@@ -242,11 +245,17 @@ class NSPDIntegration {
             address: options.readable_address || options.address_readable_address || '',
             quarter_cad_number: options.parent_cad_number || options.quarter_cad_number || '',
             
+            // ✅ РОДИТЕЛЬСКИЙ ОБЪЕКТ
+            parent_cad_number: options.parent_cad_number || '',
+            
+            // ✅ ПАРАМЕТРЫ ТИПА (Квартира, Комната, и т.д.)
+            params_type: paramsType,
+            
             // Площадь
             area: parseFloat(options.area) || parseFloat(options.params_area) || parseFloat(options.build_record_area) || parseFloat(options.specified_area) || 0,
             specified_area: parseFloat(options.specified_area) || 0,
             
-            // ✅ ЭТАЖ (из массива)
+            // ✅ ЭТАЖ
             floor: floorValue,
             
             year_built: options.year_built || options.params_year_built || '',
@@ -595,7 +604,7 @@ class NSPDIntegration {
     // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ (БЕЗ ИЗМЕНЕНИЙ)
     // ============================================================
     
- displayResult(data) {
+displayResult(data) {
     console.log('📊 displayResult вызван с данными:', data);
     
     let resultDiv = document.getElementById('cadResult');
@@ -643,7 +652,7 @@ class NSPDIntegration {
         }
     }
 
-    // БАЗОВЫЕ ПОЛЯ
+    // ✅ БАЗОВЫЕ ПОЛЯ (добавили parent_cad_number и params_type)
     const fields = [
         { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
         { label: 'Тип объекта', value: objectType || '—', important: true },
@@ -656,17 +665,28 @@ class NSPDIntegration {
         { label: 'Назначение', value: data.purpose || '—' },
     ];
 
-    // ✅ ДЛЯ ПОМЕЩЕНИЙ И ЗДАНИЙ — ДОБАВЛЯЕМ ПЛОЩАДЬ И ЭТАЖ
-    if (isBuilding || isPremises) {
+    // ✅ ДЛЯ ПОМЕЩЕНИЙ — ДОБАВЛЯЕМ СПЕЦИФИЧЕСКИЕ ПОЛЯ
+    if (isPremises) {
         fields.push(
+            { label: 'Тип помещения', value: data.params_type || data.object_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
             { label: 'Этаж', value: data.floor || '—' },
+            { label: 'Родительский объект', value: data.parent_cad_number || '—' },
+            { label: 'Год постройки', value: data.year_built || '—' },
+            { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
+        );
+    } else if (isBuilding) {
+        fields.push(
+            { label: 'Наименование', value: data.object_name || data.building_name || '—' },
+            { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
+            { label: 'Этажность', value: data.params_floors || data.floors || '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
             { label: 'Материал стен', value: data.materials || '—' },
         );
     } else if (isStructure) {
         fields.push(
+            { label: 'Наименование', value: data.object_name || '—' },
             { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : '—' },
             { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
             { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : '—' },
