@@ -662,7 +662,7 @@ displayResult(data) {
     const isPremises = objectType.includes('Помещение') || objectType.includes('Помещения');
     const isStructure = objectType.includes('Сооружение') || objectType.includes('Сооружения');
     const isConstruction = objectType.includes('Объект незавершенного строительства');
-    const isComplex = objectType.includes('Единый недвижимый комплекс');
+    const isComplex = objectType.includes('Единый недвижимый комплекс') || objectType.includes('Единые недвижимые комплексы');
     const isLand = objectType.includes('Земельный участок');
     const isParking = objectType.includes('Машино-место') || objectType.includes('Паркинг') || objectType.includes('машиноместо');
 
@@ -719,6 +719,7 @@ displayResult(data) {
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
             { label: 'Материал стен', value: data.materials || '—' },
+            { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
     // ✅ ДЛЯ СООРУЖЕНИЙ
@@ -745,6 +746,16 @@ displayResult(data) {
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
+    // ✅ ДЛЯ ЕДИНЫХ НЕДВИЖИМЫХ КОМПЛЕКСОВ (ЕНК)
+    else if (isComplex) {
+        fields.push(
+            { label: 'Наименование', value: data.object_name || data.name || '—', important: true },
+            { label: 'Назначение', value: data.purpose || '—' },
+            { label: 'Год постройки', value: data.year_built || '—' },
+            { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
+            { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+        );
+    } 
     // ✅ ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ
     else if (isLand) {
         const areaValue = data.specified_area > 0 
@@ -755,7 +766,7 @@ displayResult(data) {
             { label: 'Площадь', value: areaValue, important: true },
             { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
             { label: 'ВРИ', value: data.permitted_uses_name || data.purpose || '—' },
-            { label: 'Подтип', value: data.land_record_subtype || '—' },
+            { label: 'Назначение', value: data.land_record_subtype || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     }
@@ -769,7 +780,7 @@ displayResult(data) {
 
     // КВАРТАЛ ДЛЯ КНОПКИ
     const quarter = data.cadastral_quarter || this.extractQuarter(data.cadastral_number);
-    console.log('🏠 Кадастровый квартал для кнопки:', quarter);
+    console.log('Кадастровый квартал для кнопки:', quarter);
     
     resultDiv.innerHTML = `
         <div style="
