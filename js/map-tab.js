@@ -35,6 +35,51 @@ window._wrapperTooltipCadNum = null;
 let currentChartGroupBy = 'city';
 let syncAbortController = null;
 let isSyncRunning = false;
+function normalizeStreet(street) {
+    if (!street) return '';
+    return street
+        .toLowerCase()
+        // Убираем приставки
+        .replace(/^(ул(?:ица)?|проспект|пер(?:еулок)?|бульвар|набережная|шоссе|площадь|аллея|тупик|проезд|переулок)\s*/i, '')
+        // Убираем "имени"
+        .replace(/^имени\s*/i, '')
+        // Убираем сокращения типа "ул.", "пр-кт" и т.д.
+        .replace(/^[а-яА-Я]{1,3}\.\s*/g, '')
+        // Убираем кавычки и скобки
+        .replace(/["']/g, '')
+        // Убираем лишние пробелы
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function extractStreetFromAddress(address) {
+    if (!address) return '';
+    
+    // Паттерны для разных типов улиц
+    const patterns = [
+        /ул(?:ица)?\s+([^,\d]+?)(?:\s*[,д]|$)/i,           // "ул Совхозная"
+        /проспект\s+([^,\d]+?)(?:\s*[,д]|$)/i,             // "проспект Мира"
+        /пер(?:еулок)?\s+([^,\d]+?)(?:\s*[,д]|$)/i,        // "пер. Школьный"
+        /бульвар\s+([^,\d]+?)(?:\s*[,д]|$)/i,              // "бульвар Строителей"
+        /набережная\s+([^,\d]+?)(?:\s*[,д]|$)/i,           // "набережная Речная"
+        /шоссе\s+([^,\d]+?)(?:\s*[,д]|$)/i,                // "шоссе Космонавтов"
+        /площадь\s+([^,\d]+?)(?:\s*[,д]|$)/i,              // "площадь Ленина"
+        /аллея\s+([^,\d]+?)(?:\s*[,д]|$)/i,                // "аллея Славы"
+        /тупик\s+([^,\d]+?)(?:\s*[,д]|$)/i,                // "тупик Глухой"
+        /проезд\s+([^,\d]+?)(?:\s*[,д]|$)/i,               // "проезд Школьный"
+        /переулок\s+([^,\d]+?)(?:\s*[,д]|$)/i,             // "переулок Тихий"
+        /(?:^|,\s*)([^,\d]+?)(?:\s*[,д]|$)/                // любое название без цифр
+    ];
+    
+    for (const pattern of patterns) {
+        const match = address.match(pattern);
+        if (match) {
+            return match[1].trim();
+        }
+    }
+    
+    return '';
+}
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
@@ -6208,6 +6253,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     if (locationKeywords && locationKeywords.length > 0) {
         console.log(`📍 Локация: ${locationKeywords}`);
+        console.log(`📍 Улица: ${locationKeywords[1] || 'не указана'}`);
     }
     console.log('-'.repeat(60));
     
@@ -6260,6 +6306,14 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         
         const targetRoot = targetType.toLowerCase().slice(0, 5);
         
+        // ✅ НОРМАЛИЗУЕМ УЛИЦУ ИЗ СДЕЛКИ
+        const dealStreet = locationKeywords && locationKeywords.length > 1 ? locationKeywords[1] : '';
+        const normalizedDealStreet = normalizeStreet(dealStreet);
+        const dealCity = locationKeywords && locationKeywords.length > 0 ? locationKeywords[0] : '';
+        const hasStreet = normalizedDealStreet && normalizedDealStreet !== '' && normalizedDealStreet !== 'nan';
+        
+        console.log(`🏠 Улица из сделки: "${normalizedDealStreet}" ${hasStreet ? '(есть)' : '(пустая)'}`);
+        
         // ✅ СОБИРАЕМ ВСЕ ОБЪЕКТЫ С МЕТАДАННЫМИ
         let allObjects = [];
         
@@ -6287,26 +6341,28 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const name = opts.params_name || opts.name || opts.building_name || '';
             const address = opts.readable_address || opts.address_readable_address || '';
             
+            // ✅ ИЗВЛЕКАЕМ И НОРМАЛИЗУЕМ УЛИЦУ ИЗ АДРЕСА НСПД
+            const nspdStreet = normalizeStreet(extractStreetFromAddress(address));
+            
             // Проверяем совпадения
             const typeMatch = targetRoot === objType.toLowerCase().slice(0, 5);
             const areaMatch = Math.abs(area - targetArea) <= tolerance;
             
-            let locMatch = false;
+            // ✅ СТРИТМЭТЧ - нормализованное сравнение (только если улица есть)
             let streetMatch = false;
-            
-            if (locationKeywords && locationKeywords.length > 0) {
-                const text = `${name} ${address}`.toLowerCase();
-                for (const kw of locationKeywords) {
-                    if (!kw) continue;
-                    const searchStr = kw.toLowerCase();
-                    if (text.includes(searchStr)) {
-                        locMatch = true;
-                    }
-                    // Проверяем совпадение по улице (более строгое)
-                    if (address.toLowerCase().includes(searchStr)) {
-                        streetMatch = true;
-                    }
+            if (hasStreet && nspdStreet) {
+                streetMatch = normalizedDealStreet === nspdStreet;
+                // Дополнительно: проверяем, содержит ли одна улица другую
+                if (!streetMatch) {
+                    streetMatch = normalizedDealStreet.includes(nspdStreet) || nspdStreet.includes(normalizedDealStreet);
                 }
+            }
+            
+            // ✅ ЛОКАЦИЯ (город)
+            let locMatch = false;
+            if (dealCity) {
+                const text = `${name} ${address}`.toLowerCase();
+                locMatch = text.includes(dealCity.toLowerCase());
             }
             
             allObjects.push({
@@ -6315,6 +6371,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 area: area,
                 name: name,
                 address: address,
+                nspdStreet: nspdStreet,
                 typeMatch: typeMatch,
                 areaMatch: areaMatch,
                 locMatch: locMatch,
@@ -6322,40 +6379,55 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             });
         }
         
+        console.log(`📊 Всего объектов в квартале после фильтрации: ${allObjects.length}`);
+        
         // ============================================================
-        // ✅ КАСКАДНЫЙ ПОИСК (ТОЛЬКО С ПЛОЩАДЬЮ!)
+        // ✅ КАСКАДНЫЙ ПОИСК
         // ============================================================
         
-        // 1️⃣ квартал + тип + площадь + улица
+        // 1️⃣ квартал + тип + площадь + улица (ТОЧНОЕ СОВПАДЕНИЕ)
         let candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch && obj.streetMatch
         );
         
         if (candidates.length > 0) {
             candidates.sort((a, b) => {
-                const aScore = (a.streetMatch ? 10 : 0) + (a.locMatch ? 5 : 0);
-                const bScore = (b.streetMatch ? 10 : 0) + (b.locMatch ? 5 : 0);
-                return bScore - aScore;
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
             });
             const best = candidates[0];
             console.log(`\n✅ 1️⃣ (квартал+тип+площадь+улица): ${best.cad} (${best.area} м²)`);
+            console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             return best.cad;
         }
         
-        // 2️⃣ квартал + тип + площадь + город
-        candidates = allObjects.filter(obj => 
-            obj.typeMatch && obj.areaMatch && obj.locMatch && !obj.streetMatch
-        );
-        
-        if (candidates.length > 0) {
-            const best = candidates[0];
-            console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
-            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-            return best.cad;
+        // 🔥 ВАЖНО: переходим на уровень 2️⃣ ТОЛЬКО ЕСЛИ УЛИЦЫ НЕТ В СДЕЛКЕ!
+        if (!hasStreet) {
+            // 2️⃣ квартал + тип + площадь + город (ТОЛЬКО если улица пустая!)
+            candidates = allObjects.filter(obj => 
+                obj.typeMatch && obj.areaMatch && obj.locMatch
+            );
+            
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => {
+                    const aDiff = Math.abs(a.area - targetArea);
+                    const bDiff = Math.abs(b.area - targetArea);
+                    return aDiff - bDiff;
+                });
+                const best = candidates[0];
+                console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
+                console.log(`   Улица НСПД: "${best.nspdStreet}"`);
+                console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+                console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
+                return best.cad;
+            }
+        } else {
+            console.log(`⏭️ Пропускаем уровень 2️⃣ (по городу), так как улица "${normalizedDealStreet}" есть, но не совпала`);
         }
         
-        // 3️⃣ квартал + тип + площадь (без локации)
+        // 3️⃣ квартал + тип + площадь
         candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch
         );
@@ -6368,11 +6440,13 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             });
             const best = candidates[0];
             console.log(`\n✅ 3️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            console.log(`   ⚠️ ВНИМАНИЕ: Без проверки локации!`);
             return best.cad;
         }
         
-        // 4️⃣ квартал + площадь (без типа)
+        // 4️⃣ квартал + площадь
         candidates = allObjects.filter(obj => 
             obj.areaMatch
         );
@@ -6385,11 +6459,11 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             });
             const best = candidates[0];
             console.log(`\n✅ 4️⃣ (квартал+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            console.log(`   ⚠️ ВНИМАНИЕ: Без проверки типа и локации!`);
             return best.cad;
         }
-        
-        // ❌ НИЧЕГО НЕ НАЙДЕНО
         console.log('\n❌ НЕТ ПОДХОДЯЩИХ ОБЪЕКТОВ');
         return null;
         
@@ -6742,30 +6816,34 @@ async function syncWithNSPD() {
     const uniqueObjects = [];
     const processedKeys = new Set();
 
-    for (const deal of allDealsFlat) {
-        if (deal.cad_nspd) continue;
-        
-        const quarter = getQuarter(deal.cad_number);
-        if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
-        
-        const area = deal.area || 0;
-        if (area <= 0) continue;
-        
-        const objType = deal.obj_kind_text || 'Здание';
-        const location = deal.city || '';
-        
-        const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}`;
-        if (processedKeys.has(key)) continue;
-        processedKeys.add(key);
-        
-        uniqueObjects.push({
-            quarter: quarter,
-            area: area,
-            type: objType,
-            location: location,
-            locationKeywords: [location, deal.street || ''].filter(Boolean)
-        });
-    }
+for (const deal of allDealsFlat) {
+    if (deal.cad_nspd) continue;
+    
+    const quarter = getQuarter(deal.cad_number);
+    if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
+    
+    const area = deal.area || 0;
+    if (area <= 0) continue;
+    
+    const objType = deal.obj_kind_text || 'Здание';
+    const location = deal.city || '';
+    
+    // ✅ ИЗВЛЕКАЕМ УЛИЦУ ИЗ СДЕЛКИ
+    const street = deal.street || extractStreetFromAddress(deal.location || '');
+    
+    const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}|${street}`;
+    if (processedKeys.has(key)) continue;
+    processedKeys.add(key);
+    
+    uniqueObjects.push({
+        quarter: quarter,
+        area: area,
+        type: objType,
+        location: location,
+        // ✅ ПЕРЕДАЕМ И ГОРОД, И УЛИЦУ
+        locationKeywords: [location, street].filter(Boolean)
+    });
+}
     
     console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
     console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
