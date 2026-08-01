@@ -881,7 +881,7 @@ async function loadDealsCSV() {
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
         const streetIndex = headers.indexOf('street');
-        const rowIdIndex = headers.indexOf('row_id'); // ← НАШЛИ row_id!
+        const rowIdIndex = headers.indexOf('#');  // ← НАШЛИ row_id!
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
