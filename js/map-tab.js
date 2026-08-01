@@ -6259,7 +6259,8 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         }
         
         const targetRoot = targetType.toLowerCase().slice(0, 5);
-        let exactMatches = [];
+        
+        // ✅ СОБИРАЕМ ВСЕ ОБЪЕКТЫ С МЕТАДАННЫМИ
         let allObjects = [];
         
         for (const f of features) {
@@ -6267,121 +6268,163 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const opts = props.options || {};
             
             const cad = opts.cad_number || props.externalKey || '';
-            
-            // ✅ ИЗВЛЕКАЕМ КВАРТАЛ ПРАВИЛЬНО (по двоеточиям)
             const cadQuarter = getQuarter(cad);
             
-            // ✅ ПРОВЕРЯЕМ СОВПАДЕНИЕ
+            // Проверяем квартал
             if (cadQuarter !== quarter) {
-                console.log(`⏭️ Пропускаем ${cad} (квартал ${cadQuarter} !== искомый ${quarter})`);
                 continue;
             }
             
-            const objType = opts.object_type_value || props.categoryName || '';
+            const objType = opts.type || opts.object_type_value || opts.land_record_type || props.categoryName || '';
             
-            let area = parseFloat(opts.params_area) || 
-                       parseFloat(opts.specified_area) || 
-                       parseFloat(opts.area) || 0;
+            let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
+                       parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
             
             if (area === 0 && objType.includes('Сооружение')) {
                 area = parseFloat(opts.params_extension) || 0;
             }
             
-            const name = opts.params_name || opts.name || '';
-            const address = opts.address_readable_address || opts.readable_address || '';
+            const name = opts.params_name || opts.name || opts.building_name || '';
+            const address = opts.readable_address || opts.address_readable_address || '';
             
+            // Проверяем совпадения
             const typeMatch = targetRoot === objType.toLowerCase().slice(0, 5);
             const areaMatch = Math.abs(area - targetArea) <= tolerance;
             
             let locMatch = false;
+            let streetMatch = false;
+            
             if (locationKeywords && locationKeywords.length > 0) {
                 const text = `${name} ${address}`.toLowerCase();
-                locMatch = locationKeywords.some(kw => text.includes(kw.toLowerCase()));
-            }
-            
-            const score = (typeMatch ? 10 : 0) + (areaMatch ? 5 : 0) + (locMatch ? 3 : 0);
-            
-            if (cad) {
-                allObjects.push({
-                    cad: cad,
-                    type: objType,
-                    area: area,
-                    name: name,
-                    address: address,
-                    score: score,
-                    typeMatch: typeMatch,
-                    areaMatch: areaMatch,
-                    locMatch: locMatch
-                });
-                
-                if (typeMatch) {
-                    const status = areaMatch ? '✅' : '❌';
-                    const diff = Math.abs(area - targetArea);
-                    console.log(`  ${cad}`);
-                    console.log(`    Тип: ${objType} → ✅`);
-                    console.log(`    Площадь: ${area} м² → ${status} (разница ${diff.toFixed(1)}, ищем ${targetArea} ±${tolerance})`);
-                    if (locationKeywords && locationKeywords.length > 0) {
-                        console.log(`    Локация: ${locMatch ? '✅' : '❌'} → ${address.slice(0, 60)}...`);
+                for (const kw of locationKeywords) {
+                    if (!kw) continue;
+                    const searchStr = kw.toLowerCase();
+                    if (text.includes(searchStr)) {
+                        locMatch = true;
                     }
-                    console.log(`    Название: ${name.slice(0, 50) || '—'}`);
-                    console.log(`    Очки: ${score}`);
-                    console.log('---');
-                    
-                    if (areaMatch) {
-                        exactMatches.push({
-                            cad: cad,
-                            type: objType,
-                            area: area,
-                            name: name,
-                            address: address,
-                            score: score,
-                            locMatch: locMatch
-                        });
+                    // Проверяем совпадение по улице (более строгое)
+                    if (address.toLowerCase().includes(searchStr)) {
+                        streetMatch = true;
                     }
                 }
             }
+            
+            allObjects.push({
+                cad: cad,
+                type: objType,
+                area: area,
+                name: name,
+                address: address,
+                typeMatch: typeMatch,
+                areaMatch: areaMatch,
+                locMatch: locMatch,
+                streetMatch: streetMatch
+            });
         }
         
-        if (exactMatches.length > 0) {
-            exactMatches.sort((a, b) => b.score - a.score);
-            const best = exactMatches[0];
-            console.log(`\n✅ НАЙДЕНО ТОЧНОЕ СОВПАДЕНИЕ: ${best.cad} (площадь ${best.area} м², очков: ${best.score})`);
+        // ============================================================
+        // ✅ КАСКАДНЫЙ ПОИСК (6 уровней)
+        // ============================================================
+        
+        // 1️⃣ квартал + тип + площадь + улица
+        let candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.areaMatch && obj.streetMatch
+        );
+        
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aScore = (a.streetMatch ? 10 : 0) + (a.locMatch ? 5 : 0);
+                const bScore = (b.streetMatch ? 10 : 0) + (b.locMatch ? 5 : 0);
+                return bScore - aScore;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 1️⃣ (квартал+тип+площадь+улица): ${best.cad} (${best.area} м²)`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             return best.cad;
         }
         
-        console.log('\n❌ ТОЧНЫХ СОВПАДЕНИЙ НЕТ');
-        console.log(`📊 Ближайшие по площади к ${targetArea} м²:`);
+        // 2️⃣ квартал + тип + площадь + город
+        candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.areaMatch && obj.locMatch && !obj.streetMatch
+        );
         
-        const areaDiffs = [];
-        for (const obj of allObjects) {
-            if (obj.area > 0) {
-                areaDiffs.push({
-                    diff: Math.abs(obj.area - targetArea),
-                    obj: obj
-                });
-            }
+        if (candidates.length > 0) {
+            const best = candidates[0];
+            console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            return best.cad;
         }
         
-        areaDiffs.sort((a, b) => a.diff - b.diff);
+        // 3️⃣ квартал + тип + площадь
+        candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.areaMatch
+        );
         
-        if (areaDiffs.length > 0) {
-            const topResults = areaDiffs.slice(0, 10);
-            for (const item of topResults) {
-                const obj = item.obj;
-                const typeText = obj.typeMatch ? '✅' : '❌';
-                const locText = obj.locMatch ? '✅' : '❌';
-                console.log(`  ${obj.cad} | ${obj.type} | ${obj.area} м² (разница ${item.diff.toFixed(1)}) | тип ${typeText} | локация ${locText}`);
-                if (obj.address) {
-                    console.log(`    Адрес: ${obj.address.slice(0, 80)}`);
-                }
-                if (obj.name) {
-                    console.log(`    Название: ${obj.name.slice(0, 50)}`);
-                }
-            }
-        } else {
-            console.log('  Нет объектов с площадью > 0');
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 3️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            return best.cad;
         }
         
+        // 4️⃣ квартал + тип + улица
+        candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.streetMatch
+        );
+        
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 4️⃣ (квартал+тип+улица): ${best.cad} (${best.area} м²)`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            return best.cad;
+        }
+        
+        // 5️⃣ квартал + тип + локация
+        candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.locMatch
+        );
+        
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 5️⃣ (квартал+тип+локация): ${best.cad} (${best.area} м²)`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            return best.cad;
+        }
+        
+        // 6️⃣ квартал + площадь (без типа)
+        candidates = allObjects.filter(obj => 
+            obj.areaMatch
+        );
+        
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 6️⃣ (квартал+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            return best.cad;
+        }
+        
+        // ❌ НИЧЕГО НЕ НАЙДЕНО
+        console.log('\n❌ НЕТ ПОДХОДЯЩИХ ОБЪЕКТОВ');
         return null;
         
     } catch (error) {
