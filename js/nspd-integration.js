@@ -198,7 +198,7 @@ class NSPDIntegration {
     // 📋 НОРМАЛИЗАЦИЯ ОТВЕТА
     // ============================================================
     
-  normalizeResponse(data) {
+ normalizeResponse(data) {
     console.log('🔄 Нормализация ответа...');
     
     if (!data || !data.data || !data.data.features || data.data.features.length === 0) {
@@ -210,6 +210,12 @@ class NSPDIntegration {
         const props = feature.properties || {};
         const options = props.options || {};
         const systemInfo = props.systemInfo || {};
+        
+        // ✅ ИЗВЛЕКАЕМ ЭТАЖ ИЗ МАССИВА
+        let floorValue = '';
+        if (options.floor && Array.isArray(options.floor) && options.floor.length > 0) {
+            floorValue = options.floor[0]; // "04/Этаж"
+        }
         
         return {
             // Из properties
@@ -239,6 +245,9 @@ class NSPDIntegration {
             // Площадь
             area: parseFloat(options.area) || parseFloat(options.params_area) || parseFloat(options.build_record_area) || parseFloat(options.specified_area) || 0,
             specified_area: parseFloat(options.specified_area) || 0,
+            
+            // ✅ ЭТАЖ (из массива)
+            floor: floorValue,
             
             year_built: options.year_built || options.params_year_built || '',
             year_commisioning: options.year_commisioning || options.params_year_commisioning || '',
