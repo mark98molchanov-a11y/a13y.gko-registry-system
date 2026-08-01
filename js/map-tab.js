@@ -6459,28 +6459,35 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return best.cad;
         }
         
-        // 🔥 ВАЖНО: переходим на уровень 2️⃣ ТОЛЬКО ЕСЛИ УЛИЦЫ НЕТ В СДЕЛКЕ!
-        if (!hasStreet) {
-            // 2️⃣ квартал + тип + площадь + город (ТОЛЬКО если улица пустая!)
-            candidates = allObjects.filter(obj => 
-                obj.typeMatch && obj.areaMatch && obj.locMatch
-            );
-            
-            if (candidates.length > 0) {
-                candidates.sort((a, b) => {
-                    const aDiff = Math.abs(a.area - targetArea);
-                    const bDiff = Math.abs(b.area - targetArea);
-                    return aDiff - bDiff;
-                });
-                const best = candidates[0];
-                console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
-                console.log(`   Улица НСПД: "${best.nspdStreet}"`);
-                console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-                console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
-                return best.cad;
-            }
-        } else {
-            console.log(`⏭️ Пропускаем уровень 2️⃣ (по городу), так как улица "${normalizedDealStreet}" есть, но не совпала`);
+        // ============================================================
+        // 🔥 ГЛАВНОЕ ПРАВИЛО: ЕСЛИ УЛИЦА ЕСТЬ В СДЕЛКЕ - НЕ ПЕРЕХОДИМ ДАЛЬШЕ!
+        // ============================================================
+        if (hasStreet) {
+            console.log(`\n⛔ Улица "${normalizedDealStreet}" есть в сделке, но не совпала ни с одним объектом НСПД`);
+            console.log(`❌ Объект НЕ НАЙДЕН — пропускаем (не подменяем улицу!)`);
+            return null;  // ← ЖЕСТКО: ВОЗВРАЩАЕМ NULL, НЕ ИЩЕМ ДАЛЬШЕ!
+        }
+        
+        // ✅ ТОЛЬКО ЕСЛИ УЛИЦА В СДЕЛКЕ ПУСТАЯ (nan) — ИЩЕМ ПО ГОРОДУ
+        console.log(`\n📍 Улица в сделке пустая (nan), ищем по городу...`);
+        
+        // 2️⃣ квартал + тип + площадь + город
+        candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.areaMatch && obj.locMatch
+        );
+        
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
+            console.log(`   Улица НСПД: "${best.nspdStreet}"`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
+            return best.cad;
         }
         
         // 3️⃣ квартал + тип + площадь
@@ -6520,6 +6527,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки типа и локации!`);
             return best.cad;
         }
+        
         console.log('\n❌ НЕТ ПОДХОДЯЩИХ ОБЪЕКТОВ');
         return null;
         
