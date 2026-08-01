@@ -220,6 +220,18 @@ normalizeResponse(data) {
         // ✅ ИЗВЛЕКАЕМ ПАРАМЕТРЫ (params_type)
         let paramsType = options.params_type || '';
         
+        // ✅ ИЗВЛЕКАЕМ КАДАСТРОВЫЙ НОМЕР
+        const cadNumber = options.cad_number || props.externalKey || props.label || props.descr || '';
+        
+        // ✅ ИЗВЛЕКАЕМ КАДАСТРОВЫЙ КВАРТАЛ (первые 3 части)
+        let cadastralQuarter = '';
+        if (cadNumber) {
+            const parts = cadNumber.split(':');
+            if (parts.length >= 3) {
+                cadastralQuarter = parts.slice(0, 3).join(':');
+            }
+        }
+        
         return {
             // Из properties
             interactionId: props.interactionId || '',
@@ -231,21 +243,23 @@ normalizeResponse(data) {
             label: props.label || '',
             cadastralDistrictsCode: props.cadastralDistrictsCode || '',
             
-            // ✅ ИСПРАВЛЕНО: Берем cad_number из options
-            cadastral_number: options.cad_number || props.externalKey || props.label || props.descr || '',
+            // ✅ КАДАСТРОВЫЙ НОМЕР
+            cadastral_number: cadNumber,
             
-            // ✅ ИСПРАВЛЕНО: object_type берем из options.type
+            // ✅ КАДАСТРОВЫЙ КВАРТАЛ (первые 3 части)
+            cadastral_quarter: cadastralQuarter,
+            
+            // ✅ ТИП ОБЪЕКТА
             object_type: options.type || options.object_type_value || options.land_record_type || props.categoryName || '',
             status: options.common_data_status || options.status || '',
             ownership_type: options.ownership_type || '',
             object_name: options.params_name || options.name || options.building_name || '',
             purpose: options.purpose || options.params_purpose || options.permitted_use_established_by_document || '',
             
-            // ✅ ИСПРАВЛЕНО: address берем из readable_address
+            // ✅ АДРЕС
             address: options.readable_address || options.address_readable_address || '',
-            quarter_cad_number: options.parent_cad_number || options.quarter_cad_number || '',
             
-            // ✅ РОДИТЕЛЬСКИЙ ОБЪЕКТ
+            // ✅ РОДИТЕЛЬСКИЙ ОБЪЕКТ (здание/сооружение)
             parent_cad_number: options.parent_cad_number || '',
             
             // ✅ ПАРАМЕТРЫ ТИПА (Квартира, Комната, и т.д.)
@@ -269,7 +283,7 @@ normalizeResponse(data) {
             params_occurence_depth: parseFloat(options.params_occurence_depth) || parseFloat(options.occurence_depth) || 0,
             params_underground_floors: options.params_underground_floors || options.underground_floors || '',
             
-            // ✅ ИСПРАВЛЕНО: cost_value и cost_index из options
+            // ✅ КАДАСТРОВАЯ СТОИМОСТЬ И УПКС
             cadastral_value: parseFloat(options.cost_value) || 0,
             cadastral_index: parseFloat(options.cost_index) || 0,
             
@@ -279,7 +293,6 @@ normalizeResponse(data) {
             cost_approvement_date: options.cost_approvement_date || '',
             determination_couse: options.determination_couse || '',
             
-            // ✅ ИСПРАВЛЕНО: registration_date из options
             registration_date: options.registration_date || options.build_record_registration_date || options.land_record_reg_date || '',
             
             cultural_heritage_val: options.cultural_heritage_val || options.cultural_heritage_object || '',
@@ -652,14 +665,14 @@ displayResult(data) {
         }
     }
 
-    // ✅ БАЗОВЫЕ ПОЛЯ (добавили parent_cad_number и params_type)
+    // ✅ БАЗОВЫЕ ПОЛЯ
     const fields = [
         { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
+        { label: 'Кадастровый квартал', value: data.cadastral_quarter || '—' },
         { label: 'Тип объекта', value: objectType || '—', important: true },
         { label: 'Статус', value: data.status || '—' },
         { label: 'Форма собственности', value: data.ownership_type || '—' },
         { label: 'Адрес', value: data.address || '—', important: true },
-        { label: 'Кадастровый квартал', value: data.quarter_cad_number || '—' },
         { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
         { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
         { label: 'Назначение', value: data.purpose || '—' },
@@ -712,9 +725,9 @@ displayResult(data) {
 
     const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== '');
 
-    // КВАРТАЛ ДЛЯ КНОПКИ
-    const quarter = data.quarter_cad_number || this.extractQuarter(data.cadastral_number);
-    console.log('🏠 Квартал для кнопки:', quarter);
+    // КВАРТАЛ ДЛЯ КНОПКИ (используем кадастровый квартал)
+    const quarter = data.cadastral_quarter || this.extractQuarter(data.cadastral_number);
+    console.log('🏠 Кадастровый квартал для кнопки:', quarter);
     
     resultDiv.innerHTML = `
         <div style="
@@ -771,7 +784,6 @@ displayResult(data) {
     
     console.log('✅ Данные отображены в карточке');
 }
-
     // ============================================================
     // UI: СОСТОЯНИЯ
     // ============================================================
