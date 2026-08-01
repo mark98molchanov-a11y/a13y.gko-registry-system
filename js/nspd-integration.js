@@ -670,13 +670,13 @@ displayResult(data) {
     let upksValue = data.cadastral_index || 0;
     if (upksValue === 0) {
         const cost = data.cadastral_value || 0;
-        const area = data.specified_area || data.area || 0;
+        const area = data.specified_area || data.area || data.params_built_up_area || 0;
         if (cost > 0 && area > 0) {
             upksValue = cost / area;
         }
     }
 
-    // ✅ БАЗОВЫЕ ПОЛЯ (для ЕНК убираем Назначение из базовых)
+    // ✅ БАЗОВЫЕ ПОЛЯ
     const fields = [
         { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
         { label: 'Кадастровый квартал', value: data.cadastral_quarter || '—' },
@@ -686,12 +686,8 @@ displayResult(data) {
         { label: 'Адрес', value: data.address || '—', important: true },
         { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
         { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
+        { label: 'Назначение', value: data.purpose || '—' },
     ];
-
-    // ✅ ДЛЯ ЕНК НЕ ДОБАВЛЯЕМ НАЗНАЧЕНИЕ В БАЗОВЫЕ ПОЛЯ (оно будет в специфических)
-    if (!isComplex) {
-        fields.push({ label: 'Назначение', value: data.purpose || '—' });
-    }
 
     // ✅ ДЛЯ МАШИНО-МЕСТ / ПАРКИНГА
     if (isParking) {
@@ -730,6 +726,7 @@ displayResult(data) {
     else if (isStructure) {
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
+            { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
             { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : '—' },
             { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
             { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : '—' },
@@ -738,11 +735,13 @@ displayResult(data) {
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
-    // ✅ ДЛЯ ОБЪЕКТОВ НЕЗАВЕРШЕННОГО СТРОИТЕЛЬСТВА
+    // ✅ ДЛЯ ОБЪЕКТОВ НЕЗАВЕРШЕННОГО СТРОИТЕЛЬСТВА — используем params_built_up_area
     else if (isConstruction) {
+        let buildArea = data.area > 0 ? data.area : data.params_built_up_area;
+        
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
-            { label: 'Площадь застройки', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : (data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : '—'), important: true },
+            { label: 'Площадь застройки', value: buildArea > 0 ? buildArea.toFixed(1) + ' м²' : '—', important: true },
             { label: 'Степень готовности', value: data.degree_readiness ? data.degree_readiness + '%' : '—' },
             { label: 'Тип права', value: data.right_type || '—' },
             { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
@@ -750,7 +749,7 @@ displayResult(data) {
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     } 
-    // ✅ ДЛЯ ЕДИНЫХ НЕДВИЖИМЫХ КОМПЛЕКСОВ (ЕНК) — без дублирования Назначения
+    // ✅ ДЛЯ ЕДИНЫХ НЕДВИЖИМЫХ КОМПЛЕКСОВ (ЕНК)
     else if (isComplex) {
         fields.push(
             { label: 'Наименование', value: data.object_name || data.name || '—', important: true },
@@ -770,6 +769,7 @@ displayResult(data) {
             { label: 'Площадь', value: areaValue, important: true },
             { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
             { label: 'ВРИ', value: data.permitted_uses_name || data.purpose || '—' },
+            { label: 'Назначение', value: data.land_record_subtype || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
     }
@@ -840,6 +840,7 @@ displayResult(data) {
     
     console.log('✅ Данные отображены в карточке');
 }
+
     // ============================================================
     // UI: СОСТОЯНИЯ
     // ============================================================
