@@ -7129,7 +7129,7 @@ if (foundCount > 0) {
             console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
             
             // ✅ 2. ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ GIST ID
-            const existingGistId = localStorage.getItem('deals_csv_gist_id');
+            const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
             
             let gistData;
             
