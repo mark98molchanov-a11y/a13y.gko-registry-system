@@ -586,7 +586,7 @@ class NSPDIntegration {
     // UI: ОТОБРАЖЕНИЕ ВСЕХ ДАННЫХ (БЕЗ ИЗМЕНЕНИЙ)
     // ============================================================
     
-   displayResult(data) {
+ displayResult(data) {
     console.log('📊 displayResult вызван с данными:', data);
     
     let resultDiv = document.getElementById('cadResult');
@@ -634,51 +634,35 @@ class NSPDIntegration {
         }
     }
 
-    // БАЗОВЫЕ ПОЛЯ ДЛЯ ВСЕХ ТИПОВ
+    // БАЗОВЫЕ ПОЛЯ
     const fields = [
         { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
         { label: 'Тип объекта', value: objectType || '—', important: true },
-        { label: 'Назначение', value: data.purpose || '—' },
         { label: 'Статус', value: data.status || '—' },
         { label: 'Форма собственности', value: data.ownership_type || '—' },
         { label: 'Адрес', value: data.address || '—', important: true },
         { label: 'Кадастровый квартал', value: data.quarter_cad_number || '—' },
         { label: 'Кадастровая стоимость', value: data.cadastral_value > 0 ? formatPrice(data.cadastral_value) : '—', important: true },
         { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
+        { label: 'Назначение', value: data.purpose || '—' },
     ];
 
-    // ✅ ДОБАВЛЯЕМ ПОЛЯ ДЛЯ ПОМЕЩЕНИЙ (isPremises)
+    // ✅ ДЛЯ ПОМЕЩЕНИЙ И ЗДАНИЙ — ДОБАВЛЯЕМ ПЛОЩАДЬ И ЭТАЖ
     if (isBuilding || isPremises) {
         fields.push(
-            { label: 'Наименование', value: data.object_name || data.building_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
-            { label: 'Этаж', value: data.params_floors || data.floors || '—' },
+            { label: 'Этаж', value: data.floor || '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
             { label: 'Материал стен', value: data.materials || '—' },
         );
     } else if (isStructure) {
         fields.push(
-            { label: 'Наименование', value: data.object_name || '—' },
-            { label: 'Назначение', value: data.purpose || '—' },
             { label: 'Протяженность', value: data.params_extension > 0 ? data.params_extension + ' м' : '—' },
             { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
             { label: 'Высота', value: data.params_height > 0 ? data.params_height + ' м' : '—' },
             { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
-        );
-    } else if (isConstruction) {
-        fields.push(
-            { label: 'Назначение', value: data.purpose || '—' },
-            { label: 'Площадь застройки', value: data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : '—' },
-            { label: 'Степень готовности', value: data.degree_readiness ? data.degree_readiness + '%' : '—' },
-            { label: 'Тип права', value: data.right_type || '—' },
-            { label: 'Объем', value: data.params_volume > 0 ? data.params_volume + ' м³' : '—' },
-        );
-    } else if (isComplex) {
-        fields.push(
-            { label: 'Наименование', value: data.object_name || data.name || '—' },
-            { label: 'Назначение', value: data.purpose || '—' },
         );
     } else if (isLand) {
         const areaValue = data.specified_area > 0 
@@ -688,24 +672,18 @@ class NSPDIntegration {
         fields.push(
             { label: 'Площадь', value: areaValue, important: true },
             { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
-            { label: 'Вид разрешенного использования', value: data.permitted_uses_name || data.purpose || '—' },
-            { label: 'Подтип', value: data.land_record_subtype || '—' },
+            { label: 'ВРИ', value: data.permitted_uses_name || data.purpose || '—' },
         );
     }
 
-    // ДОБАВЛЯЕМ ДАТЫ (только если есть)
+    // ДАТЫ (только если есть)
     if (data.registration_date) {
         fields.push({ label: 'Дата регистрации', value: formatDate(data.registration_date) });
     }
 
-    // ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ (только важное)
-    fields.push(
-        { label: 'Категория', value: data.categoryName || data.category || '—' },
-    );
-
     const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== '');
 
-    // ОТОБРАЖЕНИЕ
+    // КВАРТАЛ ДЛЯ КНОПКИ
     const quarter = data.quarter_cad_number || this.extractQuarter(data.cadastral_number);
     console.log('🏠 Квартал для кнопки:', quarter);
     
@@ -741,24 +719,23 @@ class NSPDIntegration {
             
             <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
                 <button onclick="nspdApp.clear()" 
-                        style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
+                        style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px;">
                     Очистить
                 </button>
                 ${quarter && quarter !== '—' && quarter !== '' ? `
                 <button onclick="window.nspdApp.searchQuarter('${quarter}')" 
-                        style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
+                        style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px;">
                     🗺️ Найти квартал: ${quarter}
                 </button>
                 ` : ''}
                 <button onclick="nspdApp.copyData()" 
-                        style="padding: 5px 14px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; font-size: 10px; transition: all 0.2s;">
+                        style="padding: 5px 14px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; font-size: 10px;">
                     📋 Копировать
                 </button>
             </div>
             
-            <div style="margin-top: 8px; font-size: 8px; color: #cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 6px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+            <div style="margin-top: 8px; font-size: 8px; color: #cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 6px;">
                 <span>Всего найдено: ${data.totalCount || 0}</span>
-                ${data.hasGeometry ? '<span>📍 С геометрией</span>' : ''}
             </div>
         </div>
     `;
