@@ -6355,24 +6355,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return best.cad;
         }
         
-        // 3️⃣ квартал + тип + площадь
-        candidates = allObjects.filter(obj => 
-            obj.typeMatch && obj.areaMatch
-        );
-        
-        if (candidates.length > 0) {
-            candidates.sort((a, b) => {
-                const aDiff = Math.abs(a.area - targetArea);
-                const bDiff = Math.abs(b.area - targetArea);
-                return aDiff - bDiff;
-            });
-            const best = candidates[0];
-            console.log(`\n✅ 3️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
-            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-            return best.cad;
-        }
-        
-        // 4️⃣ квартал + тип + улица
+        // 3️⃣ квартал + тип + улица (ПОДНЯЛИ НА 3-Е МЕСТО!)
         candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.streetMatch
         );
@@ -6384,7 +6367,24 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 4️⃣ (квартал+тип+улица): ${best.cad} (${best.area} м²)`);
+            console.log(`\n✅ 3️⃣ (квартал+тип+улица): ${best.cad} (${best.area} м²)`);
+            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+            return best.cad;
+        }
+        
+        // 4️⃣ квартал + тип + площадь
+        candidates = allObjects.filter(obj => 
+            obj.typeMatch && obj.areaMatch
+        );
+        
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                const aDiff = Math.abs(a.area - targetArea);
+                const bDiff = Math.abs(b.area - targetArea);
+                return aDiff - bDiff;
+            });
+            const best = candidates[0];
+            console.log(`\n✅ 4️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             return best.cad;
         }
@@ -6406,7 +6406,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             return best.cad;
         }
         
-        // 6️⃣ квартал + площадь (без типа)
+        // 6️⃣ квартал + площадь
         candidates = allObjects.filter(obj => 
             obj.areaMatch
         );
