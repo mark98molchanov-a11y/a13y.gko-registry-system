@@ -6279,28 +6279,13 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     };
     
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        
-        let abortHandler = null;
-        if (signal) {
-            abortHandler = function() {
-                console.log('⛔ Отмена запроса к НСПД');
-                controller.abort();
-            };
-            signal.addEventListener('abort', abortHandler);
-        }
-        
+        // ✅ ИСПОЛЬЗУЕМ ТОЛЬКО ВНЕШНИЙ СИГНАЛ
+        // Если signal === null — fetch сам создаст свой сигнал
         const response = await fetch(url, {
             method: 'GET',
             headers: headers,
-            signal: controller.signal
+            signal: signal  // ← ПРЯМО ПЕРЕДАЕМ ВНЕШНИЙ СИГНАЛ
         });
-        
-        clearTimeout(timeoutId);
-        if (abortHandler && signal) {
-            signal.removeEventListener('abort', abortHandler);
-        }
         
         if (!response.ok) {
             console.warn(`⚠️ Ошибка запроса к НСПД: ${response.status}`);
@@ -6363,22 +6348,21 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const nspdStreet = normalizeStreet(extractStreetFromAddress(address));
             
             // Проверяем совпадения
-function getTypeAliases(type) {
-    const map = {
-        'помещение': ['помещение', 'квартира', 'нежилое', 'жилое'],
-        'квартира': ['квартира', 'помещение', 'жилое'],
-        'здание': ['здание', 'строение', 'сооружение'],
-        'сооружение': ['сооружение', 'здание', 'строение']
-    };
-    const key = type.toLowerCase().slice(0, 5);
-    const aliases = map[key] || [type.toLowerCase()];
-    // ✅ Добавляем точное совпадение первым
-    const exact = type.toLowerCase();
-    if (!aliases.includes(exact)) {
-        aliases.unshift(exact);
-    }
-    return aliases.concat(aliases.map(a => a.slice(0, 5)));
-}
+            function getTypeAliases(type) {
+                const map = {
+                    'помещение': ['помещение', 'квартира', 'нежилое', 'жилое'],
+                    'квартира': ['квартира', 'помещение', 'жилое'],
+                    'здание': ['здание', 'строение', 'сооружение'],
+                    'сооружение': ['сооружение', 'здание', 'строение']
+                };
+                const key = type.toLowerCase().slice(0, 5);
+                const aliases = map[key] || [type.toLowerCase()];
+                const exact = type.toLowerCase();
+                if (!aliases.includes(exact)) {
+                    aliases.unshift(exact);
+                }
+                return aliases.concat(aliases.map(a => a.slice(0, 5)));
+            }
 
             const typeAliases = getTypeAliases(targetType);
             const typeMatch = typeAliases.some(alias => 
@@ -6386,13 +6370,10 @@ function getTypeAliases(type) {
             );
             const areaMatch = Math.abs(area - targetArea) <= tolerance;
             
-            // ✅ СТРИТМЭТЧ - нормализованное сравнение (только если улица есть)
+            // ✅ СТРИТМЭТЧ - нормализованное сравнение
             let streetMatch = false;
             if (hasStreet && nspdStreet) {
-                // 1. Точное совпадение
                 streetMatch = normalizedDealStreet === nspdStreet;
-                
-                // 2. Частичное совпадение (минимум 3 символа)
                 if (!streetMatch) {
                     const minLen = Math.min(normalizedDealStreet.length, nspdStreet.length);
                     if (minLen >= 3) {
@@ -6400,8 +6381,6 @@ function getTypeAliases(type) {
                                       nspdStreet.includes(normalizedDealStreet);
                     }
                 }
-                
-                // 3. Совпадение по корню слова
                 if (!streetMatch) {
                     const dealRoot = getStreetRoot(normalizedDealStreet);
                     const nspdRoot = getStreetRoot(nspdStreet);
@@ -6440,7 +6419,7 @@ function getTypeAliases(type) {
         // ✅ КАСКАДНЫЙ ПОИСК
         // ============================================================
         
-        // 1️⃣ квартал + тип + площадь + улица (ТОЧНОЕ СОВПАДЕНИЕ)
+        // 1️⃣ квартал + тип + площадь + улица
         let candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch && obj.streetMatch
         );
@@ -6458,19 +6437,15 @@ function getTypeAliases(type) {
             return best.cad;
         }
         
-        // ============================================================
-        // 🔥 ГЛАВНОЕ ПРАВИЛО: ЕСЛИ УЛИЦА ЕСТЬ В СДЕЛКЕ - НЕ ПЕРЕХОДИМ ДАЛЬШЕ!
-        // ============================================================
+        // 🔥 ЕСЛИ УЛИЦА ЕСТЬ В СДЕЛКЕ - НЕ ПЕРЕХОДИМ ДАЛЬШЕ
         if (hasStreet) {
             console.log(`\n⛔ Улица "${normalizedDealStreet}" есть в сделке, но не совпала ни с одним объектом НСПД`);
-            console.log(`❌ Объект НЕ НАЙДЕН — пропускаем (не подменяем улицу!)`);
-            return null;  // ← ЖЕСТКО: ВОЗВРАЩАЕМ NULL, НЕ ИЩЕМ ДАЛЬШЕ!
+            console.log(`❌ Объект НЕ НАЙДЕН — пропускаем`);
+            return null;
         }
         
-        // ✅ ТОЛЬКО ЕСЛИ УЛИЦА В СДЕЛКЕ ПУСТАЯ (nan) — ИЩЕМ ПО ГОРОДУ
-        console.log(`\n📍 Улица в сделке пустая (nan), ищем по городу...`);
-        
         // 2️⃣ квартал + тип + площадь + город
+        console.log(`\n📍 Улица в сделке пустая, ищем по городу...`);
         candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch && obj.locMatch
         );
@@ -6484,7 +6459,6 @@ function getTypeAliases(type) {
             const best = candidates[0];
             console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
-            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
             return best.cad;
         }
@@ -6501,10 +6475,9 @@ function getTypeAliases(type) {
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 3️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`\n✅ 3️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м²)`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
-            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-            console.log(`   ⚠️ ВНИМАНИЕ: Без проверки локации!`);
+            console.log(`   ⚠️ Без проверки локации!`);
             return best.cad;
         }
         
@@ -6520,14 +6493,13 @@ function getTypeAliases(type) {
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 4️⃣ (квартал+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`\n✅ 4️⃣ (квартал+площадь): ${best.cad} (${best.area} м²)`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
-            console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-            console.log(`   ⚠️ ВНИМАНИЕ: Без проверки типа и локации!`);
+            console.log(`   ⚠️ Без проверки типа и локации!`);
             return best.cad;
         }
         
-        // 5️⃣ поиск по номеру дома (ДАЖЕ ЕСЛИ УЛИЦА ЕСТЬ — ИЩЕМ!)
+        // 5️⃣ поиск по номеру дома
         const dealHouse = extractHouseNumber(locationKeywords.join(' '));
         if (dealHouse) {
             const houseCandidates = allObjects.filter(obj => {
@@ -6544,8 +6516,7 @@ function getTypeAliases(type) {
                 const best = houseCandidates[0];
                 console.log(`\n✅ 5️⃣ (квартал+площадь+дом): ${best.cad} (${best.area} м², дом ${dealHouse})`);
                 console.log(`   Улица НСПД: "${best.nspdStreet}"`);
-                console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-                console.log(`   ⚠️ ВНИМАНИЕ: Поиск по номеру дома (без проверки улицы)!`);
+                console.log(`   ⚠️ Поиск по номеру дома`);
                 return best.cad;
             }
         }
