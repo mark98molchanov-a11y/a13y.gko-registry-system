@@ -6863,6 +6863,7 @@ async function syncWithNSPD() {
     
     // ✅ СОЗДАЕМ AbortController ДЛЯ ПРЕРЫВАНИЯ
     syncAbortController = new AbortController();
+    window.syncAbortController = syncAbortController;
     
     // Проходим по КАЖДОЙ сделке
     for (let i = 0; i < allDealsFlat.length; i++) {
@@ -6942,6 +6943,7 @@ async function syncWithNSPD() {
     
     // ✅ ОЧИЩАЕМ AbortController
     syncAbortController = null;
+    window.syncAbortController = null; 
     if (abortBtn) abortBtn.remove();
     
     // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
