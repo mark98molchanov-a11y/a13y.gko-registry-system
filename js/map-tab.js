@@ -6993,7 +6993,6 @@ for (const deal of allDealsFlat) {
     
     // ✅ ОЧИЩАЕМ AbortController
     syncAbortController = null;
-    if (abortBtn) abortBtn.remove();
     
     // ✅ ОБНОВЛЯЕМ ТАБЛИЦУ
     if (typeof renderDealsTable === 'function') {
