@@ -7083,18 +7083,60 @@ if (foundCount > 0) {
     console.log('📊 Формирование CSV с номерами НСПД...');
     
     // ✅ Используем row_id как уникальный ключ
-    const uniquePairs = {};
-    
-    for (const deal of allDealsFlat) {
-        if (deal.cad_nspd && deal.row_id) {
-            if (!uniquePairs[deal.row_id]) {
-                uniquePairs[deal.row_id] = {
-                    row_id: deal.row_id,
-                    cad_nspd: deal.cad_nspd
-                };
+let existingNspdMap = {};
+try {
+    const gistCheck = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
+        headers: { 'Accept': 'application/json' }
+    });
+    if (gistCheck.ok) {
+        const gistData = await gistCheck.json();
+        const file = gistData.files?.['deals_clean.csv'];
+        if (file && file.content) {
+            const lines = file.content.split('\n').filter(line => line.trim());
+            if (lines.length > 1) {
+                const headers = lines[0].split(',');
+                const rowIdIdx = headers.indexOf('row_id');
+                const nspdIdx = headers.indexOf('cad_nspd');
+                if (rowIdIdx !== -1 && nspdIdx !== -1) {
+                    for (let i = 1; i < lines.length; i++) {
+                        const values = lines[i].split(',');
+                        if (values.length > Math.max(rowIdIdx, nspdIdx)) {
+                            const rowId = values[rowIdIdx]?.trim() || '';
+                            const nspd = values[nspdIdx]?.trim() || '';
+                            if (rowId && nspd) {
+                                existingNspdMap[rowId] = nspd;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
+} catch(e) {
+    console.warn('⚠️ Не удалось загрузить старые связи из Gist:', e.message);
+}
+console.log(`📊 Загружено ${Object.keys(existingNspdMap).length} старых связей из Gist`);
+
+// ✅ Используем row_id как уникальный ключ
+const uniquePairs = {};
+
+// ✅ СНАЧАЛА ДОБАВЛЯЕМ ВСЕ СТАРЫЕ СВЯЗИ
+for (const [rowId, nspd] of Object.entries(existingNspdMap)) {
+    uniquePairs[rowId] = {
+        row_id: rowId,
+        cad_nspd: nspd
+    };
+}
+
+// ✅ ПОТОМ ОБНОВЛЯЕМ/ДОБАВЛЯЕМ НОВЫЕ (перезаписываем старые, если есть)
+for (const deal of allDealsFlat) {
+    if (deal.cad_nspd && deal.row_id) {
+        uniquePairs[deal.row_id] = {
+            row_id: deal.row_id,
+            cad_nspd: deal.cad_nspd
+        };
+    }
+}
     
     // ✅ CSV с 2 полями: row_id и cad_nspd
     let csv = 'row_id,cad_nspd\n';
