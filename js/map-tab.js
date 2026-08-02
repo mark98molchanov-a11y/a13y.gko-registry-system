@@ -7448,6 +7448,8 @@ window.getQuarter = getQuarter;
 window.dealsData = dealsData;
 window.mapData = mapData;
 window.loadDealsCSV = loadDealsCSV;
+window.syncAbortController = syncAbortController;
+window.isSyncRunning = isSyncRunning;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
