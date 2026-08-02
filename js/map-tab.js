@@ -7128,31 +7128,28 @@ if (foundCount > 0) {
             const userData = await testResponse.json();
             console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
             
-            // ✅ 2. ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ GIST ID
+            // ✅ 2. ИСПОЛЬЗУЕМ ЖЕСТКО ЗАКОДИРОВАННЫЙ GIST ID
             const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
             
             let gistData;
             
-            if (existingGistId) {
+            if (HARDCODED_GIST_ID) {
                 // ✅ ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЙ GIST
-                console.log(`🔄 Обновление существующего Gist: ${existingGistId}`);
+                console.log(`🔄 Обновление существующего Gist: ${HARDCODED_GIST_ID}`);
                 showNotification('🔄 Обновление существующего Gist...', 'info');
                 
                 try {
                     // ✅ ПРОВЕРЯЕМ, СУЩЕСТВУЕТ ЛИ GIST
-                    const getGistResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
+                    const getGistResponse = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
                         headers: {
                             'Authorization': `token ${token}`,
                             'Accept': 'application/json'
                         }
                     });
                     
-                    // ✅ ЕСЛИ GIST НЕ СУЩЕСТВУЕТ (404) — УДАЛЯЕМ ID И СОЗДАЕМ НОВЫЙ
+                    // ✅ ЕСЛИ GIST НЕ СУЩЕСТВУЕТ (404) — СОЗДАЕМ НОВЫЙ
                     if (getGistResponse.status === 404) {
-                        console.warn(`⚠️ Gist ${existingGistId} не найден (404), создаем новый...`);
-                        localStorage.removeItem('deals_csv_gist_id');
-                        localStorage.removeItem('deals_csv_gist_url');
-                        // ✅ ПРОДОЛЖАЕМ В БЛОК else (создание нового)
+                        console.warn(`⚠️ Gist ${HARDCODED_GIST_ID} не найден (404), создаем новый...`);
                     } else if (!getGistResponse.ok) {
                         throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
                     } else {
@@ -7160,7 +7157,7 @@ if (foundCount > 0) {
                         const currentGist = await getGistResponse.json();
                         const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
                         
-                        const updateResponse = await fetch(`https://api.github.com/gists/${existingGistId}`, {
+                        const updateResponse = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
                             method: 'PATCH',
                             headers: {
                                 'Authorization': `token ${token}`,
@@ -7223,7 +7220,7 @@ if (foundCount > 0) {
                 }
             }
             
-            // ✅ Если gistData еще не определен (т.е. не было existingGistId или он был удален)
+            // ✅ Если gistData еще не определен (т.е. не было HARDCODED_GIST_ID)
             if (!gistData) {
                 console.log('📝 Создание нового Gist...');
                 showNotification('📝 Создание нового Gist...', 'info');
