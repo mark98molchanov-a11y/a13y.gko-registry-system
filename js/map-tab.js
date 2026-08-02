@@ -6461,13 +6461,13 @@ function getTypeAliases(type) {
         // ============================================================
         // 🔥 ГЛАВНОЕ ПРАВИЛО: ЕСЛИ УЛИЦА ЕСТЬ В СДЕЛКЕ - НЕ ПЕРЕХОДИМ ДАЛЬШЕ!
         // ============================================================
-     if (hasStreet) {
+    if (hasStreet) {
     console.log(`\n⛔ Улица "${normalizedDealStreet}" есть в сделке, но не совпала с объектами НСПД`);
-    console.log(`🔍 Пробуем найти по кварталу + площади + городу (без типа)...`);
+    console.log(`🔍 Пробуем найти по кварталу + площади + городу + улице (без типа)...`);
     
-    // 🆕 ДОПОЛНИТЕЛЬНЫЙ ПОИСК: квартал + площадь + город (БЕЗ ТИПА)
+    // 🆕 ДОПОЛНИТЕЛЬНЫЙ ПОИСК: квартал + площадь + город + улица (БЕЗ ТИПА)
     let candidates = allObjects.filter(obj => 
-        obj.areaMatch && obj.locMatch
+        obj.areaMatch && obj.locMatch && obj.streetMatch
     );
     
     if (candidates.length > 0) {
@@ -6477,7 +6477,7 @@ function getTypeAliases(type) {
             return aDiff - bDiff;
         });
         const best = candidates[0];
-        console.log(`\n✅ (квартал+площадь+город, без типа): ${best.cad} (${best.area} м²)`);
+        console.log(`\n✅ (квартал+площадь+город+улица, без типа): ${best.cad} (${best.area} м²)`);
         console.log(`   Улица НСПД: "${best.nspdStreet}"`);
         console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
         console.log(`   ⚠️ ВНИМАНИЕ: Поиск без проверки типа!`);
@@ -6485,7 +6485,7 @@ function getTypeAliases(type) {
     }
     
     console.log(`❌ Объект НЕ НАЙДЕН — пропускаем (не подменяем улицу!)`);
-    return null;  // ← ВОЗВРАЩАЕМ NULL, НЕ ИЩЕМ ДАЛЬШЕ!
+    return null;
 }
         
         // ✅ ТОЛЬКО ЕСЛИ УЛИЦА В СДЕЛКЕ ПУСТАЯ (nan) — ИЩЕМ ПО ГОРОДУ
