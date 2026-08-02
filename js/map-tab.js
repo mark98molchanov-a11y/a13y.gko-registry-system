@@ -6771,7 +6771,7 @@ async function syncWithNSPD() {
         return;
     }
     
-    console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД');
+    console.log('🔄 НАЧАЛО СИНХРОНИЗАЦИИ С НСПД (ПОКАДРОВАЯ)');
     isSyncRunning = true;
     
     // Проверяем, есть ли данные
@@ -6854,206 +6854,96 @@ async function syncWithNSPD() {
     console.log(`📊 Уже заполнено (правильных): ${alreadyFilled} объектов`);
     
     // ================================================================
-    // ✅ ТЕПЕРЬ СОБИРАЕМ УНИКАЛЬНЫЕ ОБЪЕКТЫ (только с пустым cad_nspd)
+    // ✅ НОВАЯ ВЕРСИЯ: ПРОХОД ПО КАЖДОЙ СДЕЛКЕ С КЕШИРОВАНИЕМ
     // ================================================================
-    const uniqueObjects = [];
-    const processedKeys = new Set();
-
-for (const deal of allDealsFlat) {
-    if (deal.cad_nspd) continue;
-    
-    const quarter = getQuarter(deal.cad_number);
-    if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
-    
-    const area = deal.area || 0;
-    if (area <= 0) continue;
-    
-    const objType = deal.obj_kind_text || 'Здание';
-    const location = deal.city || '';
-    
-    // ✅ ИЗВЛЕКАЕМ УЛИЦУ ИЗ СДЕЛКИ
-    const street = deal.street || extractStreetFromAddress(deal.location || '');
-    
-    const key = `${quarter}|${area.toFixed(1)}|${objType}|${location}|${street}`;
-    if (processedKeys.has(key)) continue;
-    processedKeys.add(key);
-    
-    uniqueObjects.push({
-        quarter: quarter,
-        area: area,
-        type: objType,
-        location: location,
-        // ✅ ПЕРЕДАЕМ И ГОРОД, И УЛИЦУ
-        locationKeywords: [location, street].filter(Boolean)
-    });
-}
-    
-    console.log(`📊 Уникальных объектов для поиска: ${uniqueObjects.length}`);
-    console.log(`📊 Всего объектов в базе: ${allDealsFlat.length}`);
-    
-    if (uniqueObjects.length === 0) {
-        showNotification('✅ Все объекты уже синхронизированы', 'success');
-        if (btn) {
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.style.background = '#2563eb';
-        }
-        if (abortBtn) abortBtn.remove();
-        isSyncRunning = false;
-        return;
-    }
-    
+    const nspdCache = new Map(); // Кеш: ключ → cad_nspd
     let foundCount = 0;
     let totalProcessed = 0;
     let wasAborted = false;
+    let skippedCount = 0;
     
     // ✅ СОЗДАЕМ AbortController ДЛЯ ПРЕРЫВАНИЯ
     syncAbortController = new AbortController();
     
-    // Обрабатываем с задержкой, чтобы не перегружать API
-    for (const obj of uniqueObjects) {
-        if (syncAbortController === null) {
-            console.log('⛔ Синхронизация прервана пользователем (controller = null)');
+    // Проходим по КАЖДОЙ сделке
+    for (let i = 0; i < allDealsFlat.length; i++) {
+        const deal = allDealsFlat[i];
+        
+        // Проверка прерывания
+        if (syncAbortController?.signal?.aborted) {
+            console.log('⛔ Синхронизация прервана пользователем');
             wasAborted = true;
             break;
         }
         
-        if (syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана пользователем (signal.aborted)');
-            wasAborted = true;
-            break;
+        // Пропускаем если уже есть cad_nspd
+        if (deal.cad_nspd) {
+            continue;
+        }
+        
+        const quarter = getQuarter(deal.cad_number);
+        if (!quarter || quarter === 'nan' || quarter === 'NaN') {
+            skippedCount++;
+            continue;
+        }
+        
+        const area = deal.area || 0;
+        if (area <= 0) {
+            skippedCount++;
+            continue;
+        }
+        
+        const objType = deal.obj_kind_text || 'Здание';
+        const location = deal.city || '';
+        const street = deal.street || extractStreetFromAddress(deal.location || '');
+        
+        // ✅ КЛЮЧ ДЛЯ КЕША (ИСПОЛЬЗУЕМ ТОЧНУЮ ПЛОЩАДЬ)
+        const cacheKey = `${quarter}|${area}|${objType}|${location}|${street}`;
+        
+        // ✅ ПРОВЕРЯЕМ КЕШ
+        if (nspdCache.has(cacheKey)) {
+            const cachedNspd = nspdCache.get(cacheKey);
+            if (cachedNspd) {
+                deal.cad_nspd = cachedNspd;
+                totalProcessed++;
+            }
+            continue;
         }
         
         totalProcessed++;
-        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
         
-        const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+        // ✅ ИЩЕМ В НСПД (ТОЛЬКО ДЛЯ НОВЫХ УНИКАЛЬНЫХ ОБЪЕКТОВ)
+        console.log(`[${totalProcessed}/${allDealsFlat.length}] Поиск: ${quarter}, ${area} м², ${objType}`);
+        console.log(`   Сделка: ${deal.cad_number}, город: ${location}, улица: ${street || '—'}`);
+        
+        const locationKeywords = [location, street].filter(Boolean);
         
         const cadNspd = await searchNSPD(
-            obj.quarter,
-            obj.area,
-            obj.type,
-            obj.locationKeywords,
+            quarter,
+            area,
+            objType,
+            locationKeywords,
             1,
-            controllerSignal
+            syncAbortController?.signal
         );
         
-        if (syncAbortController === null || syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана после запроса');
-            wasAborted = true;
-            break;
-        }
+        // ✅ СОХРАНЯЕМ В КЕШ (ДАЖЕ ЕСЛИ NULL)
+        nspdCache.set(cacheKey, cadNspd);
         
         if (cadNspd) {
+            deal.cad_nspd = cadNspd;
             foundCount++;
-            let saved = false;
-            
-            // ✅ 1. ТОЧНОЕ СОВПАДЕНИЕ (ГОРОД + УЛИЦА)
-            for (const deal of allDealsFlat) {
-                const dealQuarter = getQuarter(deal.cad_number);
-                let streetMatch = true;
-                if (obj.locationKeywords && obj.locationKeywords.length > 0) {
-                    streetMatch = obj.locationKeywords.some(kw => {
-                        if (!kw || kw === '') return false;
-                        const searchStr = kw.toLowerCase();
-                        const dealStreet = (deal.street || '').toLowerCase();
-                        const dealLocation = (deal.location || '').toLowerCase();
-                        return dealStreet.includes(searchStr) || 
-                               dealLocation.includes(searchStr) ||
-                               searchStr.includes(dealStreet) ||
-                               searchStr.includes(dealLocation);
-                    });
-                }
-                
-                if (dealQuarter === obj.quarter && 
-                    Math.abs(deal.area - obj.area) <= 1 && 
-                    deal.obj_kind_text === obj.type &&
-                    deal.city === obj.location &&
-                    streetMatch &&
-                    !saved) {
-                    
-                    deal.cad_nspd = cadNspd;
-                    saved = true;
-                    console.log(`✅ ТОЧНОЕ (город+улица): ${cadNspd} → ${deal.cad_number} (${deal.city}, ${obj.locationKeywords[1] || '—'})`);
-                }
-            }
-            
-            // ✅ 2. СОВПАДЕНИЕ ПО УЛИЦЕ
-            if (!saved) {
-                for (const deal of allDealsFlat) {
-                   const dealQuarter = getQuarter(deal.cad_number);
-                    
-                    let streetMatch = true;
-                    if (obj.locationKeywords && obj.locationKeywords.length > 0) {
-                        streetMatch = obj.locationKeywords.some(kw => {
-                            if (!kw || kw === '') return false;
-                            const searchStr = kw.toLowerCase();
-                            const dealStreet = (deal.street || '').toLowerCase();
-                            const dealLocation = (deal.location || '').toLowerCase();
-                            return dealStreet.includes(searchStr) || 
-                                   dealLocation.includes(searchStr) ||
-                                   searchStr.includes(dealStreet) ||
-                                   searchStr.includes(dealLocation);
-                        });
-                    }
-                    
-                    if (dealQuarter === obj.quarter && 
-                        Math.abs(deal.area - obj.area) <= 1 && 
-                        deal.obj_kind_text === obj.type &&
-                        streetMatch &&
-                        !saved) {
-                        
-                        deal.cad_nspd = cadNspd;
-                        saved = true;
-                        console.log(`⚠️ По улице: ${cadNspd} → ${deal.cad_number} (${obj.locationKeywords[1] || '—'})`);
-                    }
-                }
-            }
-            
-            // ✅ 3. СОВПАДЕНИЕ ПО ГОРОДУ
-            if (!saved) {
-                for (const deal of allDealsFlat) {
-                    const dealQuarter = getQuarter(deal.cad_number);
-                    if (dealQuarter === obj.quarter && 
-                        Math.abs(deal.area - obj.area) <= 1 && 
-                        deal.obj_kind_text === obj.type &&
-                        deal.city === obj.location &&
-                        !saved) {
-                        
-                        deal.cad_nspd = cadNspd;
-                        saved = true;
-                        console.log(`⚠️ По городу: ${cadNspd} → ${deal.cad_number} (${deal.city})`);
-                    }
-                }
-            }
-            
-            // ✅ 4. ПРИБЛИЗИТЕЛЬНОЕ
-            if (!saved) {
-                for (const deal of allDealsFlat) {
-                    const dealQuarter = getQuarter(deal.cad_number);
-                    if (dealQuarter === obj.quarter && 
-                        Math.abs(deal.area - obj.area) <= 1 && 
-                        deal.obj_kind_text === obj.type &&
-                        !saved) {
-                        
-                        deal.cad_nspd = cadNspd;
-                        saved = true;
-                        console.log(`⚠️ Приблизительное: ${cadNspd} → ${deal.cad_number}`);
-                    }
-                }
-            }
-            
-            if (!saved) {
-                console.log(`❌ Не найдено подходящей сделки для ${cadNspd}`);
-            }
+            console.log(`✅ НАЙДЕНО (${foundCount}): ${cadNspd} → ${deal.cad_number}`);
+        } else {
+            console.log(`❌ НЕ НАЙДЕНО: ${deal.cad_number}`);
         }
         
+        // Задержка 300 мс между запросами
         await new Promise(resolve => setTimeout(resolve, 300));
         
+        // Обновляем прогресс
         if (btn) {
-            const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
+            const percent = Math.round((totalProcessed / allDealsFlat.length) * 100);
             btn.innerHTML = `⏳ Синхронизация... ${percent}% (найдено ${foundCount})`;
         }
     }
@@ -7068,14 +6958,18 @@ for (const deal of allDealsFlat) {
     }
     
     // ✅ ПОКАЗЫВАЕМ РЕЗУЛЬТАТ
-    const processedCount = wasAborted ? totalProcessed : uniqueObjects.length;
     const resultMessage = wasAborted 
-        ? `⛔ Синхронизация прервана! Найдено ${foundCount} из ${processedCount} обработанных объектов`
-        : `✅ Синхронизация завершена! Найдено ${foundCount} из ${uniqueObjects.length} объектов`;
+        ? `⛔ Синхронизация прервана! Найдено ${foundCount} новых номеров, пропущено ${skippedCount} сделок (нет квартала/площади)`
+        : `✅ Синхронизация завершена! Найдено ${foundCount} новых номеров из ${allDealsFlat.length} сделок, пропущено ${skippedCount} (нет данных)`;
     showNotification(resultMessage, wasAborted ? 'warning' : 'success');
     console.log(resultMessage);
+    console.log(`📊 Размер кеша: ${nspdCache.size} уникальных объектов`);
+    console.log(`📊 Всего сделок с cad_nspd: ${allDealsFlat.filter(d => d.cad_nspd).length}`);
     
-if (foundCount > 0) {
+    // ════════════════════════════════════════════════════════════════
+    // СОХРАНЯЕМ ТОЛЬКО row_id И cad_nspd В GIST
+    // ════════════════════════════════════════════════════════════════
+ if (foundCount > 0) {
     console.log('📊 Формирование CSV с номерами НСПД...');
     
     // ✅ Используем row_id как уникальный ключ
@@ -7124,109 +7018,98 @@ if (foundCount > 0) {
             const userData = await testResponse.json();
             console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
             
-            // ⬇️⬇️⬇️ ВОТ ЗДЕСЬ НУЖНО ИЗМЕНИТЬ ⬇️⬇️⬇️
+            // ✅ 2. ЖЕСТКО ЗАКОДИРОВАННЫЙ GIST ID (ПРАВИЛЬНЫЙ)
+            const CORRECT_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
             
-            // ✅ 2. ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ GIST ID
-            const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5'; // ← ЭТО УЖЕ ЕСТЬ
+            // ✅ 3. ПРОВЕРЯЕМ, СУЩЕСТВУЕТ ЛИ GIST
+            console.log(`🔄 Проверка Gist: ${CORRECT_GIST_ID}`);
+            const getGistResponse = await fetch(`https://api.github.com/gists/${CORRECT_GIST_ID}`, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
             
             let gistData;
             
-            // ❌ УБЕРИТЕ ЭТОТ if (existingGistId) { ... }
-            // ✅ ВМЕСТО НЕГО ИСПОЛЬЗУЙТЕ ЭТОТ КОД:
-            
-            console.log(`🔄 Проверка Gist: ${HARDCODED_GIST_ID}`);
-            
-            try {
-                // ПРОВЕРЯЕМ, СУЩЕСТВУЕТ ЛИ GIST
-                const getGistResponse = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
+            if (getGistResponse.status === 404) {
+                // Gist не существует — создаем новый
+                console.log('📝 Создание нового Gist...');
+                showNotification('📝 Создание нового Gist...', 'info');
+                
+                const createResponse = await fetch('https://api.github.com/gists', {
+                    method: 'POST',
                     headers: {
                         'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
                         'Accept': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        description: `Связи row_id → cad_nspd ${new Date().toISOString().slice(0,10)}`,
+                        public: false,
+                        files: {
+                            'deals_clean.csv': {
+                                content: csv
+                            }
+                        }
+                    })
                 });
                 
-                if (getGistResponse.status === 404) {
-                    // Gist не существует — создаем новый
-                    console.log('📝 Создание нового Gist...');
-                    showNotification('📝 Создание нового Gist...', 'info');
-                    
-                    const createResponse = await fetch('https://api.github.com/gists', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            description: `Связи row_id → cad_nspd ${new Date().toISOString().slice(0,10)}`,
-                            public: false,
-                            files: {
-                                'deals_clean.csv': {
-                                    content: csv
-                                }
-                            }
-                        })
-                    });
-                    
-                    if (!createResponse.ok) {
-                        const errorData = await createResponse.json().catch(() => ({}));
-                        throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
-                    }
-                    
-                    gistData = await createResponse.json();
-                    console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
-                    console.log(`📋 НОВЫЙ GIST ID: ${gistData.id}`);
-                    
-                    // СОХРАНЯЕМ НОВЫЙ ID В localStorage
-                    localStorage.setItem('deals_csv_gist_id', gistData.id);
-                    localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
-                    
-                    showNotification(`✅ Создан Gist! ID: ${gistData.id}`, 'success');
-                    
-                } else if (!getGistResponse.ok) {
-                    throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
-                } else {
-                    // Gist существует — обновляем
-                    console.log(`🔄 Обновление существующего Gist: ${HARDCODED_GIST_ID}`);
-                    showNotification('🔄 Обновление существующего Gist...', 'info');
-                    
-                    const currentGist = await getGistResponse.json();
-                    const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
-                    
-                    const updateResponse = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            description: `Связи row_id → cad_nspd ${new Date().toISOString().slice(0,10)}`,
-                            files: {
-                                'deals_clean.csv': {
-                                    content: csv,
-                                    sha: fileSha || undefined
-                                }
-                            }
-                        })
-                    });
-                    
-                    if (!updateResponse.ok) {
-                        const errorData = await updateResponse.json().catch(() => ({}));
-                        throw new Error(`Ошибка обновления Gist (${updateResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
-                    }
-                    
-                    gistData = await updateResponse.json();
-                    console.log(`✅ Gist обновлен: ${gistData.html_url}`);
+                if (!createResponse.ok) {
+                    const errorData = await createResponse.json().catch(() => ({}));
+                    throw new Error(`Ошибка создания Gist (${createResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
                 }
-            } catch (error) {
-                console.error('❌ Ошибка:', error);
-                showNotification(`❌ Ошибка: ${error.message}`, 'error');
+                
+                gistData = await createResponse.json();
+                console.log(`✅ Создан новый Gist: ${gistData.html_url}`);
+                console.log(`📋 НОВЫЙ GIST ID: ${gistData.id}`);
+                
+                // ✅ СОХРАНЯЕМ ПРАВИЛЬНЫЙ ID В localStorage
+                localStorage.setItem('deals_csv_gist_id', gistData.id);
+                localStorage.setItem('deals_csv_gist_url', gistData.files['deals_clean.csv'].raw_url);
+                
+                showNotification(`✅ Создан Gist! ID: ${gistData.id}`, 'success');
+                
+            } else if (!getGistResponse.ok) {
+                throw new Error(`Не удалось получить Gist: ${getGistResponse.status}`);
+            } else {
+                // ✅ Gist существует — ПОЛНОСТЬЮ ПЕРЕЗАПИСЫВАЕМ
+                console.log(`🔄 Полная перезапись Gist: ${CORRECT_GIST_ID}`);
+                showNotification('🔄 Перезапись Gist...', 'info');
+                
+                const currentGist = await getGistResponse.json();
+                const fileSha = currentGist.files?.['deals_clean.csv']?.sha || null;
+                
+                // ✅ ОБНОВЛЯЕМ (ПЕРЕЗАПИСЫВАЕМ) ВЕСЬ ФАЙЛ
+                const updateResponse = await fetch(`https://api.github.com/gists/${CORRECT_GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: `Связи row_id → cad_nspd ${new Date().toISOString().slice(0,10)}`,
+                        files: {
+                            'deals_clean.csv': {
+                                content: csv,
+                                sha: fileSha || undefined
+                            }
+                        }
+                    })
+                });
+                
+                if (!updateResponse.ok) {
+                    const errorData = await updateResponse.json().catch(() => ({}));
+                    throw new Error(`Ошибка перезаписи Gist (${updateResponse.status}): ${errorData.message || 'Неизвестная ошибка'}`);
+                }
+                
+                gistData = await updateResponse.json();
+                console.log(`✅ Gist перезаписан: ${gistData.html_url}`);
+                console.log(`📊 Новый размер: ${(csv.length / 1024).toFixed(2)} КБ`);
             }
             
-            // ⬆️⬆️⬆️ ВОТ ЗДЕСЬ НУЖНО ИЗМЕНИТЬ ⬆️⬆️⬆️
-            
-            // ✅ 3. СОХРАНЯЕМ URL И ID
+            // ✅ 4. СОХРАНЯЕМ URL И ID
             if (gistData) {
                 const rawUrl = gistData.files['deals_clean.csv'].raw_url;
                 localStorage.setItem('deals_csv_gist_url', rawUrl);
@@ -7247,7 +7130,7 @@ if (foundCount > 0) {
     console.log('ℹ️ Нет новых номеров для обновления CSV');
     showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
 }
-
+    
     // Восстанавливаем кнопку
     if (btn) {
         btn.innerHTML = originalHTML;
@@ -7256,7 +7139,7 @@ if (foundCount > 0) {
         btn.style.cursor = 'pointer';
         btn.style.background = '#2563eb';
     }
-
+    
     isSyncRunning = false;
 }
 async function updateGitHubCSVWithNSPD(token) {
