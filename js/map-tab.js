@@ -1258,6 +1258,8 @@ function togglePriceFilter() {
     renderQuarterFilters();
     renderYearBuildFilters();
     renderDealsTable();
+    renderPurposeFilters();   
+    renderVriFilters();  
     
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
