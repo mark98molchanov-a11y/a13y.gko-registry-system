@@ -822,7 +822,7 @@ const showOnMapFn = `
                     <span style="font-size: 9px; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 20px;">
                         ${objectType || 'Объект'}
                     </span>
-                    ${hasGeometry ? '<span style="font-size: 9px; color: #0ea5e9; background: #e0f2fe; padding: 2px 10px; border-radius: 20px;">📍 Есть геометрия</span>' : ''}
+                    ${hasGeometry ? '<span style="font-size: 9px; color: #0ea5e9; background: #e0f2fe; padding: 2px 10px; border-radius: 20px;">Есть геометрия</span>' : ''}
                 </div>
             </div>
             
@@ -836,27 +836,25 @@ const showOnMapFn = `
             </div>
             
             <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                <!-- ✅ НОВАЯ КНОПКА "Показать на карте" -->
                 <button onclick="(${showOnMapFn})" 
                         style="
-                            padding: 6px 16px;
-                            background: #dc2626;
-                            color: white;
-                            border: none;
+                            padding: 5px 14px;
+                            background: #f0fdf4;
+                            color: #16a34a;
+                            border: 1px solid #bbf7d0;
                             border-radius: 6px;
                             cursor: pointer;
-                            font-size: 11px;
-                            font-weight: 500;
-                            display: flex;
-                            align-items: center;
-                            gap: 6px;
+                            font-size: 10px;
                             transition: all 0.2s;
                             font-family: 'Inter', sans-serif;
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
                         "
-                        onmouseover="this.style.background='#b91c1c'"
-                        onmouseout="this.style.background='#dc2626'"
+                        onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#86efac';"
+                        onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#bbf7d0';"
                         title="${hasGeometry ? 'Показать объект на карте' : 'Найти квартал и показать объект'}">
-                    🗺️ Показать на карте
+                    Показать на карте
                 </button>
                 
                 <button onclick="nspdApp.clear()" 
