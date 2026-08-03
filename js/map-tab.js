@@ -7041,7 +7041,7 @@ const promises = chunk.map(async (obj) => {
 // ════════════════════════════════════════════════════════════════
 // 🔥 ИЗМЕНЕННАЯ ЧАСТЬ: СОХРАНЯЕМ ТОЛЬКО row_id И cad_nspd
 // ════════════════════════════════════════════════════════════════
-if (foundCount > 0) {
+if (true) {
     console.log('📊 Формирование CSV с номерами НСПД...');
     
     // ✅ ОБЪЯВЛЯЕМ GIST ID ПЕРЕД ИСПОЛЬЗОВАНИЕМ
@@ -7094,14 +7094,18 @@ if (foundCount > 0) {
     }
     
     // ✅ ПОТОМ ОБНОВЛЯЕМ/ДОБАВЛЯЕМ НОВЫЕ (перезаписываем старые, если есть)
-    for (const deal of allDealsFlat) {
-        if (deal.cad_nspd && deal.row_id) {
-            uniquePairs[deal.row_id] = {
-                row_id: deal.row_id,
-                cad_nspd: deal.cad_nspd
-            };
-        }
+let allPairsCount = 0;
+for (const deal of allDealsFlat) {
+    if (deal.cad_nspd && deal.row_id) {
+        // ✅ ДАЖЕ ЕСЛИ УЖЕ ЕСТЬ В uniquePairs - ПЕРЕЗАПИСЫВАЕМ
+        uniquePairs[deal.row_id] = {
+            row_id: deal.row_id,
+            cad_nspd: deal.cad_nspd
+        };
+        allPairsCount++;
     }
+}
+console.log(`📊 Добавлено ${allPairsCount} связей из allDealsFlat (включая "не определено")`);
     
     // ✅ CSV с 2 полями: row_id и cad_nspd
     let csv = 'row_id,cad_nspd\n';
