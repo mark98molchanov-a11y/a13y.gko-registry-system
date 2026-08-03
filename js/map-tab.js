@@ -7621,6 +7621,12 @@ window.getQuarter = getQuarter;
 window.dealsData = dealsData;
 window.mapData = mapData;
 window.loadDealsCSV = loadDealsCSV;
+window.showNSPDObject = showNSPDObject;
+window.fetchNSPDObject = fetchNSPDObject;
+window.drawNSPDPolygon = drawNSPDPolygon;
+window.closeNSPDObject = closeNSPDObject;
+window.convertEPSG3857toWGS84 = convertEPSG3857toWGS84;
+window.convertCoordinates = convertCoordinates;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
@@ -7651,3 +7657,306 @@ function autoCenterOnLoad() {
 }
 
 autoCenterOnLoad();
+let nspdObjectLayer = null;
+let nspdObjectInfo = null;
+
+// Функция для преобразования координат EPSG:3857 → WGS84
+function convertEPSG3857toWGS84(x, y) {
+    const R = 6378137;
+    const lon = (x / R) * 180 / Math.PI;
+    const lat = (Math.atan(Math.exp(y / R)) * 2 - Math.PI / 2) * 180 / Math.PI;
+    return { lat, lon };
+}
+
+function convertCoordinates(coords) {
+    if (Array.isArray(coords[0]) && typeof coords[0] === 'number' && coords.length === 2) {
+        const { lat, lon } = convertEPSG3857toWGS84(coords[0], coords[1]);
+        return [lon, lat];
+    }
+    
+    if (Array.isArray(coords[0]) && Array.isArray(coords[0][0])) {
+        return coords.map(ring => 
+            ring.map(([x, y]) => {
+                const { lat, lon } = convertEPSG3857toWGS84(x, y);
+                return [lon, lat];
+            })
+        );
+    }
+    
+    if (Array.isArray(coords[0]) && coords[0].length === 2) {
+        return coords.map(([x, y]) => {
+            const { lat, lon } = convertEPSG3857toWGS84(x, y);
+            return [lon, lat];
+        });
+    }
+    
+    return coords;
+}
+
+function showNSPDObject(cadNumber) {
+    console.log('🔴 showNSPDObject вызван для:', cadNumber);
+    
+    // Очищаем предыдущий слой
+    if (nspdObjectLayer) {
+        if (window.mapInstance) {
+            window.mapInstance.removeLayer(nspdObjectLayer);
+        }
+        nspdObjectLayer = null;
+    }
+    const oldPanel = document.getElementById('nspd-object-info');
+    if (oldPanel) oldPanel.remove();
+    
+    if (!cadNumber) {
+        console.warn('⚠️ cadNumber не передан');
+        return;
+    }
+    
+    // Находим объект в dealsData по cad_number
+    const deals = dealsData[cadNumber] || [];
+    if (deals.length === 0) {
+        console.warn(`⚠️ Нет данных для кадастрового номера: ${cadNumber}`);
+        showNotification('Объект не найден в сделках', 'warning');
+        return;
+    }
+    
+    const deal = deals[0];
+    if (!deal.cad_nspd) {
+        console.warn(`⚠️ Нет номера НСПД для: ${cadNumber}`);
+        showNotification('Нет номера НСПД для этого объекта', 'warning');
+        return;
+    }
+    
+    // Загружаем данные из НСПД по cad_nspd
+    fetchNSPDObject(deal.cad_nspd).then(nspdData => {
+        if (!nspdData) {
+            showNotification('❌ Объект не найден в НСПД', 'error');
+            return;
+        }
+        drawNSPDPolygon(nspdData, deal);
+    });
+}
+
+async function fetchNSPDObject(cadNspd) {
+    try {
+        const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(cadNspd)}&thematicSearchId=1&limit=10`;
+        console.log('📤 Запрос геометрии:', url);
+        
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const data = await response.json();
+        const features = data?.data?.features || [];
+        
+        for (const f of features) {
+            const props = f.properties || {};
+            const opts = props.options || {};
+            
+            const cad = opts.cad_number || props.externalKey || '';
+            if (cad === cadNspd) {
+                if (f.geometry && f.geometry.coordinates) {
+                    console.log('✅ Геометрия найдена:', f.geometry.type);
+                    return {
+                        geometry: f.geometry,
+                        properties: props,
+                        options: opts
+                    };
+                }
+            }
+        }
+        
+        console.warn(`⚠️ Объект ${cadNspd} не найден или нет геометрии`);
+        return null;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки объекта НСПД:', error);
+        return null;
+    }
+}
+
+function drawNSPDPolygon(nspdData, deal) {
+    const geometry = nspdData.geometry;
+    const opts = nspdData.options || {};
+    
+    if (!geometry || !geometry.coordinates) {
+        console.warn('⚠️ Нет геометрии для отображения');
+        return;
+    }
+    
+    let coordinates;
+    let isPolygon = false;
+    
+    if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
+        coordinates = geometry.coordinates;
+        isPolygon = true;
+    } else if (geometry.type === 'Point') {
+        const [x, y] = geometry.coordinates;
+        const { lat, lon } = convertEPSG3857toWGS84(x, y);
+        
+        const marker = L.marker([lat, lon], {
+            icon: L.divIcon({
+                className: 'nspd-marker',
+                html: `<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            })
+        });
+        
+        const popupContent = buildNSPDPopupContent(nspdData, deal);
+        marker.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 350 });
+        marker.addTo(window.mapInstance);
+        nspdObjectLayer = marker;
+        window.mapInstance.setView([lat, lon], 16);
+        showNSPDInfoPanel(nspdData, deal);
+        return;
+    } else {
+        console.warn(`⚠️ Неподдерживаемый тип геометрии: ${geometry.type}`);
+        return;
+    }
+    
+    if (!isPolygon) {
+        console.warn('⚠️ Неподдерживаемая геометрия');
+        return;
+    }
+    
+    let convertedCoords;
+    if (geometry.type === 'Polygon') {
+        convertedCoords = convertCoordinates(coordinates);
+    } else if (geometry.type === 'MultiPolygon') {
+        convertedCoords = coordinates.map(polygon => convertCoordinates(polygon));
+    }
+    
+    const geojson = {
+        type: 'Feature',
+        geometry: {
+            type: geometry.type,
+            coordinates: convertedCoords
+        },
+        properties: {
+            cadastral_number: deal.cad_nspd,
+            name: opts.params_name || opts.name || 'Объект НСПД',
+            address: opts.readable_address || opts.address_readable_address || ''
+        }
+    };
+    
+    nspdObjectLayer = L.geoJSON(geojson, {
+        style: {
+            fillColor: '#ef4444',
+            fillOpacity: 0.25,
+            color: '#dc2626',
+            weight: 4,
+            opacity: 0.9,
+            dashArray: '6 4'
+        },
+        onEachFeature: function(feature, layer) {
+            const popupContent = buildNSPDPopupContent(nspdData, deal);
+            layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 350 });
+            
+            layer.on('mouseover', function() {
+                this.setStyle({ fillOpacity: 0.4, weight: 5, color: '#ef4444', opacity: 1 });
+            });
+            layer.on('mouseout', function() {
+                this.setStyle({ fillOpacity: 0.25, weight: 4, color: '#dc2626', opacity: 0.9 });
+            });
+        }
+    });
+    
+    if (window.mapInstance) {
+        nspdObjectLayer.addTo(window.mapInstance);
+        const bounds = nspdObjectLayer.getBounds();
+        if (bounds && bounds.isValid()) {
+            window.mapInstance.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+    
+    showNSPDInfoPanel(nspdData, deal);
+}
+
+function buildNSPDPopupContent(nspdData, deal) {
+    const opts = nspdData.options || {};
+    const name = opts.params_name || opts.name || opts.building_name || '—';
+    const address = opts.readable_address || opts.address_readable_address || '—';
+    const area = opts.area || opts.params_area || opts.specified_area || '—';
+    const type = opts.type || opts.object_type_value || opts.land_record_type || '—';
+    const cadNspd = deal.cad_nspd || '—';
+    
+    return `
+        <div class="popup-title" style="color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:6px;">
+            🏠 ${name}
+        </div>
+        <div class="popup-row"><span class="popup-label">Кад. номер НСПД</span><span class="popup-value" style="font-family:monospace;">${cadNspd}</span></div>
+        <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">${type}</span></div>
+        <div class="popup-row"><span class="popup-label">Площадь</span><span class="popup-value">${typeof area === 'number' ? area.toFixed(1) : area} м²</span></div>
+        <div class="popup-row"><span class="popup-label">Адрес</span><span class="popup-value" style="font-size:11px;">${address}</span></div>
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;">
+            🔴 Выделенный объект из НСПД
+        </div>
+    `;
+}
+
+function showNSPDInfoPanel(nspdData, deal) {
+    const oldPanel = document.getElementById('nspd-object-info');
+    if (oldPanel) oldPanel.remove();
+    
+    const opts = nspdData.options || {};
+    const name = opts.params_name || opts.name || opts.building_name || 'Объект НСПД';
+    const address = opts.readable_address || opts.address_readable_address || '—';
+    const cadNspd = deal.cad_nspd || '—';
+    
+    const panel = document.createElement('div');
+    panel.id = 'nspd-object-info';
+    panel.style.cssText = `
+        position: absolute;
+        bottom: 100px;
+        right: 30px;
+        background: white;
+        padding: 14px 18px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        z-index: 1000;
+        border-left: 4px solid #dc2626;
+        max-width: 280px;
+        min-width: 200px;
+    `;
+    
+    panel.innerHTML = `
+        <div style="font-weight:600;color:#dc2626;margin-bottom:4px;font-size:14px;">🔴 ${name}</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${address}</div>
+        <div style="font-size:11px;color:#64748b;font-family:monospace;">${cadNspd}</div>
+        <button onclick="closeNSPDObject()" style="
+            margin-top:8px;
+            padding:3px 12px;
+            background:#f1f5f9;
+            border:1px solid #e2e8f0;
+            border-radius:6px;
+            font-size:11px;
+            cursor:pointer;
+            color:#475569;
+            font-family:'Inter',sans-serif;
+        " onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+            ✕ Закрыть
+        </button>
+    `;
+    
+    const mapContainer = document.getElementById('map-container');
+    if (mapContainer) {
+        mapContainer.style.position = 'relative';
+        mapContainer.appendChild(panel);
+    }
+}
+
+function closeNSPDObject() {
+    if (nspdObjectLayer) {
+        if (window.mapInstance) {
+            window.mapInstance.removeLayer(nspdObjectLayer);
+        }
+        nspdObjectLayer = null;
+    }
+    const panel = document.getElementById('nspd-object-info');
+    if (panel) panel.remove();
+    console.log('🗑️ Объект НСПД скрыт');
+}
