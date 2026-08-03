@@ -1003,7 +1003,15 @@ async function loadDealsCSV() {
         vriCount = vriCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
-        window.allDealsFlat = allDealsFlat;
+window.allDealsFlat = allDealsFlat;
+
+// ✅ СОХРАНЯЕМ ОРИГИНАЛЬНЫЕ ДАННЫЕ
+originalAllDealsFlat = [...allDealsFlat];
+window.originalAllDealsFlat = originalAllDealsFlat;
+
+// ✅ РАССЧИТЫВАЕМ ПОРОГИ
+priceThresholds = calculatePriceThresholds();
+window.priceThresholds = priceThresholds;
         console.log('📊 Сделок с quarter:', allDealsFlat.filter(d => d.quarter && d.quarter !== 'nan').length);
         console.log('📊 Сделок с cad_nspd:', allDealsFlat.filter(d => d.cad_nspd).length);
         
@@ -1215,10 +1223,29 @@ function togglePriceFilter() {
     
     console.log(`🔄 Фильтр по ценам ${isPriceFilterEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`);
     
+    // ✅ ВАЖНО: если originalAllDealsFlat пуст — заполняем его
+    if (originalAllDealsFlat.length === 0 && allDealsFlat.length > 0) {
+        console.log('📦 Сохраняем исходные данные в originalAllDealsFlat');
+        originalAllDealsFlat = [...allDealsFlat];
+        window.originalAllDealsFlat = originalAllDealsFlat;
+    }
+    
     if (!isPriceFilterEnabled) {
-        allDealsFlat = [...originalAllDealsFlat];
+        // ✅ ВОССТАНАВЛИВАЕМ ИЗ originalAllDealsFlat
+        if (originalAllDealsFlat.length > 0) {
+            allDealsFlat = [...originalAllDealsFlat];
+        } else {
+            // Если originalAllDealsFlat пуст — используем window.allDealsFlat
+            allDealsFlat = [...window.allDealsFlat];
+            originalAllDealsFlat = [...allDealsFlat];
+        }
         rebuildDealsData(allDealsFlat);
     } else {
+        // ✅ РАССЧИТЫВАЕМ ПОРОГИ ЕСЛИ НЕТ
+        if (Object.keys(priceThresholds).length === 0) {
+            priceThresholds = calculatePriceThresholds();
+            window.priceThresholds = priceThresholds;
+        }
         const filteredDeals = filterDealsByPriceThreshold(priceThresholds);
         allDealsFlat = filteredDeals;
         rebuildDealsData(filteredDeals);
@@ -1232,12 +1259,10 @@ function togglePriceFilter() {
     renderYearBuildFilters();
     renderDealsTable();
     
-    // ✅ ВАЖНО: обновляем карту ПОСЛЕ перестроения данных
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
     }
     
-    // ✅ ОБНОВЛЯЕМ ГРАФИК
     setTimeout(function() {
         if (typeof renderPriceChart === 'function') {
             console.log('📊 Обновление графика после переключения ценового фильтра');
