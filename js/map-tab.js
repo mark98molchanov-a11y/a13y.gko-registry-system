@@ -1132,52 +1132,67 @@ function filterDealsByPriceThreshold(thresholds) {
     });
 }
 function rebuildDealsData(filteredDeals) {
-    // Очищаем старые данные
-    dealsData = {};
-    dealTypes = {};
-    cityTypes = {};
-    objectTypes = {};
-    wallMaterialTypes = {};
-    quarterTypes = {};
-    yearBuildTypes = {};
+    // Очищаем старые данные ТОЛЬКО ДЛЯ ПЕРЕСТРОЙКИ
+    // Но НЕ ОЧИЩАЕМ dealsData полностью, а пересоздаём
+    const newDealsData = {};
+    const newDealTypes = {};
+    const newCityTypes = {};
+    const newObjectTypes = {};
+    const newWallMaterialTypes = {};
+    const newQuarterTypes = {};
+    const newYearBuildTypes = {};
+    const newPurposeCount = {};
+    const newVriCount = {};
     
     // Заполняем новыми данными
     filteredDeals.forEach(deal => {
         const cadNum = deal.cad_number;
         if (!cadNum) return;
         
-        if (!dealsData[cadNum]) dealsData[cadNum] = [];
-        dealsData[cadNum].push({
-    kind: deal.deal_kind_text,
-    price: deal.deal_price_rub,
-    uprs: deal.uprs_rub,
-    upks: deal.upks,
-    cad_cost: deal.cad_cost,
-    area: deal.area,
-    city: deal.city,
-    obj_kind: deal.obj_kind_text,
-    wall_material: deal.wall_material_name,
-    quarter: deal.quarter,
-    year_build: deal.year_build,
-    purpose_text: deal.purpose_text,
-    vri: deal.vri,
-    floor: deal.floor,
-    location: deal.location,
-     street: deal.street
-});
+        if (!newDealsData[cadNum]) newDealsData[cadNum] = [];
+        newDealsData[cadNum].push({
+            kind: deal.deal_kind_text,
+            price: deal.deal_price_rub,
+            uprs: deal.uprs_rub,
+            upks: deal.upks,
+            cad_cost: deal.cad_cost,
+            area: deal.area,
+            city: deal.city,
+            obj_kind: deal.obj_kind_text,
+            wall_material: deal.wall_material_name,
+            quarter: deal.quarter,
+            year_build: deal.year_build,
+            purpose_text: deal.purpose_text,
+            vri: deal.vri,
+            floor: deal.floor,
+            location: deal.location,
+            street: deal.street
+        });
         
         // Обновляем счетчики для фильтров
-        dealTypes[deal.deal_kind_text] = (dealTypes[deal.deal_kind_text] || 0) + 1;
-        cityTypes[deal.city] = (cityTypes[deal.city] || 0) + 1;
-        objectTypes[deal.obj_kind_text] = (objectTypes[deal.obj_kind_text] || 0) + 1;
-        wallMaterialTypes[deal.wall_material_name] = (wallMaterialTypes[deal.wall_material_name] || 0) + 1;
-        quarterTypes[deal.quarter] = (quarterTypes[deal.quarter] || 0) + 1;
-        yearBuildTypes[deal.year_build] = (yearBuildTypes[deal.year_build] || 0) + 1;
-         purposeCount[deal.purpose_text] = (purposeCount[deal.purpose_text] || 0) + 1; 
-    vriCount[deal.vri] = (vriCount[deal.vri] || 0) + 1;    
+        newDealTypes[deal.deal_kind_text] = (newDealTypes[deal.deal_kind_text] || 0) + 1;
+        newCityTypes[deal.city] = (newCityTypes[deal.city] || 0) + 1;
+        newObjectTypes[deal.obj_kind_text] = (newObjectTypes[deal.obj_kind_text] || 0) + 1;
+        newWallMaterialTypes[deal.wall_material_name] = (newWallMaterialTypes[deal.wall_material_name] || 0) + 1;
+        newQuarterTypes[deal.quarter] = (newQuarterTypes[deal.quarter] || 0) + 1;
+        newYearBuildTypes[deal.year_build] = (newYearBuildTypes[deal.year_build] || 0) + 1;
+        newPurposeCount[deal.purpose_text] = (newPurposeCount[deal.purpose_text] || 0) + 1;
+        newVriCount[deal.vri] = (newVriCount[deal.vri] || 0) + 1;
     });
     
+    // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (а не очищаем)
+    dealsData = newDealsData;
+    dealTypes = newDealTypes;
+    cityTypes = newCityTypes;
+    objectTypes = newObjectTypes;
+    wallMaterialTypes = newWallMaterialTypes;
+    quarterTypes = newQuarterTypes;
+    yearBuildTypes = newYearBuildTypes;
+    purposeCount = newPurposeCount;
+    vriCount = newVriCount;
+    
     console.log('✅ Данные перестроены после фильтрации по ценам');
+    console.log(`📊 Сделок: ${filteredDeals.length}, кварталов: ${Object.keys(newDealsData).length}`);
 }
 function togglePriceFilter() {
     isPriceFilterEnabled = !isPriceFilterEnabled;
@@ -1216,11 +1231,12 @@ function togglePriceFilter() {
     renderYearBuildFilters();
     renderDealsTable();
     
+    // ✅ ВАЖНО: обновляем карту ПОСЛЕ перестроения данных
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
     }
     
-    // ✅ ДОБАВЬТЕ ЭТОТ БЛОК:
+    // ✅ ОБНОВЛЯЕМ ГРАФИК
     setTimeout(function() {
         if (typeof renderPriceChart === 'function') {
             console.log('📊 Обновление графика после переключения ценового фильтра');
