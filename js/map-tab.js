@@ -1003,6 +1003,7 @@ async function loadDealsCSV() {
         vriCount = vriCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
+        window.allDealsFlat = allDealsFlat;
         console.log('📊 Сделок с quarter:', allDealsFlat.filter(d => d.quarter && d.quarter !== 'nan').length);
         console.log('📊 Сделок с cad_nspd:', allDealsFlat.filter(d => d.cad_nspd).length);
         
