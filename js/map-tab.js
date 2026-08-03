@@ -7627,6 +7627,7 @@ window.drawNSPDPolygon = drawNSPDPolygon;
 window.closeNSPDObject = closeNSPDObject;
 window.convertEPSG3857toWGS84 = convertEPSG3857toWGS84;
 window.convertCoordinates = convertCoordinates;
+window.showNSPDObjectByNspd = showNSPDObjectByNspd;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
@@ -7959,4 +7960,38 @@ function closeNSPDObject() {
     const panel = document.getElementById('nspd-object-info');
     if (panel) panel.remove();
     console.log('🗑️ Объект НСПД скрыт');
+}
+function showNSPDObjectByNspd(cadNspd) {
+    console.log('🔴 showNSPDObjectByNspd вызван для:', cadNspd);
+    
+    // Очищаем предыдущий слой
+    if (nspdObjectLayer) {
+        if (window.mapInstance) {
+            window.mapInstance.removeLayer(nspdObjectLayer);
+        }
+        nspdObjectLayer = null;
+    }
+    const oldPanel = document.getElementById('nspd-object-info');
+    if (oldPanel) oldPanel.remove();
+    
+    if (!cadNspd) {
+        console.warn('⚠️ cadNspd не передан');
+        return;
+    }
+    
+    // Загружаем данные из НСПД по cad_nspd
+    fetchNSPDObject(cadNspd).then(nspdData => {
+        if (!nspdData) {
+            showNotification('❌ Объект не найден в НСПД', 'error');
+            return;
+        }
+        
+        // Создаем фейковый deal для отображения
+        const deal = {
+            cad_nspd: cadNspd,
+            cad_number: cadNspd
+        };
+        
+        drawNSPDPolygon(nspdData, deal);
+    });
 }
