@@ -6802,24 +6802,24 @@ async function syncWithNSPD() {
         return;
     }
     
-    // ================================================================
-    // 🔥 ОЧИЩАЕМ ТОЛЬКО НЕПРАВИЛЬНЫЕ cad_nspd (из других кварталов)
-    // ================================================================
-    let clearedCount = 0;
-    for (const deal of allDealsFlat) {
-        if (!deal.cad_nspd) continue;
-        
-        const dealQuarter = getQuarter(deal.cad_number);
-        const nspdQuarter = getQuarter(deal.cad_nspd);
-        
-        // Если кварталы НЕ совпадают — очищаем (это чужой объект)
-        if (dealQuarter && nspdQuarter && dealQuarter !== nspdQuarter) {
-            deal.cad_nspd = null;
-            clearedCount++;
-            console.log(`🧹 Очищен: ${deal.cad_number} (было ${deal.cad_nspd} из ${nspdQuarter}, нужно ${dealQuarter})`);
-        }
+   let clearedCount = 0;
+for (const deal of allDealsFlat) {
+    if (!deal.cad_nspd) continue;
+    
+    // ✅ ПРОПУСКАЕМ "не определено" - НЕ ОЧИЩАЕМ!
+    if (deal.cad_nspd === 'не определено') continue;
+    
+    const dealQuarter = getQuarter(deal.cad_number);
+    const nspdQuarter = getQuarter(deal.cad_nspd);
+    
+    // Если кварталы НЕ совпадают — очищаем (это чужой объект)
+    if (dealQuarter && nspdQuarter && dealQuarter !== nspdQuarter) {
+        deal.cad_nspd = null;
+        clearedCount++;
+        console.log(`🧹 Очищен: ${deal.cad_number} (было ${deal.cad_nspd} из ${nspdQuarter}, нужно ${dealQuarter})`);
     }
-    console.log(`🧹 Очищено ${clearedCount} неправильных cad_nspd`);
+}
+console.log(`🧹 Очищено ${clearedCount} неправильных cad_nspd`);
     
     // Показываем индикатор загрузки
     const btn = document.querySelector('button[onclick="syncWithNSPD()"]');
