@@ -771,34 +771,30 @@ displayResult(data) {
     const geometryType = data.raw?.geometry?.type || '';
     console.log('🔍 Геометрия:', hasGeometry ? `${geometryType} найдена` : 'нет');
 
-    // ✅ СОЗДАЕМ ФУНКЦИЮ ДЛЯ ПОКАЗА НА КАРТЕ
+    // ✅ КНОПКА "Показать на карте" — сразу отображаем объект НСПД
     const showOnMapFn = `
         (function() {
             const cadNum = '${data.cadastral_number || ''}';
             console.log('🗺️ Показ объекта на карте:', cadNum);
             
-            // Находим выбранный квартал на карте
-            if (window.selectedQuarterCadNumber) {
-                // Используем существующую функцию showNSPDObject
-                if (typeof window.showNSPDObject === 'function') {
-                    window.showNSPDObject(cadNum);
+            // ✅ Ищем объект в allDealsFlat по cad_number
+            let deal = null;
+            if (typeof window.allDealsFlat !== 'undefined') {
+                deal = window.allDealsFlat.find(d => d.cad_number === cadNum);
+            }
+            
+            if (deal && deal.cad_nspd) {
+                console.log('✅ Найден объект в сделках, cad_nspd:', deal.cad_nspd);
+                // Показываем объект НСПД напрямую по cad_nspd
+                if (typeof window.showNSPDObjectByNspd === 'function') {
+                    window.showNSPDObjectByNspd(deal.cad_nspd);
                 } else {
-                    console.warn('⚠️ Функция showNSPDObject не найдена');
-                    nspdApp.showNotification('Функция отображения на карте не загружена', 'error');
+                    console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
+                    nspdApp.showNotification('Функция отображения не загружена', 'error');
                 }
             } else {
-                // Сначала находим квартал на карте
-                if (typeof window.searchQuarterByCadNumber === 'function') {
-                    window.searchQuarterByCadNumber(cadNum);
-                    // Ждем загрузки квартала, потом показываем объект
-                    setTimeout(() => {
-                        if (typeof window.showNSPDObject === 'function') {
-                            window.showNSPDObject(cadNum);
-                        }
-                    }, 1000);
-                } else {
-                    nspdApp.showNotification('Поиск квартала недоступен', 'error');
-                }
+                console.warn('⚠️ Не найден cad_nspd для объекта:', cadNum);
+                nspdApp.showNotification('Нет номера НСПД для этого объекта', 'warning');
             }
         })()
     `;
@@ -883,7 +879,6 @@ displayResult(data) {
     
     console.log('✅ Данные отображены в карточке с кнопкой "Показать на карте"');
 }
-
     // ============================================================
     // UI: СОСТОЯНИЯ
     // ============================================================
