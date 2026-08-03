@@ -772,32 +772,37 @@ displayResult(data) {
     console.log('🔍 Геометрия:', hasGeometry ? `${geometryType} найдена` : 'нет');
 
     // ✅ КНОПКА "Показать на карте" — сразу отображаем объект НСПД
-    const showOnMapFn = `
-        (function() {
-            const cadNum = '${data.cadastral_number || ''}';
-            console.log('🗺️ Показ объекта на карте:', cadNum);
-            
-            // ✅ Ищем объект в allDealsFlat по cad_number
-            let deal = null;
-            if (typeof window.allDealsFlat !== 'undefined') {
-                deal = window.allDealsFlat.find(d => d.cad_number === cadNum);
-            }
-            
-            if (deal && deal.cad_nspd) {
-                console.log('✅ Найден объект в сделках, cad_nspd:', deal.cad_nspd);
-                // Показываем объект НСПД напрямую по cad_nspd
-                if (typeof window.showNSPDObjectByNspd === 'function') {
-                    window.showNSPDObjectByNspd(deal.cad_nspd);
-                } else {
-                    console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
-                    nspdApp.showNotification('Функция отображения не загружена', 'error');
-                }
+const showOnMapFn = `
+    (function() {
+        const cadNum = '${data.cadastral_number || ''}';
+        console.log('🗺️ Показ объекта на карте:', cadNum);
+        
+        // ✅ Ищем объект в allDealsFlat по полю cad_nspd (это полный номер!)
+        let deal = null;
+        if (typeof window.allDealsFlat !== 'undefined') {
+            deal = window.allDealsFlat.find(d => d.cad_nspd === cadNum);
+        }
+        
+        if (deal && deal.cad_nspd) {
+            console.log('✅ Найден объект в сделках по cad_nspd:', deal.cad_nspd);
+            // Показываем объект НСПД напрямую по cad_nspd
+            if (typeof window.showNSPDObjectByNspd === 'function') {
+                window.showNSPDObjectByNspd(deal.cad_nspd);
             } else {
-                console.warn('⚠️ Не найден cad_nspd для объекта:', cadNum);
+                console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
+                nspdApp.showNotification('Функция отображения не загружена', 'error');
+            }
+        } else {
+            // Если не нашли в allDealsFlat — пробуем показать напрямую по номеру
+            console.warn('⚠️ Не найден cad_nspd в allDealsFlat для:', cadNum);
+            if (typeof window.showNSPDObjectByNspd === 'function') {
+                window.showNSPDObjectByNspd(cadNum);
+            } else {
                 nspdApp.showNotification('Нет номера НСПД для этого объекта', 'warning');
             }
-        })()
-    `;
+        }
+    })()
+`;
 
     resultDiv.innerHTML = `
         <div style="
