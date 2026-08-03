@@ -6271,7 +6271,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
     }
     console.log('-'.repeat(60));
     
-    const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
+    const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=1000`;
     
     const headers = {
         'Accept': 'application/json',
@@ -6931,7 +6931,17 @@ for (const deal of allDealsFlat) {
     syncAbortController = new AbortController();
     
     // Обрабатываем с задержкой, чтобы не перегружать API
-    for (const obj of uniqueObjects) {
+     const concurrencyLimit = 3;
+    const chunks = [];
+    
+    // Разбиваем на чанки по 3 объекта
+    for (let i = 0; i < uniqueObjects.length; i += concurrencyLimit) {
+        chunks.push(uniqueObjects.slice(i, i + concurrencyLimit));
+    }
+    
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
+        
         if (syncAbortController === null) {
             console.log('⛔ Синхронизация прервана пользователем (controller = null)');
             wasAborted = true;
@@ -6944,46 +6954,56 @@ for (const deal of allDealsFlat) {
             break;
         }
         
-        totalProcessed++;
-        console.log(`[${totalProcessed}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+        // Запускаем параллельно до 3 запросов
+        const promises = chunk.map(async (obj) => {
+            if (syncAbortController === null || syncAbortController.signal.aborted) {
+                return null;
+            }
+            
+            const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+            
+            console.log(`[${totalProcessed + 1}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+            
+            const cadNspd = await searchNSPD(
+                obj.quarter,
+                obj.area,
+                obj.type,
+                obj.locationKeywords,
+                1,
+                controllerSignal
+            );
+            
+            if (syncAbortController === null || syncAbortController.signal.aborted) {
+                return null;
+            }
+            
+            if (cadNspd) {
+                // ✅ СОХРАНЯЕМ ПО row_id
+                for (const deal of allDealsFlat) {
+                    if (deal.row_id === obj.row_id) {
+                        deal.cad_nspd = cadNspd;
+                        console.log(`✅ Сохранен номер ${cadNspd} для row_id ${obj.row_id}`);
+                        return { success: true, row_id: obj.row_id };
+                    }
+                }
+                console.log(`❌ Не найдена сделка с row_id ${obj.row_id} для ${cadNspd}`);
+            }
+            return null;
+        });
         
-        const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+        // Ждем завершения всех запросов в чанке
+        const results = await Promise.all(promises);
         
-        const cadNspd = await searchNSPD(
-            obj.quarter,
-            obj.area,
-            obj.type,
-            obj.locationKeywords,
-            1,
-            controllerSignal
-        );
-        
-        if (syncAbortController === null || syncAbortController.signal.aborted) {
-            console.log('⛔ Синхронизация прервана после запроса');
-            wasAborted = true;
-            break;
+        // Подсчитываем найденные
+        for (const result of results) {
+            if (result && result.success) {
+                foundCount++;
+            }
+            totalProcessed++;
         }
         
-        if (cadNspd) {
-    foundCount++;
-    
-    // ✅ СОХРАНЯЕМ ПО row_id (точное соответствие)
-    let saved = false;
-    for (const deal of allDealsFlat) {
-        if (deal.row_id === obj.row_id) {
-            deal.cad_nspd = cadNspd;
-            saved = true;
-            console.log(`✅ Сохранен номер ${cadNspd} для row_id ${obj.row_id}`);
-            break;
-        }
-    }
-    
-    if (!saved) {
-        console.log(`❌ Не найдена сделка с row_id ${obj.row_id} для ${cadNspd}`);
-    }
-}
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Небольшая задержка между чанками
+        await new Promise(resolve => setTimeout(resolve, 50));
         
         if (btn) {
             const percent = Math.round((totalProcessed / uniqueObjects.length) * 100);
