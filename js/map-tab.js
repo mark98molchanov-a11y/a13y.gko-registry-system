@@ -6880,8 +6880,9 @@ async function syncWithNSPD() {
     const uniqueObjects = [];
 
 for (const deal of allDealsFlat) {
-    // ✅ ПРОПУСКАЕМ ТОЛЬКО ЕСЛИ УЖЕ ЕСТЬ НОМЕР
-    if (deal.cad_nspd) continue;
+    if (deal.cad_nspd && deal.cad_nspd !== 'не определено') continue;
+
+    if (deal.cad_nspd === 'не определено') continue;
     
     const quarter = getQuarter(deal.cad_number);
     if (!quarter || quarter === 'nan' || quarter === 'NaN') continue;
@@ -6955,52 +6956,61 @@ for (const deal of allDealsFlat) {
         }
         
         // Запускаем параллельно до 3 запросов
-        const promises = chunk.map(async (obj) => {
-            if (syncAbortController === null || syncAbortController.signal.aborted) {
-                return null;
-            }
-            
-            const controllerSignal = syncAbortController ? syncAbortController.signal : null;
-            
-            console.log(`[${totalProcessed + 1}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
-            
-            const cadNspd = await searchNSPD(
-                obj.quarter,
-                obj.area,
-                obj.type,
-                obj.locationKeywords,
-                1,
-                controllerSignal
-            );
-            
-            if (syncAbortController === null || syncAbortController.signal.aborted) {
-                return null;
-            }
-            
+const promises = chunk.map(async (obj) => {
+    if (syncAbortController === null || syncAbortController.signal.aborted) {
+        return null;
+    }
+    
+    const controllerSignal = syncAbortController ? syncAbortController.signal : null;
+    
+    console.log(`[${totalProcessed + 1}/${uniqueObjects.length}] Поиск: ${obj.quarter}, ${obj.area} м², ${obj.type}`);
+    
+    const cadNspd = await searchNSPD(
+        obj.quarter,
+        obj.area,
+        obj.type,
+        obj.locationKeywords,
+        1,
+        controllerSignal
+    );
+    
+    if (syncAbortController === null || syncAbortController.signal.aborted) {
+        return null;
+    }
+    
+    // ✅ СОХРАНЯЕМ РЕЗУЛЬТАТ (найден или нет)
+    let saved = false;
+    for (const deal of allDealsFlat) {
+        if (deal.row_id === obj.row_id) {
             if (cadNspd) {
-                // ✅ СОХРАНЯЕМ ПО row_id
-                for (const deal of allDealsFlat) {
-                    if (deal.row_id === obj.row_id) {
-                        deal.cad_nspd = cadNspd;
-                        console.log(`✅ Сохранен номер ${cadNspd} для row_id ${obj.row_id}`);
-                        return { success: true, row_id: obj.row_id };
-                    }
-                }
-                console.log(`❌ Не найдена сделка с row_id ${obj.row_id} для ${cadNspd}`);
+                deal.cad_nspd = cadNspd;
+                console.log(`✅ Сохранен номер ${cadNspd} для row_id ${obj.row_id}`);
+            } else {
+                deal.cad_nspd = 'не определено';
+                console.log(`❌ Номер НСПД НЕ НАЙДЕН для row_id ${obj.row_id} → помечено как "не определено"`);
             }
-            return null;
-        });
+            saved = true;
+            return { success: !!cadNspd, row_id: obj.row_id };
+        }
+    }
+    if (!saved) {
+        console.log(`❌ Не найдена сделка с row_id ${obj.row_id}`);
+    }
+    return null;
+});
         
         // Ждем завершения всех запросов в чанке
         const results = await Promise.all(promises);
         
         // Подсчитываем найденные
-        for (const result of results) {
-            if (result && result.success) {
-                foundCount++;
-            }
-            totalProcessed++;
+     for (const result of results) {
+    if (result) {
+        if (result.success) {
+            foundCount++;
         }
+        totalProcessed++;
+    }
+}
         
         // Небольшая задержка между чанками
         await new Promise(resolve => setTimeout(resolve, 50));
