@@ -689,7 +689,7 @@ displayResult(data) {
         { label: 'Назначение', value: data.purpose || '—' },
     ];
 
-    // ✅ ДЛЯ МАШИНО-МЕСТ / ПАРКИНГА
+    // ДОБАВЛЯЕМ СПЕЦИФИЧНЫЕ ПОЛЯ В ЗАВИСИМОСТИ ОТ ТИПА
     if (isParking) {
         fields.push(
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
@@ -698,9 +698,7 @@ displayResult(data) {
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
         );
-    } 
-    // ✅ ДЛЯ ПОМЕЩЕНИЙ
-    else if (isPremises) {
+    } else if (isPremises) {
         fields.push(
             { label: 'Тип помещения', value: data.params_type || data.object_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
@@ -709,9 +707,7 @@ displayResult(data) {
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
         );
-    } 
-    // ✅ ДЛЯ ЗДАНИЙ
-    else if (isBuilding) {
+    } else if (isBuilding) {
         fields.push(
             { label: 'Наименование', value: data.object_name || data.building_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
@@ -721,9 +717,7 @@ displayResult(data) {
             { label: 'Материал стен', value: data.materials || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
-    } 
-    // ✅ ДЛЯ СООРУЖЕНИЙ
-    else if (isStructure) {
+    } else if (isStructure) {
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
             { label: 'Площадь', value: data.area > 0 ? data.area.toFixed(1) + ' м²' : '—', important: true },
@@ -734,11 +728,8 @@ displayResult(data) {
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
-    } 
-    // ✅ ДЛЯ ОБЪЕКТОВ НЕЗАВЕРШЕННОГО СТРОИТЕЛЬСТВА — используем params_built_up_area
-    else if (isConstruction) {
+    } else if (isConstruction) {
         let buildArea = data.area > 0 ? data.area : data.params_built_up_area;
-        
         fields.push(
             { label: 'Наименование', value: data.object_name || '—' },
             { label: 'Площадь застройки', value: buildArea > 0 ? buildArea.toFixed(1) + ' м²' : '—', important: true },
@@ -748,9 +739,7 @@ displayResult(data) {
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
-    } 
-    // ✅ ДЛЯ ЕДИНЫХ НЕДВИЖИМЫХ КОМПЛЕКСОВ (ЕНК)
-    else if (isComplex) {
+    } else if (isComplex) {
         fields.push(
             { label: 'Наименование', value: data.object_name || data.name || '—', important: true },
             { label: 'Назначение', value: data.purpose || '—' },
@@ -758,13 +747,10 @@ displayResult(data) {
             { label: 'Год ввода в эксплуатацию', value: data.year_commisioning || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
         );
-    } 
-    // ✅ ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ
-    else if (isLand) {
+    } else if (isLand) {
         const areaValue = data.specified_area > 0 
             ? data.specified_area.toFixed(1) + ' м²' 
             : (data.area > 0 ? data.area.toFixed(1) + ' м²' : '—');
-        
         fields.push(
             { label: 'Площадь', value: areaValue, important: true },
             { label: 'Категория земель', value: data.land_record_category_type || data.categoryName || '—' },
@@ -774,7 +760,6 @@ displayResult(data) {
         );
     }
 
-    // ДАТЫ (только если есть)
     if (data.registration_date) {
         fields.push({ label: 'Дата регистрации', value: formatDate(data.registration_date) });
     }
@@ -784,7 +769,44 @@ displayResult(data) {
     // КВАРТАЛ ДЛЯ КНОПКИ
     const quarter = data.cadastral_quarter || this.extractQuarter(data.cadastral_number);
     console.log('Кадастровый квартал для кнопки:', quarter);
-    
+
+    // ✅ ПРОВЕРЯЕМ НАЛИЧИЕ ГЕОМЕТРИИ
+    const hasGeometry = data.raw?.geometry && data.raw.geometry.coordinates;
+    const geometryType = data.raw?.geometry?.type || '';
+    console.log('🔍 Геометрия:', hasGeometry ? `${geometryType} найдена` : 'нет');
+
+    // ✅ СОЗДАЕМ ФУНКЦИЮ ДЛЯ ПОКАЗА НА КАРТЕ
+    const showOnMapFn = `
+        (function() {
+            const cadNum = '${data.cadastral_number || ''}';
+            console.log('🗺️ Показ объекта на карте:', cadNum);
+            
+            // Находим выбранный квартал на карте
+            if (window.selectedQuarterCadNumber) {
+                // Используем существующую функцию showNSPDObject
+                if (typeof window.showNSPDObject === 'function') {
+                    window.showNSPDObject(cadNum);
+                } else {
+                    console.warn('⚠️ Функция showNSPDObject не найдена');
+                    nspdApp.showNotification('Функция отображения на карте не загружена', 'error');
+                }
+            } else {
+                // Сначала находим квартал на карте
+                if (typeof window.searchQuarterByCadNumber === 'function') {
+                    window.searchQuarterByCadNumber(cadNum);
+                    // Ждем загрузки квартала, потом показываем объект
+                    setTimeout(() => {
+                        if (typeof window.showNSPDObject === 'function') {
+                            window.showNSPDObject(cadNum);
+                        }
+                    }, 1000);
+                } else {
+                    nspdApp.showNotification('Поиск квартала недоступен', 'error');
+                }
+            }
+        })()
+    `;
+
     resultDiv.innerHTML = `
         <div style="
             background: white;
@@ -803,6 +825,7 @@ displayResult(data) {
                     <span style="font-size: 9px; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 20px;">
                         ${objectType || 'Объект'}
                     </span>
+                    ${hasGeometry ? '<span style="font-size: 9px; color: #0ea5e9; background: #e0f2fe; padding: 2px 10px; border-radius: 20px;">📍 Есть геометрия</span>' : ''}
                 </div>
             </div>
             
@@ -816,6 +839,29 @@ displayResult(data) {
             </div>
             
             <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                <!-- ✅ НОВАЯ КНОПКА "Показать на карте" -->
+                <button onclick="(${showOnMapFn})" 
+                        style="
+                            padding: 6px 16px;
+                            background: #dc2626;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 11px;
+                            font-weight: 500;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            transition: all 0.2s;
+                            font-family: 'Inter', sans-serif;
+                        "
+                        onmouseover="this.style.background='#b91c1c'"
+                        onmouseout="this.style.background='#dc2626'"
+                        title="${hasGeometry ? 'Показать объект на карте' : 'Найти квартал и показать объект'}">
+                    🗺️ Показать на карте
+                </button>
+                
                 <button onclick="nspdApp.clear()" 
                         style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px;">
                     Очистить
@@ -834,11 +880,12 @@ displayResult(data) {
             
             <div style="margin-top: 8px; font-size: 8px; color: #cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 6px;">
                 <span>Всего найдено: ${data.totalCount || 0}</span>
+                ${hasGeometry ? `<span style="margin-left: 12px;">Тип геометрии: ${geometryType}</span>` : ''}
             </div>
         </div>
     `;
     
-    console.log('✅ Данные отображены в карточке');
+    console.log('✅ Данные отображены в карточке с кнопкой "Показать на карте"');
 }
 
     // ============================================================
