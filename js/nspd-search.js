@@ -158,17 +158,15 @@
 
                 // ТОЧНОЕ совпадение по площади (без допуска)
                 if (hasArea) {
-                    areaMatch = Math.abs(area - targetArea) < 0.01; // Точное совпадение с плавающей точкой
+                    areaMatch = Math.abs(area - targetArea) < 0.01;
                 }
 
                 // ТОЧНОЕ совпадение по протяженности (без допуска)
                 if (hasExtension) {
-                    extensionMatch = Math.abs(extension - targetExtension) < 0.01; // Точное совпадение с плавающей точкой
+                    extensionMatch = Math.abs(extension - targetExtension) < 0.01;
                 }
 
-                // Объект подходит, если:
-                // 1. Совпадает площадь (если введена) ИЛИ протяженность (если введена)
-                // 2. И совпадает адрес (улица или дом)
+                // Объект подходит, если совпадает площадь ИЛИ протяженность
                 const sizeMatch = (hasArea && areaMatch) || (hasExtension && extensionMatch);
                 
                 if (!sizeMatch) continue;
@@ -262,7 +260,7 @@
             // Определяем значение для "Назначение" (для всех, кроме земельных участков)
             let purpose = opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—';
             if (isLand) {
-                purpose = '—'; // Для земельных участков назначение не показываем
+                purpose = '—';
             }
 
             // Собираем все поля в плоский объект
@@ -367,7 +365,7 @@
                     return tableData.some(row => row[key] && row[key] !== '—' && row[key] !== '');
                 });
 
-                // Строим HTML таблицы
+                // Строим HTML таблицы (без колонки "Действия")
                 let tableHtml = `
                     <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                         <div style="overflow-x: auto;">
@@ -378,7 +376,6 @@
                                         ${columnsToShow.map(col => `
                                             <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: 100px; max-width: 200px;">${col}</th>
                                         `).join('')}
-                                        <th style="padding: 8px 10px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;">Действия</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -396,14 +393,6 @@
                                     ${row[col] || '—'}
                                 </td>
                             `).join('')}
-                            <td style="padding: 6px 10px; text-align: center;">
-                                <button onclick="navigator.clipboard.writeText('${row['Кадастровый номер'] || ''}').then(() => alert('Кадастровый номер скопирован!'))" 
-                                        style="padding: 2px 10px; background: #e0f2fe; color: #0284c7; border: none; border-radius: 4px; cursor: pointer; font-size: 9px; transition: all 0.2s;"
-                                        onmouseover="this.style.background='#bae6fd'"
-                                        onmouseout="this.style.background='#e0f2fe'">
-                                    📋 Копировать
-                                </button>
-                            </td>
                         </tr>
                     `;
                 });
