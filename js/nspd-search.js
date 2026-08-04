@@ -1,5 +1,5 @@
 // ============================================================
-// 🆕 МОДУЛЬ ПОИСКА НСПД - ПРОСТОЙ И ПОНЯТНЫЙ
+// 🆕 МОДУЛЬ ПОИСКА НСПД - ИЕРАРХИЧЕСКИЙ ПОИСК
 // ============================================================
 (function() {
     console.log('🚀 Загрузка модуля поиска НСПД...');
@@ -34,6 +34,25 @@
             if (match) return match[1].trim();
         }
         return '';
+    }
+
+    // 🔥 Функция для извлечения КВАРТАЛА из адреса (кадастровый номер)
+    function extractQuarterFromAddress(address) {
+        if (!address) return null;
+        // Ищем кадастровый номер в формате XX:XX:XXXXXX или XX:XX:XXXXXX:XXX
+        const match = address.match(/\b(\d{2}:\d{2}:\d{6}(?::\d+)?)\b/);
+        if (match) {
+            const parts = match[1].split(':');
+            if (parts.length >= 3) {
+                return parts.slice(0, 3).join(':');
+            }
+        }
+        return null;
+    }
+
+    function isCadastralNumber(str) {
+        if (!str) return false;
+        return /^\d{2}:\d{2}:\d{6}(:\d+)?$/.test(str.trim());
     }
 
     function extractCadastralQuarter(cadNumber) {
@@ -83,11 +102,11 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Адрес</label>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Адрес / Квартал</label>
                         <input type="text" id="nspd-search-address" 
-                               placeholder="Введите адрес, улицу или часть адреса" 
+                               placeholder="Введите адрес, улицу или кадастровый квартал (89:12:110606)" 
                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
-                        <span class="text-xs text-slate-400 mt-1 block">Частичное совпадение</span>
+                        <span class="text-xs text-slate-400 mt-1 block">Сначала ищем по кварталу, потом по адресу</span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Характеристика</label>
@@ -148,12 +167,13 @@
             };
         }
 
-        function displayResults(candidates, searchMethod) {
+        function displayResults(candidates, searchMethod, searchQuery) {
             if (candidates.length === 0) {
                 resultsContainer.innerHTML = `
                     <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                         🔍 Объекты не найдены<br>
                         <span class="text-xs">Метод: ${searchMethod}</span>
+                        ${searchQuery ? `<br><span class="text-xs">Запрос: ${searchQuery}</span>` : ''}
                     </div>
                 `;
                 return;
@@ -302,24 +322,17 @@
                 
                 let candidates = [];
                 let searchMethod = '';
+                let searchQuery = address;
 
-                // Пробуем разные варианты адреса
-                const addressVariants = [
-                    address,
-                    address.split(',').slice(0, -1).join(',').trim(),
-                    address.split(',').slice(0, -2).join(',').trim(),
-                    address.split(',').slice(0, 1).join(',').trim()
-                ].filter(a => a && a.length > 0);
-
-                const uniqueVariants = [...new Set(addressVariants)];
-                console.log(`🔍 Варианты адреса:`, uniqueVariants);
-
-                let allFeatures = [];
-
-                for (const addrVariant of uniqueVariants) {
-                    console.log(`   Пробуем: "${addrVariant}"`);
-                    const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
-                    const response = await fetch(url, {
+                // ============================================================
+                // 🔥 ШАГ 1: ПРОВЕРЯЕМ, НЕ ЯВЛЯЕТСЯ ЛИ АДРЕС КАДАСТРОВЫМ КВАРТАЛОМ
+                // ============================================================
+                const quarter = extractQuarterFromAddress(address);
+                
+                if (quarter) {
+                    console.log(`🔍 ШАГ 1: Поиск по кадастровому кварталу: ${quarter}`);
+                    const quarterUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
+                    const response = await fetch(quarterUrl, {
                         signal: controller.signal,
                         headers: {
                             'Accept': 'application/json',
@@ -330,72 +343,146 @@
                     if (response.ok) {
                         const data = await response.json();
                         const features = data?.data?.features || [];
-                        console.log(`      Найдено ${features.length} объектов`);
-                        allFeatures = allFeatures.concat(features);
+                        console.log(`📥 В квартале найдено: ${features.length} объектов`);
+                        
+                        if (features.length > 0) {
+                            // Фильтруем по характеристике
+                            let filtered = features;
+                            if (value > 0) {
+                                filtered = features.filter(f => {
+                                    const opts = f.properties?.options || {};
+                                    const areaVal = parseFloat(opts.area) || parseFloat(opts.params_area) || 
+                                                   parseFloat(opts.specified_area) || parseFloat(opts.params_built_up_area) || 0;
+                                    const extVal = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+                                    const volVal = parseFloat(opts.params_volume) || 0;
+                                    const heightVal = parseFloat(opts.params_height) || 0;
+                                    const depthVal = parseFloat(opts.params_depth) || 0;
+                                    
+                                    return isMatch(areaVal, value) || 
+                                           isMatch(extVal, value) || 
+                                           isMatch(volVal, value) || 
+                                           isMatch(heightVal, value) || 
+                                           isMatch(depthVal, value);
+                                });
+                            }
+                            
+                            if (filtered.length > 0) {
+                                candidates = filtered.map(f => formatCandidate(f));
+                                searchMethod = value > 0 ? 'квартал + характеристика' : 'квартал';
+                                console.log(`✅ Найдено ${candidates.length} объектов по кварталу`);
+                            } else {
+                                // Показываем все объекты квартала, если по характеристике ничего не найдено
+                                candidates = features.map(f => formatCandidate(f));
+                                searchMethod = 'квартал (характеристика не найдена)';
+                                console.log(`⚠️ По характеристике ничего не найдено, показываем все объекты квартала (${candidates.length})`);
+                            }
+                        }
                     }
                 }
 
-                // Убираем дубликаты
-                const uniqueFeatures = [];
-                const seen = new Set();
-                for (const f of allFeatures) {
-                    const opts = f.properties?.options || {};
-                    const cadNumber = opts.cad_number || '';
-                    if (cadNumber && !seen.has(cadNumber)) {
-                        seen.add(cadNumber);
-                        uniqueFeatures.push(f);
-                    }
-                }
-
-                console.log(`📥 Всего уникальных объектов: ${uniqueFeatures.length}`);
-                searchMethod = 'адрес';
-
-                // Фильтруем по характеристике (если указана)
-                let filtered = uniqueFeatures;
-                if (value > 0) {
-                    filtered = uniqueFeatures.filter(f => {
-                        const opts = f.properties?.options || {};
-                        
-                        // Проверяем ВСЕ возможные параметры
-                        const areaVal = parseFloat(opts.area) || parseFloat(opts.params_area) || 
-                                       parseFloat(opts.specified_area) || parseFloat(opts.params_built_up_area) || 0;
-                        const extVal = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
-                        const volVal = parseFloat(opts.params_volume) || 0;
-                        const heightVal = parseFloat(opts.params_height) || 0;
-                        const depthVal = parseFloat(opts.params_depth) || 0;
-                        
-                        // Хотя бы один параметр должен совпасть
-                        return isMatch(areaVal, value) || 
-                               isMatch(extVal, value) || 
-                               isMatch(volVal, value) || 
-                               isMatch(heightVal, value) || 
-                               isMatch(depthVal, value);
-                    });
+                // ============================================================
+                // ШАГ 2: ЕСЛИ ПО КВАРТАЛУ НЕ НАШЛИ — ИЩЕМ ПО АДРЕСУ
+                // ============================================================
+                if (candidates.length === 0) {
+                    console.log(`🔍 ШАГ 2: Поиск по адресу: ${address}`);
+                    searchMethod = 'адрес';
                     
-                    if (filtered.length > 0) {
-                        searchMethod = 'адрес + характеристика';
-                        console.log(`✅ После фильтрации по характеристике: ${filtered.length} объектов`);
-                    } else {
-                        searchMethod = 'адрес (характеристика не найдена)';
-                        console.log(`⚠️ По характеристике ничего не найдено, показываем все объекты по адресу`);
-                        filtered = uniqueFeatures;
+                    // Пробуем разные варианты адреса
+                    const addressVariants = [
+                        address,
+                        address.split(',').slice(0, -1).join(',').trim(),
+                        address.split(',').slice(0, -2).join(',').trim(),
+                        address.split(',').slice(0, 1).join(',').trim()
+                    ].filter(a => a && a.length > 0);
+
+                    const uniqueVariants = [...new Set(addressVariants)];
+                    console.log(`   Варианты адреса:`, uniqueVariants);
+
+                    let allFeatures = [];
+
+                    for (const addrVariant of uniqueVariants) {
+                        console.log(`   Пробуем: "${addrVariant}"`);
+                        const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
+                        const response = await fetch(url, {
+                            signal: controller.signal,
+                            headers: {
+                                'Accept': 'application/json',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            const features = data?.data?.features || [];
+                            console.log(`      Найдено ${features.length} объектов`);
+                            allFeatures = allFeatures.concat(features);
+                        }
+                    }
+
+                    // Убираем дубликаты
+                    const uniqueFeatures = [];
+                    const seen = new Set();
+                    for (const f of allFeatures) {
+                        const opts = f.properties?.options || {};
+                        const cadNumber = opts.cad_number || '';
+                        if (cadNumber && !seen.has(cadNumber)) {
+                            seen.add(cadNumber);
+                            uniqueFeatures.push(f);
+                        }
+                    }
+
+                    console.log(`📥 Всего уникальных объектов по адресу: ${uniqueFeatures.length}`);
+
+                    if (uniqueFeatures.length > 0) {
+                        // Фильтруем по характеристике
+                        let filtered = uniqueFeatures;
+                        if (value > 0) {
+                            filtered = uniqueFeatures.filter(f => {
+                                const opts = f.properties?.options || {};
+                                const areaVal = parseFloat(opts.area) || parseFloat(opts.params_area) || 
+                                               parseFloat(opts.specified_area) || parseFloat(opts.params_built_up_area) || 0;
+                                const extVal = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+                                const volVal = parseFloat(opts.params_volume) || 0;
+                                const heightVal = parseFloat(opts.params_height) || 0;
+                                const depthVal = parseFloat(opts.params_depth) || 0;
+                                
+                                return isMatch(areaVal, value) || 
+                                       isMatch(extVal, value) || 
+                                       isMatch(volVal, value) || 
+                                       isMatch(heightVal, value) || 
+                                       isMatch(depthVal, value);
+                            });
+                            
+                            if (filtered.length > 0) {
+                                candidates = filtered.map(f => formatCandidate(f));
+                                searchMethod = 'адрес + характеристика';
+                                console.log(`✅ После фильтрации по характеристике: ${candidates.length} объектов`);
+                            } else {
+                                // Показываем все объекты по адресу
+                                candidates = uniqueFeatures.map(f => formatCandidate(f));
+                                searchMethod = 'адрес (характеристика не найдена)';
+                                console.log(`⚠️ По характеристике ничего не найдено, показываем все объекты по адресу (${candidates.length})`);
+                            }
+                        } else {
+                            candidates = uniqueFeatures.map(f => formatCandidate(f));
+                            searchMethod = 'адрес';
+                            console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
+                        }
                     }
                 }
 
                 clearTimeout(timeoutId);
 
-                if (filtered.length === 0) {
+                if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по адресу: ${address}<br>
-                            <span class="text-xs">Попробуйте уточнить адрес</span>
+                            <span class="text-xs">Попробуйте уточнить адрес или использовать кадастровый квартал</span>
+                            ${quarter ? `<br><span class="text-xs">Квартал: ${quarter}</span>` : ''}
                         </div>
                     `;
                     return;
                 }
-
-                // Форматируем кандидатов
-                candidates = filtered.map(f => formatCandidate(f));
 
                 // Сортируем по релевантности (если есть характеристика)
                 if (value > 0) {
@@ -408,7 +495,7 @@
                     });
                 }
 
-                displayResults(candidates, searchMethod);
+                displayResults(candidates, searchMethod, address);
 
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
