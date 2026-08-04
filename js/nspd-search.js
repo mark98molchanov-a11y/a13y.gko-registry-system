@@ -4,7 +4,7 @@
 (function() {
     console.log('🚀 Загрузка модуля поиска НСПД...');
 
-    // Функция для нормализации строк (убираем лишние пробеги, приводим к нижнему регистру)
+    // Функция для нормализации строк (убираем лишние пробелы, приводим к нижнему регистру)
     function normalizeString(str) {
         if (!str) return '';
         return str.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -40,6 +40,91 @@
         }
         
         return '';
+    }
+
+    // Функция для отображения объекта на карте (как в NSPDIntegration)
+    function showNSPDObjectOnMap(cadNumber) {
+        console.log('🗺️ Показ объекта на карте (из модуля поиска):', cadNumber);
+        
+        if (!cadNumber) {
+            showNotification('Кадастровый номер не указан', 'warning');
+            return;
+        }
+
+        // Ищем объект в allDealsFlat по полю cad_nspd
+        let deal = null;
+        if (typeof window.allDealsFlat !== 'undefined') {
+            deal = window.allDealsFlat.find(d => d.cad_nspd === cadNumber);
+        }
+        
+        if (deal && deal.cad_nspd) {
+            console.log('✅ Найден объект в сделках по cad_nspd:', deal.cad_nspd);
+            // Показываем объект НСПД напрямую по cad_nspd
+            if (typeof window.showNSPDObjectByNspd === 'function') {
+                window.showNSPDObjectByNspd(deal.cad_nspd);
+                // Переключаемся на вкладку карты
+                if (typeof switchTab === 'function') {
+                    setTimeout(() => {
+                        switchTab('map');
+                        showNotification('Объект отображен на карте', 'success');
+                    }, 300);
+                }
+            } else {
+                console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
+                showNotification('Функция отображения не загружена', 'error');
+            }
+        } else {
+            // Если не нашли в allDealsFlat — пробуем показать напрямую по номеру
+            console.warn('⚠️ Не найден cad_nspd в allDealsFlat для:', cadNumber);
+            if (typeof window.showNSPDObjectByNspd === 'function') {
+                window.showNSPDObjectByNspd(cadNumber);
+                if (typeof switchTab === 'function') {
+                    setTimeout(() => {
+                        switchTab('map');
+                        showNotification('Объект отображен на карте', 'success');
+                    }, 300);
+                }
+            } else {
+                showNotification('Нет номера НСПД для этого объекта', 'warning');
+            }
+        }
+    }
+
+    // Функция для уведомлений
+    function showNotification(message, type = 'info') {
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            info: '#3b82f6',
+            warning: '#f59e0b'
+        };
+
+        const notification = document.createElement('div');
+        notification.className = 'nspd-notification';
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 13px;
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            notification.style.transition = 'all 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     // Основная функция инициализации
@@ -238,6 +323,9 @@
 
                 candidates.forEach((item, index) => {
                     const cost = item.cadastralCost > 0 ? item.cadastralCost.toLocaleString() + ' ₽' : '—';
+                    // Экранируем кадастровый номер для использования в onclick
+                    const safeCadNumber = item.cadNumber.replace(/'/g, "\\'");
+                    
                     resultsHtml += `
                         <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition">
                             <div class="flex flex-wrap justify-between items-start gap-2">
@@ -254,11 +342,12 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2 flex-shrink-0">
-                                    <button onclick="alert('Показать на карте для ${item.cadNumber}')" 
-                                            class="text-xs bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-1.5 rounded-lg border border-brand-200 transition">
+                                    <button onclick="showNSPDObjectOnMap('${safeCadNumber}')" 
+                                            class="text-xs bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-1.5 rounded-lg border border-brand-200 transition"
+                                            title="Показать объект на карте">
                                         🗺️ На карте
                                     </button>
-                                    <button onclick="navigator.clipboard.writeText('${item.cadNumber}').then(() => alert('Кадастровый номер скопирован!'))" 
+                                    <button onclick="navigator.clipboard.writeText('${safeCadNumber}').then(() => alert('Кадастровый номер скопирован!'))" 
                                             class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 transition">
                                         📋 Копировать
                                     </button>
@@ -294,6 +383,9 @@
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
+
+    // Экспортируем функцию для использования в других модулях
+    window.showNSPDObjectOnMap = showNSPDObjectOnMap;
 
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
