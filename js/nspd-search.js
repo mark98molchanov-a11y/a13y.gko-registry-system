@@ -166,19 +166,19 @@
                 // Извлекаем протяженность
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
 
-                // 🔥 ТОЧНОЕ СОВПАДЕНИЕ (без допуска)
+                // Проверяем условия поиска
                 let areaMatch = false;
                 let extensionMatch = false;
 
                 if (hasArea) {
-                    areaMatch = area === targetArea;
+                    areaMatch = Math.abs(area - targetArea) < 1;
                 }
 
                 if (hasExtension) {
-                    extensionMatch = extension === targetExtension;
+                    extensionMatch = Math.abs(extension - targetExtension) < 1;
                 }
 
-                // Объект подходит, если совпадает площадь ИЛИ протяженность (ТОЧНО!)
+                // Объект подходит, если совпадает площадь ИЛИ протяженность
                 const sizeMatch = (hasArea && areaMatch) || (hasExtension && extensionMatch);
                 
                 if (!sizeMatch) continue;
@@ -190,9 +190,9 @@
 
                 let streetMatch = false;
                 if (targetStreet && nspdStreet) {
-                    streetMatch = nspdStreet === targetStreet ||
-                                  nspdStreet.includes(targetStreet) || 
-                                  targetStreet.includes(nspdStreet);
+                    streetMatch = nspdStreet.includes(targetStreet) || 
+                                  targetStreet.includes(nspdStreet) ||
+                                  normalizeString(targetStreet) === normalizeString(nspdStreet);
                 }
 
                 let houseMatch = false;
@@ -363,7 +363,7 @@
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по заданным критериям.<br>
-                            <span class="text-xs">Проверьте правильность адреса и значения (ТОЧНОЕ СОВПАДЕНИЕ)</span>
+                            <span class="text-xs">Проверьте правильность адреса и значения (допуск ±1 м²)</span>
                             <br><span class="text-xs">Попробуйте ввести только название месторождения или района</span>
                         </div>
                     `;
