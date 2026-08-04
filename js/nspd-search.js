@@ -59,20 +59,6 @@
                (type.includes('участок') && !type.includes('строительства'));
     }
 
-    // Функция для извлечения ключевых слов из адреса
-    function extractSearchKeywords(address) {
-        if (!address) return [];
-        
-        const stopWords = ['автономный', 'округ', 'район', 'город', 'поселок', 'деревня', 'село', 
-                          'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 
-                          'площадь', 'аллея', 'область', 'край', 'республика', 'муниципальный'];
-        
-        const words = address.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
-        const keywords = [...new Set(words.filter(w => !stopWords.includes(w)))];
-        
-        return keywords;
-    }
-
     // Основная функция инициализации
     window.initNSPDSearch = function(containerId) {
         console.log(`🔍 Инициализация поиска НСПД в контейнере: ${containerId}`);
@@ -82,6 +68,7 @@
             return;
         }
 
+        // Очищаем контейнер перед рендерингом
         container.innerHTML = '';
 
         // --- Рендерим HTML интерфейс ---
@@ -89,7 +76,7 @@
             <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h2 class="text-xl font-bold text-slate-800 mb-6">🔍 Поиск объектов в НСПД</h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Площадь (м²)</label>
                         <input type="number" id="nspd-search-area" 
@@ -102,13 +89,12 @@
                                placeholder="Введите протяженность, например 324" 
                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
                     </div>
-                </div>
-
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Адрес / Улица / Месторождение</label>
-                    <input type="text" id="nspd-search-address" 
-                           placeholder="Введите адрес, улицу или месторождение" 
-                           class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Адрес / Улица</label>
+                        <input type="text" id="nspd-search-address" 
+                               placeholder="Введите улицу, например Ленина" 
+                               class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
+                    </div>
                 </div>
 
                 <button id="nspd-search-btn" 
@@ -166,19 +152,23 @@
                 // Извлекаем протяженность
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
 
-                // 🔥 ТОЧНОЕ СОВПАДЕНИЕ (без допуска)
+                // Проверяем условия поиска
                 let areaMatch = false;
                 let extensionMatch = false;
 
+                // ТОЧНОЕ совпадение по площади (без допуска)
                 if (hasArea) {
-                    areaMatch = area === targetArea;
+                    areaMatch = Math.abs(area - targetArea) < 0.01; // Точное совпадение с плавающей точкой
                 }
 
+                // ТОЧНОЕ совпадение по протяженности (без допуска)
                 if (hasExtension) {
-                    extensionMatch = extension === targetExtension;
+                    extensionMatch = Math.abs(extension - targetExtension) < 0.01; // Точное совпадение с плавающей точкой
                 }
 
-                // Объект подходит, если совпадает площадь ИЛИ протяженность (ТОЧНО!)
+                // Объект подходит, если:
+                // 1. Совпадает площадь (если введена) ИЛИ протяженность (если введена)
+                // 2. И совпадает адрес (улица или дом)
                 const sizeMatch = (hasArea && areaMatch) || (hasExtension && extensionMatch);
                 
                 if (!sizeMatch) continue;
@@ -190,9 +180,9 @@
 
                 let streetMatch = false;
                 if (targetStreet && nspdStreet) {
-                    streetMatch = nspdStreet === targetStreet ||
-                                  nspdStreet.includes(targetStreet) || 
-                                  targetStreet.includes(nspdStreet);
+                    streetMatch = nspdStreet.includes(targetStreet) || 
+                                  targetStreet.includes(nspdStreet) ||
+                                  normalizeString(targetStreet) === normalizeString(nspdStreet);
                 }
 
                 let houseMatch = false;
@@ -272,7 +262,7 @@
             // Определяем значение для "Назначение" (для всех, кроме земельных участков)
             let purpose = opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—';
             if (isLand) {
-                purpose = '—';
+                purpose = '—'; // Для земельных участков назначение не показываем
             }
 
             // Собираем все поля в плоский объект
@@ -331,11 +321,7 @@
             `;
 
             try {
-                // Извлекаем ключевые слова из адреса для поиска
-                const keywords = extractSearchKeywords(address);
-                const searchQuery = keywords.length > 0 ? keywords[keywords.length - 1] : address;
-                
-                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=100`;
+                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=100`;
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -355,16 +341,16 @@
 
                 const data = await response.json();
                 const features = data?.data?.features || [];
+                console.log(`📥 Получено ${features.length} объектов из НСПД`);
 
-                // Фильтруем объекты
                 const candidates = findBestMatch(features, area, extension, address);
+                console.log(`🎯 Найдено ${candidates.length} подходящих объектов`);
 
                 if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по заданным критериям.<br>
-                            <span class="text-xs">Проверьте правильность адреса и значения (ТОЧНОЕ СОВПАДЕНИЕ)</span>
-                            <br><span class="text-xs">Попробуйте ввести только название месторождения или района</span>
+                            <span class="text-xs">Проверьте правильность адреса, площади или протяженности (точное совпадение)</span>
                         </div>
                     `;
                     return;
@@ -392,6 +378,7 @@
                                         ${columnsToShow.map(col => `
                                             <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: 100px; max-width: 200px;">${col}</th>
                                         `).join('')}
+                                        <th style="padding: 8px 10px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;">Действия</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -409,6 +396,14 @@
                                     ${row[col] || '—'}
                                 </td>
                             `).join('')}
+                            <td style="padding: 6px 10px; text-align: center;">
+                                <button onclick="navigator.clipboard.writeText('${row['Кадастровый номер'] || ''}').then(() => alert('Кадастровый номер скопирован!'))" 
+                                        style="padding: 2px 10px; background: #e0f2fe; color: #0284c7; border: none; border-radius: 4px; cursor: pointer; font-size: 9px; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#bae6fd'"
+                                        onmouseout="this.style.background='#e0f2fe'">
+                                    📋 Копировать
+                                </button>
+                            </td>
                         </tr>
                     `;
                 });
