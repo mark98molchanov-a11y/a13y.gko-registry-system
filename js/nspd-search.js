@@ -440,42 +440,93 @@
 
                 // ✅ ШАГ 3: Если указана ПРОТЯЖЕННОСТЬ и объекты не найдены по площади
                 //    Ищем по адресу + ручная фильтрация по params_extension
-                if (extension > 0 && candidates.length === 0) {
-                    console.log(`🔍 Поиск по ПРОТЯЖЕННОСТИ: ${extension} м (адрес + ручная фильтрация)`);
-                    searchMethod = 'протяженность';
-                    
-                    // Фильтруем все объекты, найденные по адресу, по params_extension
-                    const filtered = firstFeatures.filter(f => {
-                        const opts = f.properties?.options || {};
-                        const ext = parseFloat(opts.params_extension) || 0;
-                        return Math.abs(ext - extension) <= AREA_TOLERANCE;
-                    });
-                    
-                    console.log(`📥 После фильтрации по протяженности осталось ${filtered.length} объектов`);
-                    
-                    if (filtered.length > 0) {
-                        candidates = filtered.map(f => {
-                            const props = f.properties || {};
-                            const opts = props.options || {};
-                            return {
-                                feature: f,
-                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                address: opts.address_readable_address || opts.readable_address || '',
-                                cadNumber: opts.cad_number || opts.externalKey || '—',
-                                type: opts.type || opts.object_type_value || '—',
-                                cadastralCost: parseFloat(opts.cost_value) || 0,
-                                name: opts.params_name || opts.name || '',
-                                rawData: {
-                                    feature: f,
-                                    opts: opts,
-                                    props: props
-                                }
-                            };
-                        });
-                        console.log(`✅ Найдено ${candidates.length} объектов по адресу + протяженности`);
-                    }
+if (extension > 0 && candidates.length === 0) {
+    console.log(`🔍 Поиск по ПРОТЯЖЕННОСТИ: ${extension} м (адрес + ручная фильтрация)`);
+    searchMethod = 'протяженность';
+    
+    // 🔥 РАСШИРЯЕМ ПОИСК: пробуем разные варианты адреса
+    const addressVariants = [
+        address,                                           // полный адрес
+        address.split(',').slice(0, -1).join(',').trim(), // без последней части (без дома)
+        address.split(',').slice(0, -2).join(',').trim(), // без дома и улицы
+        address.split(',').slice(0, 1).join(',').trim()   // только регион
+    ].filter(a => a && a.length > 0);
+    
+    // Убираем дубликаты
+    const uniqueVariants = [...new Set(addressVariants)];
+    console.log(`🔍 Варианты адреса для поиска:`, uniqueVariants);
+    
+    let allFound = [];
+    
+    for (const addrVariant of uniqueVariants) {
+        console.log(`   Пробуем: "${addrVariant}"`);
+        const addrUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
+        
+        const addrResponse = await fetch(addrUrl, {
+            signal: controller.signal,
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        
+        if (addrResponse.ok) {
+            const addrData = await addrResponse.json();
+            const addrFeatures = addrData?.data?.features || [];
+            console.log(`      Найдено ${addrFeatures.length} объектов`);
+            
+            // Фильтруем по протяженности
+            const filtered = addrFeatures.filter(f => {
+                const opts = f.properties?.options || {};
+                const ext = parseFloat(opts.params_extension) || 0;
+                return Math.abs(ext - extension) <= AREA_TOLERANCE;
+            });
+            
+            if (filtered.length > 0) {
+                console.log(`      ✅ Найдено ${filtered.length} объектов с протяженностью ${extension} м`);
+                allFound = allFound.concat(filtered);
+                // Если нашли объекты, можно остановиться (но можем продолжить для полноты)
+            }
+        }
+    }
+    
+    // Убираем дубликаты по кадастровому номеру
+    const uniqueFound = [];
+    const seenCadNumbers = new Set();
+    for (const item of allFound) {
+        const opts = item.properties?.options || {};
+        const cadNumber = opts.cad_number || '';
+        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+            seenCadNumbers.add(cadNumber);
+            uniqueFound.push(item);
+        }
+    }
+    
+    console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
+    
+    if (uniqueFound.length > 0) {
+        candidates = uniqueFound.map(f => {
+            const props = f.properties || {};
+            const opts = props.options || {};
+            return {
+                feature: f,
+                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                address: opts.address_readable_address || opts.readable_address || '',
+                cadNumber: opts.cad_number || opts.externalKey || '—',
+                type: opts.type || opts.object_type_value || '—',
+                cadastralCost: parseFloat(opts.cost_value) || 0,
+                name: opts.params_name || opts.name || '',
+                rawData: {
+                    feature: f,
+                    opts: opts,
+                    props: props
                 }
+            };
+        });
+        console.log(`✅ Найдено ${candidates.length} объектов по адресу + протяженности`);
+    }
+}
 
                 clearTimeout(timeoutId);
 
