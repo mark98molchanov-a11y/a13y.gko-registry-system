@@ -59,6 +59,20 @@
                (type.includes('участок') && !type.includes('строительства'));
     }
 
+    // Функция для извлечения ключевых слов из адреса
+    function extractSearchKeywords(address) {
+        if (!address) return [];
+        
+        const stopWords = ['автономный', 'округ', 'район', 'город', 'поселок', 'деревня', 'село', 
+                          'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 
+                          'площадь', 'аллея', 'область', 'край', 'республика', 'муниципальный'];
+        
+        const words = address.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
+        const keywords = [...new Set(words.filter(w => !stopWords.includes(w)))];
+        
+        return keywords;
+    }
+
     // Основная функция инициализации
     window.initNSPDSearch = function(containerId) {
         console.log(`🔍 Инициализация поиска НСПД в контейнере: ${containerId}`);
@@ -68,7 +82,6 @@
             return;
         }
 
-        // Очищаем контейнер перед рендерингом
         container.innerHTML = '';
 
         // --- Рендерим HTML интерфейс ---
@@ -76,7 +89,7 @@
             <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h2 class="text-xl font-bold text-slate-800 mb-6">🔍 Поиск объектов в НСПД</h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Площадь (м²)</label>
                         <input type="number" id="nspd-search-area" 
@@ -87,12 +100,6 @@
                         <label class="block text-sm font-medium text-slate-700 mb-1">Протяженность (м)</label>
                         <input type="number" id="nspd-search-extension" 
                                placeholder="Введите протяженность, например 324" 
-                               class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Объем (м³)</label>
-                        <input type="number" id="nspd-search-volume" 
-                               placeholder="Введите объем, например 171225" 
                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
                     </div>
                 </div>
@@ -125,27 +132,25 @@
         const searchBtn = document.getElementById('nspd-search-btn');
         const areaInput = document.getElementById('nspd-search-area');
         const extensionInput = document.getElementById('nspd-search-extension');
-        const volumeInput = document.getElementById('nspd-search-volume');
         const addressInput = document.getElementById('nspd-search-address');
         const resultsContainer = document.getElementById('nspd-search-results');
 
-        if (!searchBtn || !areaInput || !extensionInput || !volumeInput || !addressInput || !resultsContainer) {
+        if (!searchBtn || !areaInput || !extensionInput || !addressInput || !resultsContainer) {
             console.error('❌ Не удалось найти элементы управления');
             return;
         }
 
         // Функция для поиска подходящих объектов
-        function findBestMatch(features, targetArea, targetExtension, targetVolume, targetAddress) {
+        function findBestMatch(features, targetArea, targetExtension, targetAddress) {
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
             const targetStreet = normalizeString(extractStreetFromAddress(targetAddress));
 
-            // Проверяем, что введено хотя бы одно значение (площадь, протяженность или объем)
+            // Проверяем, что введено хотя бы одно значение (площадь или протяженность)
             const hasArea = targetArea !== null && !isNaN(targetArea) && targetArea > 0;
             const hasExtension = targetExtension !== null && !isNaN(targetExtension) && targetExtension > 0;
-            const hasVolume = targetVolume !== null && !isNaN(targetVolume) && targetVolume > 0;
 
-            if (!hasArea && !hasExtension && !hasVolume) {
+            if (!hasArea && !hasExtension) {
                 return [];
             }
 
@@ -160,32 +165,21 @@
                 
                 // Извлекаем протяженность
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
-                
-                // Извлекаем объем
-                let volume = parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
 
-                // Проверяем условия поиска
+                // 🔥 ТОЧНОЕ СОВПАДЕНИЕ (без допуска)
                 let areaMatch = false;
                 let extensionMatch = false;
-                let volumeMatch = false;
 
-                // ТОЧНОЕ совпадение по площади (без допуска)
                 if (hasArea) {
-                    areaMatch = Math.abs(area - targetArea) < 0.01;
+                    areaMatch = area === targetArea;
                 }
 
-                // ТОЧНОЕ совпадение по протяженности (без допуска)
                 if (hasExtension) {
-                    extensionMatch = Math.abs(extension - targetExtension) < 0.01;
-                }
-                
-                // ТОЧНОЕ совпадение по объему (без допуска)
-                if (hasVolume) {
-                    volumeMatch = Math.abs(volume - targetVolume) < 0.01;
+                    extensionMatch = extension === targetExtension;
                 }
 
-                // Объект подходит, если совпадает площадь ИЛИ протяженность ИЛИ объем
-                const sizeMatch = (hasArea && areaMatch) || (hasExtension && extensionMatch) || (hasVolume && volumeMatch);
+                // Объект подходит, если совпадает площадь ИЛИ протяженность (ТОЧНО!)
+                const sizeMatch = (hasArea && areaMatch) || (hasExtension && extensionMatch);
                 
                 if (!sizeMatch) continue;
 
@@ -196,9 +190,9 @@
 
                 let streetMatch = false;
                 if (targetStreet && nspdStreet) {
-                    streetMatch = nspdStreet.includes(targetStreet) || 
-                                  targetStreet.includes(nspdStreet) ||
-                                  normalizeString(targetStreet) === normalizeString(nspdStreet);
+                    streetMatch = nspdStreet === targetStreet ||
+                                  nspdStreet.includes(targetStreet) || 
+                                  targetStreet.includes(nspdStreet);
                 }
 
                 let houseMatch = false;
@@ -215,7 +209,6 @@
                     feature, 
                     area, 
                     extension,
-                    volume,
                     address: opts.readable_address || props.descr || '',
                     house: nspdHouse,
                     street: nspdStreet,
@@ -253,23 +246,15 @@
                 }
             }
 
-            // Определяем значение для поля "Площадь/Протяженность/Объем"
+            // Определяем значение для поля "Площадь/Протяженность"
             let sizeValue = '—';
             if (item.area > 0) {
                 sizeValue = item.area.toFixed(1) + ' м²';
                 if (item.extension > 0) {
                     sizeValue += ' / ' + item.extension.toFixed(1) + ' м (прот.)';
                 }
-                if (item.volume > 0) {
-                    sizeValue += ' / ' + item.volume.toFixed(1) + ' м³ (об.)';
-                }
             } else if (item.extension > 0) {
                 sizeValue = item.extension.toFixed(1) + ' м (протяженность)';
-                if (item.volume > 0) {
-                    sizeValue += ' / ' + item.volume.toFixed(1) + ' м³ (об.)';
-                }
-            } else if (item.volume > 0) {
-                sizeValue = item.volume.toFixed(1) + ' м³ (объем)';
             }
 
             // Определяем значение для "Категория земель" (только для земельных участков)
@@ -297,7 +282,7 @@
                 'Тип объекта': objectType || '—',
                 'Наименование': opts.params_name || opts.name || opts.building_name || '—',
                 'Адрес': item.address || '—',
-                'Площадь/Протяженность/Объем': sizeValue,
+                'Площадь/Протяженность': sizeValue,
                 'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
                 'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
                 'Назначение': purpose,
@@ -320,16 +305,14 @@
         async function performSearch() {
             const area = parseFloat(areaInput.value);
             const extension = parseFloat(extensionInput.value);
-            const volume = parseFloat(volumeInput.value);
             const address = addressInput.value.trim();
 
             // Проверяем, что введено хотя бы одно значение
             const hasArea = !isNaN(area) && area > 0;
             const hasExtension = !isNaN(extension) && extension > 0;
-            const hasVolume = !isNaN(volume) && volume > 0;
 
-            if (!hasArea && !hasExtension && !hasVolume) {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">⚠️ Пожалуйста, введите площадь, протяженность ИЛИ объем.</div>`;
+            if (!hasArea && !hasExtension) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">⚠️ Пожалуйста, введите площадь ИЛИ протяженность.</div>`;
                 return;
             }
             if (!address) {
@@ -349,7 +332,7 @@
 
             try {
                 // Извлекаем ключевые слова из адреса для поиска
-                const keywords = address.split(/[\s,]+/).filter(w => w.length > 2);
+                const keywords = extractSearchKeywords(address);
                 const searchQuery = keywords.length > 0 ? keywords[keywords.length - 1] : address;
                 
                 const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=100`;
@@ -372,16 +355,16 @@
 
                 const data = await response.json();
                 const features = data?.data?.features || [];
-                console.log(`📥 Получено ${features.length} объектов из НСПД`);
 
-                const candidates = findBestMatch(features, area, extension, volume, address);
-                console.log(`🎯 Найдено ${candidates.length} подходящих объектов`);
+                // Фильтруем объекты
+                const candidates = findBestMatch(features, area, extension, address);
 
                 if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по заданным критериям.<br>
-                            <span class="text-xs">Проверьте правильность адреса, площади, протяженности или объема (точное совпадение)</span>
+                            <span class="text-xs">Проверьте правильность адреса и значения (ТОЧНОЕ СОВПАДЕНИЕ)</span>
+                            <br><span class="text-xs">Попробуйте ввести только название месторождения или района</span>
                         </div>
                     `;
                     return;
@@ -463,7 +446,6 @@
         searchBtn.addEventListener('click', performSearch);
         areaInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
         extensionInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
-        volumeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
         addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
