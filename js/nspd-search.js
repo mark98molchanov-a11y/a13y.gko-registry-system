@@ -63,11 +63,8 @@
     function extractSearchKeywords(address) {
         if (!address) return [];
         
-        // Убираем лишние слова
         const stopWords = ['автономный', 'округ', 'район', 'город', 'поселок', 'деревня', 'село', 'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 'площадь', 'аллея'];
         const words = address.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
-        
-        // Фильтруем стоп-слова и оставляем уникальные
         const keywords = [...new Set(words.filter(w => !stopWords.includes(w)))];
         
         console.log('🔑 Ключевые слова для поиска:', keywords);
@@ -159,53 +156,112 @@
             let candidates = [];
             
             for (const feature of features) {
-                const props = feature.properties || {};
+                // 🔥 ПРАВИЛЬНОЕ ИЗВЛЕЧЕНИЕ ДАННЫХ ИЗ ОБЪЕКТА
+                // Данные могут быть на разных уровнях: в самом объекте, в properties, в options
+                const obj = feature || {};
+                const props = obj.properties || {};
                 const opts = props.options || {};
                 
-                // Извлекаем площадь
-                let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
-                           parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
+                // 🔥 КАДАСТРОВЫЙ НОМЕР - ищем в разных местах
+                const cadNumber = obj.cadastral_number || 
+                                  opts.cad_number || 
+                                  props.cadastral_number || 
+                                  props.externalKey || 
+                                  opts.externalKey || 
+                                  '—';
                 
-                // Извлекаем протяженность
-                let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+                // 🔥 АДРЕС - ищем в разных местах
+                const address = obj.address || 
+                                opts.readable_address || 
+                                props.readable_address || 
+                                opts.address_readable_address || 
+                                props.descr || 
+                                '';
+                
+                // 🔥 ТИП ОБЪЕКТА
+                const objectType = obj.object_type || 
+                                   obj.categoryName || 
+                                   opts.type || 
+                                   opts.object_type_value || 
+                                   props.categoryName || 
+                                   '';
+                
+                // 🔥 ПЛОЩАДЬ - ищем в разных местах
+                let area = parseFloat(obj.area) || 
+                           parseFloat(opts.area) || 
+                           parseFloat(opts.params_area) || 
+                           parseFloat(opts.specified_area) || 
+                           parseFloat(opts.build_record_area) || 
+                           parseFloat(props.area) || 
+                           0;
+                
+                // 🔥 ПРОТЯЖЕННОСТЬ - ищем в разных местах
+                let extension = parseFloat(obj.params_extension) || 
+                                parseFloat(opts.params_extension) || 
+                                parseFloat(opts.extension) || 
+                                parseFloat(props.params_extension) || 
+                                0;
+                
+                // 🔥 НАИМЕНОВАНИЕ
+                const name = obj.object_name || 
+                             opts.params_name || 
+                             opts.name || 
+                             opts.building_name || 
+                             '';
+                
+                // 🔥 КАДАСТРОВАЯ СТОИМОСТЬ
+                const cadastralCost = parseFloat(obj.cadastral_value) || 
+                                      parseFloat(opts.cost_value) || 
+                                      parseFloat(props.cadastral_value) || 
+                                      0;
+                
+                // 🔥 УПКС
+                let upksValue = parseFloat(obj.cadastral_index) || 
+                                parseFloat(opts.cost_index) || 
+                                parseFloat(props.cadastral_index) || 
+                                0;
+
+                // Если УПКС = 0, вычисляем из стоимости и площади
+                if (upksValue === 0 && cadastralCost > 0 && area > 0) {
+                    upksValue = cadastralCost / area;
+                }
+
+                console.log(`🔍 Объект: ${cadNumber}, площадь: ${area}, протяженность: ${extension}, адрес: ${address.slice(0, 50)}...`);
 
                 // Проверяем условие поиска в зависимости от выбранного параметра
                 let valueMatch = false;
+                let matchedValue = 0;
+                
                 if (searchTypeParam === 'area') {
                     valueMatch = Math.abs(area - targetValue) < 0.01;
+                    matchedValue = area;
                 } else if (searchTypeParam === 'extension') {
                     valueMatch = Math.abs(extension - targetValue) < 0.01;
+                    matchedValue = extension;
                 }
                 
                 if (!valueMatch) continue;
 
-                // Получаем полный адрес и название объекта
-                const fullAddress = (opts.readable_address || props.descr || '').toLowerCase();
-                const objectName = (opts.params_name || opts.name || '').toLowerCase();
-                const combinedText = fullAddress + ' ' + objectName;
-                
                 // Проверяем совпадение по ключевым словам
                 let addressMatch = false;
+                const combinedText = (address + ' ' + name).toLowerCase();
                 
                 if (!targetAddress || targetAddress.trim() === '') {
                     addressMatch = true;
                 } else if (hasKeywords) {
-                    // Проверяем каждое ключевое слово
                     let matchCount = 0;
                     for (const keyword of keywords) {
                         if (combinedText.includes(keyword)) {
                             matchCount++;
                         }
                     }
-                    // Если совпало больше половины ключевых слов
                     if (matchCount >= Math.ceil(keywords.length / 2)) {
                         addressMatch = true;
                         console.log(`✅ Совпадение по ключевым словам: ${matchCount}/${keywords.length} (${keywords.join(', ')})`);
                     }
                 } else {
-                    // Обычная проверка вхождения
                     const normalizedTarget = normalizeString(targetAddress);
-                    const normalizedFull = normalizeString(fullAddress);
+                    const normalizedFull = normalizeString(address);
                     addressMatch = normalizedFull.includes(normalizedTarget) || 
                                    normalizedTarget.includes(normalizedFull);
                 }
@@ -213,27 +269,28 @@
                 if (!addressMatch) continue;
 
                 candidates.push({ 
-                    feature, 
-                    area, 
-                    extension,
-                    address: fullAddress,
-                    cadNumber: opts.cad_number || opts.externalKey || '—',
-                    type: opts.type || opts.object_type_value || '—',
-                    cadastralCost: parseFloat(opts.cost_value) || 0,
-                    name: opts.params_name || opts.name || '',
+                    feature: feature,
+                    area: area,
+                    extension: extension,
+                    matchedValue: matchedValue,
+                    address: address,
+                    cadNumber: cadNumber,
+                    type: objectType,
+                    cadastralCost: cadastralCost,
+                    upksValue: upksValue,
+                    name: name,
                     rawData: {
                         feature: feature,
                         opts: opts,
-                        props: props
+                        props: props,
+                        obj: obj
                     }
                 });
             }
 
             // Сортируем по близости значения
             candidates.sort((a, b) => {
-                const aVal = searchTypeParam === 'area' ? a.area : a.extension;
-                const bVal = searchTypeParam === 'area' ? b.area : b.extension;
-                return Math.abs(aVal - targetValue) - Math.abs(bVal - targetValue);
+                return Math.abs(a.matchedValue - targetValue) - Math.abs(b.matchedValue - targetValue);
             });
 
             return candidates;
@@ -244,20 +301,11 @@
             const data = item.rawData;
             const opts = data.opts || {};
             const props = data.props || {};
+            const obj = data.obj || {};
 
-            const objectType = item.type || data.props.categoryName || '';
+            const objectType = item.type || '';
             const isLand = isLandObject(objectType);
             
-            // Вычисляем УПКС
-            let upksValue = parseFloat(opts.cost_index) || 0;
-            if (upksValue === 0) {
-                const cost = parseFloat(opts.cost_value) || 0;
-                const area = parseFloat(opts.specified_area) || item.area || parseFloat(opts.params_built_up_area) || 0;
-                if (cost > 0 && area > 0) {
-                    upksValue = cost / area;
-                }
-            }
-
             // Определяем значение для поля "Площадь/Протяженность"
             let sizeValue = '—';
             if (item.area > 0) {
@@ -292,24 +340,24 @@
                 'Кадастровый номер': item.cadNumber || '—',
                 'Кадастровый квартал': item.cadNumber ? item.cadNumber.split(':').slice(0, 3).join(':') : '—',
                 'Тип объекта': objectType || '—',
-                'Наименование': opts.params_name || opts.name || opts.building_name || '—',
+                'Наименование': item.name || opts.params_name || opts.name || opts.building_name || '—',
                 'Адрес': item.address || '—',
                 'Площадь/Протяженность': sizeValue,
-                'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
-                'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
+                'Кадастровая стоимость': item.cadastralCost > 0 ? formatPrice(item.cadastralCost) : '—',
+                'УПКС (₽/м²)': item.upksValue > 0 ? item.upksValue.toFixed(2) : '—',
                 'Назначение': purpose,
-                'Статус': opts.common_data_status || opts.status || '—',
-                'Форма собственности': opts.ownership_type || '—',
-                'Этаж': opts.floor || '—',
-                'Родительский объект': opts.parent_cad_number || '—',
-                'Год постройки': opts.year_built || opts.params_year_built || '—',
-                'Год ввода в эксплуатацию': opts.year_commisioning || opts.params_year_commisioning || '—',
-                'Этажность': opts.params_floors || opts.floors || '—',
-                'Материал стен': opts.materials || '—',
+                'Статус': opts.common_data_status || opts.status || obj.status || '—',
+                'Форма собственности': opts.ownership_type || obj.ownership_type || '—',
+                'Этаж': opts.floor || obj.floor || '—',
+                'Родительский объект': opts.parent_cad_number || obj.parent_cad_number || '—',
+                'Год постройки': opts.year_built || opts.params_year_built || obj.year_built || '—',
+                'Год ввода в эксплуатацию': opts.year_commisioning || opts.params_year_commisioning || obj.year_commisioning || '—',
+                'Этажность': opts.params_floors || opts.floors || obj.floors || '—',
+                'Материал стен': opts.materials || obj.materials || '—',
                 'Категория земель': landCategory,
                 'ВРИ': vri,
                 'Основание оценки': opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—',
-                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—'
+                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || obj.registration_date || '—'
             };
         }
 
@@ -342,11 +390,12 @@
             `;
 
             try {
-                // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ СЛОВА ДЛЯ ЗАПРОСА (берем последнее значимое слово)
+                // Извлекаем ключевые слова для запроса
                 const keywords = extractSearchKeywords(address);
+                // Берем последнее значимое слово для поиска (обычно это месторождение или улица)
                 const searchQuery = keywords.length > 0 ? keywords[keywords.length - 1] : address;
                 
-                console.log(`🔍 Поисковый запрос (упрощенный): "${searchQuery}"`);
+                console.log(`🔍 Поисковый запрос: "${searchQuery}"`);
                 
                 const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=100`;
                 
@@ -372,14 +421,27 @@
                 const features = data?.data?.features || [];
                 console.log(`📥 Получено ${features.length} объектов из НСПД`);
 
-                // Выводим информацию о найденных объектах
-                if (features.length > 0) {
-                    console.log('📋 Найденные объекты:');
-                    features.forEach((f, i) => {
-                        const opts = f.properties?.options || {};
-                        console.log(`  ${i+1}. ${opts.cad_number || '—'} | ${opts.type || '—'} | ${opts.params_extension || opts.area || '—'}`);
-                    });
+                if (features.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
+                            🔍 По запросу "${searchQuery}" ничего не найдено.<br>
+                            <span class="text-xs">Попробуйте ввести только название месторождения (например, "Тарасовское")</span>
+                        </div>
+                    `;
+                    return;
                 }
+
+                // 🔥 ВЫВОДИМ ВСЕ ОБЪЕКТЫ ДЛЯ ОТЛАДКИ
+                console.log('📋 Все найденные объекты:');
+                features.forEach((f, i) => {
+                    const obj = f || {};
+                    const props = obj.properties || {};
+                    const opts = props.options || {};
+                    const cadNum = obj.cadastral_number || opts.cad_number || props.cadastral_number || '—';
+                    const ext = obj.params_extension || opts.params_extension || opts.extension || 0;
+                    const addr = obj.address || opts.readable_address || props.descr || '';
+                    console.log(`  ${i+1}. ${cadNum} | протяженность: ${ext} | адрес: ${addr.slice(0, 40)}...`);
+                });
 
                 const candidates = findBestMatch(features, value, searchTypeParam, address);
                 console.log(`🎯 Найдено ${candidates.length} подходящих объектов`);
@@ -388,7 +450,7 @@
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по заданным критериям.<br>
-                            <span class="text-xs">Проверьте правильность адреса и значения (точное совпадение)</span>
+                            <span class="text-xs">Проверьте правильность значения (${searchTypeParam}: ${value})</span>
                             <br><span class="text-xs">Попробуйте ввести только название месторождения (например, "Тарасовское")</span>
                             <br><span class="text-xs">Проверьте консоль браузера (F12) для отладки</span>
                         </div>
