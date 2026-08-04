@@ -190,7 +190,7 @@
                 let allFeatures = [];
                 let usedStrategy = '';
 
-                const url1 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(mainKeyword)}&thematicSearchId=1&limit=100`;
+                const url1 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(mainKeyword)}&thematicSearchId=1&limit=500`;
                 
                 const controller1 = new AbortController();
                 const timeoutId1 = setTimeout(() => controller1.abort(), 15000);
@@ -212,7 +212,7 @@
 
                 // 🔥 СТРАТЕГИЯ 2: Если ничего не найдено - пробуем поискать по полному адресу
                 if (allFeatures.length === 0) {
-                    const url2 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=100`;
+                    const url2 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=500`;
                     
                     const controller2 = new AbortController();
                     const timeoutId2 = setTimeout(() => controller2.abort(), 15000);
@@ -236,7 +236,7 @@
                 // 🔥 СТРАТЕГИЯ 3: Если ничего не найдено - пробуем поискать по первому ключевому слову
                 if (allFeatures.length === 0 && keywords.length > 1) {
                     const firstKeyword = keywords[0];
-                    const url3 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(firstKeyword)}&thematicSearchId=1&limit=100`;
+                    const url3 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(firstKeyword)}&thematicSearchId=1&limit=500`;
                     
                     const controller3 = new AbortController();
                     const timeoutId3 = setTimeout(() => controller3.abort(), 15000);
