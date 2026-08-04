@@ -723,6 +723,8 @@ displayResult(data) {
             { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+            // 🆕 ДОБАВЛЯЕМ ПЛОЩАДЬ ЗАСТРОЙКИ ДЛЯ СООРУЖЕНИЙ
+            { label: 'Площадь застройки', value: data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : '—' },
         );
     } else if (isConstruction) {
         let buildArea = data.area > 0 ? data.area : data.params_built_up_area;
