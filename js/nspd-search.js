@@ -42,91 +42,6 @@
         return '';
     }
 
-    // Функция для отображения объекта на карте (как в NSPDIntegration)
-    function showNSPDObjectOnMap(cadNumber) {
-        console.log('🗺️ Показ объекта на карте (из модуля поиска):', cadNumber);
-        
-        if (!cadNumber) {
-            showNotification('Кадастровый номер не указан', 'warning');
-            return;
-        }
-
-        // Ищем объект в allDealsFlat по полю cad_nspd
-        let deal = null;
-        if (typeof window.allDealsFlat !== 'undefined') {
-            deal = window.allDealsFlat.find(d => d.cad_nspd === cadNumber);
-        }
-        
-        if (deal && deal.cad_nspd) {
-            console.log('✅ Найден объект в сделках по cad_nspd:', deal.cad_nspd);
-            // Показываем объект НСПД напрямую по cad_nspd
-            if (typeof window.showNSPDObjectByNspd === 'function') {
-                window.showNSPDObjectByNspd(deal.cad_nspd);
-                // Переключаемся на вкладку карты
-                if (typeof switchTab === 'function') {
-                    setTimeout(() => {
-                        switchTab('map');
-                        showNotification('Объект отображен на карте', 'success');
-                    }, 300);
-                }
-            } else {
-                console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
-                showNotification('Функция отображения не загружена', 'error');
-            }
-        } else {
-            // Если не нашли в allDealsFlat — пробуем показать напрямую по номеру
-            console.warn('⚠️ Не найден cad_nspd в allDealsFlat для:', cadNumber);
-            if (typeof window.showNSPDObjectByNspd === 'function') {
-                window.showNSPDObjectByNspd(cadNumber);
-                if (typeof switchTab === 'function') {
-                    setTimeout(() => {
-                        switchTab('map');
-                        showNotification('Объект отображен на карте', 'success');
-                    }, 300);
-                }
-            } else {
-                showNotification('Нет номера НСПД для этого объекта', 'warning');
-            }
-        }
-    }
-
-    // Функция для уведомлений
-    function showNotification(message, type = 'info') {
-        const colors = {
-            success: '#10b981',
-            error: '#ef4444',
-            info: '#3b82f6',
-            warning: '#f59e0b'
-        };
-
-        const notification = document.createElement('div');
-        notification.className = 'nspd-notification';
-        notification.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: ${colors[type] || colors.info};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            font-size: 13px;
-            z-index: 10000;
-            max-width: 400px;
-            animation: slideIn 0.3s ease;
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            notification.style.transition = 'all 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
-
     // Основная функция инициализации
     window.initNSPDSearch = function(containerId) {
         console.log(`🔍 Инициализация поиска НСПД в контейнере: ${containerId}`);
@@ -235,7 +150,13 @@
                         cadNumber: opts.cad_number || opts.externalKey || '—',
                         type: opts.type || opts.object_type_value || '—',
                         cadastralCost: parseFloat(opts.cost_value) || 0,
-                        name: opts.params_name || opts.name || ''
+                        name: opts.params_name || opts.name || '',
+                        // Сохраняем сырые данные для детального отображения
+                        rawData: {
+                            feature: feature,
+                            opts: opts,
+                            props: props
+                        }
                     });
                 }
             }
@@ -243,6 +164,192 @@
             // Сортируем по близости площади
             candidates.sort((a, b) => Math.abs(a.area - targetArea) - Math.abs(b.area - targetArea));
             return candidates;
+        }
+
+        // Функция для форматирования цены
+        function formatPrice(num) {
+            if (!num || num === 0) return '—';
+            return num.toLocaleString('ru-RU') + ' ₽';
+        }
+
+        // Функция для форматирования даты
+        function formatDate(date) {
+            if (!date) return '—';
+            return new Date(date).toLocaleDateString('ru-RU');
+        }
+
+        // Функция для отображения детальной информации об объекте (как в NSPDIntegration)
+        function displayObjectDetails(item) {
+            const data = item.rawData;
+            const opts = data.opts || {};
+            const props = data.props || {};
+
+            // Определяем тип объекта
+            const objectType = item.type || data.props.categoryName || '';
+            const isBuilding = objectType.includes('Здание') || objectType.includes('Здания');
+            const isPremises = objectType.includes('Помещение') || objectType.includes('Помещения');
+            const isStructure = objectType.includes('Сооружение') || objectType.includes('Сооружения');
+            const isConstruction = objectType.includes('Объект незавершенного строительства');
+            const isComplex = objectType.includes('Единый недвижимый комплекс') || objectType.includes('Единые недвижимые комплексы');
+            const isLand = objectType.includes('Земельный участок');
+            const isParking = objectType.includes('Машино-место') || objectType.includes('Паркинг') || objectType.includes('машиноместо');
+
+            // Вычисляем УПКС
+            let upksValue = parseFloat(opts.cost_index) || 0;
+            if (upksValue === 0) {
+                const cost = parseFloat(opts.cost_value) || 0;
+                const area = parseFloat(opts.specified_area) || item.area || parseFloat(opts.params_built_up_area) || 0;
+                if (cost > 0 && area > 0) {
+                    upksValue = cost / area;
+                }
+            }
+
+            // Базовые поля
+            const fields = [
+                { label: 'Кадастровый номер', value: item.cadNumber || '—', important: true },
+                { label: 'Кадастровый квартал', value: item.cadNumber ? item.cadNumber.split(':').slice(0, 3).join(':') : '—' },
+                { label: 'Тип объекта', value: objectType || '—', important: true },
+                { label: 'Статус', value: opts.common_data_status || opts.status || '—' },
+                { label: 'Форма собственности', value: opts.ownership_type || '—' },
+                { label: 'Адрес', value: item.address || '—', important: true },
+                { label: 'Кадастровая стоимость', value: opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—', important: true },
+                { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
+                { label: 'Назначение', value: opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—' },
+            ];
+
+            // Добавляем специфичные поля в зависимости от типа
+            if (isParking) {
+                fields.push(
+                    { label: 'Площадь', value: item.area > 0 ? item.area.toFixed(1) + ' м²' : '—', important: true },
+                    { label: 'Этаж', value: opts.floor || '—' },
+                    { label: 'Родительский объект', value: opts.parent_cad_number || '—' },
+                    { label: 'Год постройки', value: opts.year_built || opts.params_year_built || '—' },
+                    { label: 'Год ввода в эксплуатацию', value: opts.year_commisioning || opts.params_year_commisioning || '—' },
+                );
+            } else if (isPremises) {
+                fields.push(
+                    { label: 'Тип помещения', value: opts.params_type || opts.params_name || opts.name || '—' },
+                    { label: 'Площадь', value: item.area > 0 ? item.area.toFixed(1) + ' м²' : '—', important: true },
+                    { label: 'Этаж', value: opts.floor || '—' },
+                    { label: 'Родительский объект', value: opts.parent_cad_number || '—' },
+                    { label: 'Год постройки', value: opts.year_built || opts.params_year_built || '—' },
+                    { label: 'Год ввода в эксплуатацию', value: opts.year_commisioning || opts.params_year_commisioning || '—' },
+                );
+            } else if (isBuilding) {
+                fields.push(
+                    { label: 'Наименование', value: opts.params_name || opts.name || opts.building_name || '—' },
+                    { label: 'Площадь', value: item.area > 0 ? item.area.toFixed(1) + ' м²' : '—', important: true },
+                    { label: 'Этажность', value: opts.params_floors || opts.floors || '—' },
+                    { label: 'Год постройки', value: opts.year_built || opts.params_year_built || '—' },
+                    { label: 'Год ввода в эксплуатацию', value: opts.year_commisioning || opts.params_year_commisioning || '—' },
+                    { label: 'Материал стен', value: opts.materials || '—' },
+                    { label: 'Основание оценки', value: opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+                );
+            } else if (isStructure) {
+                fields.push(
+                    { label: 'Наименование', value: opts.params_name || opts.name || '—' },
+                    { label: 'Площадь', value: item.area > 0 ? item.area.toFixed(1) + ' м²' : '—', important: true },
+                    { label: 'Протяженность', value: opts.params_extension ? opts.params_extension + ' м' : '—' },
+                    { label: 'Объем', value: opts.params_volume ? opts.params_volume + ' м³' : '—' },
+                    { label: 'Высота', value: opts.params_height ? opts.params_height + ' м' : '—' },
+                    { label: 'Глубина', value: opts.params_depth ? opts.params_depth + ' м' : '—' },
+                    { label: 'Год постройки', value: opts.year_built || opts.params_year_built || '—' },
+                    { label: 'Основание оценки', value: opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+                );
+            } else if (isConstruction) {
+                let buildArea = item.area > 0 ? item.area : parseFloat(opts.params_built_up_area);
+                fields.push(
+                    { label: 'Наименование', value: opts.params_name || opts.name || '—' },
+                    { label: 'Площадь застройки', value: buildArea > 0 ? buildArea.toFixed(1) + ' м²' : '—', important: true },
+                    { label: 'Степень готовности', value: opts.degree_readiness ? opts.degree_readiness + '%' : '—' },
+                    { label: 'Тип права', value: opts.right_type || '—' },
+                    { label: 'Объем', value: opts.params_volume ? opts.params_volume + ' м³' : '—' },
+                    { label: 'Год постройки', value: opts.year_built || opts.params_year_built || '—' },
+                    { label: 'Основание оценки', value: opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+                );
+            } else if (isComplex) {
+                fields.push(
+                    { label: 'Наименование', value: opts.params_name || opts.name || '—', important: true },
+                    { label: 'Назначение', value: opts.purpose || opts.params_purpose || '—' },
+                    { label: 'Год постройки', value: opts.year_built || opts.params_year_built || '—' },
+                    { label: 'Год ввода в эксплуатацию', value: opts.year_commisioning || opts.params_year_commisioning || '—' },
+                    { label: 'Основание оценки', value: opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+                );
+            } else if (isLand) {
+                const areaValue = parseFloat(opts.specified_area) > 0 
+                    ? parseFloat(opts.specified_area).toFixed(1) + ' м²' 
+                    : (item.area > 0 ? item.area.toFixed(1) + ' м²' : '—');
+                fields.push(
+                    { label: 'Площадь', value: areaValue, important: true },
+                    { label: 'Категория земель', value: opts.land_record_category_type || props.categoryName || '—' },
+                    { label: 'ВРИ', value: opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—' },
+                    { label: 'Назначение', value: opts.land_record_subtype || '—' },
+                    { label: 'Основание оценки', value: opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—' },
+                );
+            }
+
+            if (opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date) {
+                const regDate = opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date;
+                fields.push({ label: 'Дата регистрации', value: formatDate(regDate) });
+            }
+
+            const visibleFields = fields.filter(f => f.value && f.value !== '—' && f.value !== '');
+
+            // Проверяем наличие геометрии
+            const hasGeometry = data.feature?.geometry && data.feature.geometry.coordinates;
+            const geometryType = data.feature?.geometry?.type || '';
+
+            // Формируем HTML для отображения деталей
+            let detailsHtml = `
+                <div style="
+                    background: white;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    max-height: 500px;
+                    overflow-y: auto;
+                    font-family: 'Inter', sans-serif;
+                    margin-top: 12px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: white; z-index: 1; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 13px; color: #1e293b;">📋 Данные из НСПД</span>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-size: 9px; color: #10b981; background: #dcfce7; padding: 2px 10px; border-radius: 20px;">Найден</span>
+                            <span style="font-size: 9px; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 20px;">
+                                ${objectType || 'Объект'}
+                            </span>
+                            ${hasGeometry ? '<span style="font-size: 9px; color: #0ea5e9; background: #e0f2fe; padding: 2px 10px; border-radius: 20px;">Есть геометрия</span>' : ''}
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px;">
+                        ${visibleFields.map(f => `
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8fafc; ${f.important ? 'background: #f8fafc; border-radius: 4px; padding-left: 4px; padding-right: 4px;' : ''}">
+                                <span style="color: #64748b; font-size: 10px; white-space: nowrap; min-width: 40%;">${f.label}:</span>
+                                <span style="color: #1e293b; text-align: right; word-break: break-word; font-size: 10px; max-width: 60%;">${f.value}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                        <button onclick="navigator.clipboard.writeText('${item.cadNumber}').then(() => alert('Кадастровый номер скопирован!'))" 
+                                style="padding: 5px 14px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; font-size: 10px;">
+                            📋 Копировать номер
+                        </button>
+                        <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
+                                style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px;">
+                            ✕ Очистить
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 8px; font-size: 8px; color: #cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 6px;">
+                        ${hasGeometry ? `Тип геометрии: ${geometryType}` : 'Геометрия отсутствует'}
+                    </div>
+                </div>
+            `;
+
+            return detailsHtml;
         }
 
         // Функция для выполнения поиска
@@ -310,7 +417,7 @@
                     return;
                 }
 
-                // Отображаем результаты
+                // Отображаем результаты с детальной информацией
                 let resultsHtml = `
                     <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
                         <div class="flex justify-between items-center mb-3">
@@ -323,8 +430,6 @@
 
                 candidates.forEach((item, index) => {
                     const cost = item.cadastralCost > 0 ? item.cadastralCost.toLocaleString() + ' ₽' : '—';
-                    // Экранируем кадастровый номер для использования в onclick
-                    const safeCadNumber = item.cadNumber.replace(/'/g, "\\'");
                     
                     resultsHtml += `
                         <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition">
@@ -341,18 +446,8 @@
                                         ${item.house ? `<span>Дом: ${item.house}</span>` : ''}
                                     </div>
                                 </div>
-                                <div class="flex gap-2 flex-shrink-0">
-                                    <button onclick="showNSPDObjectOnMap('${safeCadNumber}')" 
-                                            class="text-xs bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-1.5 rounded-lg border border-brand-200 transition"
-                                            title="Показать объект на карте">
-                                        🗺️ На карте
-                                    </button>
-                                    <button onclick="navigator.clipboard.writeText('${safeCadNumber}').then(() => alert('Кадастровый номер скопирован!'))" 
-                                            class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 transition">
-                                        📋 Копировать
-                                    </button>
-                                </div>
                             </div>
+                            ${displayObjectDetails(item)}
                         </div>
                     `;
                 });
@@ -383,9 +478,6 @@
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
-
-    // Экспортируем функцию для использования в других модулях
-    window.showNSPDObjectOnMap = showNSPDObjectOnMap;
 
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
