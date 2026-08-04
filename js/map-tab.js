@@ -6393,11 +6393,17 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             
             const objType = opts.type || opts.object_type_value || opts.land_record_type || props.categoryName || '';
             
+            // ✅ ИЗВЛЕКАЕМ ПЛОЩАДЬ (из разных полей)
             let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                        parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
             
-            if (area === 0 && objType.includes('Сооружение')) {
-                area = parseFloat(opts.params_extension) || 0;
+            // ✅ ИЗВЛЕКАЕМ ПРОТЯЖЕННОСТЬ (для сооружений)
+            let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+            
+            // ✅ ЕСЛИ ПЛОЩАДЬ = 0, НО ЕСТЬ ПРОТЯЖЕННОСТЬ - ИСПОЛЬЗУЕМ ПРОТЯЖЕННОСТЬ
+            if (area === 0 && extension > 0) {
+                area = extension;
+                console.log(`🔧 Объект ${cad}: площадь заменена на протяженность ${extension} м`);
             }
             
             const name = opts.params_name || opts.name || opts.building_name || '';
@@ -6407,28 +6413,41 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             const nspdStreet = normalizeStreet(extractStreetFromAddress(address));
             
             // Проверяем совпадения
-function getTypeAliases(type) {
-    const map = {
-        'помещение': ['помещение', 'квартира', 'нежилое', 'жилое'],
-        'квартира': ['квартира', 'помещение', 'жилое'],
-        'здание': ['здание', 'строение', 'сооружение'],
-        'сооружение': ['сооружение', 'здание', 'строение']
-    };
-    const key = type.toLowerCase().slice(0, 5);
-    const aliases = map[key] || [type.toLowerCase()];
-    // ✅ Добавляем точное совпадение первым
-    const exact = type.toLowerCase();
-    if (!aliases.includes(exact)) {
-        aliases.unshift(exact);
-    }
-    return aliases.concat(aliases.map(a => a.slice(0, 5)));
-}
+            function getTypeAliases(type) {
+                const map = {
+                    'помещение': ['помещение', 'квартира', 'нежилое', 'жилое'],
+                    'квартира': ['квартира', 'помещение', 'жилое'],
+                    'здание': ['здание', 'строение', 'сооружение'],
+                    'сооружение': ['сооружение', 'здание', 'строение']
+                };
+                const key = type.toLowerCase().slice(0, 5);
+                const aliases = map[key] || [type.toLowerCase()];
+                const exact = type.toLowerCase();
+                if (!aliases.includes(exact)) {
+                    aliases.unshift(exact);
+                }
+                return aliases.concat(aliases.map(a => a.slice(0, 5)));
+            }
 
             const typeAliases = getTypeAliases(targetType);
             const typeMatch = typeAliases.some(alias => 
                 objType.toLowerCase().includes(alias)
             );
-            const areaMatch = Math.abs(area - targetArea) <= tolerance;
+            
+            // ✅ ПРОВЕРКА ПЛОЩАДИ / ПРОТЯЖЕННОСТИ
+            let areaMatch = false;
+            
+            // Если это сооружение и есть протяженность - проверяем по протяженности
+            const isStructure = objType.toLowerCase().includes('сооружение');
+            if (isStructure && extension > 0) {
+                areaMatch = Math.abs(extension - targetArea) <= tolerance;
+                if (areaMatch) {
+                    console.log(`🔧 Объект ${cad}: совпадение по протяженности ${extension} м (цель ${targetArea} м)`);
+                }
+            } else {
+                // Обычная проверка по площади
+                areaMatch = Math.abs(area - targetArea) <= tolerance;
+            }
             
             // ✅ СТРИТМЭТЧ - нормализованное сравнение (только если улица есть)
             let streetMatch = false;
@@ -6468,6 +6487,8 @@ function getTypeAliases(type) {
                 cad: cad,
                 type: objType,
                 area: area,
+                extension: extension,
+                isStructure: isStructure,
                 name: name,
                 address: address,
                 nspdStreet: nspdStreet,
@@ -6484,19 +6505,19 @@ function getTypeAliases(type) {
         // ✅ КАСКАДНЫЙ ПОИСК
         // ============================================================
         
-        // 1️⃣ квартал + тип + площадь + улица (ТОЧНОЕ СОВПАДЕНИЕ)
+        // 1️⃣ квартал + тип + площадь/протяженность + улица (ТОЧНОЕ СОВПАДЕНИЕ)
         let candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch && obj.streetMatch
         );
         
         if (candidates.length > 0) {
             candidates.sort((a, b) => {
-                const aDiff = Math.abs(a.area - targetArea);
-                const bDiff = Math.abs(b.area - targetArea);
+                const aDiff = Math.abs((a.extension > 0 ? a.extension : a.area) - targetArea);
+                const bDiff = Math.abs((b.extension > 0 ? b.extension : b.area) - targetArea);
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 1️⃣ (квартал+тип+площадь+улица): ${best.cad} (${best.area} м²)`);
+            console.log(`\n✅ 1️⃣ (квартал+тип+площадь/протяженность+улица): ${best.cad} (${best.extension > 0 ? best.extension : best.area} м²)`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             return best.cad;
@@ -6505,87 +6526,87 @@ function getTypeAliases(type) {
         // ============================================================
         // 🔥 ГЛАВНОЕ ПРАВИЛО: ЕСЛИ УЛИЦА ЕСТЬ В СДЕЛКЕ - НЕ ПЕРЕХОДИМ ДАЛЬШЕ!
         // ============================================================
-    if (hasStreet) {
-    console.log(`\n⛔ Улица "${normalizedDealStreet}" есть в сделке, но не совпала с объектами НСПД`);
-    console.log(`🔍 Пробуем найти по кварталу + площади + городу + улице (без типа)...`);
-    
-    // 🆕 ДОПОЛНИТЕЛЬНЫЙ ПОИСК: квартал + площадь + город + улица (БЕЗ ТИПА)
-    let candidates = allObjects.filter(obj => 
-        obj.areaMatch && obj.locMatch && obj.streetMatch
-    );
-    
-    if (candidates.length > 0) {
-        candidates.sort((a, b) => {
-            const aDiff = Math.abs(a.area - targetArea);
-            const bDiff = Math.abs(b.area - targetArea);
-            return aDiff - bDiff;
-        });
-        const best = candidates[0];
-        console.log(`\n✅ (квартал+площадь+город+улица, без типа): ${best.cad} (${best.area} м²)`);
-        console.log(`   Улица НСПД: "${best.nspdStreet}"`);
-        console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-        console.log(`   ⚠️ ВНИМАНИЕ: Поиск без проверки типа!`);
-        return best.cad;
-    }
-    
-    console.log(`❌ Объект НЕ НАЙДЕН — пропускаем (не подменяем улицу!)`);
-    return null;
-}
+        if (hasStreet) {
+            console.log(`\n⛔ Улица "${normalizedDealStreet}" есть в сделке, но не совпала с объектами НСПД`);
+            console.log(`🔍 Пробуем найти по кварталу + площади/протяженности + городу + улице (без типа)...`);
+            
+            // 🆕 ДОПОЛНИТЕЛЬНЫЙ ПОИСК: квартал + площадь/протяженность + город + улица (БЕЗ ТИПА)
+            let candidatesNoType = allObjects.filter(obj => 
+                obj.areaMatch && obj.locMatch && obj.streetMatch
+            );
+            
+            if (candidatesNoType.length > 0) {
+                candidatesNoType.sort((a, b) => {
+                    const aDiff = Math.abs((a.extension > 0 ? a.extension : a.area) - targetArea);
+                    const bDiff = Math.abs((b.extension > 0 ? b.extension : b.area) - targetArea);
+                    return aDiff - bDiff;
+                });
+                const best = candidatesNoType[0];
+                console.log(`\n✅ (квартал+площадь/протяженность+город+улица, без типа): ${best.cad} (${best.extension > 0 ? best.extension : best.area} м²)`);
+                console.log(`   Улица НСПД: "${best.nspdStreet}"`);
+                console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
+                console.log(`   ⚠️ ВНИМАНИЕ: Поиск без проверки типа!`);
+                return best.cad;
+            }
+            
+            console.log(`❌ Объект НЕ НАЙДЕН — пропускаем (не подменяем улицу!)`);
+            return null;
+        }
         
         // ✅ ТОЛЬКО ЕСЛИ УЛИЦА В СДЕЛКЕ ПУСТАЯ (nan) — ИЩЕМ ПО ГОРОДУ
         console.log(`\n📍 Улица в сделке пустая (nan), ищем по городу...`);
         
-        // 2️⃣ квартал + тип + площадь + город
+        // 2️⃣ квартал + тип + площадь/протяженность + город
         candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch && obj.locMatch
         );
         
         if (candidates.length > 0) {
             candidates.sort((a, b) => {
-                const aDiff = Math.abs(a.area - targetArea);
-                const bDiff = Math.abs(b.area - targetArea);
+                const aDiff = Math.abs((a.extension > 0 ? a.extension : a.area) - targetArea);
+                const bDiff = Math.abs((b.extension > 0 ? b.extension : b.area) - targetArea);
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 2️⃣ (квартал+тип+площадь+город): ${best.cad} (${best.area} м²)`);
+            console.log(`\n✅ 2️⃣ (квартал+тип+площадь/протяженность+город): ${best.cad} (${best.extension > 0 ? best.extension : best.area} м²)`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
             return best.cad;
         }
         
-        // 3️⃣ квартал + тип + площадь
+        // 3️⃣ квартал + тип + площадь/протяженность
         candidates = allObjects.filter(obj => 
             obj.typeMatch && obj.areaMatch
         );
         
         if (candidates.length > 0) {
             candidates.sort((a, b) => {
-                const aDiff = Math.abs(a.area - targetArea);
-                const bDiff = Math.abs(b.area - targetArea);
+                const aDiff = Math.abs((a.extension > 0 ? a.extension : a.area) - targetArea);
+                const bDiff = Math.abs((b.extension > 0 ? b.extension : b.area) - targetArea);
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 3️⃣ (квартал+тип+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`\n✅ 3️⃣ (квартал+тип+площадь/протяженность): ${best.cad} (${best.extension > 0 ? best.extension : best.area} м², разница ${(Math.abs((best.extension > 0 ? best.extension : best.area) - targetArea)).toFixed(1)})`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки локации!`);
             return best.cad;
         }
         
-        // 4️⃣ квартал + площадь
+        // 4️⃣ квартал + площадь/протяженность
         candidates = allObjects.filter(obj => 
             obj.areaMatch
         );
         
         if (candidates.length > 0) {
             candidates.sort((a, b) => {
-                const aDiff = Math.abs(a.area - targetArea);
-                const bDiff = Math.abs(b.area - targetArea);
+                const aDiff = Math.abs((a.extension > 0 ? a.extension : a.area) - targetArea);
+                const bDiff = Math.abs((b.extension > 0 ? b.extension : b.area) - targetArea);
                 return aDiff - bDiff;
             });
             const best = candidates[0];
-            console.log(`\n✅ 4️⃣ (квартал+площадь): ${best.cad} (${best.area} м², разница ${(Math.abs(best.area - targetArea)).toFixed(1)})`);
+            console.log(`\n✅ 4️⃣ (квартал+площадь/протяженность): ${best.cad} (${best.extension > 0 ? best.extension : best.area} м², разница ${(Math.abs((best.extension > 0 ? best.extension : best.area) - targetArea)).toFixed(1)})`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки типа и локации!`);
@@ -6602,12 +6623,12 @@ function getTypeAliases(type) {
             
             if (houseCandidates.length > 0) {
                 houseCandidates.sort((a, b) => {
-                    const aDiff = Math.abs(a.area - targetArea);
-                    const bDiff = Math.abs(b.area - targetArea);
+                    const aDiff = Math.abs((a.extension > 0 ? a.extension : a.area) - targetArea);
+                    const bDiff = Math.abs((b.extension > 0 ? b.extension : b.area) - targetArea);
                     return aDiff - bDiff;
                 });
                 const best = houseCandidates[0];
-                console.log(`\n✅ 5️⃣ (квартал+площадь+дом): ${best.cad} (${best.area} м², дом ${dealHouse})`);
+                console.log(`\n✅ 5️⃣ (квартал+площадь/протяженность+дом): ${best.cad} (${best.extension > 0 ? best.extension : best.area} м², дом ${dealHouse})`);
                 console.log(`   Улица НСПД: "${best.nspdStreet}"`);
                 console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
                 console.log(`   ⚠️ ВНИМАНИЕ: Поиск по номеру дома (без проверки улицы)!`);
