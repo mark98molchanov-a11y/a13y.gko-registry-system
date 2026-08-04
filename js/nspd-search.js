@@ -87,10 +87,15 @@
         return Math.abs(area - targetArea) <= AREA_TOLERANCE;
     }
 
-    // 🆕 Функция для проверки соответствия протяженности с допуском ±0.2 м
+    // Функция для проверки соответствия протяженности с допуском ±0.2 м
     function isExtensionMatch(extension, targetExtension) {
-        if (!targetExtension || targetExtension <= 0) return true; // если не указана, пропускаем
+        if (!targetExtension || targetExtension <= 0) return true;
         return Math.abs(extension - targetExtension) <= AREA_TOLERANCE;
+    }
+
+    // 🔥 Функция для извлечения адреса из разных полей
+    function getAddress(opts, props) {
+        return opts.readable_address || opts.address_readable_address || props.descr || '';
     }
 
     // Основная функция инициализации
@@ -170,18 +175,18 @@
                 const props = feature.properties || {};
                 const opts = props.options || {};
                 
-                // Проверяем площадь (если указана)
                 let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
                 if (targetArea && targetArea > 0 && !isAreaMatch(area, targetArea)) continue;
 
-                // 🆕 Проверяем протяженность (если указана)
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
                 if (targetExtension && targetExtension > 0 && !isExtensionMatch(extension, targetExtension)) continue;
 
-                const address = (opts.readable_address || props.descr || '').toLowerCase();
-                const nspdHouse = extractHouseNumber(address);
-                const nspdStreet = normalizeString(extractStreetFromAddress(address));
+                // 🔥 ИСПРАВЛЕНО: используем getAddress для извлечения адреса
+                const address = getAddress(opts, props);
+                const addressLower = address.toLowerCase();
+                const nspdHouse = extractHouseNumber(addressLower);
+                const nspdStreet = normalizeString(extractStreetFromAddress(addressLower));
 
                 let streetMatch = false;
                 if (targetStreet && nspdStreet) {
@@ -200,7 +205,7 @@
                         feature, 
                         area, 
                         extension: extension,
-                        address: opts.readable_address || props.descr || '',
+                        address: address,
                         house: nspdHouse,
                         street: nspdStreet,
                         cadNumber: opts.cad_number || opts.externalKey || '—',
@@ -235,22 +240,23 @@
                 const quarter = extractCadastralQuarter(cadNumber);
                 if (quarter !== targetQuarter) continue;
 
-                // Проверяем площадь (если указана)
                 let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
                 if (targetArea && targetArea > 0 && !isAreaMatch(area, targetArea)) continue;
 
-                // 🆕 Проверяем протяженность (если указана)
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
                 if (targetExtension && targetExtension > 0 && !isExtensionMatch(extension, targetExtension)) continue;
+
+                // 🔥 ИСПРАВЛЕНО: используем getAddress для извлечения адреса
+                const address = getAddress(opts, props);
 
                 candidates.push({ 
                     feature, 
                     area, 
                     extension: extension,
-                    address: opts.readable_address || props.descr || '',
-                    house: extractHouseNumber(opts.readable_address || props.descr || ''),
-                    street: normalizeString(extractStreetFromAddress(opts.readable_address || props.descr || '')),
+                    address: address,
+                    house: extractHouseNumber(address),
+                    street: normalizeString(extractStreetFromAddress(address)),
                     cadNumber: cadNumber || '—',
                     type: opts.type || opts.object_type_value || '—',
                     cadastralCost: parseFloat(opts.cost_value) || 0,
@@ -298,15 +304,16 @@
             }
 
             const floorValue = getFloorValue(opts.floor);
-            
-            // 🆕 Получаем протяженность
             const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+
+            // 🔥 ИСПРАВЛЕНО: используем getAddress для извлечения адреса
+            const address = getAddress(opts, props);
 
             return {
                 'Кадастровый номер': item.cadNumber || '—',
                 'Наименование': objectName || '—',
                 'Тип объекта': objectType || '—',
-                'Адрес': item.address || '—',
+                'Адрес': address || '—',
                 'Площадь (м²)': item.area > 0 ? item.area.toFixed(1) : '—',
                 'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
                 'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
@@ -330,7 +337,6 @@
             const extension = parseFloat(extensionInput.value) || 0;
             const address = addressInput.value.trim();
 
-            // Валидация: должна быть указана хотя бы площадь ИЛИ протяженность
             if (area <= 0 && extension <= 0) {
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">⚠️ Пожалуйста, введите площадь ИЛИ протяженность.</div>`;
                 return;
@@ -351,7 +357,6 @@
             `;
 
             try {
-                // ✅ ШАГ 1: Поиск по адресу с МАЛЕНЬКИМ лимитом (только чтобы определить квартал)
                 const searchQuery = address;
                 const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=10`;
                 
@@ -384,7 +389,6 @@
                     return;
                 }
 
-                // ✅ ШАГ 2: Извлекаем кадастровый квартал из первого объекта
                 let cadastralQuarter = null;
                 for (const feature of firstFeatures) {
                     const props = feature.properties || {};
@@ -409,7 +413,6 @@
                     return;
                 }
 
-                // ✅ ШАГ 3: Поиск ПО КВАРТАЛУ с большим лимитом (получаем ВСЕ объекты в квартале)
                 console.log(`🔍 ШАГ 3: Поиск по кварталу ${cadastralQuarter} с лимитом 500`);
                 const quarterUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${cadastralQuarter}&thematicSearchId=1&limit=500`;
                 
@@ -429,9 +432,8 @@
                 const quarterFeatures = quarterData?.data?.features || [];
                 console.log(`📥 ШАГ 3: В квартале найдено ${quarterFeatures.length} объектов`);
 
-                // ✅ ШАГ 4: Фильтруем по площади И/ИЛИ протяженности
                 const candidates = findInQuarter(quarterFeatures, area, extension, cadastralQuarter);
-                console.log(`🎯 ШАГ 4: Найдено ${candidates.length} объектов с площадью ${area} ±${AREA_TOLERANCE} м² и/или протяженностью ${extension} ±${AREA_TOLERANCE} м`);
+                console.log(`🎯 ШАГ 4: Найдено ${candidates.length} объектов`);
 
                 if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
@@ -445,21 +447,18 @@
                     return;
                 }
 
-                // Сортируем кандидатов по близости площади и протяженности
                 candidates.sort((a, b) => {
                     const diffA = Math.abs(a.area - area) + Math.abs(a.extension - extension);
                     const diffB = Math.abs(b.area - area) + Math.abs(b.extension - extension);
                     return diffA - diffB;
                 });
 
-                // Получаем все поля для каждого объекта
                 const tableData = candidates.map(item => extractAllFields(item));
                 const allKeys = Object.keys(tableData[0] || {});
                 const columnsToShow = allKeys.filter(key => {
                     return tableData.some(row => row[key] && row[key] !== '—' && row[key] !== '');
                 });
 
-                // Строим HTML таблицы
                 let tableHtml = `
                     <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                         <div style="overflow-x: auto;">
