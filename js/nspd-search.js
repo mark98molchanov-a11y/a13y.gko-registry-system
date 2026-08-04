@@ -145,6 +145,7 @@
             return;
         }
 
+        // Функция для поиска подходящих объектов (общая)
         function findBestMatch(features, targetArea, targetAddress) {
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
@@ -199,6 +200,7 @@
             return candidates;
         }
 
+        // Функция для поиска в указанном квартале
         function findInQuarter(features, targetArea, targetQuarter) {
             let candidates = [];
             for (const feature of features) {
@@ -235,6 +237,7 @@
             return candidates;
         }
 
+        // Функция для получения всех полей объекта в виде плоского массива
         function extractAllFields(item) {
             const data = item.rawData;
             const opts = data.opts || {};
@@ -281,7 +284,9 @@
             };
         }
 
-        // 🔥 ОСНОВНАЯ ФУНКЦИЯ ПОИСКА (ПЕРЕПИСАНА)
+        // ============================================================
+        // 🔥 НОВАЯ ФУНКЦИЯ ПОИСКА (ПЕРЕПИСАНА)
+        // ============================================================
         async function performSearch() {
             const area = parseFloat(areaInput.value);
             const address = addressInput.value.trim();
@@ -306,11 +311,12 @@
             `;
 
             try {
-                // ✅ ШАГ 1: Поиск по адресу (лимит 50000)
-                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=50000`;
+                // ✅ ШАГ 1: Поиск по адресу с МАЛЕНЬКИМ лимитом (только чтобы определить квартал)
+                const searchQuery = address;
+                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=10`;
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // увеличил таймаут до 30 сек
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
                 
                 const response = await fetch(nspdApiUrl, {
                     signal: controller.signal,
@@ -326,10 +332,10 @@
                 }
 
                 const data = await response.json();
-                const features = data?.data?.features || [];
-                console.log(`📥 Получено ${features.length} объектов из НСПД`);
+                const firstFeatures = data?.data?.features || [];
+                console.log(`📥 ШАГ 1: Получено ${firstFeatures.length} объектов`);
 
-                if (features.length === 0) {
+                if (firstFeatures.length === 0) {
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по адресу: ${address}
@@ -338,52 +344,65 @@
                     return;
                 }
 
-                // ✅ ШАГ 2: Собираем ВСЕ уникальные кадастровые кварталы
-                const quarters = new Set();
-                for (const feature of features) {
+                // ✅ ШАГ 2: Извлекаем кадастровый квартал из первого объекта
+                let cadastralQuarter = null;
+                for (const feature of firstFeatures) {
                     const props = feature.properties || {};
                     const opts = props.options || {};
                     const cadNumber = opts.cad_number || props.externalKey || '';
                     if (cadNumber) {
-                        const quarter = extractCadastralQuarter(cadNumber);
-                        if (quarter) {
-                            quarters.add(quarter);
+                        cadastralQuarter = extractCadastralQuarter(cadNumber);
+                        if (cadastralQuarter) {
+                            console.log(`🏘️ ШАГ 2: Определен кадастровый квартал: ${cadastralQuarter}`);
+                            break;
                         }
                     }
                 }
-                
-                console.log(`🏘️ Найдено ${quarters.size} уникальных кадастровых кварталов:`, Array.from(quarters));
 
-                // ✅ ШАГ 3: Ищем объекты с нужной площадью ВО ВСЕХ кварталах
-                let candidates = [];
-                let quartersWithMatches = 0;
-                
-                for (const quarter of quarters) {
-                    console.log(`🔍 Поиск по кварталу ${quarter} с площадью ${area} ±${AREA_TOLERANCE} м²`);
-                    const quarterCandidates = findInQuarter(features, area, quarter);
-                    if (quarterCandidates.length > 0) {
-                        candidates = candidates.concat(quarterCandidates);
-                        quartersWithMatches++;
-                        console.log(`   ✅ Найдено ${quarterCandidates.length} объектов в квартале ${quarter}`);
-                    }
+                if (!cadastralQuarter) {
+                    resultsContainer.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
+                            🔍 Не удалось определить кадастровый квартал.<br>
+                            <span class="text-xs">Попробуйте уточнить адрес</span>
+                        </div>
+                    `;
+                    return;
                 }
 
-                // ✅ ШАГ 4: Если в кварталах ничего не найдено — используем общий поиск
-                if (candidates.length === 0) {
-                    console.log('⚠️ В кварталах ничего не найдено, используем общий поиск');
-                    candidates = findBestMatch(features, area, address);
-                    
-                    if (candidates.length === 0) {
-                        resultsContainer.innerHTML = `
-                            <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
-                                🔍 Объекты не найдены по заданным критериям.<br>
-                                <span class="text-xs">Проверьте правильность адреса и площади (допуск ±${AREA_TOLERANCE} м²)</span>
-                                <br><span class="text-xs">Найдено кварталов: ${quarters.size}</span>
-                                <br><span class="text-xs">Всего объектов по адресу: ${features.length}</span>
-                            </div>
-                        `;
-                        return;
+                // ✅ ШАГ 3: Поиск ПО КВАРТАЛУ с большим лимитом (получаем ВСЕ объекты в квартале)
+                console.log(`🔍 ШАГ 3: Поиск по кварталу ${cadastralQuarter} с лимитом 500`);
+                const quarterUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${cadastralQuarter}&thematicSearchId=1&limit=500`;
+                
+                const quarterResponse = await fetch(quarterUrl, {
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     }
+                });
+
+                if (!quarterResponse.ok) {
+                    throw new Error(`Ошибка API НСПД при поиске по кварталу: ${quarterResponse.status}`);
+                }
+
+                const quarterData = await quarterResponse.json();
+                const quarterFeatures = quarterData?.data?.features || [];
+                console.log(`📥 ШАГ 3: В квартале найдено ${quarterFeatures.length} объектов`);
+
+                // ✅ ШАГ 4: Фильтруем по площади
+                const candidates = findInQuarter(quarterFeatures, area, cadastralQuarter);
+                console.log(`🎯 ШАГ 4: Найдено ${candidates.length} объектов с площадью ${area} ±${AREA_TOLERANCE} м²`);
+
+                if (candidates.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
+                            🔍 Объекты не найдены по заданным критериям.<br>
+                            <span class="text-xs">Проверьте правильность адреса и площади (допуск ±${AREA_TOLERANCE} м²)</span>
+                            <br><span class="text-xs">Кадастровый квартал: ${cadastralQuarter}</span>
+                            <br><span class="text-xs">Всего объектов в квартале: ${quarterFeatures.length}</span>
+                        </div>
+                    `;
+                    return;
                 }
 
                 // Сортируем кандидатов по близости площади
@@ -452,7 +471,6 @@
                     `;
                 });
 
-                const quartersList = Array.from(quarters).join(', ');
                 tableHtml += `
                                 </tbody>
                             </table>
@@ -460,8 +478,8 @@
                     </div>
                     <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
                         <span>Найдено объектов: <strong>${candidates.length}</strong></span>
-                        <span>Всего в ответе: ${features.length}</span>
-                        <span style="font-size: 10px; color: #94a3b8;">Кварталов: ${quarters.size} (${quartersList})</span>
+                        <span>Всего в квартале: ${quarterFeatures.length}</span>
+                        <span style="font-size: 10px; color: #94a3b8;">Квартал: ${cadastralQuarter}</span>
                         <span style="font-size: 10px; color: #94a3b8;">Допуск по площади: ±${AREA_TOLERANCE} м²</span>
                         <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                                 style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s;"
