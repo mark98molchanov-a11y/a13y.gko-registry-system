@@ -58,6 +58,30 @@
         return num.toLocaleString('ru-RU') + ' ₽';
     }
 
+    // Функция для безопасного получения строкового значения этажа
+    function getFloorValue(floor) {
+        if (!floor) return '—';
+        
+        // Если это массив — берем первый элемент
+        let floorStr = floor;
+        if (Array.isArray(floor)) {
+            floorStr = floor.length > 0 ? floor[0] : '—';
+        }
+        
+        // Если все еще не строка — преобразуем
+        if (typeof floorStr !== 'string') {
+            floorStr = String(floorStr);
+        }
+        
+        // Извлекаем только число из строки типа "3/Этаж" или "3 этаж"
+        const match = floorStr.match(/^(\d+)/);
+        if (match) {
+            return match[1];
+        }
+        
+        return floorStr;
+    }
+
     // Основная функция инициализации
     window.initNSPDSearch = function(containerId) {
         console.log(`🔍 Инициализация поиска НСПД в контейнере: ${containerId}`);
@@ -241,14 +265,8 @@
                 objectName = objectType;
             }
 
-            // Нормализация этажа
-            let floorValue = opts.floor || '';
-            if (floorValue) {
-                const floorMatch = floorValue.match(/^(\d+)/);
-                if (floorMatch) {
-                    floorValue = floorMatch[1];
-                }
-            }
+            // ✅ ИСПРАВЛЕНО: безопасное получение этажа
+            const floorValue = getFloorValue(opts.floor);
 
             return {
                 'Кадастровый номер': item.cadNumber || '—',
@@ -261,7 +279,7 @@
                 'Назначение': opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—',
                 'Статус': opts.common_data_status || opts.status || '—',
                 'Форма собственности': opts.ownership_type || '—',
-                'Этаж': floorValue || '—',
+                'Этаж': floorValue,
                 'Год постройки': opts.year_built || opts.params_year_built || '—',
                 'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
                 'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
