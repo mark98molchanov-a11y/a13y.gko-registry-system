@@ -65,18 +65,15 @@
     function getFloorValue(floor) {
         if (!floor) return '—';
         
-        // Если это массив — берем первый элемент
         let floorStr = floor;
         if (Array.isArray(floor)) {
             floorStr = floor.length > 0 ? floor[0] : '—';
         }
         
-        // Если все еще не строка — преобразуем
         if (typeof floorStr !== 'string') {
             floorStr = String(floorStr);
         }
         
-        // Извлекаем только число из строки типа "3/Этаж" или "3 этаж"
         const match = floorStr.match(/^(\d+)/);
         if (match) {
             return match[1];
@@ -99,10 +96,8 @@
             return;
         }
 
-        // Очищаем контейнер перед рендерингом
         container.innerHTML = '';
 
-        // --- Рендерим HTML интерфейс ---
         const html = `
             <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h2 class="text-xl font-bold text-slate-800 mb-6">🔍 Поиск объектов в НСПД</h2>
@@ -140,7 +135,6 @@
         `;
         container.innerHTML = html;
 
-        // --- Логика поиска ---
         const searchBtn = document.getElementById('nspd-search-btn');
         const areaInput = document.getElementById('nspd-search-area');
         const addressInput = document.getElementById('nspd-search-address');
@@ -151,7 +145,6 @@
             return;
         }
 
-        // Функция для поиска подходящих объектов (общая)
         function findBestMatch(features, targetArea, targetAddress) {
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
@@ -164,7 +157,6 @@
                 let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
 
-                // ✅ Используем допуск ±0.2 м²
                 if (!isAreaMatch(area, targetArea)) continue;
 
                 const address = (opts.readable_address || props.descr || '').toLowerCase();
@@ -207,24 +199,20 @@
             return candidates;
         }
 
-        // 🆕 Функция для поиска ТОЛЬКО в указанном квартале
         function findInQuarter(features, targetArea, targetQuarter) {
             let candidates = [];
             for (const feature of features) {
                 const props = feature.properties || {};
                 const opts = props.options || {};
                 
-                // Проверяем кадастровый номер и квартал
                 const cadNumber = opts.cad_number || props.externalKey || '';
                 const quarter = extractCadastralQuarter(cadNumber);
                 if (quarter !== targetQuarter) continue;
 
-                // Проверяем площадь с допуском ±0.2 м²
                 let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
                 if (!isAreaMatch(area, targetArea)) continue;
 
-                // Объект подходит
                 candidates.push({ 
                     feature, 
                     area, 
@@ -247,7 +235,6 @@
             return candidates;
         }
 
-        // Функция для получения всех полей объекта в виде плоского массива
         function extractAllFields(item) {
             const data = item.rawData;
             const opts = data.opts || {};
@@ -259,7 +246,6 @@
                           objectType.includes('Земельный') || 
                           objectType.includes('земельный участок');
             
-            // Вычисляем УПКС
             let upksValue = parseFloat(opts.cost_index) || 0;
             if (upksValue === 0) {
                 const cost = parseFloat(opts.cost_value) || 0;
@@ -269,13 +255,11 @@
                 }
             }
 
-            // Получаем наименование
             let objectName = opts.params_name || opts.name || opts.building_name || '';
             if (!objectName && objectType) {
                 objectName = objectType;
             }
 
-            // ✅ Безопасное получение этажа
             const floorValue = getFloorValue(opts.floor);
 
             return {
@@ -297,7 +281,7 @@
             };
         }
 
-        // Функция для выполнения поиска
+        // 🔥 ОСНОВНАЯ ФУНКЦИЯ ПОИСКА (ПЕРЕПИСАНА)
         async function performSearch() {
             const area = parseFloat(areaInput.value);
             const address = addressInput.value.trim();
@@ -322,11 +306,11 @@
             `;
 
             try {
-                // ✅ ШАГ 1: Поиск по адресу (лимит 10000)
+                // ✅ ШАГ 1: Поиск по адресу (лимит 50000)
                 const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=50000`;
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // увеличил таймаут до 30 сек
                 
                 const response = await fetch(nspdApiUrl, {
                     signal: controller.signal,
@@ -354,46 +338,56 @@
                     return;
                 }
 
-                // ✅ ШАГ 2: Определяем кадастровый квартал из первого объекта
-                let cadastralQuarter = null;
+                // ✅ ШАГ 2: Собираем ВСЕ уникальные кадастровые кварталы
+                const quarters = new Set();
                 for (const feature of features) {
                     const props = feature.properties || {};
                     const opts = props.options || {};
                     const cadNumber = opts.cad_number || props.externalKey || '';
                     if (cadNumber) {
-                        cadastralQuarter = extractCadastralQuarter(cadNumber);
-                        if (cadastralQuarter) {
-                            console.log(`🏘️ Определен кадастровый квартал: ${cadastralQuarter}`);
-                            break;
+                        const quarter = extractCadastralQuarter(cadNumber);
+                        if (quarter) {
+                            quarters.add(quarter);
                         }
                     }
                 }
+                
+                console.log(`🏘️ Найдено ${quarters.size} уникальных кадастровых кварталов:`, Array.from(quarters));
 
-                // ✅ ШАГ 3: Поиск ТОЛЬКО в этом квартале (точный поиск!)
+                // ✅ ШАГ 3: Ищем объекты с нужной площадью ВО ВСЕХ кварталах
                 let candidates = [];
-                if (cadastralQuarter) {
-                    console.log(`🔍 Поиск по кварталу ${cadastralQuarter} с площадью ${area} ±${AREA_TOLERANCE} м²`);
-                    candidates = findInQuarter(features, area, cadastralQuarter);
-                    console.log(`🎯 Найдено ${candidates.length} объектов в квартале`);
+                let quartersWithMatches = 0;
+                
+                for (const quarter of quarters) {
+                    console.log(`🔍 Поиск по кварталу ${quarter} с площадью ${area} ±${AREA_TOLERANCE} м²`);
+                    const quarterCandidates = findInQuarter(features, area, quarter);
+                    if (quarterCandidates.length > 0) {
+                        candidates = candidates.concat(quarterCandidates);
+                        quartersWithMatches++;
+                        console.log(`   ✅ Найдено ${quarterCandidates.length} объектов в квартале ${quarter}`);
+                    }
                 }
 
-                // ✅ ШАГ 4: Если в квартале ничего не найдено — используем общий поиск (запасной вариант)
+                // ✅ ШАГ 4: Если в кварталах ничего не найдено — используем общий поиск
                 if (candidates.length === 0) {
-                    console.log('⚠️ В квартале ничего не найдено, используем общий поиск');
+                    console.log('⚠️ В кварталах ничего не найдено, используем общий поиск');
                     candidates = findBestMatch(features, area, address);
+                    
+                    if (candidates.length === 0) {
+                        resultsContainer.innerHTML = `
+                            <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
+                                🔍 Объекты не найдены по заданным критериям.<br>
+                                <span class="text-xs">Проверьте правильность адреса и площади (допуск ±${AREA_TOLERANCE} м²)</span>
+                                <br><span class="text-xs">Найдено кварталов: ${quarters.size}</span>
+                                <br><span class="text-xs">Всего объектов по адресу: ${features.length}</span>
+                            </div>
+                        `;
+                        return;
+                    }
                 }
 
-                if (candidates.length === 0) {
-                    resultsContainer.innerHTML = `
-                        <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
-                            🔍 Объекты не найдены по заданным критериям.<br>
-                            <span class="text-xs">Проверьте правильность адреса и площади (допуск ±${AREA_TOLERANCE} м²)</span>
-                            ${cadastralQuarter ? `<br><span class="text-xs">Кадастровый квартал: ${cadastralQuarter}</span>` : ''}
-                            <br><span class="text-xs">Всего объектов по адресу: ${features.length}</span>
-                        </div>
-                    `;
-                    return;
-                }
+                // Сортируем кандидатов по близости площади
+                candidates.sort((a, b) => Math.abs(a.area - area) - Math.abs(b.area - area));
 
                 // Получаем все поля для каждого объекта
                 const tableData = candidates.map(item => extractAllFields(item));
@@ -458,6 +452,7 @@
                     `;
                 });
 
+                const quartersList = Array.from(quarters).join(', ');
                 tableHtml += `
                                 </tbody>
                             </table>
@@ -466,7 +461,7 @@
                     <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
                         <span>Найдено объектов: <strong>${candidates.length}</strong></span>
                         <span>Всего в ответе: ${features.length}</span>
-                        ${cadastralQuarter ? `<span style="font-size: 10px; color: #94a3b8;">Квартал: ${cadastralQuarter}</span>` : ''}
+                        <span style="font-size: 10px; color: #94a3b8;">Кварталов: ${quarters.size} (${quartersList})</span>
                         <span style="font-size: 10px; color: #94a3b8;">Допуск по площади: ±${AREA_TOLERANCE} м²</span>
                         <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                                 style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s;"
@@ -489,7 +484,6 @@
             }
         }
 
-        // Вешаем обработчики событий
         searchBtn.addEventListener('click', performSearch);
         areaInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
         addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
