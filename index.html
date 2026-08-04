@@ -1374,6 +1374,9 @@
     <div class="book-subsection" onclick="switchTab('valuation')" id="navValuation">
     <span>Рыночная оценка</span>
 </div>
+    <div class="book-subsection" onclick="switchTab('nspdSearch')" id="navNSPDSearch">
+    <span>Поиск НСПД</span>
+</div>
 </div>
 </aside>
 
@@ -1682,6 +1685,15 @@
 </div>
           <div class="tab-content" id="valuationTab">
     <div id="valuation-root"></div>
+</div>
+            <div class="tab-content" id="nspdSearchTab">
+    <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="nspd-search-root">
+            <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center text-slate-500">
+                Загрузка интерфейса поиска НСПД...
+            </div>
+        </div>
+    </div>
 </div>
 <div class="tab-content" id="mapTab">
     <div class="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -4307,7 +4319,8 @@ function switchTab(tabName) {
         'calculator': 'navCalculator',
         'dio': 'navDIO',
         'parser': 'navParser',
-        'valuation': 'navValuation'
+        'valuation': 'navValuation',
+        'nspdSearch': 'navNSPDSearch' 
     };
     
     const navId = navIdMap[tabName];
@@ -4337,7 +4350,7 @@ function switchTab(tabName) {
     const resetBtnText = document.getElementById('resetBtnText');
     
 if (resetBtn) {
-    if (tabName === 'dio' || tabName === 'valuation' || tabName === 'map') {
+    if (tabName === 'dio' || tabName === 'valuation' || tabName === 'map' || tabName === 'nspdSearch') {
         resetBtn.style.display = 'none';
     } else {
         resetBtn.style.display = 'inline-flex';
@@ -4462,7 +4475,25 @@ if (resetBtn) {
             window.initMarketValuation('valuation-root');
         }, 100);
     }
-
+} else if (tabName === 'nspdSearch') {
+    document.getElementById('npaImportButtons').classList.add('hidden');
+    document.getElementById('dashboardsImportButtons').classList.add('hidden');
+    document.getElementById('addButton').classList.add('hidden');
+    
+    if (resetBtnText) resetBtnText.textContent = '';
+    
+    currentTab = 'nspdSearch';
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+    
+    setTimeout(() => {
+        if (typeof window.initNSPDSearch === 'function') {
+            window.initNSPDSearch('nspd-search-root');
+        } else {
+            console.warn('⚠️ initNSPDSearch ещё не загружена');
+        }
+    }, 100);
+}
 // 👇 НОВАЯ ВКЛАДКА КАРТЫ
 } else if (tabName === 'map') {
     document.getElementById('npaImportButtons').classList.add('hidden');
