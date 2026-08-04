@@ -4303,7 +4303,7 @@ function importJson() {
     input.click();
 }
 function switchTab(tabName) {
-     if (currentTab === 'map' && tabName !== 'map') {
+    if (currentTab === 'map' && tabName !== 'map') {
         if (typeof window.destroyMap === 'function') {
             window.destroyMap();
         }
@@ -4349,13 +4349,13 @@ function switchTab(tabName) {
     const resetBtn = document.querySelector('button[onclick="hardResetCurrent()"]');
     const resetBtnText = document.getElementById('resetBtnText');
     
-if (resetBtn) {
-    if (tabName === 'dio' || tabName === 'valuation' || tabName === 'map' || tabName === 'nspdSearch') {
-        resetBtn.style.display = 'none';
-    } else {
-        resetBtn.style.display = 'inline-flex';
+    if (resetBtn) {
+        if (tabName === 'dio' || tabName === 'valuation' || tabName === 'map' || tabName === 'nspdSearch') {
+            resetBtn.style.display = 'none';
+        } else {
+            resetBtn.style.display = 'inline-flex';
+        }
     }
-}
     // ===== КОНЕЦ УПРАВЛЕНИЯ КНОПКОЙ СБРОСА =====
     
     if (tabName === 'dio') {
@@ -4379,6 +4379,7 @@ if (resetBtn) {
                 }, 100);
             }
         }, 100);
+        
     } else if (tabName === 'npas') {
         document.getElementById('npaImportButtons').classList.remove('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
@@ -4392,6 +4393,7 @@ if (resetBtn) {
             document.getElementById('bulkToolbar').classList.remove('hidden');
         }
         renderGrid();
+        
     } else if (tabName === 'dashboards') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.remove('hidden');
@@ -4418,32 +4420,34 @@ if (resetBtn) {
             renderDashboardsGrid();
             updateBulkToolbarDashboards();
         }, 50);
-} else if (tabName === 'calculator') {
-    document.getElementById('npaImportButtons').classList.add('hidden');
-    document.getElementById('dashboardsImportButtons').classList.add('hidden');
-    document.getElementById('addButton').classList.remove('hidden');
-    document.getElementById('addButtonText').textContent = 'Новый расчет';
-    if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
-    
-    currentTab = 'calculator';
-    
-    document.getElementById('bulkToolbar').classList.add('hidden');
-    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    
-    // Проверяем, что функция определена, и вызываем её
-    if (typeof window.initCalculator === 'function') {
-        window.initCalculator();
-    } else {
-        console.warn('initCalculator еще не загружена, повторная попытка через 500ms');
-        setTimeout(() => {
-            if (typeof window.initCalculator === 'function') {
-                window.initCalculator();
-            } else {
-                console.error('initCalculator так и не загружена');
-            }
-        }, 500);
-    }
-} else if (tabName === 'parser') {
+        
+    } else if (tabName === 'calculator') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.remove('hidden');
+        document.getElementById('addButtonText').textContent = 'Новый расчет';
+        if (resetBtnText) resetBtnText.textContent = 'Сброс калькулятора';
+        
+        currentTab = 'calculator';
+        
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        // Проверяем, что функция определена, и вызываем её
+        if (typeof window.initCalculator === 'function') {
+            window.initCalculator();
+        } else {
+            console.warn('initCalculator еще не загружена, повторная попытка через 500ms');
+            setTimeout(() => {
+                if (typeof window.initCalculator === 'function') {
+                    window.initCalculator();
+                } else {
+                    console.error('initCalculator так и не загружена');
+                }
+            }, 500);
+        }
+        
+    } else if (tabName === 'parser') {
         document.getElementById('npaImportButtons').classList.add('hidden');
         document.getElementById('dashboardsImportButtons').classList.add('hidden');
         document.getElementById('addButton').classList.add('hidden');
@@ -4459,61 +4463,63 @@ if (resetBtn) {
                 window.initParserTab('parser-root');
             }, 100);
         }
-} else if (tabName === 'valuation') {
-    document.getElementById('npaImportButtons').classList.add('hidden');
-    document.getElementById('dashboardsImportButtons').classList.add('hidden');
-    document.getElementById('addButton').classList.add('hidden');
-    
-    if (resetBtnText) resetBtnText.textContent = 'Сброс оценок';
-    
-    currentTab = 'valuation';
-    document.getElementById('bulkToolbar').classList.add('hidden');
-    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    
-    if (typeof window.initMarketValuation === 'function') {
-        setTimeout(() => {
-            window.initMarketValuation('valuation-root');
-        }, 100);
-    }
-} else if (tabName === 'nspdSearch') {
-    document.getElementById('npaImportButtons').classList.add('hidden');
-    document.getElementById('dashboardsImportButtons').classList.add('hidden');
-    document.getElementById('addButton').classList.add('hidden');
-    
-    if (resetBtnText) resetBtnText.textContent = '';
-    
-    currentTab = 'nspdSearch';
-    document.getElementById('bulkToolbar').classList.add('hidden');
-    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    
-    setTimeout(() => {
-        if (typeof window.initNSPDSearch === 'function') {
-            window.initNSPDSearch('nspd-search-root');
-        } else {
-            console.warn('⚠️ initNSPDSearch ещё не загружена');
-        }  
-    }, 100);
-}
-} else if (tabName === 'map') {
-    document.getElementById('npaImportButtons').classList.add('hidden');
-    document.getElementById('dashboardsImportButtons').classList.add('hidden');
-    document.getElementById('addButton').classList.add('hidden');
-    
-    if (resetBtnText) resetBtnText.textContent = '';
-    
-    currentTab = 'map';
-    document.getElementById('bulkToolbar').classList.add('hidden');
-    document.getElementById('bulkToolbarDashboards').classList.add('hidden');
-    
-    setTimeout(() => {
-        if (typeof window.initMapTab === 'function') {
-            console.log('🗺️ Инициализация карты...');
-            window.initMapTab('map');
-        } else {
-            console.warn('⚠️ map-tab.js ещё не загружен');
+        
+    } else if (tabName === 'valuation') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = 'Сброс оценок';
+        
+        currentTab = 'valuation';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        if (typeof window.initMarketValuation === 'function') {
+            setTimeout(() => {
+                window.initMarketValuation('valuation-root');
+            }, 100);
         }
-    }, 200);
-}
+        
+    } else if (tabName === 'nspdSearch') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = '';
+        
+        currentTab = 'nspdSearch';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        setTimeout(() => {
+            if (typeof window.initNSPDSearch === 'function') {
+                window.initNSPDSearch('nspd-search-root');
+            } else {
+                console.warn('⚠️ initNSPDSearch ещё не загружена');
+            }
+        }, 100);
+        
+    } else if (tabName === 'map') {
+        document.getElementById('npaImportButtons').classList.add('hidden');
+        document.getElementById('dashboardsImportButtons').classList.add('hidden');
+        document.getElementById('addButton').classList.add('hidden');
+        
+        if (resetBtnText) resetBtnText.textContent = '';
+        
+        currentTab = 'map';
+        document.getElementById('bulkToolbar').classList.add('hidden');
+        document.getElementById('bulkToolbarDashboards').classList.add('hidden');
+        
+        setTimeout(() => {
+            if (typeof window.initMapTab === 'function') {
+                console.log('🗺️ Инициализация карты...');
+                window.initMapTab('map');
+            } else {
+                console.warn('⚠️ map-tab.js ещё не загружен');
+            }
+        }, 200);
+    }
     
     // Триггерим событие для внешних скриптов
     window.dispatchEvent(new CustomEvent('tabChanged', { detail: { tab: tabName } }));
