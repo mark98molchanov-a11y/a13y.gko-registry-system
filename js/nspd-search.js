@@ -16,7 +16,7 @@
                        parseFloat(opts.area) || 
                        parseFloat(opts.specified_area) || 0;
             },
-            searchType: 'quarter' // 🔥 Поиск по кварталам
+            searchType: 'quarter'
         },
         'built_up_area': {
             label: 'Площадь застройки (м²)',
@@ -25,7 +25,7 @@
                        parseFloat(opts.built_up_area) || 
                        parseFloat(opts.area) || 0;
             },
-            searchType: 'quarter' // 🔥 Поиск по кварталам
+            searchType: 'quarter'
         },
         'specified_area': {
             label: 'Площадь ЗУ (м²)',
@@ -34,7 +34,7 @@
                        parseFloat(opts.params_area) || 
                        parseFloat(opts.area) || 0;
             },
-            searchType: 'quarter' // 🔥 Поиск по кварталам
+            searchType: 'quarter'
         },
         
         // 📏 ОСТАЛЬНЫЕ ПАРАМЕТРЫ → поиск по АДРЕСУ
@@ -44,7 +44,7 @@
                 return parseFloat(opts.params_extension) || 
                        parseFloat(opts.extension) || 0;
             },
-            searchType: 'address' // 🔥 Поиск по адресу
+            searchType: 'address'
         },
         'volume': {
             label: 'Объем (м³)',
@@ -52,7 +52,7 @@
                 return parseFloat(opts.params_volume) || 
                        parseFloat(opts.volume) || 0;
             },
-            searchType: 'address' // 🔥 Поиск по адресу
+            searchType: 'address'
         },
         'height': {
             label: 'Высота (м)',
@@ -60,7 +60,7 @@
                 return parseFloat(opts.params_height) || 
                        parseFloat(opts.height) || 0;
             },
-            searchType: 'address' // 🔥 Поиск по адресу
+            searchType: 'address'
         },
         'depth': {
             label: 'Глубина (м)',
@@ -68,7 +68,7 @@
                 return parseFloat(opts.params_depth) || 
                        parseFloat(opts.depth) || 0;
             },
-            searchType: 'address' // 🔥 Поиск по адресу
+            searchType: 'address'
         },
         'occurence_depth': {
             label: 'Глубина залегания (м)',
@@ -76,7 +76,7 @@
                 return parseFloat(opts.params_occurence_depth) || 
                        parseFloat(opts.occurence_depth) || 0;
             },
-            searchType: 'address' // 🔥 Поиск по адресу
+            searchType: 'address'
         }
     };
 
@@ -85,7 +85,6 @@
     // ============================================================
     
     function getAddress(opts) {
-        // Приоритет: address_readable_address → readable_address
         return opts.address_readable_address || opts.readable_address || '';
     }
 
@@ -112,6 +111,44 @@
         return match ? match[1] : floorStr;
     }
 
+    // 🔥 ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ВАЛИДНОСТИ ОБЪЕКТА
+    function isValidObject(opts) {
+        // 1. Должен быть кадастровый номер
+        const cadNumber = opts.cad_number || '';
+        if (!cadNumber || cadNumber.length < 10) return false;
+        
+        // 2. Должен быть регион (первая часть кадастрового номера)
+        const region = cadNumber.split(':')[0];
+        if (!region || region.length < 2) return false;
+        
+        // 3. Должен быть квартал
+        const quarter = extractCadastralQuarter(cadNumber);
+        if (!quarter || quarter.length < 10) return false;
+        
+        return true;
+    }
+
+    // 🔥 ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СООТВЕТСТВИЯ РЕГИОНА
+    function isSameRegion(cadNumber, targetAddress) {
+        const region = cadNumber.split(':')[0];
+        
+        // Карта регионов
+        const regionMap = {
+            '89': ['Ямало-Ненецкий', 'Ямальский', 'Салехард', 'Ноябрьск', 'Надым', 'Новый Уренгой', 'Губкинский', 'Муравленко', 'Лабытнанги'],
+            '34': ['Волгоград', 'Волгоградская'],
+            '77': ['Москва', 'Московская'],
+            '78': ['Санкт-Петербург'],
+            '47': ['Ленинградская'],
+            '20': ['Чеченская', 'Чечня'],
+            '03': ['Бурятия']
+        };
+        
+        const keywords = regionMap[region] || [];
+        if (keywords.length === 0) return true;
+        
+        return keywords.some(keyword => targetAddress.includes(keyword));
+    }
+
     // ============================================================
     // 🔥 ПОИСК ПО КВАРТАЛАМ (для площадных параметров)
     // ============================================================
@@ -134,10 +171,15 @@
         for (const feature of features) {
             const opts = feature.properties?.options || {};
             const cadNumber = opts.cad_number || '';
-            if (cadNumber) {
-                const quarter = extractCadastralQuarter(cadNumber);
-                if (quarter) quarters.add(quarter);
-            }
+            
+            // 🔥 ПРОВЕРЯЕМ ВАЛИДНОСТЬ ОБЪЕКТА
+            if (!isValidObject(opts)) continue;
+            
+            // 🔥 ПРОВЕРЯЕМ РЕГИОН
+            if (!isSameRegion(cadNumber, address)) continue;
+            
+            const quarter = extractCadastralQuarter(cadNumber);
+            if (quarter) quarters.add(quarter);
         }
         return quarters;
     }
@@ -158,15 +200,30 @@
         const features = data?.data?.features || [];
         const param = SEARCH_PARAMS[paramKey];
         
-        if (value > 0) {
-            return features.filter(f => {
-                const opts = f.properties?.options || {};
+        // 🔥 ФИЛЬТРУЕМ ОБЪЕКТЫ
+        const validFeatures = features.filter(f => {
+            const opts = f.properties?.options || {};
+            
+            // 1. Проверяем наличие кадастрового номера
+            if (!isValidObject(opts)) return false;
+            
+            // 2. Проверяем регион (квартал должен совпадать с регионом объекта)
+            const cadNumber = opts.cad_number || '';
+            const regionFromCad = cadNumber.split(':')[0];
+            const regionFromQuarter = quarter.split(':')[0];
+            if (regionFromCad !== regionFromQuarter) return false;
+            
+            // 3. Проверяем значение параметра
+            if (value > 0) {
                 const paramValue = param.getValue(opts);
-                return paramValue > 0 && Math.abs(paramValue - value) <= TOLERANCE;
-            });
-        }
+                if (paramValue <= 0) return false;
+                if (Math.abs(paramValue - value) > TOLERANCE) return false;
+            }
+            
+            return true;
+        });
         
-        return features;
+        return validFeatures;
     }
 
     // ============================================================
@@ -175,7 +232,6 @@
     async function searchByAddress(address, paramKey, value, signal) {
         const param = SEARCH_PARAMS[paramKey];
         
-        // Пробуем разные варианты адреса
         const variants = [
             address,
             address.split(',').slice(0, -1).join(',').trim(),
@@ -201,11 +257,23 @@
                 const data = await response.json();
                 const features = data?.data?.features || [];
                 
-                // Фильтруем по выбранному параметру
                 const filtered = features.filter(f => {
                     const opts = f.properties?.options || {};
+                    
+                    // 🔥 ПРОВЕРЯЕМ ВАЛИДНОСТЬ ОБЪЕКТА
+                    if (!isValidObject(opts)) return false;
+                    
+                    // 🔥 ПРОВЕРЯЕМ РЕГИОН
+                    const cadNumber = opts.cad_number || '';
+                    if (!isSameRegion(cadNumber, address)) return false;
+                    
                     const paramValue = param.getValue(opts);
-                    return paramValue > 0 && Math.abs(paramValue - value) <= TOLERANCE;
+                    if (value > 0) {
+                        if (paramValue <= 0) return false;
+                        if (Math.abs(paramValue - value) > TOLERANCE) return false;
+                    }
+                    
+                    return true;
                 });
                 
                 for (const f of filtered) {
@@ -265,7 +333,6 @@
         const param = SEARCH_PARAMS[paramKey];
         const paramLabel = param ? param.label : 'Параметр';
 
-        // Формируем данные для таблицы
         const tableData = candidates.map(item => {
             const opts = item.rawData.opts || {};
             const objectType = item.type || opts.object_type_value || opts.categoryName || '';
@@ -280,7 +347,6 @@
             const objectName = opts.params_name || opts.name || opts.building_name || objectType || '';
             const address = getAddress(opts);
             
-            // Извлекаем все параметры с правильным приоритетом
             const area = parseFloat(opts.params_area) || parseFloat(opts.area) || parseFloat(opts.specified_area) || 0;
             const builtUpArea = parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
             const extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
@@ -312,12 +378,10 @@
             };
         });
 
-        // Определяем колонки
         const columnsToShow = Object.keys(tableData[0] || {});
         const firstColumn = paramLabel;
         const orderedColumns = [firstColumn, ...columnsToShow.filter(col => col !== firstColumn)];
 
-        // Строим таблицу
         let tableHtml = `
             <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                 <div style="overflow-x: auto;">
@@ -421,7 +485,6 @@
             let searchMethod = '';
 
             if (param.searchType === 'quarter') {
-                // 🔥 ПОИСК ПО КВАРТАЛАМ (для площадных параметров)
                 searchMethod = `кварталы + ${param.label}`;
                 const quarters = await findQuartersByAddress(address, controller.signal);
                 console.log(`🏘️ Найдено ${quarters.size} кварталов`);
@@ -435,7 +498,6 @@
                     }
                 }
             } else {
-                // 🔥 ПОИСК ПО АДРЕСУ (для остальных параметров)
                 searchMethod = `адрес + ${param.label}`;
                 const features = await searchByAddress(address, paramKey, value, controller.signal);
                 candidates = features.map(f => formatCandidate(f, paramKey));
@@ -456,7 +518,6 @@
                 return;
             }
 
-            // Сортируем по близости значения
             if (value > 0) {
                 candidates.sort((a, b) => Math.abs(a.paramValue - value) - Math.abs(b.paramValue - value));
             }
