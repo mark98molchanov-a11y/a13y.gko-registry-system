@@ -359,7 +359,7 @@
             try {
                 // ✅ ШАГ 1: Поиск по адресу
                 const searchQuery = address;
-                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=10`;
+                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=200`;
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
