@@ -4,6 +4,9 @@
 (function() {
     console.log('🚀 Загрузка модуля поиска НСПД...');
 
+    // Константа для допуска по площади (в м²)
+    const AREA_TOLERANCE = 0.2;
+
     // Функция для нормализации строк (убираем лишние пробелы, приводим к нижнему регистру)
     function normalizeString(str) {
         if (!str) return '';
@@ -82,6 +85,11 @@
         return floorStr;
     }
 
+    // Функция для проверки соответствия площади с допуском ±0.2 м²
+    function isAreaMatch(area, targetArea) {
+        return Math.abs(area - targetArea) <= AREA_TOLERANCE;
+    }
+
     // Основная функция инициализации
     window.initNSPDSearch = function(containerId) {
         console.log(`🔍 Инициализация поиска НСПД в контейнере: ${containerId}`);
@@ -105,6 +113,7 @@
                         <input type="number" id="nspd-search-area" 
                                placeholder="Введите площадь, например 45.5" 
                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
+                        <span class="text-xs text-slate-400 mt-1 block">Допуск ±${AREA_TOLERANCE} м²</span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Адрес / Улица</label>
@@ -155,7 +164,8 @@
                 let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
 
-                if (Math.abs(area - targetArea) > 1) continue;
+                // ✅ Используем допуск ±0.2 м²
+                if (!isAreaMatch(area, targetArea)) continue;
 
                 const address = (opts.readable_address || props.descr || '').toLowerCase();
                 const nspdHouse = extractHouseNumber(address);
@@ -209,10 +219,10 @@
                 const quarter = extractCadastralQuarter(cadNumber);
                 if (quarter !== targetQuarter) continue;
 
-                // Проверяем площадь
+                // Проверяем площадь с допуском ±0.2 м²
                 let area = parseFloat(opts.area) || parseFloat(opts.params_area) || 
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
-                if (Math.abs(area - targetArea) > 1) continue;
+                if (!isAreaMatch(area, targetArea)) continue;
 
                 // Объект подходит
                 candidates.push({ 
@@ -265,7 +275,7 @@
                 objectName = objectType;
             }
 
-            // ✅ ИСПРАВЛЕНО: безопасное получение этажа
+            // ✅ Безопасное получение этажа
             const floorValue = getFloorValue(opts.floor);
 
             return {
@@ -362,7 +372,7 @@
                 // ✅ ШАГ 3: Поиск ТОЛЬКО в этом квартале (точный поиск!)
                 let candidates = [];
                 if (cadastralQuarter) {
-                    console.log(`🔍 Поиск по кварталу ${cadastralQuarter} с площадью ${area} ±1 м²`);
+                    console.log(`🔍 Поиск по кварталу ${cadastralQuarter} с площадью ${area} ±${AREA_TOLERANCE} м²`);
                     candidates = findInQuarter(features, area, cadastralQuarter);
                     console.log(`🎯 Найдено ${candidates.length} объектов в квартале`);
                 }
@@ -377,7 +387,7 @@
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по заданным критериям.<br>
-                            <span class="text-xs">Проверьте правильность адреса и площади (допуск ±1 м²)</span>
+                            <span class="text-xs">Проверьте правильность адреса и площади (допуск ±${AREA_TOLERANCE} м²)</span>
                             ${cadastralQuarter ? `<br><span class="text-xs">Кадастровый квартал: ${cadastralQuarter}</span>` : ''}
                             <br><span class="text-xs">Всего объектов по адресу: ${features.length}</span>
                         </div>
@@ -457,6 +467,7 @@
                         <span>Найдено объектов: <strong>${candidates.length}</strong></span>
                         <span>Всего в ответе: ${features.length}</span>
                         ${cadastralQuarter ? `<span style="font-size: 10px; color: #94a3b8;">Квартал: ${cadastralQuarter}</span>` : ''}
+                        <span style="font-size: 10px; color: #94a3b8;">Допуск по площади: ±${AREA_TOLERANCE} м²</span>
                         <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                                 style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s;"
                                 onmouseover="this.style.background='#fee2e2'"
