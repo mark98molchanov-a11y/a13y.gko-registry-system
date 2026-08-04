@@ -182,7 +182,6 @@
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
                 if (targetExtension && targetExtension > 0 && !isExtensionMatch(extension, targetExtension)) continue;
 
-                // 🔥 ИСПРАВЛЕНО: используем getAddress для извлечения адреса
                 const address = getAddress(opts, props);
                 const addressLower = address.toLowerCase();
                 const nspdHouse = extractHouseNumber(addressLower);
@@ -212,6 +211,7 @@
                         type: opts.type || opts.object_type_value || '—',
                         cadastralCost: parseFloat(opts.cost_value) || 0,
                         name: opts.params_name || opts.name || '',
+                        determination_couse: opts.determination_couse || '',
                         rawData: {
                             feature: feature,
                             opts: opts,
@@ -247,7 +247,6 @@
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
                 if (targetExtension && targetExtension > 0 && !isExtensionMatch(extension, targetExtension)) continue;
 
-                // 🔥 ИСПРАВЛЕНО: используем getAddress для извлечения адреса
                 const address = getAddress(opts, props);
 
                 candidates.push({ 
@@ -261,6 +260,7 @@
                     type: opts.type || opts.object_type_value || '—',
                     cadastralCost: parseFloat(opts.cost_value) || 0,
                     name: opts.params_name || opts.name || '',
+                    determination_couse: opts.determination_couse || '',
                     rawData: {
                         feature: feature,
                         opts: opts,
@@ -305,9 +305,10 @@
 
             const floorValue = getFloorValue(opts.floor);
             const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
-
-            // 🔥 ИСПРАВЛЕНО: используем getAddress для извлечения адреса
             const address = getAddress(opts, props);
+            
+            // 🔥 Получаем основание оценки
+            const determinationCouse = opts.determination_couse || '';
 
             return {
                 'Кадастровый номер': item.cadNumber || '—',
@@ -325,7 +326,9 @@
                 'Год постройки': opts.year_built || opts.params_year_built || '—',
                 'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
                 'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
-                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—'
+                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
+                // 🔥 Добавляем поле "Основание оценки"
+                'Основание оценки': determinationCouse || '—'
             };
         }
 
@@ -440,93 +443,90 @@
 
                 // ✅ ШАГ 3: Если указана ПРОТЯЖЕННОСТЬ и объекты не найдены по площади
                 //    Ищем по адресу + ручная фильтрация по params_extension
-if (extension > 0 && candidates.length === 0) {
-    console.log(`🔍 Поиск по ПРОТЯЖЕННОСТИ: ${extension} м (адрес + ручная фильтрация)`);
-    searchMethod = 'протяженность';
-    
-    // 🔥 РАСШИРЯЕМ ПОИСК: пробуем разные варианты адреса
-    const addressVariants = [
-        address,                                           // полный адрес
-        address.split(',').slice(0, -1).join(',').trim(), // без последней части (без дома)
-        address.split(',').slice(0, -2).join(',').trim(), // без дома и улицы
-        address.split(',').slice(0, 1).join(',').trim()   // только регион
-    ].filter(a => a && a.length > 0);
-    
-    // Убираем дубликаты
-    const uniqueVariants = [...new Set(addressVariants)];
-    console.log(`🔍 Варианты адреса для поиска:`, uniqueVariants);
-    
-    let allFound = [];
-    
-    for (const addrVariant of uniqueVariants) {
-        console.log(`   Пробуем: "${addrVariant}"`);
-        const addrUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
-        
-        const addrResponse = await fetch(addrUrl, {
-            signal: controller.signal,
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        });
-        
-        if (addrResponse.ok) {
-            const addrData = await addrResponse.json();
-            const addrFeatures = addrData?.data?.features || [];
-            console.log(`      Найдено ${addrFeatures.length} объектов`);
-            
-            // Фильтруем по протяженности
-            const filtered = addrFeatures.filter(f => {
-                const opts = f.properties?.options || {};
-                const ext = parseFloat(opts.params_extension) || 0;
-                return Math.abs(ext - extension) <= AREA_TOLERANCE;
-            });
-            
-            if (filtered.length > 0) {
-                console.log(`      ✅ Найдено ${filtered.length} объектов с протяженностью ${extension} м`);
-                allFound = allFound.concat(filtered);
-                // Если нашли объекты, можно остановиться (но можем продолжить для полноты)
-            }
-        }
-    }
-    
-    // Убираем дубликаты по кадастровому номеру
-    const uniqueFound = [];
-    const seenCadNumbers = new Set();
-    for (const item of allFound) {
-        const opts = item.properties?.options || {};
-        const cadNumber = opts.cad_number || '';
-        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
-            seenCadNumbers.add(cadNumber);
-            uniqueFound.push(item);
-        }
-    }
-    
-    console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
-    
-    if (uniqueFound.length > 0) {
-        candidates = uniqueFound.map(f => {
-            const props = f.properties || {};
-            const opts = props.options || {};
-            return {
-                feature: f,
-                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                address: opts.address_readable_address || opts.readable_address || '',
-                cadNumber: opts.cad_number || opts.externalKey || '—',
-                type: opts.type || opts.object_type_value || '—',
-                cadastralCost: parseFloat(opts.cost_value) || 0,
-                name: opts.params_name || opts.name || '',
-                rawData: {
-                    feature: f,
-                    opts: opts,
-                    props: props
+                if (extension > 0 && candidates.length === 0) {
+                    console.log(`🔍 Поиск по ПРОТЯЖЕННОСТИ: ${extension} м (адрес + ручная фильтрация)`);
+                    searchMethod = 'протяженность';
+                    
+                    // 🔥 РАСШИРЯЕМ ПОИСК: пробуем разные варианты адреса
+                    const addressVariants = [
+                        address,
+                        address.split(',').slice(0, -1).join(',').trim(),
+                        address.split(',').slice(0, -2).join(',').trim(),
+                        address.split(',').slice(0, 1).join(',').trim()
+                    ].filter(a => a && a.length > 0);
+                    
+                    const uniqueVariants = [...new Set(addressVariants)];
+                    console.log(`🔍 Варианты адреса для поиска:`, uniqueVariants);
+                    
+                    let allFound = [];
+                    
+                    for (const addrVariant of uniqueVariants) {
+                        console.log(`   Пробуем: "${addrVariant}"`);
+                        const addrUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
+                        
+                        const addrResponse = await fetch(addrUrl, {
+                            signal: controller.signal,
+                            headers: {
+                                'Accept': 'application/json',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                            }
+                        });
+                        
+                        if (addrResponse.ok) {
+                            const addrData = await addrResponse.json();
+                            const addrFeatures = addrData?.data?.features || [];
+                            console.log(`      Найдено ${addrFeatures.length} объектов`);
+                            
+                            const filtered = addrFeatures.filter(f => {
+                                const opts = f.properties?.options || {};
+                                const ext = parseFloat(opts.params_extension) || 0;
+                                return Math.abs(ext - extension) <= AREA_TOLERANCE;
+                            });
+                            
+                            if (filtered.length > 0) {
+                                console.log(`      ✅ Найдено ${filtered.length} объектов с протяженностью ${extension} м`);
+                                allFound = allFound.concat(filtered);
+                            }
+                        }
+                    }
+                    
+                    const uniqueFound = [];
+                    const seenCadNumbers = new Set();
+                    for (const item of allFound) {
+                        const opts = item.properties?.options || {};
+                        const cadNumber = opts.cad_number || '';
+                        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+                            seenCadNumbers.add(cadNumber);
+                            uniqueFound.push(item);
+                        }
+                    }
+                    
+                    console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
+                    
+                    if (uniqueFound.length > 0) {
+                        candidates = uniqueFound.map(f => {
+                            const props = f.properties || {};
+                            const opts = props.options || {};
+                            return {
+                                feature: f,
+                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                address: opts.address_readable_address || opts.readable_address || '',
+                                cadNumber: opts.cad_number || opts.externalKey || '—',
+                                type: opts.type || opts.object_type_value || '—',
+                                cadastralCost: parseFloat(opts.cost_value) || 0,
+                                name: opts.params_name || opts.name || '',
+                                determination_couse: opts.determination_couse || '',
+                                rawData: {
+                                    feature: f,
+                                    opts: opts,
+                                    props: props
+                                }
+                            };
+                        });
+                        console.log(`✅ Найдено ${candidates.length} объектов по адресу + протяженности`);
+                    }
                 }
-            };
-        });
-        console.log(`✅ Найдено ${candidates.length} объектов по адресу + протяженности`);
-    }
-}
 
                 clearTimeout(timeoutId);
 
@@ -558,7 +558,7 @@ if (extension > 0 && candidates.length === 0) {
                     return tableData.some(row => row[key] && row[key] !== '—' && row[key] !== '');
                 });
 
-                // Строим HTML таблицы
+                // Строим HTML таблицы - без колонки "Действия", добавляем "Основание оценки"
                 let tableHtml = `
                     <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                         <div style="overflow-x: auto;">
@@ -571,7 +571,6 @@ if (extension > 0 && candidates.length === 0) {
                                                 ${col}
                                             </th>
                                         `).join('')}
-                                        <th style="padding: 8px 10px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: 80px;">Действия</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -595,6 +594,10 @@ if (extension > 0 && candidates.length === 0) {
                                 if ((col === 'ВРИ' || col === 'Категория земель') && !isLandRow) {
                                     value = '—';
                                 }
+                                // Для "Основание оценки" обрезаем длинный текст
+                                if (col === 'Основание оценки' && value.length > 100) {
+                                    value = value.substring(0, 100) + '...';
+                                }
                                 return `
                                     <td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" 
                                         title="${value}">
@@ -602,14 +605,6 @@ if (extension > 0 && candidates.length === 0) {
                                     </td>
                                 `;
                             }).join('')}
-                            <td style="padding: 6px 10px; text-align: center;">
-                                <button onclick="navigator.clipboard.writeText('${row['Кадастровый номер'] || ''}').then(() => alert('Кадастровый номер скопирован!'))" 
-                                        style="padding: 2px 10px; background: #e0f2fe; color: #0284c7; border: none; border-radius: 4px; cursor: pointer; font-size: 9px; transition: all 0.2s;"
-                                        onmouseover="this.style.background='#bae6fd'"
-                                        onmouseout="this.style.background='#e0f2fe'">
-                                    📋 Копировать
-                                </button>
-                            </td>
                         </tr>
                     `;
                 });
