@@ -59,53 +59,19 @@
                (type.includes('участок') && !type.includes('строительства'));
     }
 
-    // Функция для проверки совпадения адреса (улучшенная)
-    function checkAddressMatch(fullAddress, targetAddress) {
-        if (!fullAddress || !targetAddress) return false;
+    // Функция для извлечения ключевых слов из адреса для поиска
+    function extractSearchKeywords(address) {
+        if (!address) return [];
         
-        const normalizedFull = normalizeString(fullAddress);
-        const normalizedTarget = normalizeString(targetAddress);
+        // Убираем лишние слова
+        const stopWords = ['автономный', 'округ', 'район', 'город', 'поселок', 'деревня', 'село', 'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 'площадь', 'аллея'];
+        const words = address.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
         
-        // 1. Проверка полного вхождения
-        if (normalizedFull.includes(normalizedTarget) || normalizedTarget.includes(normalizedFull)) {
-            return true;
-        }
+        // Фильтруем стоп-слова и оставляем уникальные
+        const keywords = [...new Set(words.filter(w => !stopWords.includes(w)))];
         
-        // 2. Разбиваем адрес на части
-        const fullParts = normalizedFull.split(',').map(p => p.trim()).filter(p => p.length > 0);
-        const targetParts = normalizedTarget.split(',').map(p => p.trim()).filter(p => p.length > 0);
-        
-        // 3. Проверка по частям
-        let matchCount = 0;
-        for (const targetPart of targetParts) {
-            for (const fullPart of fullParts) {
-                if (fullPart.includes(targetPart) || targetPart.includes(fullPart)) {
-                    matchCount++;
-                    break;
-                }
-            }
-        }
-        
-        // Если совпало больше половины частей
-        if (targetParts.length > 0 && matchCount >= Math.ceil(targetParts.length / 2)) {
-            return true;
-        }
-        
-        // 4. Проверка по отдельным ключевым словам (для месторождений)
-        const keyWords = ['месторождение', 'район', 'город', 'поселок', 'деревня', 'село'];
-        for (const word of keyWords) {
-            if (normalizedTarget.includes(word)) {
-                // Ищем часть адреса до и после ключевого слова
-                const targetParts2 = normalizedTarget.split(word);
-                for (const part of targetParts2) {
-                    if (part.trim().length > 2 && normalizedFull.includes(part.trim())) {
-                        return true;
-                    }
-                }
-            }
-        }
-        
-        return false;
+        console.log('🔑 Ключевые слова для поиска:', keywords);
+        return keywords;
     }
 
     // Основная функция инициализации
@@ -186,9 +152,11 @@
                 return [];
             }
 
+            // Извлекаем ключевые слова из адреса для поиска
+            const keywords = extractSearchKeywords(targetAddress);
+            const hasKeywords = keywords.length > 0;
+
             let candidates = [];
-            // Для отладки
-            let debugInfo = [];
             
             for (const feature of features) {
                 const props = feature.properties || {};
@@ -211,15 +179,35 @@
                 
                 if (!valueMatch) continue;
 
-                // Получаем полный адрес
-                const fullAddress = opts.readable_address || props.descr || '';
+                // Получаем полный адрес и название объекта
+                const fullAddress = (opts.readable_address || props.descr || '').toLowerCase();
+                const objectName = (opts.params_name || opts.name || '').toLowerCase();
+                const combinedText = fullAddress + ' ' + objectName;
                 
-                // Проверяем совпадение адреса
+                // Проверяем совпадение по ключевым словам
                 let addressMatch = false;
-                if (targetAddress && targetAddress.trim() !== '') {
-                    addressMatch = checkAddressMatch(fullAddress, targetAddress);
+                
+                if (!targetAddress || targetAddress.trim() === '') {
+                    addressMatch = true;
+                } else if (hasKeywords) {
+                    // Проверяем каждое ключевое слово
+                    let matchCount = 0;
+                    for (const keyword of keywords) {
+                        if (combinedText.includes(keyword)) {
+                            matchCount++;
+                        }
+                    }
+                    // Если совпало больше половины ключевых слов
+                    if (matchCount >= Math.ceil(keywords.length / 2)) {
+                        addressMatch = true;
+                        console.log(`✅ Совпадение по ключевым словам: ${matchCount}/${keywords.length} (${keywords.join(', ')})`);
+                    }
                 } else {
-                    addressMatch = true; // Если адрес не указан, считаем что совпало
+                    // Обычная проверка вхождения
+                    const normalizedTarget = normalizeString(targetAddress);
+                    const normalizedFull = normalizeString(fullAddress);
+                    addressMatch = normalizedFull.includes(normalizedTarget) || 
+                                   normalizedTarget.includes(normalizedFull);
                 }
 
                 if (!addressMatch) continue;
@@ -240,6 +228,13 @@
                     }
                 });
             }
+
+            // Сортируем по близости значения
+            candidates.sort((a, b) => {
+                const aVal = searchTypeParam === 'area' ? a.area : a.extension;
+                const bVal = searchTypeParam === 'area' ? b.area : b.extension;
+                return Math.abs(aVal - targetValue) - Math.abs(bVal - targetValue);
+            });
 
             return candidates;
         }
@@ -332,7 +327,7 @@
                 return;
             }
             if (!address) {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">⚠️ Пожалуйста, введите адрес или улицу.</div>`;
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">⚠️ Пожалуйста, введите адрес или месторождение.</div>`;
                 return;
             }
 
@@ -347,7 +342,13 @@
             `;
 
             try {
-                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=100`;
+                // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ СЛОВА ДЛЯ ЗАПРОСА (берем последнее значимое слово)
+                const keywords = extractSearchKeywords(address);
+                const searchQuery = keywords.length > 0 ? keywords[keywords.length - 1] : address;
+                
+                console.log(`🔍 Поисковый запрос (упрощенный): "${searchQuery}"`);
+                
+                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=100`;
                 
                 console.log(`📤 Запрос к НСПД: ${nspdApiUrl}`);
                 
@@ -371,14 +372,13 @@
                 const features = data?.data?.features || [];
                 console.log(`📥 Получено ${features.length} объектов из НСПД`);
 
-                // Выводим первый объект для отладки
+                // Выводим информацию о найденных объектах
                 if (features.length > 0) {
-                    console.log('🔍 Пример объекта из ответа:');
-                    const firstFeature = features[0];
-                    const opts = firstFeature.properties?.options || {};
-                    console.log('  cad_number:', opts.cad_number);
-                    console.log('  params_extension:', opts.params_extension);
-                    console.log('  readable_address:', opts.readable_address);
+                    console.log('📋 Найденные объекты:');
+                    features.forEach((f, i) => {
+                        const opts = f.properties?.options || {};
+                        console.log(`  ${i+1}. ${opts.cad_number || '—'} | ${opts.type || '—'} | ${opts.params_extension || opts.area || '—'}`);
+                    });
                 }
 
                 const candidates = findBestMatch(features, value, searchTypeParam, address);
@@ -389,7 +389,7 @@
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по заданным критериям.<br>
                             <span class="text-xs">Проверьте правильность адреса и значения (точное совпадение)</span>
-                            <br><span class="text-xs">Попробуйте ввести только название месторождения или района</span>
+                            <br><span class="text-xs">Попробуйте ввести только название месторождения (например, "Тарасовское")</span>
                             <br><span class="text-xs">Проверьте консоль браузера (F12) для отладки</span>
                         </div>
                     `;
@@ -407,7 +407,7 @@
                     return tableData.some(row => row[key] && row[key] !== '—' && row[key] !== '');
                 });
 
-                // Строим HTML таблицы (без колонки "Действия")
+                // Строим HTML таблицы
                 let tableHtml = `
                     <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                         <div style="overflow-x: auto;">
