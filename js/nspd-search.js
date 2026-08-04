@@ -238,7 +238,7 @@
             `;
 
             try {
-                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=500`;
+                const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=10000`;
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
