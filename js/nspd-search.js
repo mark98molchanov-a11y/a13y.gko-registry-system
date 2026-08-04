@@ -57,7 +57,7 @@
         // --- Рендерим HTML интерфейс ---
         const html = `
             <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h2 class="text-xl font-bold text-slate-800 mb-6">🔍 Поиск объектов в НСПД</h2>
+                <h2 class="text-xl font-bold text-slate-800 mb-6">Поиск объектов в НСПД</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
