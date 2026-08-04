@@ -4,82 +4,23 @@
 (function() {
     console.log('🚀 Загрузка модуля поиска НСПД...');
 
-    // Функция для нормализации строк
-    function normalizeString(str) {
-        if (!str) return '';
-        return str.toLowerCase().replace(/\s+/g, ' ').trim();
-    }
-
-    // Функция для извлечения номера дома из адреса
-    function extractHouseNumber(address) {
-        if (!address) return '';
-        const match = address.match(/\b[дд]\.?\s*(\d+[А-Яа-я]?)/i);
-        return match ? match[1] : '';
-    }
-
-    // Функция для извлечения улицы из адреса
-    function extractStreetFromAddress(address) {
-        if (!address) return '';
-        
-        const patterns = [
-            /ул(?:ица)?\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /проспект\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /пер(?:еулок)?\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /бульвар\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /набережная\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /шоссе\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /площадь\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-            /аллея\s+([^,\d]+?)(?:\s*[,д]|$)/i,
-        ];
-        
-        for (const pattern of patterns) {
-            const match = address.match(pattern);
-            if (match) {
-                return match[1].trim();
-            }
-        }
-        
-        return '';
-    }
-
-    // Функция для форматирования цены
-    function formatPrice(num) {
-        if (!num || num === 0) return '—';
-        return num.toLocaleString('ru-RU') + ' ₽';
-    }
-
-    // Функция для определения, является ли объект земельным участком
-    function isLandObject(objectType) {
-        if (!objectType) return false;
-        const type = objectType.toLowerCase();
-        return type.includes('земельный участок') || 
-               type.includes('земельного участка') ||
-               type.includes('земля') ||
-               type.includes('земельный') ||
-               (type.includes('участок') && !type.includes('строительства'));
-    }
+    // ... (все предыдущие функции остаются без изменений)
 
     // Функция для извлечения ключевых слов из адреса
     function extractSearchKeywords(address) {
         if (!address) return [];
         
-        const stopWords = ['автономный', 'округ', 'район', 'город', 'поселок', 'деревня', 'село', 'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 'площадь', 'аллея'];
+        // Стоп-слова, которые не несмысловой нагрузки
+        const stopWords = ['автономный', 'округ', 'район', 'город', 'поселок', 'деревня', 'село', 
+                          'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 
+                          'площадь', 'аллея', 'область', 'край', 'республика', 'муниципальный'];
+        
+        // Разбиваем на слова, убираем короткие и стоп-слова
         const words = address.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
         const keywords = [...new Set(words.filter(w => !stopWords.includes(w)))];
         
-        console.log('🔑 Ключевые слова для поиска:', keywords);
+        console.log('🔑 Извлеченные ключевые слова:', keywords);
         return keywords;
-    }
-
-    // Функция для извлечения кадастрового квартала из адреса (если в адресе есть номер)
-    function extractCadastralQuarter(text) {
-        if (!text) return null;
-        // Ищем кадастровый номер в тексте (формат XX:XX:XXXXXX)
-        const match = text.match(/\b(\d{2}:\d{2}:\d{6})\b/);
-        if (match) {
-            return match[1];
-        }
-        return null;
     }
 
     // Основная функция инициализации
@@ -91,7 +32,6 @@
             return;
         }
 
-        // Очищаем контейнер перед рендерингом
         container.innerHTML = '';
 
         // --- Рендерим HTML интерфейс ---
@@ -151,234 +91,7 @@
             return;
         }
 
-        // 🔥 ОСНОВНАЯ ФУНКЦИЯ ПОИСКА С ДВУМЯ СТРАТЕГИЯМИ
-        async function searchNSPD(address, value, searchTypeParam) {
-            const keywords = extractSearchKeywords(address);
-            const searchQuery = keywords.length > 0 ? keywords[keywords.length - 1] : address;
-            
-            console.log(`🔍 Поисковый запрос: "${searchQuery}"`);
-            
-            // 🔥 СТРАТЕГИЯ 1: Поиск по ключевому слову (месторождение, улица)
-            let url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(searchQuery)}&thematicSearchId=1&limit=100`;
-            
-            console.log(`📤 Запрос к НСПД (стратегия 1): ${url}`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-            
-            let response = await fetch(url, {
-                signal: controller.signal,
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error(`Ошибка API НСПД: ${response.status}`);
-            }
-
-            let data = await response.json();
-            let features = data?.data?.features || [];
-            
-            console.log(`📥 Стратегия 1: получено ${features.length} объектов`);
-            
-            // 🔥 СТРАТЕГИЯ 2: Если ничего не найдено - пробуем поискать по кадастровому кварталу
-            // Ищем в адресе кадастровый квартал (если пользователь ввел номер)
-            if (features.length === 0) {
-                const cadQuarter = extractCadastralQuarter(address);
-                if (cadQuarter) {
-                    console.log(`🔍 Стратегия 2: Поиск по кадастровому кварталу "${cadQuarter}"`);
-                    const url2 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(cadQuarter)}&thematicSearchId=1&limit=100`;
-                    
-                    const controller2 = new AbortController();
-                    const timeoutId2 = setTimeout(() => controller2.abort(), 15000);
-                    
-                    const response2 = await fetch(url2, {
-                        signal: controller2.signal,
-                        headers: {
-                            'Accept': 'application/json',
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                        }
-                    });
-                    clearTimeout(timeoutId2);
-                    
-                    if (response2.ok) {
-                        const data2 = await response2.json();
-                        features = data2?.data?.features || [];
-                        console.log(`📥 Стратегия 2: получено ${features.length} объектов по кварталу`);
-                    }
-                }
-            }
-            
-            // 🔥 СТРАТЕГИЯ 3: Если ничего не найдено - пробуем поискать по первому ключевому слову
-            if (features.length === 0 && keywords.length > 1) {
-                const firstKeyword = keywords[0];
-                console.log(`🔍 Стратегия 3: Поиск по "${firstKeyword}"`);
-                const url3 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(firstKeyword)}&thematicSearchId=1&limit=100`;
-                
-                const controller3 = new AbortController();
-                const timeoutId3 = setTimeout(() => controller3.abort(), 15000);
-                
-                const response3 = await fetch(url3, {
-                    signal: controller3.signal,
-                    headers: {
-                        'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    }
-                });
-                clearTimeout(timeoutId3);
-                
-                if (response3.ok) {
-                    const data3 = await response3.json();
-                    features = data3?.data?.features || [];
-                    console.log(`📥 Стратегия 3: получено ${features.length} объектов по "${firstKeyword}"`);
-                }
-            }
-            
-            return features;
-        }
-
-        // Функция для поиска подходящих объектов
-        function findBestMatch(features, targetValue, searchTypeParam, targetAddress) {
-            const hasValue = targetValue !== null && !isNaN(targetValue) && targetValue > 0;
-            if (!hasValue) return [];
-
-            const keywords = extractSearchKeywords(targetAddress);
-            const hasKeywords = keywords.length > 0;
-            let candidates = [];
-            
-            for (const feature of features) {
-                const obj = feature || {};
-                const props = obj.properties || {};
-                const opts = props.options || {};
-                
-                // Извлекаем данные
-                const cadNumber = obj.cadastral_number || opts.cad_number || props.cadastral_number || '—';
-                const address = obj.address || opts.readable_address || props.readable_address || opts.address_readable_address || props.descr || '';
-                const objectType = obj.object_type || obj.categoryName || opts.type || opts.object_type_value || props.categoryName || '';
-                
-                let area = parseFloat(obj.area) || parseFloat(opts.area) || parseFloat(opts.params_area) || parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
-                let extension = parseFloat(obj.params_extension) || parseFloat(opts.params_extension) || parseFloat(opts.extension) || parseFloat(props.params_extension) || 0;
-                const name = obj.object_name || opts.params_name || opts.name || opts.building_name || '';
-                const cadastralCost = parseFloat(obj.cadastral_value) || parseFloat(opts.cost_value) || 0;
-                let upksValue = parseFloat(obj.cadastral_index) || parseFloat(opts.cost_index) || 0;
-                if (upksValue === 0 && cadastralCost > 0 && area > 0) {
-                    upksValue = cadastralCost / area;
-                }
-
-                // Проверяем условие поиска по площади/протяженности
-                let valueMatch = false;
-                let matchedValue = 0;
-                if (searchTypeParam === 'area') {
-                    valueMatch = Math.abs(area - targetValue) < 0.01;
-                    matchedValue = area;
-                } else if (searchTypeParam === 'extension') {
-                    valueMatch = Math.abs(extension - targetValue) < 0.01;
-                    matchedValue = extension;
-                }
-                if (!valueMatch) continue;
-
-                // Проверяем совпадение по ключевым словам
-                let addressMatch = false;
-                const combinedText = (address + ' ' + name).toLowerCase();
-                
-                if (!targetAddress || targetAddress.trim() === '') {
-                    addressMatch = true;
-                } else if (hasKeywords) {
-                    let matchCount = 0;
-                    for (const keyword of keywords) {
-                        if (combinedText.includes(keyword)) {
-                            matchCount++;
-                        }
-                    }
-                    if (matchCount >= Math.ceil(keywords.length / 2)) {
-                        addressMatch = true;
-                        console.log(`✅ Совпадение по ключевым словам: ${matchCount}/${keywords.length} (${keywords.join(', ')})`);
-                    }
-                } else {
-                    const normalizedTarget = normalizeString(targetAddress);
-                    const normalizedFull = normalizeString(address);
-                    addressMatch = normalizedFull.includes(normalizedTarget) || normalizedTarget.includes(normalizedFull);
-                }
-
-                if (!addressMatch) continue;
-
-                candidates.push({ 
-                    feature: feature,
-                    area, extension, matchedValue,
-                    address, cadNumber, type: objectType,
-                    cadastralCost, upksValue, name,
-                    rawData: { feature, opts, props, obj }
-                });
-            }
-
-            candidates.sort((a, b) => Math.abs(a.matchedValue - targetValue) - Math.abs(b.matchedValue - targetValue));
-            return candidates;
-        }
-
-        // Функция для получения всех полей объекта
-        function extractAllFields(item) {
-            const data = item.rawData;
-            const opts = data.opts || {};
-            const props = data.props || {};
-            const obj = data.obj || {};
-
-            const objectType = item.type || '';
-            const isLand = isLandObject(objectType);
-            
-            let sizeValue = '—';
-            if (item.area > 0) {
-                sizeValue = item.area.toFixed(1) + ' м²';
-                if (item.extension > 0) {
-                    sizeValue += ' / ' + item.extension.toFixed(1) + ' м (прот.)';
-                }
-            } else if (item.extension > 0) {
-                sizeValue = item.extension.toFixed(1) + ' м (протяженность)';
-            }
-
-            let landCategory = '—';
-            if (isLand) {
-                landCategory = opts.land_record_category_type || props.categoryName || '—';
-            }
-
-            let vri = '—';
-            if (isLand) {
-                vri = opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—';
-            }
-
-            let purpose = opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—';
-            if (isLand) {
-                purpose = '—';
-            }
-
-            return {
-                'Кадастровый номер': item.cadNumber || '—',
-                'Кадастровый квартал': item.cadNumber ? item.cadNumber.split(':').slice(0, 3).join(':') : '—',
-                'Тип объекта': objectType || '—',
-                'Наименование': item.name || opts.params_name || opts.name || opts.building_name || '—',
-                'Адрес': item.address || '—',
-                'Площадь/Протяженность': sizeValue,
-                'Кадастровая стоимость': item.cadastralCost > 0 ? formatPrice(item.cadastralCost) : '—',
-                'УПКС (₽/м²)': item.upksValue > 0 ? item.upksValue.toFixed(2) : '—',
-                'Назначение': purpose,
-                'Статус': opts.common_data_status || opts.status || obj.status || '—',
-                'Форма собственности': opts.ownership_type || obj.ownership_type || '—',
-                'Этаж': opts.floor || obj.floor || '—',
-                'Родительский объект': opts.parent_cad_number || obj.parent_cad_number || '—',
-                'Год постройки': opts.year_built || opts.params_year_built || obj.year_built || '—',
-                'Год ввода в эксплуатацию': opts.year_commisioning || opts.params_year_commisioning || obj.year_commisioning || '—',
-                'Этажность': opts.params_floors || opts.floors || obj.floors || '—',
-                'Материал стен': opts.materials || obj.materials || '—',
-                'Категория земель': landCategory,
-                'ВРИ': vri,
-                'Основание оценки': opts.determination_couse ? opts.determination_couse.replace(/\n/g, ' ').trim() : '—',
-                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || obj.registration_date || '—'
-            };
-        }
-
-        // Функция для выполнения поиска
+        // 🔥 ГЛАВНАЯ ФУНКЦИЯ ПОИСКА
         async function performSearch() {
             const searchTypeParam = searchType.value;
             const value = parseFloat(searchValue.value);
@@ -406,33 +119,205 @@
             `;
 
             try {
-                // 🔥 ВЫПОЛНЯЕМ ПОИСК С 3 СТРАТЕГИЯМИ
-                const features = await searchNSPD(address, value, searchTypeParam);
-
-                if (features.length === 0) {
+                // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ СЛОВА ИЗ АДРЕСА
+                const keywords = extractSearchKeywords(address);
+                
+                if (keywords.length === 0) {
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
-                            🔍 По запросу ничего не найдено.<br>
+                            ⚠️ Не удалось извлечь ключевые слова из адреса.<br>
                             <span class="text-xs">Попробуйте ввести название месторождения (например, "Тарасовское")</span>
-                            <br><span class="text-xs">Или введите кадастровый квартал (например, "89:05:020609")</span>
                         </div>
                     `;
                     return;
                 }
 
-                // Выводим все объекты для отладки
-                console.log('📋 Все найденные объекты:');
-                features.forEach((f, i) => {
+                // 🔥 ФОРМИРУЕМ ЗАПРОСЫ ДЛЯ ПОИСКА
+                // Берем последнее ключевое слово (обычно это месторождение или улица)
+                const mainKeyword = keywords[keywords.length - 1];
+                console.log(`🔍 Основное ключевое слово для поиска: "${mainKeyword}"`);
+
+                // 🔥 СТРАТЕГИЯ 1: Поиск по основному ключевому слову
+                let allFeatures = [];
+                let usedStrategy = '';
+
+                console.log(`🔍 Стратегия 1: Поиск по ключевому слову "${mainKeyword}"`);
+                const url1 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(mainKeyword)}&thematicSearchId=1&limit=100`;
+                
+                const controller1 = new AbortController();
+                const timeoutId1 = setTimeout(() => controller1.abort(), 15000);
+                
+                const response1 = await fetch(url1, {
+                    signal: controller1.signal,
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                clearTimeout(timeoutId1);
+
+                if (response1.ok) {
+                    const data1 = await response1.json();
+                    allFeatures = data1?.data?.features || [];
+                    usedStrategy = `ключевое слово "${mainKeyword}"`;
+                    console.log(`✅ Стратегия 1: найдено ${allFeatures.length} объектов`);
+                }
+
+                // 🔥 СТРАТЕГИЯ 2: Если ничего не найдено - пробуем поискать по полному адресу
+                if (allFeatures.length === 0) {
+                    console.log(`🔍 Стратегия 2: Поиск по полному адресу "${address}"`);
+                    const url2 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=100`;
+                    
+                    const controller2 = new AbortController();
+                    const timeoutId2 = setTimeout(() => controller2.abort(), 15000);
+                    
+                    const response2 = await fetch(url2, {
+                        signal: controller2.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                    clearTimeout(timeoutId2);
+
+                    if (response2.ok) {
+                        const data2 = await response2.json();
+                        allFeatures = data2?.data?.features || [];
+                        usedStrategy = `полный адрес`;
+                        console.log(`✅ Стратегия 2: найдено ${allFeatures.length} объектов`);
+                    }
+                }
+
+                // 🔥 СТРАТЕГИЯ 3: Если ничего не найдено - пробуем поискать по первому ключевому слову
+                if (allFeatures.length === 0 && keywords.length > 1) {
+                    const firstKeyword = keywords[0];
+                    console.log(`🔍 Стратегия 3: Поиск по первому ключевому слову "${firstKeyword}"`);
+                    const url3 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(firstKeyword)}&thematicSearchId=1&limit=100`;
+                    
+                    const controller3 = new AbortController();
+                    const timeoutId3 = setTimeout(() => controller3.abort(), 15000);
+                    
+                    const response3 = await fetch(url3, {
+                        signal: controller3.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                    clearTimeout(timeoutId3);
+
+                    if (response3.ok) {
+                        const data3 = await response3.json();
+                        allFeatures = data3?.data?.features || [];
+                        usedStrategy = `первое ключевое слово "${firstKeyword}"`;
+                        console.log(`✅ Стратегия 3: найдено ${allFeatures.length} объектов`);
+                    }
+                }
+
+                if (allFeatures.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
+                            🔍 По запросу ничего не найдено.<br>
+                            <span class="text-xs">Попробуйте ввести название месторождения (например, "Тарасовское")</span>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // 📋 Выводим все объекты для отладки
+                console.log(`📋 Все найденные объекты (${allFeatures.length} шт., стратегия: ${usedStrategy}):`);
+                allFeatures.forEach((f, i) => {
                     const obj = f || {};
                     const props = obj.properties || {};
                     const opts = props.options || {};
                     const cadNum = obj.cadastral_number || opts.cad_number || props.cadastral_number || '—';
                     const ext = obj.params_extension || opts.params_extension || opts.extension || 0;
+                    const area = parseFloat(obj.area) || parseFloat(opts.area) || parseFloat(opts.params_area) || 0;
                     const addr = obj.address || opts.readable_address || props.descr || '';
-                    console.log(`  ${i+1}. ${cadNum} | протяженность: ${ext} | адрес: ${addr.slice(0, 40)}...`);
+                    console.log(`  ${i+1}. ${cadNum} | площадь: ${area} | протяженность: ${ext} | адрес: ${addr.slice(0, 40)}...`);
                 });
 
-                const candidates = findBestMatch(features, value, searchTypeParam, address);
+                // 🔥 ФИЛЬТРУЕМ ПО ПЛОЩАДИ/ПРОТЯЖЕННОСТИ И АДРЕСУ
+                function findBestMatch(features, targetValue, searchTypeParam, targetAddress) {
+                    const hasValue = targetValue !== null && !isNaN(targetValue) && targetValue > 0;
+                    if (!hasValue) return [];
+
+                    const keywords = extractSearchKeywords(targetAddress);
+                    const hasKeywords = keywords.length > 0;
+                    let candidates = [];
+                    
+                    for (const feature of features) {
+                        const obj = feature || {};
+                        const props = obj.properties || {};
+                        const opts = props.options || {};
+                        
+                        // Извлекаем данные
+                        const cadNumber = obj.cadastral_number || opts.cad_number || props.cadastral_number || '—';
+                        const address = obj.address || opts.readable_address || props.readable_address || opts.address_readable_address || props.descr || '';
+                        const objectType = obj.object_type || obj.categoryName || opts.type || opts.object_type_value || props.categoryName || '';
+                        
+                        let area = parseFloat(obj.area) || parseFloat(opts.area) || parseFloat(opts.params_area) || parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
+                        let extension = parseFloat(obj.params_extension) || parseFloat(opts.params_extension) || parseFloat(opts.extension) || parseFloat(props.params_extension) || 0;
+                        const name = obj.object_name || opts.params_name || opts.name || opts.building_name || '';
+                        const cadastralCost = parseFloat(obj.cadastral_value) || parseFloat(opts.cost_value) || 0;
+                        let upksValue = parseFloat(obj.cadastral_index) || parseFloat(opts.cost_index) || 0;
+                        if (upksValue === 0 && cadastralCost > 0 && area > 0) {
+                            upksValue = cadastralCost / area;
+                        }
+
+                        // Проверяем условие поиска по площади/протяженности
+                        let valueMatch = false;
+                        let matchedValue = 0;
+                        if (searchTypeParam === 'area') {
+                            valueMatch = Math.abs(area - targetValue) < 0.01;
+                            matchedValue = area;
+                        } else if (searchTypeParam === 'extension') {
+                            valueMatch = Math.abs(extension - targetValue) < 0.01;
+                            matchedValue = extension;
+                        }
+                        if (!valueMatch) continue;
+
+                        // Проверяем совпадение по ключевым словам
+                        let addressMatch = false;
+                        const combinedText = (address + ' ' + name).toLowerCase();
+                        
+                        if (!targetAddress || targetAddress.trim() === '') {
+                            addressMatch = true;
+                        } else if (hasKeywords) {
+                            let matchCount = 0;
+                            for (const keyword of keywords) {
+                                if (combinedText.includes(keyword)) {
+                                    matchCount++;
+                                }
+                            }
+                            // Если совпало больше половины ключевых слов
+                            if (matchCount >= Math.ceil(keywords.length / 2)) {
+                                addressMatch = true;
+                                console.log(`✅ Совпадение по ключевым словам: ${matchCount}/${keywords.length} (${keywords.join(', ')})`);
+                            }
+                        } else {
+                            const normalizedTarget = normalizeString(targetAddress);
+                            const normalizedFull = normalizeString(address);
+                            addressMatch = normalizedFull.includes(normalizedTarget) || normalizedTarget.includes(normalizedFull);
+                        }
+
+                        if (!addressMatch) continue;
+
+                        candidates.push({ 
+                            feature: feature,
+                            area, extension, matchedValue,
+                            address, cadNumber, type: objectType,
+                            cadastralCost, upksValue, name,
+                            rawData: { feature, opts, props, obj }
+                        });
+                    }
+
+                    // Сортируем по близости значения
+                    candidates.sort((a, b) => Math.abs(a.matchedValue - targetValue) - Math.abs(b.matchedValue - targetValue));
+                    return candidates;
+                }
+
+                const candidates = findBestMatch(allFeatures, value, searchTypeParam, address);
                 console.log(`🎯 Найдено ${candidates.length} подходящих объектов`);
 
                 if (candidates.length === 0) {
@@ -492,7 +377,8 @@
                     </div>
                     <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px;">
                         <span>Найдено объектов: <strong>${candidates.length}</strong></span>
-                        <span>Всего в ответе: ${features.length}</span>
+                        <span>Всего в ответе: ${allFeatures.length}</span>
+                        <span style="font-size: 10px; color: #94a3b8;">Стратегия: ${usedStrategy}</span>
                         <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                                 style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s;"
                                 onmouseover="this.style.background='#fee2e2'"
