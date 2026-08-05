@@ -78,7 +78,6 @@
         return Math.abs(volume - targetVolume) <= AREA_TOLERANCE;
     }
 
-    // 🔥 ПРОВЕРКА ДЛЯ ПЛОЩАДИ ЗУ (land_record_area И specified_area)
     function isLandAreaMatch(landArea, targetLandArea) {
         if (!targetLandArea || targetLandArea <= 0) return true;
         return Math.abs(landArea - targetLandArea) <= AREA_TOLERANCE;
@@ -86,6 +85,19 @@
 
     function getAddress(opts, props) {
         return opts.readable_address || opts.address_readable_address || props.descr || '';
+    }
+
+    // 🔥 ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ КАДАСТРОВОГО НОМЕРА ИЗ РАЗНЫХ ПОЛЕЙ
+    function getCadNumber(opts, props) {
+        return opts.cad_number || 
+               opts.cad_num || 
+               props.externalKey || 
+               opts.externalKey || 
+               props.label || 
+               opts.label || 
+               props.descr || 
+               opts.descr || 
+               '';
     }
 
     window.initNSPDSearch = function(containerId) {
@@ -203,7 +215,6 @@
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
                 if (targetExtension && targetExtension > 0 && !isExtensionMatch(extension, targetExtension)) continue;
 
-                // 🔥 ПРОВЕРКА ПЛОЩАДИ ЗУ (land_record_area ИЛИ specified_area)
                 let landArea = parseFloat(opts.land_record_area) || 
                                parseFloat(opts.specified_area) || 0;
                 if (targetLandArea && targetLandArea > 0 && !isLandAreaMatch(landArea, targetLandArea)) continue;
@@ -225,7 +236,6 @@
                     houseMatch = nspdHouse === targetHouse;
                 }
 
-                // 🔥 ПРОВЕРКА ПО ПОЛНОМУ АДРЕСУ
                 let fullAddressMatch = false;
                 if (targetAddress && address) {
                     const normalizedAddress = normalizeString(address);
@@ -245,7 +255,7 @@
                         address: address,
                         house: nspdHouse,
                         street: nspdStreet,
-                        cadNumber: opts.cad_number || opts.cad_num || opts.externalKey || '—',
+                        cadNumber: getCadNumber(opts, props),
                         type: opts.type || opts.object_type_value || '—',
                         cadastralCost: parseFloat(opts.cost_value) || 0,
                         name: opts.params_name || opts.name || '',
@@ -277,7 +287,7 @@
                 const props = feature.properties || {};
                 const opts = props.options || {};
                 
-                const cadNumber = opts.cad_number || opts.cad_num || props.externalKey || '';
+                const cadNumber = getCadNumber(opts, props);
                 const quarter = extractCadastralQuarter(cadNumber);
                 if (quarter !== targetQuarter) continue;
 
@@ -297,7 +307,6 @@
                 let extension = parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
                 if (targetExtension && targetExtension > 0 && !isExtensionMatch(extension, targetExtension)) continue;
 
-                // 🔥 ПРОВЕРКА ПЛОЩАДИ ЗУ
                 let landArea = parseFloat(opts.land_record_area) || 
                                parseFloat(opts.specified_area) || 0;
                 if (targetLandArea && targetLandArea > 0 && !isLandAreaMatch(landArea, targetLandArea)) continue;
@@ -467,7 +476,7 @@
                     for (const feature of firstFeatures) {
                         const props = feature.properties || {};
                         const opts = props.options || {};
-                        const cadNumber = opts.cad_number || props.externalKey || '';
+                        const cadNumber = getCadNumber(opts, props);
                         if (cadNumber) {
                             const quarter = extractCadastralQuarter(cadNumber);
                             if (quarter) {
@@ -561,7 +570,6 @@
                                     if (Math.abs(ext - extension) > AREA_TOLERANCE) return false;
                                 }
                                 
-                                // 🔥 ПРОВЕРКА ПЛОЩАДИ ЗУ
                                 if (landArea > 0) {
                                     const la = parseFloat(opts.land_record_area) || 
                                                parseFloat(opts.specified_area) || 0;
@@ -578,44 +586,45 @@
                         }
                     }
                     
-  const uniqueFound = [];
-const seenCadNumbers = new Set();
-for (const item of allFound) {
-    const opts = item.properties?.options || {};
-    const cadNumber = opts.cad_number || opts.cad_num || opts.externalKey || '';
-    if (cadNumber && !seenCadNumbers.has(cadNumber)) {
-        seenCadNumbers.add(cadNumber);
-        uniqueFound.push(item);
-    }
-}
-console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
+                    const uniqueFound = [];
+                    const seenCadNumbers = new Set();
+                    for (const item of allFound) {
+                        const opts = item.properties?.options || {};
+                        const cadNumber = getCadNumber(opts, {});
+                        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+                            seenCadNumbers.add(cadNumber);
+                            uniqueFound.push(item);
+                        }
+                    }
+                    console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
 
-if (uniqueFound.length > 0) {
-    candidates = uniqueFound.map(f => {
-        const props = f.properties || {};
-        const opts = props.options || {};
-        return {
-            feature: f,
-            area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-            builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-            volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-            extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-            landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-            address: opts.address_readable_address || opts.readable_address || '',
-            cadNumber: opts.cad_number || opts.cad_num || opts.externalKey || '—',
-            type: opts.type || opts.object_type_value || '—',
-            cadastralCost: parseFloat(opts.cost_value) || 0,
-            name: opts.params_name || opts.name || '',
-            determination_couse: opts.determination_couse || '',
-            rawData: {
-                feature: f,
-                opts: opts,
-                props: props
-            }
-        };
-    });
-    console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
-}
+                    if (uniqueFound.length > 0) {
+                        candidates = uniqueFound.map(f => {
+                            const props = f.properties || {};
+                            const opts = props.options || {};
+                            return {
+                                feature: f,
+                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                address: opts.address_readable_address || opts.readable_address || '',
+                                cadNumber: getCadNumber(opts, props),
+                                type: opts.type || opts.object_type_value || '—',
+                                cadastralCost: parseFloat(opts.cost_value) || 0,
+                                name: opts.params_name || opts.name || '',
+                                determination_couse: opts.determination_couse || '',
+                                rawData: {
+                                    feature: f,
+                                    opts: opts,
+                                    props: props
+                                }
+                            };
+                        });
+                        console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
+                    }
+                }
 
                 if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
