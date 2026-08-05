@@ -11,14 +11,14 @@
         'area': {
             label: 'Площадь',
             unit: 'м²',
-            getValue: (opts) => parseFloat(opts.area) || parseFloat(opts.params_area) || parseFloat(opts.specified_area) || 0,
-            searchType: 'quarter' // сначала по кварталам
+            getValue: (opts) => parseFloat(opts.area) || parseFloat(opts.params_area) || parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0,
+            searchType: 'quarter'
         },
         'built_up_area': {
             label: 'Площадь застройки',
             unit: 'м²',
             getValue: (opts) => parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-            searchType: 'address' // по адресу
+            searchType: 'address'
         },
         'volume': {
             label: 'Объем',
