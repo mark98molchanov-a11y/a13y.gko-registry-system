@@ -578,44 +578,44 @@
                         }
                     }
                     
-                    const uniqueFound = [];
-                    const seenCadNumbers = new Set();
-                    for (const item of allFound) {
-                        const opts = item.properties?.options || {};
-                       const cadNumber = opts.cad_number || opts.cad_num || opts.externalKey || '';
-if (cadNumber && !seenCadNumbers.has(cadNumber)) {
-    seenCadNumbers.add(cadNumber);
-    uniqueFound.push(item);
+  const uniqueFound = [];
+const seenCadNumbers = new Set();
+for (const item of allFound) {
+    const opts = item.properties?.options || {};
+    const cadNumber = opts.cad_number || opts.cad_num || opts.externalKey || '';
+    if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+        seenCadNumbers.add(cadNumber);
+        uniqueFound.push(item);
+    }
 }
-                    console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
-                    
-                    if (uniqueFound.length > 0) {
-                        candidates = uniqueFound.map(f => {
-                            const props = f.properties || {};
-                            const opts = props.options || {};
-                            return {
-                                feature: f,
-                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                address: opts.address_readable_address || opts.readable_address || '',
-                                cadNumber: opts.cad_number || opts.cad_num || opts.externalKey || '—',
-                                type: opts.type || opts.object_type_value || '—',
-                                cadastralCost: parseFloat(opts.cost_value) || 0,
-                                name: opts.params_name || opts.name || '',
-                                determination_couse: opts.determination_couse || '',
-                                rawData: {
-                                    feature: f,
-                                    opts: opts,
-                                    props: props
-                                }
-                            };
-                        });
-                        console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
-                    }
-                }
+console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
+
+if (uniqueFound.length > 0) {
+    candidates = uniqueFound.map(f => {
+        const props = f.properties || {};
+        const opts = props.options || {};
+        return {
+            feature: f,
+            area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+            builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+            volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+            extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+            landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+            address: opts.address_readable_address || opts.readable_address || '',
+            cadNumber: opts.cad_number || opts.cad_num || opts.externalKey || '—',
+            type: opts.type || opts.object_type_value || '—',
+            cadastralCost: parseFloat(opts.cost_value) || 0,
+            name: opts.params_name || opts.name || '',
+            determination_couse: opts.determination_couse || '',
+            rawData: {
+                feature: f,
+                opts: opts,
+                props: props
+            }
+        };
+    });
+    console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
+}
 
                 if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
