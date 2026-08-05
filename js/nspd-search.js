@@ -87,7 +87,6 @@
         return opts.readable_address || opts.address_readable_address || props.descr || '';
     }
 
-    // 🔥 ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ КАДАСТРОВОГО НОМЕРА ИЗ РАЗНЫХ ПОЛЕЙ
     function getCadNumber(opts, props) {
         return opts.cad_number || 
                opts.cad_num || 
@@ -98,6 +97,137 @@
                props.descr || 
                opts.descr || 
                '';
+    }
+
+    // 🔥 ФУНКЦИЯ ДЛЯ ИЗВЛЕЧЕНИЯ КЛЮЧЕВЫХ СЛОВ ИЗ АДРЕСА
+    function extractKeywords(address) {
+        if (!address) return [];
+        // Убираем общие слова и оставляем значимые
+        const stopWords = ['область', 'край', 'республика', 'район', 'город', 'поселок', 'деревня', 'село', 'улица', 'проспект', 'переулок', 'бульвар', 'набережная', 'шоссе', 'площадь', 'аллея', 'тупик', 'проезд'];
+        const words = address.split(/[,\s]+/).filter(w => w.length > 3 && !stopWords.includes(w));
+        // Возвращаем уникальные слова
+        return [...new Set(words)];
+    }
+
+    // 🔥 КАСКАДНЫЙ ПОИСК
+    async function cascadedSearch(address, paramKey, targetValue, getParamValue) {
+        const TOLERANCE = AREA_TOLERANCE;
+        let allFound = [];
+        const seenCadNumbers = new Set();
+        
+        console.log(`🔍 Каскадный поиск для ${paramKey} = ${targetValue}`);
+        
+        // 1️⃣ ПОИСК ПО ПОЛНОМУ АДРЕСУ
+        console.log('📡 1️⃣ Поиск по полному адресу...');
+        const url1 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=200`;
+        const response1 = await fetch(url1, {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        
+        if (response1.ok) {
+            const data1 = await response1.json();
+            const features1 = data1?.data?.features || [];
+            console.log(`   Найдено ${features1.length} объектов`);
+            
+            for (const f of features1) {
+                const opts = f.properties?.options || {};
+                const cadNumber = getCadNumber(opts, {});
+                if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+                    const paramValue = getParamValue(opts);
+                    if (paramValue > 0 && Math.abs(paramValue - targetValue) <= TOLERANCE) {
+                        seenCadNumbers.add(cadNumber);
+                        allFound.push(f);
+                    }
+                }
+            }
+        }
+        
+        // 2️⃣ ЕСЛИ НЕ НАШЛИ — ПОИСК ПО КЛЮЧЕВЫМ СЛОВАМ
+        if (allFound.length === 0) {
+            console.log('📡 2️⃣ Поиск по ключевым словам...');
+            const keywords = extractKeywords(address);
+            console.log(`   Ключевые слова: ${keywords.join(', ')}`);
+            
+            for (const keyword of keywords) {
+                const url2 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(keyword)}&thematicSearchId=1&limit=200`;
+                const response2 = await fetch(url2, {
+                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                });
+                
+                if (response2.ok) {
+                    const data2 = await response2.json();
+                    const features2 = data2?.data?.features || [];
+                    console.log(`   По "${keyword}" найдено ${features2.length} объектов`);
+                    
+                    for (const f of features2) {
+                        const opts = f.properties?.options || {};
+                        const cadNumber = getCadNumber(opts, {});
+                        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+                            const paramValue = getParamValue(opts);
+                            if (paramValue > 0 && Math.abs(paramValue - targetValue) <= TOLERANCE) {
+                                seenCadNumbers.add(cadNumber);
+                                allFound.push(f);
+                            }
+                        }
+                    }
+                    if (allFound.length > 0) break;
+                }
+            }
+        }
+        
+        // 3️⃣ ЕСЛИ НЕ НАШЛИ — ПОИСК ПО КВАРТАЛАМ
+        if (allFound.length === 0) {
+            console.log('📡 3️⃣ Поиск по кварталам...');
+            const url3 = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=200`;
+            const response3 = await fetch(url3, {
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            });
+            
+            if (response3.ok) {
+                const data3 = await response3.json();
+                const features3 = data3?.data?.features || [];
+                const quarters = new Set();
+                
+                for (const f of features3) {
+                    const opts = f.properties?.options || {};
+                    const cadNumber = getCadNumber(opts, {});
+                    if (cadNumber) {
+                        const quarter = extractCadastralQuarter(cadNumber);
+                        if (quarter) quarters.add(quarter);
+                    }
+                }
+                console.log(`   Найдено ${quarters.size} уникальных кварталов`);
+                
+                for (const quarter of quarters) {
+                    const qUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
+                    const qResponse = await fetch(qUrl, {
+                        headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    });
+                    
+                    if (qResponse.ok) {
+                        const qData = await qResponse.json();
+                        const qFeatures = qData?.data?.features || [];
+                        console.log(`   В квартале ${quarter} найдено ${qFeatures.length} объектов`);
+                        
+                        for (const f of qFeatures) {
+                            const opts = f.properties?.options || {};
+                            const cadNumber = getCadNumber(opts, {});
+                            if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+                                const paramValue = getParamValue(opts);
+                                if (paramValue > 0 && Math.abs(paramValue - targetValue) <= TOLERANCE) {
+                                    seenCadNumbers.add(cadNumber);
+                                    allFound.push(f);
+                                }
+                            }
+                        }
+                        if (allFound.length > 0) break;
+                    }
+                }
+            }
+        }
+        
+        console.log(`📊 Каскадный поиск завершен. Найдено ${allFound.length} объектов`);
+        return allFound;
     }
 
     window.initNSPDSearch = function(containerId) {
@@ -511,118 +641,63 @@
                     }
                 }
 
-                // ✅ ШАГ 3: Если указаны остальные параметры и объекты не найдены — поиск по адресу (как для extension)
+                // ✅ ШАГ 3: Если указаны остальные параметры — КАСКАДНЫЙ ПОИСК
                 if ((builtUpArea > 0 || volume > 0 || extension > 0 || landArea > 0) && candidates.length === 0) {
-                    const parts = [];
-                    if (builtUpArea > 0) parts.push(`ПЛОЩАДЬ ЗАСТРОЙКИ ${builtUpArea} м²`);
-                    if (volume > 0) parts.push(`ОБЪЕМ ${volume} м³`);
-                    if (extension > 0) parts.push(`ПРОТЯЖЕННОСТЬ ${extension} м`);
-                    if (landArea > 0) parts.push(`ПЛОЩАДЬ ЗУ ${landArea} м²`);
-                    console.log(`🔍 Поиск по ${parts.join(' и ')} (адрес + ручная фильтрация)`);
-                    searchMethod = parts.join(' + ');
+                    let paramKey = '';
+                    let targetValue = 0;
+                    let getParamValue = null;
                     
-                    const addressVariants = [
-                        address,
-                        address.split(',').slice(0, -1).join(',').trim(),
-                        address.split(',').slice(0, -2).join(',').trim(),
-                        address.split(',').slice(0, 1).join(',').trim()
-                    ].filter(a => a && a.length > 0);
-                    
-                    const uniqueVariants = [...new Set(addressVariants)];
-                    console.log(`🔍 Варианты адреса для поиска:`, uniqueVariants);
-                    
-                    let allFound = [];
-                    
-                    for (const addrVariant of uniqueVariants) {
-                        console.log(`   Пробуем: "${addrVariant}"`);
-                        const addrUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
-                        
-                        const addrResponse = await fetch(addrUrl, {
-                            headers: {
-                                'Accept': 'application/json',
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                            }
-                        });
-                        
-                        if (addrResponse.ok) {
-                            const addrData = await addrResponse.json();
-                            const addrFeatures = addrData?.data?.features || [];
-                            console.log(`      Найдено ${addrFeatures.length} объектов`);
-                            
-                            const filtered = addrFeatures.filter(f => {
-                                const opts = f.properties?.options || {};
-                                
-                                if (builtUpArea > 0) {
-                                    const bua = parseFloat(opts.built_up_area) || 
-                                                parseFloat(opts.params_built_up_area) || 
-                                                parseFloat(opts.area) || 0;
-                                    if (Math.abs(bua - builtUpArea) > AREA_TOLERANCE) return false;
-                                }
-                                
-                                if (volume > 0) {
-                                    const vol = parseFloat(opts.volume) || 
-                                                parseFloat(opts.params_volume) || 0;
-                                    if (Math.abs(vol - volume) > AREA_TOLERANCE) return false;
-                                }
-                                
-                                if (extension > 0) {
-                                    const ext = parseFloat(opts.params_extension) || 0;
-                                    if (Math.abs(ext - extension) > AREA_TOLERANCE) return false;
-                                }
-                                
-                                if (landArea > 0) {
-                                    const la = parseFloat(opts.land_record_area) || 
-                                               parseFloat(opts.specified_area) || 0;
-                                    if (Math.abs(la - landArea) > AREA_TOLERANCE) return false;
-                                }
-                                
-                                return true;
-                            });
-                            
-                            if (filtered.length > 0) {
-                                console.log(`      ✅ Найдено ${filtered.length} объектов`);
-                                allFound = allFound.concat(filtered);
-                            }
-                        }
+                    if (builtUpArea > 0) {
+                        paramKey = 'built_up_area';
+                        targetValue = builtUpArea;
+                        getParamValue = (opts) => parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0;
+                    } else if (volume > 0) {
+                        paramKey = 'volume';
+                        targetValue = volume;
+                        getParamValue = (opts) => parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0;
+                    } else if (extension > 0) {
+                        paramKey = 'extension';
+                        targetValue = extension;
+                        getParamValue = (opts) => parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+                    } else if (landArea > 0) {
+                        paramKey = 'land_area';
+                        targetValue = landArea;
+                        getParamValue = (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
                     }
                     
-                    const uniqueFound = [];
-                    const seenCadNumbers = new Set();
-                    for (const item of allFound) {
-                        const opts = item.properties?.options || {};
-                        const cadNumber = getCadNumber(opts, {});
-                        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
-                            seenCadNumbers.add(cadNumber);
-                            uniqueFound.push(item);
-                        }
-                    }
-                    console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
-
-                    if (uniqueFound.length > 0) {
-                        candidates = uniqueFound.map(f => {
-                            const props = f.properties || {};
-                            const opts = props.options || {};
-                            return {
-                                feature: f,
-                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                address: opts.address_readable_address || opts.readable_address || '',
-                                cadNumber: getCadNumber(opts, props),
-                                type: opts.type || opts.object_type_value || '—',
-                                cadastralCost: parseFloat(opts.cost_value) || 0,
-                                name: opts.params_name || opts.name || '',
-                                determination_couse: opts.determination_couse || '',
-                                rawData: {
+                    if (getParamValue) {
+                        console.log(`🔍 Каскадный поиск для ${paramKey} = ${targetValue}`);
+                        searchMethod = `каскадный + ${paramKey}`;
+                        
+                        // 🔥 КАСКАДНЫЙ ПОИСК (вместо обычного адресного)
+                        const cascadedResults = await cascadedSearch(address, paramKey, targetValue, getParamValue);
+                        
+                        if (cascadedResults.length > 0) {
+                            candidates = cascadedResults.map(f => {
+                                const props = f.properties || {};
+                                const opts = props.options || {};
+                                return {
                                     feature: f,
-                                    opts: opts,
-                                    props: props
-                                }
-                            };
-                        });
-                        console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
+                                    area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                    builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                    volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                    extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                    landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                    address: opts.address_readable_address || opts.readable_address || '',
+                                    cadNumber: getCadNumber(opts, props),
+                                    type: opts.type || opts.object_type_value || '—',
+                                    cadastralCost: parseFloat(opts.cost_value) || 0,
+                                    name: opts.params_name || opts.name || '',
+                                    determination_couse: opts.determination_couse || '',
+                                    rawData: {
+                                        feature: f,
+                                        opts: opts,
+                                        props: props
+                                    }
+                                };
+                            });
+                            console.log(`✅ Найдено ${candidates.length} объектов через каскадный поиск`);
+                        }
                     }
                 }
 
