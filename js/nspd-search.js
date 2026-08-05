@@ -391,8 +391,7 @@
             `;
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                // 🔥 УБИРАЕМ AbortController — просто делаем запросы без прерывания
                 
                 let candidates = [];
                 let searchMethod = '';
@@ -402,7 +401,6 @@
                 const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=200`;
                 
                 const response = await fetch(nspdApiUrl, {
-                    signal: controller.signal,
                     headers: {
                         'Accept': 'application/json',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -418,7 +416,6 @@
                 console.log(`📥 По адресу получено ${firstFeatures.length} объектов`);
 
                 if (firstFeatures.length === 0) {
-                    clearTimeout(timeoutId);
                     resultsContainer.innerHTML = `
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
                             🔍 Объекты не найдены по адресу: ${address}
@@ -451,7 +448,6 @@
                         const quarterUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${quarter}&thematicSearchId=1&limit=500`;
                         
                         const quarterResponse = await fetch(quarterUrl, {
-                            signal: controller.signal,
                             headers: {
                                 'Accept': 'application/json',
                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -501,7 +497,6 @@
                         const addrUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(addrVariant)}&thematicSearchId=1&limit=200`;
                         
                         const addrResponse = await fetch(addrUrl, {
-                            signal: controller.signal,
                             headers: {
                                 'Accept': 'application/json',
                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -578,8 +573,6 @@
                         console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
                     }
                 }
-
-                clearTimeout(timeoutId);
 
                 if (candidates.length === 0) {
                     resultsContainer.innerHTML = `
@@ -685,11 +678,8 @@
 
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
-                if (error.name === 'AbortError') {
-                    resultsContainer.innerHTML = `<div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">⏰ Превышено время ожидания ответа от НСПД. Попробуйте позже.</div>`;
-                } else {
-                    resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Произошла ошибка при поиске: ${error.message}</div>`;
-                }
+                // 🔥 Просто показываем ошибку без AbortError
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Произошла ошибка при поиске: ${error.message}</div>`;
             }
         }
 
