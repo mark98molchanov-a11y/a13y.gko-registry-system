@@ -55,10 +55,8 @@
         return match ? match[1] : '';
     }
 
-    // 🔥 НОВАЯ ФУНКЦИЯ: извлечение номера участка из адреса
     function extractPlotNumber(address) {
         if (!address) return '';
-        // Ищем "участок 18", "уч. 18", "участок 18а"
         const match = address.match(/\b(?:участок|уч\.?)\s*(\d+[А-Яа-я]?)/i);
         return match ? match[1] : '';
     }
@@ -148,7 +146,6 @@
     // ============================================================
     // ФУНКЦИЯ ПОИСКА ПО АДРЕСУ (ДЛЯ КАСКАДНОГО ПОИСКА)
     // ============================================================
-
     async function searchByAddress(address, param, value) {
         const addressVariants = [
             address,
@@ -199,6 +196,193 @@
     }
 
     // ============================================================
+    // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА (ПЕРЕМЕЩЕНЫ СЮДА, ПОСЛЕ searchByAddress)
+    // ============================================================
+
+    function downloadTemplate() {
+        const headers = ['Адрес', 'Параметр', 'Значение'];
+        const example = [
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'extension', '113'],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'area', '66.8'],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'land_area', '1465']
+        ];
+        
+        let csv = '\uFEFF' + headers.join(';') + '\n';
+        example.forEach(row => {
+            csv += row.join(';') + '\n';
+        });
+        
+        csv += '\n# Доступные параметры:\n';
+        for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
+            csv += `# ${key} - ${param.label} (${param.unit})\n`;
+        }
+        csv += '# Допуск: ±0.2\n';
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'nspd_search_template.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    async function uploadData(file) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+            
+            if (lines.length < 2) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Файл пустой</div>`;
+                return;
+            }
+            
+            const headers = lines[0].split(';').map(h => h.replace(/"/g, '').trim());
+            const addressIdx = headers.findIndex(h => h.toLowerCase().includes('адрес'));
+            const paramIdx = headers.findIndex(h => h.toLowerCase().includes('параметр'));
+            const valueIdx = headers.findIndex(h => h.toLowerCase().includes('значение'));
+            
+            if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
+                return;
+            }
+            
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(';').map(c => c.replace(/"/g, '').trim());
+                if (cols.length > Math.max(addressIdx, paramIdx, valueIdx)) {
+                    const paramKey = cols[paramIdx].trim();
+                    if (SEARCH_PARAMS[paramKey]) {
+                        rows.push({
+                            address: cols[addressIdx],
+                            param: paramKey,
+                            value: parseFloat(cols[valueIdx]) || 0
+                        });
+                    }
+                }
+            }
+            
+            if (rows.length === 0) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки</div>`;
+                return;
+            }
+            
+            const progressContainer = document.getElementById('nspd-progress-container');
+            const progressBar = document.getElementById('nspd-progress-bar');
+            const progressText = document.getElementById('nspd-progress-text');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            
+            let allResults = [];
+            let total = rows.length;
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const percent = Math.round(((i + 1) / total) * 100);
+                progressBar.style.width = percent + '%';
+                progressText.textContent = percent + '%';
+                
+                const param = SEARCH_PARAMS[row.param];
+                if (!param) continue;
+                
+                try {
+                    const features = await searchByAddress(row.address, param, row.value);
+                    if (features.length > 0) {
+                        const candidates = features.map(f => {
+                            const props = f.properties || {};
+                            const opts = props.options || {};
+                            return {
+                                feature: f,
+                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                address: opts.address_readable_address || opts.readable_address || '',
+                                cadNumber: getCadNumber(opts, props),
+                                type: opts.type || opts.object_type_value || '—',
+                                cadastralCost: parseFloat(opts.cost_value) || 0,
+                                name: opts.params_name || opts.name || '',
+                                determination_couse: opts.determination_couse || '',
+                                rawData: { feature: f, opts: opts, props: props }
+                            };
+                        });
+                        allResults = allResults.concat(candidates);
+                    }
+                } catch (e) {
+                    console.warn('Ошибка:', e.message);
+                }
+            }
+            
+            progressContainer.style.display = 'none';
+            
+            if (allResults.length === 0) {
+                resultsContainer.innerHTML = `<div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">🔍 Объектов не найдено. Обработано ${total} строк.</div>`;
+                return;
+            }
+            
+            displayMassResults(allResults);
+        };
+        
+        reader.readAsText(file);
+    }
+
+    function displayMassResults(candidates) {
+        const tableData = candidates.map(item => extractAllFields(item));
+        const orderedColumns = ['Кадастровый номер', 'Вид объекта', 'Наименование', 'Материал стен', 'Адрес', 
+                               'Площадь (м²)', 'Площадь застройки (м²)', 'Объем (м³)', 'Протяженность (м)',
+                               'Площадь ЗУ (м²)', 'Кадастровая стоимость', 'УПКС (₽/м²)'];
+
+        let html = `
+            <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr style="background: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+                                <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: 30px;">#</th>
+                                ${orderedColumns.map(col => `
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: ${col.includes('Кадастровый') ? '150px' : col.includes('Адрес') ? '200px' : '100px'}; max-width: ${col.includes('Адрес') ? '250px' : '200px'};">
+                                        ${col}
+                                    </th>
+                                `).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        tableData.forEach((row, index) => {
+            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+            html += `
+                <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
+                    ${orderedColumns.map(col => {
+                        let val = row[col] || '—';
+                        return `<td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
+                    }).join('')}
+                </tr>
+            `;
+        });
+
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
+                <span>Найдено объектов: <strong>${candidates.length}</strong></span>
+                <span style="font-size: 10px; color: #94a3b8;">Метод: массовый поиск</span>
+                <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
+                        style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
+                    ✕ Очистить
+                </button>
+            </div>
+        `;
+
+        resultsContainer.innerHTML = html;
+    }
+
+    // ============================================================
     // ИНИЦИАЛИЗАЦИЯ
     // ============================================================
 
@@ -244,13 +428,42 @@
                     </div>
                 </div>
 
-                <button id="nspd-search-btn" 
-                        class="w-full md:w-auto px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    Найти объект
-                </button>
+                <div class="flex flex-wrap gap-3 mb-4">
+                    <button id="nspd-search-btn" 
+                            class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Найти объект
+                    </button>
+
+                    <button id="nspd-download-template" 
+                            class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Скачать шаблон
+                    </button>
+
+                    <label id="nspd-upload-btn" 
+                           class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
+                        </svg>
+                        Загрузить данные
+                        <input type="file" id="nspd-file-input" accept=".xlsx,.xls,.csv" style="display:none">
+                    </label>
+                </div>
+
+                <div id="nspd-progress-container" style="display:none;" class="mb-4">
+                    <div class="flex justify-between text-sm text-slate-600 mb-1">
+                        <span>Обработка...</span>
+                        <span id="nspd-progress-text">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5">
+                        <div id="nspd-progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
 
                 <div id="nspd-search-results" class="mt-6">
                     <div class="text-center text-slate-400 py-8 text-sm">
@@ -289,7 +502,7 @@
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
             const targetStreet = normalizeString(extractStreetFromAddress(targetAddress));
-            const targetPlot = extractPlotNumber(targetAddress); // 🔥 НОВОЕ!
+            const targetPlot = extractPlotNumber(targetAddress);
 
             let candidates = [];
             for (const feature of features) {
@@ -320,7 +533,7 @@
                 const addressLower = address.toLowerCase();
                 const nspdHouse = extractHouseNumber(addressLower);
                 const nspdStreet = normalizeString(extractStreetFromAddress(addressLower));
-                const nspdPlot = extractPlotNumber(address); // 🔥 НОВОЕ!
+                const nspdPlot = extractPlotNumber(address);
 
                 let streetMatch = false;
                 if (targetStreet && nspdStreet) {
@@ -334,7 +547,6 @@
                     houseMatch = nspdHouse === targetHouse;
                 }
 
-                // 🔥 НОВАЯ ПРОВЕРКА: совпадение по номеру участка
                 let plotMatch = false;
                 if (targetPlot && nspdPlot) {
                     plotMatch = nspdPlot === targetPlot;
@@ -348,7 +560,6 @@
                                        normalizedTarget.includes(normalizedAddress);
                 }
 
-                // 🔥 ДОБАВЛЯЕМ plotMatch В УСЛОВИЕ
                 if (streetMatch || houseMatch || plotMatch || fullAddressMatch) {
                     candidates.push({ 
                         feature, 
@@ -458,83 +669,79 @@
         }
 
         // ============================================================
-        // ФУНКЦИЯ extractAllFields (БЕЗ ИЗМЕНЕНИЙ)
+        // ФУНКЦИЯ extractAllFields
         // ============================================================
 
-function extractAllFields(item) {
-    const data = item.rawData;
-    const opts = data.opts || {};
-    const props = data.props || {};
+        function extractAllFields(item) {
+            const data = item.rawData;
+            const opts = data.opts || {};
+            const props = data.props || {};
 
-    const objectType = item.type || data.props.categoryName || '';
-    
-    // 🔥 ВИД ОБЪЕКТА (categoryName из props)
-    const categoryName = props.categoryName || opts.categoryName || '';
-    
-    // 🔥 МАТЕРИАЛ СТЕН (materials из opts)
-    const materials = opts.materials || opts.wall_material || props.materials || '';
-    
-    const isLand = objectType.includes('Земельный участок') || 
-                   objectType.includes('Земельный') || 
-                   objectType.includes('земельный участок');
-    
-    let upksValue = parseFloat(opts.cost_index) || 0;
-    if (upksValue === 0) {
-        const cost = parseFloat(opts.cost_value) || 0;
-        const area = parseFloat(opts.specified_area) || item.area || parseFloat(opts.params_built_up_area) || 0;
-        if (cost > 0 && area > 0) {
-            upksValue = cost / area;
+            const objectType = item.type || data.props.categoryName || '';
+            
+            const categoryName = props.categoryName || opts.categoryName || '';
+            const materials = opts.materials || opts.wall_material || props.materials || '';
+            
+            const isLand = objectType.includes('Земельный участок') || 
+                           objectType.includes('Земельный') || 
+                           objectType.includes('земельный участок');
+            
+            let upksValue = parseFloat(opts.cost_index) || 0;
+            if (upksValue === 0) {
+                const cost = parseFloat(opts.cost_value) || 0;
+                const area = parseFloat(opts.specified_area) || item.area || parseFloat(opts.params_built_up_area) || 0;
+                if (cost > 0 && area > 0) {
+                    upksValue = cost / area;
+                }
+            }
+
+            let objectName = opts.params_name || opts.name || opts.building_name || '';
+            if (!objectName && objectType) {
+                objectName = objectType;
+            }
+
+            const floorValue = getFloorValue(opts.floor);
+            const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+            const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
+            const volumeValue = item.volume || parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
+            const landAreaValue = item.landArea || parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
+            const address = getAddress(opts, props);
+            
+            const determinationCouse = opts.determination_couse || '';
+
+            let displayArea = item.area;
+            if (!displayArea || displayArea === 0) {
+                const opts2 = data.opts || {};
+                displayArea = parseFloat(opts2.area) || 
+                              parseFloat(opts2.params_area) || 
+                              parseFloat(opts2.specified_area) || 
+                              parseFloat(opts2.build_record_area) || 0;
+            }
+
+            return {
+                'Кадастровый номер': item.cadNumber || '—',
+                'Вид объекта': categoryName || objectType || '—',
+                'Наименование': objectName || '—',
+                'Материал стен': materials || '—',
+                'Адрес': address || '—',
+                'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
+                'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
+                'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
+                'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
+                'Площадь ЗУ (м²)': landAreaValue > 0 ? landAreaValue.toFixed(1) : '—',
+                'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
+                'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
+                'Назначение': opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—',
+                'Статус': opts.common_data_status || opts.status || '—',
+                'Форма собственности': opts.ownership_type || '—',
+                'Этаж': floorValue,
+                'Год постройки': opts.year_built || opts.params_year_built || '—',
+                'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
+                'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
+                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
+                'Основание оценки': determinationCouse || '—'
+            };
         }
-    }
-
-    let objectName = opts.params_name || opts.name || opts.building_name || '';
-    if (!objectName && objectType) {
-        objectName = objectType;
-    }
-
-    const floorValue = getFloorValue(opts.floor);
-    const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
-    const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
-    const volumeValue = item.volume || parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
-    const landAreaValue = item.landArea || parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
-    const address = getAddress(opts, props);
-    
-    const determinationCouse = opts.determination_couse || '';
-
-    // 🔥 НАХОДИМ РЕАЛЬНУЮ ПЛОЩАДЬ (первое непустое значение)
-    let displayArea = item.area;
-    if (!displayArea || displayArea === 0) {
-        const opts2 = data.opts || {};
-        displayArea = parseFloat(opts2.area) || 
-                      parseFloat(opts2.params_area) || 
-                      parseFloat(opts2.specified_area) || 
-                      parseFloat(opts2.build_record_area) || 0;
-    }
-
-    return {
-        'Кадастровый номер': item.cadNumber || '—',
-        'Вид объекта': categoryName || objectType || '—',
-        'Наименование': objectName || '—',
-        'Материал стен': materials || '—',
-        'Адрес': address || '—',
-        'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
-        'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
-        'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
-        'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
-        'Площадь ЗУ (м²)': landAreaValue > 0 ? landAreaValue.toFixed(1) : '—',
-        'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
-        'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
-        'Назначение': opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—',
-        'Статус': opts.common_data_status || opts.status || '—',
-        'Форма собственности': opts.ownership_type || '—',
-        'Этаж': floorValue,
-        'Год постройки': opts.year_built || opts.params_year_built || '—',
-        'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
-        'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
-        'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
-        'Основание оценки': determinationCouse || '—'
-    };
-}
 
         // ============================================================
         // ОСНОВНАЯ ФУНКЦИЯ ПОИСКА (С КАСКАДНОЙ ЛОГИКОЙ)
@@ -577,9 +784,7 @@ function extractAllFields(item) {
                 console.log(`🔍 Поиск по адресу: ${address}`);
                 console.log(`🔍 Параметр: ${param.label} = ${value} ${param.unit}`);
 
-                // ============================================================
-                // ШАГ 1: ПОИСК ПО АДРЕСУ (ВСЕГДА СНАЧАЛА)
-                // ============================================================
+                // ШАГ 1: ПОИСК ПО АДРЕСУ
                 console.log(`📡 ШАГ 1: Поиск по адресу (как для extension)`);
                 const addressFeatures = await searchByAddress(address, param, value);
                 
@@ -611,14 +816,11 @@ function extractAllFields(item) {
                     console.log(`✅ Найдено ${candidates.length} объектов по адресу`);
                 }
 
-                // ============================================================
                 // ШАГ 2: ЕСЛИ НЕ НАШЛИ — ПОИСК ПО КВАРТАЛАМ (ТОЛЬКО ДЛЯ area)
-                // ============================================================
                 if (candidates.length === 0 && paramKey === 'area') {
                     console.log(`📡 ШАГ 2: Поиск по кварталам (fallback для площади)`);
                     searchMethod = `кварталы + ${param.label}`;
                     
-                    // Получаем кварталы из адреса
                     const firstUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=200`;
                     const firstResponse = await fetch(firstUrl, {
                         headers: {
@@ -669,9 +871,7 @@ function extractAllFields(item) {
                     }
                 }
 
-                // ============================================================
                 // ШАГ 3: ЕСЛИ ВСЕ ЕЩЕ НЕ НАШЛИ — ПОИСК ПО КВАРТАЛАМ ДЛЯ ВСЕХ
-                // ============================================================
                 if (candidates.length === 0) {
                     console.log(`📡 ШАГ 3: Поиск по кварталам (финальный fallback)`);
                     
@@ -715,7 +915,6 @@ function extractAllFields(item) {
                                 const qFeatures = quarterData?.data?.features || [];
                                 console.log(`   В квартале ${quarter} найдено ${qFeatures.length} объектов`);
                                 
-                                // Фильтруем по параметру
                                 const filtered = qFeatures.filter(f => {
                                     const opts = f.properties?.options || {};
                                     const paramValue = param.getValue(opts);
@@ -868,6 +1067,22 @@ function extractAllFields(item) {
         searchBtn.addEventListener('click', performSearch);
         addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
         valueInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
+
+        // Обработчики для массового поиска
+        const downloadBtn = document.getElementById('nspd-download-template');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', downloadTemplate);
+        }
+
+        const fileInput = document.getElementById('nspd-file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                if (this.files && this.files.length > 0) {
+                    uploadData(this.files[0]);
+                    this.value = '';
+                }
+            });
+        }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
