@@ -461,73 +461,81 @@
         // ФУНКЦИЯ extractAllFields (БЕЗ ИЗМЕНЕНИЙ)
         // ============================================================
 
-        function extractAllFields(item) {
-            const data = item.rawData;
-            const opts = data.opts || {};
-            const props = data.props || {};
+function extractAllFields(item) {
+    const data = item.rawData;
+    const opts = data.opts || {};
+    const props = data.props || {};
 
-            const objectType = item.type || data.props.categoryName || '';
-            
-            const isLand = objectType.includes('Земельный участок') || 
-                          objectType.includes('Земельный') || 
-                          objectType.includes('земельный участок');
-            
-            let upksValue = parseFloat(opts.cost_index) || 0;
-            if (upksValue === 0) {
-                const cost = parseFloat(opts.cost_value) || 0;
-                const area = parseFloat(opts.specified_area) || item.area || parseFloat(opts.params_built_up_area) || 0;
-                if (cost > 0 && area > 0) {
-                    upksValue = cost / area;
-                }
-            }
-
-            let objectName = opts.params_name || opts.name || opts.building_name || '';
-            if (!objectName && objectType) {
-                objectName = objectType;
-            }
-
-            const floorValue = getFloorValue(opts.floor);
-            const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
-            const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
-            const volumeValue = item.volume || parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
-            const landAreaValue = item.landArea || parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
-            const address = getAddress(opts, props);
-            
-            const determinationCouse = opts.determination_couse || '';
-
-            // 🔥 НАХОДИМ РЕАЛЬНУЮ ПЛОЩАДЬ (первое непустое значение)
-            let displayArea = item.area;
-            if (!displayArea || displayArea === 0) {
-                const opts2 = data.opts || {};
-                displayArea = parseFloat(opts2.area) || 
-                              parseFloat(opts2.params_area) || 
-                              parseFloat(opts2.specified_area) || 
-                              parseFloat(opts2.build_record_area) || 0;
-            }
-
-            return {
-                'Кадастровый номер': item.cadNumber || '—',
-                'Наименование': objectName || '—',
-                'Тип объекта': objectType || '—',
-                'Адрес': address || '—',
-                'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
-                'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
-                'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
-                'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
-                'Площадь ЗУ (м²)': landAreaValue > 0 ? landAreaValue.toFixed(1) : '—',
-                'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
-                'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
-                'Назначение': opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—',
-                'Статус': opts.common_data_status || opts.status || '—',
-                'Форма собственности': opts.ownership_type || '—',
-                'Этаж': floorValue,
-                'Год постройки': opts.year_built || opts.params_year_built || '—',
-                'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
-                'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
-                'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
-                'Основание оценки': determinationCouse || '—'
-            };
+    const objectType = item.type || data.props.categoryName || '';
+    
+    // 🔥 ВИД ОБЪЕКТА (categoryName из props)
+    const categoryName = props.categoryName || opts.categoryName || '';
+    
+    // 🔥 МАТЕРИАЛ СТЕН (materials из opts)
+    const materials = opts.materials || opts.wall_material || props.materials || '';
+    
+    const isLand = objectType.includes('Земельный участок') || 
+                   objectType.includes('Земельный') || 
+                   objectType.includes('земельный участок');
+    
+    let upksValue = parseFloat(opts.cost_index) || 0;
+    if (upksValue === 0) {
+        const cost = parseFloat(opts.cost_value) || 0;
+        const area = parseFloat(opts.specified_area) || item.area || parseFloat(opts.params_built_up_area) || 0;
+        if (cost > 0 && area > 0) {
+            upksValue = cost / area;
         }
+    }
+
+    let objectName = opts.params_name || opts.name || opts.building_name || '';
+    if (!objectName && objectType) {
+        objectName = objectType;
+    }
+
+    const floorValue = getFloorValue(opts.floor);
+    const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
+    const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
+    const volumeValue = item.volume || parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
+    const landAreaValue = item.landArea || parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
+    const address = getAddress(opts, props);
+    
+    const determinationCouse = opts.determination_couse || '';
+
+    // 🔥 НАХОДИМ РЕАЛЬНУЮ ПЛОЩАДЬ (первое непустое значение)
+    let displayArea = item.area;
+    if (!displayArea || displayArea === 0) {
+        const opts2 = data.opts || {};
+        displayArea = parseFloat(opts2.area) || 
+                      parseFloat(opts2.params_area) || 
+                      parseFloat(opts2.specified_area) || 
+                      parseFloat(opts2.build_record_area) || 0;
+    }
+
+    return {
+        'Кадастровый номер': item.cadNumber || '—',
+        'Вид объекта': categoryName || objectType || '—',  // 🔥 НОВАЯ КОЛОНКА
+        'Наименование': objectName || '—',
+        'Тип объекта': objectType || '—',
+        'Материал стен': materials || '—',  // 🔥 НОВАЯ КОЛОНКА
+        'Адрес': address || '—',
+        'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
+        'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
+        'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
+        'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
+        'Площадь ЗУ (м²)': landAreaValue > 0 ? landAreaValue.toFixed(1) : '—',
+        'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
+        'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
+        'Назначение': opts.purpose || opts.params_purpose || opts.permitted_use_established_by_document || '—',
+        'Статус': opts.common_data_status || opts.status || '—',
+        'Форма собственности': opts.ownership_type || '—',
+        'Этаж': floorValue,
+        'Год постройки': opts.year_built || opts.params_year_built || '—',
+        'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
+        'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
+        'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
+        'Основание оценки': determinationCouse || '—'
+    };
+}
 
         // ============================================================
         // ОСНОВНАЯ ФУНКЦИЯ ПОИСКА (С КАСКАДНОЙ ЛОГИКОЙ)
