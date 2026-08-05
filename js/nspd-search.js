@@ -478,12 +478,22 @@
             
             const determinationCouse = opts.determination_couse || '';
 
+            // 🔥 НАХОДИМ РЕАЛЬНУЮ ПЛОЩАДЬ (первое непустое значение)
+            let displayArea = item.area;
+            if (!displayArea || displayArea === 0) {
+                const opts2 = data.opts || {};
+                displayArea = parseFloat(opts2.area) || 
+                              parseFloat(opts2.params_area) || 
+                              parseFloat(opts2.specified_area) || 
+                              parseFloat(opts2.build_record_area) || 0;
+            }
+
             return {
                 'Кадастровый номер': item.cadNumber || '—',
                 'Наименование': objectName || '—',
                 'Тип объекта': objectType || '—',
                 'Адрес': address || '—',
-                'Площадь (м²)': item.area > 0 ? item.area.toFixed(1) : '—',
+                'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
                 'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
                 'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
                 'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
