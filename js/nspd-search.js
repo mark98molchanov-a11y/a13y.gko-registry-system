@@ -32,12 +32,12 @@
             getValue: (opts) => parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
             searchType: 'address'
         },
-        'land_area': {
-            label: 'Площадь ЗУ',
-            unit: 'м²',
-            getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-            searchType: 'address'
-        }
+ 'land_area': {
+    label: 'Площадь ЗУ',
+    unit: 'м²',
+    getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+    searchType: 'address'
+}
     };
 
     // ============================================================
