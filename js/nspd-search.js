@@ -4,26 +4,21 @@
 (function() {
     console.log('🚀 Загрузка модуля поиска НСПД...');
 
-    // Константа для допуска по площади (в м²)
     const AREA_TOLERANCE = 0.2;
 
-    // Функция для нормализации строк (убираем лишние пробелы, приводим к нижнему регистру)
     function normalizeString(str) {
         if (!str) return '';
         return str.toLowerCase().replace(/\s+/g, ' ').trim();
     }
 
-    // Функция для извлечения номера дома из адреса
     function extractHouseNumber(address) {
         if (!address) return '';
         const match = address.match(/\b[дд]\.?\s*(\d+[А-Яа-я]?)/i);
         return match ? match[1] : '';
     }
 
-    // Функция для извлечения улицы из адреса
     function extractStreetFromAddress(address) {
         if (!address) return '';
-        
         const patterns = [
             /ул(?:ица)?\s+([^,\d]+?)(?:\s*[,д]|$)/i,
             /проспект\s+([^,\d]+?)(?:\s*[,д]|$)/i,
@@ -34,18 +29,13 @@
             /площадь\s+([^,\d]+?)(?:\s*[,д]|$)/i,
             /аллея\s+([^,\d]+?)(?:\s*[,д]|$)/i,
         ];
-        
         for (const pattern of patterns) {
             const match = address.match(pattern);
-            if (match) {
-                return match[1].trim();
-            }
+            if (match) return match[1].trim();
         }
-        
         return '';
     }
 
-    // Функция для извлечения кадастрового квартала из номера
     function extractCadastralQuarter(cadNumber) {
         if (!cadNumber) return '';
         const parts = cadNumber.split(':');
@@ -55,56 +45,39 @@
         return '';
     }
 
-    // Функция для форматирования цены
     function formatPrice(num) {
         if (!num || num === 0) return '—';
         return num.toLocaleString('ru-RU') + ' ₽';
     }
 
-    // Функция для безопасного получения строкового значения этажа
     function getFloorValue(floor) {
         if (!floor) return '—';
-        
         let floorStr = floor;
-        if (Array.isArray(floor)) {
-            floorStr = floor.length > 0 ? floor[0] : '—';
-        }
-        
-        if (typeof floorStr !== 'string') {
-            floorStr = String(floorStr);
-        }
-        
+        if (Array.isArray(floor)) floorStr = floor.length > 0 ? floor[0] : '—';
+        if (typeof floorStr !== 'string') floorStr = String(floorStr);
         const match = floorStr.match(/^(\d+)/);
-        if (match) {
-            return match[1];
-        }
-        
-        return floorStr;
+        return match ? match[1] : floorStr;
     }
 
-    // Функция для проверки соответствия площади с допуском ±0.2 м²
     function isAreaMatch(area, targetArea) {
         return Math.abs(area - targetArea) <= AREA_TOLERANCE;
     }
 
-    // Функция для проверки соответствия протяженности с допуском ±0.2 м
     function isExtensionMatch(extension, targetExtension) {
         if (!targetExtension || targetExtension <= 0) return true;
         return Math.abs(extension - targetExtension) <= AREA_TOLERANCE;
     }
 
-    // 🔥 Функция для проверки соответствия params_built_up_area с допуском ±0.2 м²
+    // 🔥 ПРОВЕРКА ДЛЯ built_up_area (ОБЪЕДИНЕННАЯ)
     function isBuiltUpAreaMatch(builtUpArea, targetBuiltUpArea) {
         if (!targetBuiltUpArea || targetBuiltUpArea <= 0) return true;
         return Math.abs(builtUpArea - targetBuiltUpArea) <= AREA_TOLERANCE;
     }
 
-    // 🔥 Функция для получения адреса из разных полей
     function getAddress(opts, props) {
         return opts.readable_address || opts.address_readable_address || props.descr || '';
     }
 
-    // Основная функция инициализации
     window.initNSPDSearch = function(containerId) {
         console.log(`🔍 Инициализация поиска НСПД в контейнере: ${containerId}`);
         const container = document.getElementById(containerId);
@@ -130,9 +103,9 @@
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Площадь застройки (м²)</label>
                         <input type="number" id="nspd-search-built-up-area" 
-                               placeholder="Введите площадь застройки, например 1032.8" 
+                               placeholder="Введите площадь застройки, например 1032.8 или 1937.4" 
                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
-                        <span class="text-xs text-slate-400 mt-1 block">Допуск ±${AREA_TOLERANCE} м²</span>
+                        <span class="text-xs text-slate-400 mt-1 block">Допуск ±${AREA_TOLERANCE} м² (ищет по built_up_area и params_built_up_area)</span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Протяженность (м)</label>
@@ -178,7 +151,6 @@
             return;
         }
 
-        // Функция для поиска подходящих объектов (общая)
         function findBestMatch(features, targetArea, targetBuiltUpArea, targetExtension, targetAddress) {
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
@@ -193,9 +165,9 @@
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
                 if (targetArea && targetArea > 0 && !isAreaMatch(area, targetArea)) continue;
 
-                // 🔥 ИЗВЛЕКАЕМ params_built_up_area
-                let builtUpArea = parseFloat(opts.params_built_up_area) || 
-                                  parseFloat(opts.built_up_area) || 
+                // 🔥 ОБЪЕДИНЕННАЯ ПРОВЕРКА: И built_up_area, И params_built_up_area
+                let builtUpArea = parseFloat(opts.built_up_area) || 
+                                  parseFloat(opts.params_built_up_area) || 
                                   parseFloat(opts.area) || 0;
                 if (targetBuiltUpArea && targetBuiltUpArea > 0 && !isBuiltUpAreaMatch(builtUpArea, targetBuiltUpArea)) continue;
 
@@ -250,7 +222,6 @@
             return candidates;
         }
 
-        // Функция для поиска в указанном квартале
         function findInQuarter(features, targetArea, targetBuiltUpArea, targetExtension, targetQuarter) {
             let candidates = [];
             for (const feature of features) {
@@ -265,9 +236,9 @@
                            parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0;
                 if (targetArea && targetArea > 0 && !isAreaMatch(area, targetArea)) continue;
 
-                // 🔥 ИЗВЛЕКАЕМ params_built_up_area
-                let builtUpArea = parseFloat(opts.params_built_up_area) || 
-                                  parseFloat(opts.built_up_area) || 
+                // 🔥 ОБЪЕДИНЕННАЯ ПРОВЕРКА: И built_up_area, И params_built_up_area
+                let builtUpArea = parseFloat(opts.built_up_area) || 
+                                  parseFloat(opts.params_built_up_area) || 
                                   parseFloat(opts.area) || 0;
                 if (targetBuiltUpArea && targetBuiltUpArea > 0 && !isBuiltUpAreaMatch(builtUpArea, targetBuiltUpArea)) continue;
 
@@ -305,7 +276,6 @@
             return candidates;
         }
 
-        // Функция для получения всех полей объекта в виде плоского массива
         function extractAllFields(item) {
             const data = item.rawData;
             const opts = data.opts || {};
@@ -336,7 +306,6 @@
             const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
             const address = getAddress(opts, props);
             
-            // 🔥 Получаем основание оценки
             const determinationCouse = opts.determination_couse || '';
 
             return {
@@ -357,13 +326,12 @@
                 'ВРИ': isLand ? (opts.permitted_uses_name || opts.purpose || opts.params_purpose || '—') : '—',
                 'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
                 'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
-                // 🔥 Добавляем поле "Основание оценки"
                 'Основание оценки': determinationCouse || '—'
             };
         }
 
         // ============================================================
-        // 🔥 ФУНКЦИЯ ПОИСКА С ПОДДЕРЖКОЙ ПЛОЩАДИ, ПЛОЩАДИ ЗАСТРОЙКИ И ПРОТЯЖЕННОСТИ
+        // 🔥 ОСНОВНАЯ ФУНКЦИЯ ПОИСКА
         // ============================================================
         async function performSearch() {
             const area = parseFloat(areaInput.value) || 0;
@@ -391,12 +359,10 @@
             `;
 
             try {
-                // 🔥 УБИРАЕМ AbortController — просто делаем запросы без прерывания
-                
                 let candidates = [];
                 let searchMethod = '';
 
-                // ✅ ШАГ 1: Поиск по адресу (всегда сначала ищем по адресу)
+                // ✅ ШАГ 1: Поиск по адресу
                 console.log(`🔍 Поиск по адресу: ${address}`);
                 const nspdApiUrl = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(address)}&thematicSearchId=1&limit=200`;
                 
@@ -424,7 +390,7 @@
                     return;
                 }
 
-                // ✅ ШАГ 2: Если указана ПЛОЩАДЬ — используем поиск по кварталам
+                // ✅ ШАГ 2: Если указана ПЛОЩАДЬ — поиск по кварталам
                 if (area > 0) {
                     console.log(`🔍 Поиск по ПЛОЩАДИ: ${area} м²`);
                     searchMethod = 'площадь';
@@ -468,18 +434,20 @@
                     }
                 }
 
-                // ✅ ШАГ 3: Если указана ПРОТЯЖЕННОСТЬ или ПЛОЩАДЬ ЗАСТРОЙКИ и объекты не найдены по площади
-                //    Ищем по адресу + ручная фильтрация по params_extension или params_built_up_area
-                if ((extension > 0 || builtUpArea > 0) && candidates.length === 0) {
-                    if (extension > 0) {
-                        console.log(`🔍 Поиск по ПРОТЯЖЕННОСТИ: ${extension} м (адрес + ручная фильтрация)`);
-                        searchMethod = 'протяженность';
+                // ✅ ШАГ 3: Если указана ПЛОЩАДЬ ЗАСТРОЙКИ или ПРОТЯЖЕННОСТЬ и объекты не найдены
+                // 🔥 ИЩЕМ ПО АДРЕСУ (как для extension)
+                if ((builtUpArea > 0 || extension > 0) && candidates.length === 0) {
+                    if (builtUpArea > 0 && extension > 0) {
+                        console.log(`🔍 Поиск по ПЛОЩАДИ ЗАСТРОЙКИ ${builtUpArea} м² и ПРОТЯЖЕННОСТИ ${extension} м (адрес + ручная фильтрация)`);
+                        searchMethod = 'площадь застройки + протяженность';
                     } else if (builtUpArea > 0) {
                         console.log(`🔍 Поиск по ПЛОЩАДИ ЗАСТРОЙКИ: ${builtUpArea} м² (адрес + ручная фильтрация)`);
                         searchMethod = 'площадь застройки';
+                    } else if (extension > 0) {
+                        console.log(`🔍 Поиск по ПРОТЯЖЕННОСТИ: ${extension} м (адрес + ручная фильтрация)`);
+                        searchMethod = 'протяженность';
                     }
                     
-                    // 🔥 РАСШИРЯЕМ ПОИСК: пробуем разные варианты адреса
                     const addressVariants = [
                         address,
                         address.split(',').slice(0, -1).join(',').trim(),
@@ -511,18 +479,18 @@
                             const filtered = addrFeatures.filter(f => {
                                 const opts = f.properties?.options || {};
                                 
+                                // 🔥 ПРОВЕРКА ПЛОЩАДИ ЗАСТРОЙКИ (built_up_area ИЛИ params_built_up_area)
+                                if (builtUpArea > 0) {
+                                    const bua = parseFloat(opts.built_up_area) || 
+                                                parseFloat(opts.params_built_up_area) || 
+                                                parseFloat(opts.area) || 0;
+                                    if (Math.abs(bua - builtUpArea) > AREA_TOLERANCE) return false;
+                                }
+                                
                                 // Проверяем протяженность
                                 if (extension > 0) {
                                     const ext = parseFloat(opts.params_extension) || 0;
                                     if (Math.abs(ext - extension) > AREA_TOLERANCE) return false;
-                                }
-                                
-                                // Проверяем площадь застройки
-                                if (builtUpArea > 0) {
-                                    const bua = parseFloat(opts.params_built_up_area) || 
-                                                parseFloat(opts.built_up_area) || 
-                                                parseFloat(opts.area) || 0;
-                                    if (Math.abs(bua - builtUpArea) > AREA_TOLERANCE) return false;
                                 }
                                 
                                 return true;
@@ -555,7 +523,7 @@
                             return {
                                 feature: f,
                                 area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                builtUpArea: parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || parseFloat(opts.area) || 0,
+                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
                                 extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
                                 address: opts.address_readable_address || opts.readable_address || '',
                                 cadNumber: opts.cad_number || opts.externalKey || '—',
@@ -589,21 +557,18 @@
                     return;
                 }
 
-                // Сортируем кандидатов по близости всех параметров
                 candidates.sort((a, b) => {
                     const diffA = Math.abs(a.area - area) + Math.abs(a.builtUpArea - builtUpArea) + Math.abs(a.extension - extension);
                     const diffB = Math.abs(b.area - area) + Math.abs(b.builtUpArea - builtUpArea) + Math.abs(b.extension - extension);
                     return diffA - diffB;
                 });
 
-                // Получаем все поля для каждого объекта
                 const tableData = candidates.map(item => extractAllFields(item));
                 const allKeys = Object.keys(tableData[0] || {});
                 const columnsToShow = allKeys.filter(key => {
                     return tableData.some(row => row[key] && row[key] !== '—' && row[key] !== '');
                 });
 
-                // Строим HTML таблицы - без колонки "Действия", добавляем "Основание оценки"
                 let tableHtml = `
                     <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                         <div style="overflow-x: auto;">
@@ -639,7 +604,6 @@
                                 if ((col === 'ВРИ' || col === 'Категория земель') && !isLandRow) {
                                     value = '—';
                                 }
-                                // Для "Основание оценки" обрезаем длинный текст
                                 if (col === 'Основание оценки' && value.length > 100) {
                                     value = value.substring(0, 100) + '...';
                                 }
@@ -663,7 +627,7 @@
                         <span>Найдено объектов: <strong>${candidates.length}</strong></span>
                         <span style="font-size: 10px; color: #94a3b8;">Метод поиска: ${searchMethod}</span>
                         ${area > 0 ? `<span style="font-size: 10px; color: #94a3b8;">Допуск по площади: ±${AREA_TOLERANCE} м²</span>` : ''}
-                        ${builtUpArea > 0 ? `<span style="font-size: 10px; color: #94a3b8;">Допуск по площади застройки: ±${AREA_TOLERANCE} м²</span>` : ''}
+                        ${builtUpArea > 0 ? `<span style="font-size: 10px; color: #94a3b8;">Допуск по площади застройки: ±${AREA_TOLERANCE} м² (built_up_area + params_built_up_area)</span>` : ''}
                         ${extension > 0 ? `<span style="font-size: 10px; color: #94a3b8;">Допуск по протяженности: ±${AREA_TOLERANCE} м</span>` : ''}
                         <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                                 style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s;"
@@ -678,7 +642,6 @@
 
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
-                // 🔥 Просто показываем ошибку без AbortError
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Произошла ошибка при поиске: ${error.message}</div>`;
             }
         }
