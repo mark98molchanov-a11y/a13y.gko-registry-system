@@ -245,7 +245,7 @@
                         address: address,
                         house: nspdHouse,
                         street: nspdStreet,
-                        cadNumber: opts.cad_number || opts.externalKey || '—',
+                        cadNumber: opts.cad_number || opts.cad_num || opts.externalKey || '—',
                         type: opts.type || opts.object_type_value || '—',
                         cadastralCost: parseFloat(opts.cost_value) || 0,
                         name: opts.params_name || opts.name || '',
@@ -277,7 +277,7 @@
                 const props = feature.properties || {};
                 const opts = props.options || {};
                 
-                const cadNumber = opts.cad_number || props.externalKey || '';
+                const cadNumber = opts.cad_number || opts.cad_num || props.externalKey || '';
                 const quarter = extractCadastralQuarter(cadNumber);
                 if (quarter !== targetQuarter) continue;
 
@@ -582,13 +582,11 @@
                     const seenCadNumbers = new Set();
                     for (const item of allFound) {
                         const opts = item.properties?.options || {};
-                        const cadNumber = opts.cad_number || '';
-                        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
-                            seenCadNumbers.add(cadNumber);
-                            uniqueFound.push(item);
-                        }
-                    }
-                    
+                       const cadNumber = opts.cad_number || opts.cad_num || opts.externalKey || '';
+if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+    seenCadNumbers.add(cadNumber);
+    uniqueFound.push(item);
+}
                     console.log(`📥 Всего найдено уникальных объектов: ${uniqueFound.length}`);
                     
                     if (uniqueFound.length > 0) {
@@ -603,7 +601,7 @@
                                 extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
                                 landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
                                 address: opts.address_readable_address || opts.readable_address || '',
-                                cadNumber: opts.cad_number || opts.externalKey || '—',
+                                cadNumber: opts.cad_number || opts.cad_num || opts.externalKey || '—',
                                 type: opts.type || opts.object_type_value || '—',
                                 cadastralCost: parseFloat(opts.cost_value) || 0,
                                 name: opts.params_name || opts.name || '',
