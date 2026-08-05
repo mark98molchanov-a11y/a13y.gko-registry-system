@@ -513,10 +513,9 @@ function extractAllFields(item) {
 
     return {
         'Кадастровый номер': item.cadNumber || '—',
-        'Вид объекта': categoryName || objectType || '—',  // 🔥 НОВАЯ КОЛОНКА
+        'Вид объекта': categoryName || objectType || '—',
         'Наименование': objectName || '—',
-        'Тип объекта': objectType || '—',
-        'Материал стен': materials || '—',  // 🔥 НОВАЯ КОЛОНКА
+        'Материал стен': materials || '—',
         'Адрес': address || '—',
         'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
         'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
