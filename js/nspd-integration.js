@@ -46,7 +46,7 @@ class NSPDIntegration {
     // 🔍 ПОИСК ПО КОНКРЕТНОМУ КАДАСТРОВОМУ НОМЕРУ
     // ============================================================
     
-    async search() {
+     async search() {
         console.log('🔍 Поиск по конкретному кадастровому номеру');
         const input = document.getElementById('cadSearchInput');
         if (!input) {
@@ -61,12 +61,22 @@ class NSPDIntegration {
             return;
         }
 
-        // ✅ Ищем ПОЛНЫЙ кадастровый номер (НЕ извлекаем квартал!)
+        // 🔥 ПРОВЕРЯЕМ, ЧТО ВВЕДЕН КАДАСТРОВЫЙ НОМЕР (А НЕ АДРЕС)
+        if (!this.isCadastralNumber(cadNumber)) {
+            this.showError('❌ Введите кадастровый номер в формате XX:XX:XXXXXX:XXX');
+            input.style.borderColor = '#ef4444';
+            input.style.background = '#fef2f2';
+            setTimeout(() => {
+                input.style.borderColor = '#e2e8f0';
+                input.style.background = '#f8fafc';
+            }, 2000);
+            return;
+        }
+
         console.log(`📤 Ищем конкретный объект: ${cadNumber}`);
         this.showLoading();
 
         try {
-            // ✅ Отправляем запрос с ПОЛНЫМ номером
             const response = await this.makeRequest(cadNumber);
             console.log('📥 Ответ от НСПД получен:', response);
             
@@ -84,7 +94,6 @@ class NSPDIntegration {
 
             console.log(`✅ Найдено объектов: ${response.features.length}`);
 
-            // ✅ Ищем ТОЧНОЕ совпадение с полным номером
             const exactMatch = this.findExactMatch(response.features, cadNumber);
             
             if (exactMatch) {
@@ -95,8 +104,6 @@ class NSPDIntegration {
                 this.showNotification(`Найден объект: ${exactMatch.cadastral_number}`, 'success');
             } else {
                 console.warn(`⚠️ Точное совпадение для ${cadNumber} не найдено`);
-                
-                // ✅ Если точного нет - показываем все найденные объекты
                 this.allResults = response.features;
                 this.displayAllResults(response.features, cadNumber);
                 this.showNotification(`Найдено ${response.features.length} объектов, но точного совпадения нет`, 'warning');
@@ -107,10 +114,28 @@ class NSPDIntegration {
             this.showError('Не удалось получить данные. Проверьте номер или попробуйте позже.');
         }
     }
-
-    // ============================================================
-    // 📤 ЗАПРОС К API С ПОЛНЫМ НОМЕРОМ
-    // ============================================================
+    isCadastralNumber(value) {
+        if (!value) return false;
+        
+        // Убираем пробелы и проверяем формат
+        const cleaned = value.replace(/\s/g, '');
+        
+        // ✅ Формат: XX:XX:XXXXXX:XXX или XX:XX:XXXXXX
+        const patterns = [
+            /^\d{2}:\d{2}:\d{6}:\d{1,}$/,      // 89:12:110601:8750
+            /^\d{2}:\d{2}:\d{6}$/,              // 89:12:110601
+            /^\d{2}:\d{2}:\d{6}:\d{1,}\.\d+$/,  // 89:12:110601:8750.1
+            /^\d{2}:\d{2}:\d{6}:\d{1,}\/\d+$/   // 89:12:110601:8750/1
+        ];
+        
+        for (const pattern of patterns) {
+            if (pattern.test(cleaned)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
 
     async makeRequest(query) {
         // ✅ Ищем ПОЛНЫЙ кадастровый номер (НЕ квартал!)
@@ -672,7 +697,10 @@ displayResult(data) {
         }
     }
 
-    // ✅ БАЗОВЫЕ ПОЛЯ
+    // 🔥 ВЫЧИСЛЯЕМ built_up_area ИЗ ВСЕХ ВОЗМОЖНЫХ ПОЛЕЙ
+    const builtUpAreaValue = data.params_built_up_area || data.built_up_area || 0;
+
+    // ✅ БАЗОВЫЕ ПОЛЯ (включая built_up_area для всех типов)
     const fields = [
         { label: 'Кадастровый номер', value: data.cadastral_number || '—', important: true },
         { label: 'Кадастровый квартал', value: data.cadastral_quarter || '—' },
@@ -684,6 +712,11 @@ displayResult(data) {
         { label: 'УПКС', value: upksValue > 0 ? upksValue.toFixed(2) + ' ₽/м²' : '—', important: true },
         { label: 'Назначение', value: data.purpose || '—' },
     ];
+
+    // 🔥 ДОБАВЛЯЕМ ПЛОЩАДЬ ЗАСТРОЙКИ ДЛЯ ВСЕХ ТИПОВ (ЕСЛИ ЕСТЬ)
+    if (builtUpAreaValue > 0) {
+        fields.push({ label: 'Площадь застройки', value: builtUpAreaValue.toFixed(1) + ' м²', important: true });
+    }
 
     // ДОБАВЛЯЕМ СПЕЦИФИЧНЫЕ ПОЛЯ В ЗАВИСИМОСТИ ОТ ТИПА
     if (isParking) {
@@ -723,8 +756,6 @@ displayResult(data) {
             { label: 'Глубина', value: data.params_depth > 0 ? data.params_depth + ' м' : '—' },
             { label: 'Год постройки', value: data.year_built || '—' },
             { label: 'Основание оценки', value: data.determination_couse ? data.determination_couse.replace(/\n/g, ' ').trim() : '—' },
-            // 🆕 ДОБАВЛЯЕМ ПЛОЩАДЬ ЗАСТРОЙКИ ДЛЯ СООРУЖЕНИЙ
-            { label: 'Площадь застройки', value: data.params_built_up_area > 0 ? data.params_built_up_area + ' м²' : '—' },
         );
     } else if (isConstruction) {
         let buildArea = data.area > 0 ? data.area : data.params_built_up_area;
@@ -774,37 +805,37 @@ displayResult(data) {
     console.log('🔍 Геометрия:', hasGeometry ? `${geometryType} найдена` : 'нет');
 
     // ✅ КНОПКА "Показать на карте" — сразу отображаем объект НСПД
-const showOnMapFn = `
-    (function() {
-        const cadNum = '${data.cadastral_number || ''}';
-        console.log('🗺️ Показ объекта на карте:', cadNum);
-        
-        // ✅ Ищем объект в allDealsFlat по полю cad_nspd (это полный номер!)
-        let deal = null;
-        if (typeof window.allDealsFlat !== 'undefined') {
-            deal = window.allDealsFlat.find(d => d.cad_nspd === cadNum);
-        }
-        
-        if (deal && deal.cad_nspd) {
-            console.log('✅ Найден объект в сделках по cad_nspd:', deal.cad_nspd);
-            // Показываем объект НСПД напрямую по cad_nspd
-            if (typeof window.showNSPDObjectByNspd === 'function') {
-                window.showNSPDObjectByNspd(deal.cad_nspd);
-            } else {
-                console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
-                nspdApp.showNotification('Функция отображения не загружена', 'error');
+    const showOnMapFn = `
+        (function() {
+            const cadNum = '${data.cadastral_number || ''}';
+            console.log('🗺️ Показ объекта на карте:', cadNum);
+            
+            // ✅ Ищем объект в allDealsFlat по полю cad_nspd (это полный номер!)
+            let deal = null;
+            if (typeof window.allDealsFlat !== 'undefined') {
+                deal = window.allDealsFlat.find(d => d.cad_nspd === cadNum);
             }
-        } else {
-            // Если не нашли в allDealsFlat — пробуем показать напрямую по номеру
-            console.warn('⚠️ Не найден cad_nspd в allDealsFlat для:', cadNum);
-            if (typeof window.showNSPDObjectByNspd === 'function') {
-                window.showNSPDObjectByNspd(cadNum);
+            
+            if (deal && deal.cad_nspd) {
+                console.log('✅ Найден объект в сделках по cad_nspd:', deal.cad_nspd);
+                // Показываем объект НСПД напрямую по cad_nspd
+                if (typeof window.showNSPDObjectByNspd === 'function') {
+                    window.showNSPDObjectByNspd(deal.cad_nspd);
+                } else {
+                    console.warn('⚠️ Функция showNSPDObjectByNspd не найдена');
+                    nspdApp.showNotification('Функция отображения не загружена', 'error');
+                }
             } else {
-                nspdApp.showNotification('Нет номера НСПД для этого объекта', 'warning');
+                // Если не нашли в allDealsFlat — пробуем показать напрямую по номеру
+                console.warn('⚠️ Не найден cad_nspd в allDealsFlat для:', cadNum);
+                if (typeof window.showNSPDObjectByNspd === 'function') {
+                    window.showNSPDObjectByNspd(cadNum);
+                } else {
+                    nspdApp.showNotification('Нет номера НСПД для этого объекта', 'warning');
+                }
             }
-        }
-    })()
-`;
+        })()
+    `;
 
     resultDiv.innerHTML = `
         <div style="
@@ -856,17 +887,20 @@ const showOnMapFn = `
                         onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#86efac';"
                         onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#bbf7d0';"
                         title="${hasGeometry ? 'Показать объект на карте' : 'Найти квартал и показать объект'}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                    </svg>
                     Показать на карте
                 </button>
                 
                 <button onclick="nspdApp.clear()" 
                         style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px;">
-                    Очистить
+                    ✕ Очистить
                 </button>
                 ${quarter && quarter !== '—' && quarter !== '' ? `
                 <button onclick="window.nspdApp.searchQuarter('${quarter}')" 
                         style="padding: 5px 14px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 6px; cursor: pointer; font-size: 10px;">
-                    Найти квартал: ${quarter}
+                    📍 Найти квартал: ${quarter}
                 </button>
                 ` : ''}
                 <button onclick="nspdApp.copyData()" 
@@ -878,6 +912,7 @@ const showOnMapFn = `
             <div style="margin-top: 8px; font-size: 8px; color: #cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 6px;">
                 <span>Всего найдено: ${data.totalCount || 0}</span>
                 ${hasGeometry ? `<span style="margin-left: 12px;">Тип геометрии: ${geometryType}</span>` : ''}
+                ${builtUpAreaValue > 0 ? `<span style="margin-left: 12px;">🏗️ Площадь застройки: ${builtUpAreaValue.toFixed(1)} м²</span>` : ''}
             </div>
         </div>
     `;
@@ -1105,6 +1140,23 @@ const showOnMapFn = `
 // ============================================================
 
 console.log('NSPD Integration загружается...');
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('cadSearchInput');
+    if (input) {
+        input.addEventListener('input', function() {
+            const value = this.value.trim();
+            const cadPattern = /^\d{0,2}:?\d{0,2}:?\d{0,6}:?\d{0,}$/;
+            
+            if (value && !cadPattern.test(value)) {
+                this.style.borderColor = '#f59e0b';
+                this.style.background = '#fffbeb';
+            } else {
+                this.style.borderColor = '#e2e8f0';
+                this.style.background = '#f8fafc';
+            }
+        });
+    }
+});
 
 window.nspdApp = new NSPDIntegration();
 
