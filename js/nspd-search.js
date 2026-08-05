@@ -49,12 +49,12 @@
         return str.toLowerCase().replace(/\s+/g, ' ').trim();
     }
 
-    function extractHouseNumber(address) {
-        if (!address) return '';
-        const match = address.match(/\b[дд]\.?\s*(\d+[А-Яа-я]?)/i);
-        return match ? match[1] : '';
-    }
-
+  function extractHouseNumber(address) {
+    if (!address) return '';
+    // Ищем "дом 2а", "д 2а", "д.2а"
+    const match = address.match(/\b(?:дом|д|д\.)\s*(\d+[А-Яа-я]?)/i);
+    return match ? match[1] : '';
+}
     function extractStreetFromAddress(address) {
         if (!address) return '';
         const patterns = [
@@ -273,13 +273,13 @@
                     houseMatch = nspdHouse === targetHouse;
                 }
 
-                let fullAddressMatch = false;
-                if (targetAddress && address) {
-                    const normalizedAddress = normalizeString(address);
-                    const normalizedTarget = normalizeString(targetAddress);
-                    fullAddressMatch = normalizedAddress.includes(normalizedTarget) || 
-                                       normalizedTarget.includes(normalizedAddress);
-                }
+             let fullAddressMatch = false;
+if (targetAddress && address) {
+    const normalizedAddress = normalizeString(address);
+    const normalizedTarget = normalizeString(targetAddress);
+    fullAddressMatch = normalizedAddress.includes(normalizedTarget) || 
+                       normalizedTarget.includes(normalizedAddress);
+}
 
                 if (streetMatch || houseMatch || fullAddressMatch) {
                     candidates.push({ 
