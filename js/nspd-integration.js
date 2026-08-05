@@ -869,30 +869,24 @@ displayResult(data) {
                 `).join('')}
             </div>
             
-            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                <button onclick="(${showOnMapFn})" 
-                        style="
-                            padding: 5px 14px;
-                            background: #f0fdf4;
-                            color: #16a34a;
-                            border: 1px solid #bbf7d0;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 10px;
-                            transition: all 0.2s;
-                            font-family: 'Inter', sans-serif;
-                            display: flex;
-                            align-items: center;
-                            gap: 4px;
-                        "
-                        onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#86efac';"
-                        onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#bbf7d0';"
-                        title="${hasGeometry ? 'Показать объект на карте' : 'Найти квартал и показать объект'}">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-                    </svg>
-                    Показать на карте
-                </button>
+    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+    <button onclick="(${showOnMapFn})" 
+            style="
+                padding: 5px 14px;
+                background: #f0fdf4;
+                color: #16a34a;
+                border: 1px solid #bbf7d0;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 10px;
+                transition: all 0.2s;
+                font-family: 'Inter', sans-serif;
+            "
+            onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#86efac';"
+            onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#bbf7d0';"
+            title="${hasGeometry ? 'Показать объект на карте' : 'Найти квартал и показать объект'}">
+        Показать на карте
+    </button>
                 
                 <button onclick="nspdApp.clear()" 
                         style="padding: 5px 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 10px;">
