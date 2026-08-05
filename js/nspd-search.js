@@ -32,12 +32,12 @@
             getValue: (opts) => parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
             searchType: 'address'
         },
- 'land_area': {
-    label: 'Площадь ЗУ',
-    unit: 'м²',
-    getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-    searchType: 'address'
-}
+        'land_area': {
+            label: 'Площадь ЗУ',
+            unit: 'м²',
+            getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+            searchType: 'address'
+        }
     };
 
     // ============================================================
@@ -52,6 +52,14 @@
     function extractHouseNumber(address) {
         if (!address) return '';
         const match = address.match(/\b(?:дом|д|д\.)\s*(\d+[А-Яа-я]?)/i);
+        return match ? match[1] : '';
+    }
+
+    // 🔥 НОВАЯ ФУНКЦИЯ: извлечение номера участка из адреса
+    function extractPlotNumber(address) {
+        if (!address) return '';
+        // Ищем "участок 18", "уч. 18", "участок 18а"
+        const match = address.match(/\b(?:участок|уч\.?)\s*(\d+[А-Яа-я]?)/i);
         return match ? match[1] : '';
     }
 
@@ -274,13 +282,14 @@
         });
 
         // ============================================================
-        // ФУНКЦИЯ findBestMatch (БЕЗ ИЗМЕНЕНИЙ)
+        // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ findBestMatch С ПРОВЕРКОЙ ПО НОМЕРУ УЧАСТКА
         // ============================================================
 
         function findBestMatch(features, targetArea, targetBuiltUpArea, targetVolume, targetExtension, targetLandArea, targetAddress) {
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
             const targetStreet = normalizeString(extractStreetFromAddress(targetAddress));
+            const targetPlot = extractPlotNumber(targetAddress); // 🔥 НОВОЕ!
 
             let candidates = [];
             for (const feature of features) {
@@ -311,6 +320,7 @@
                 const addressLower = address.toLowerCase();
                 const nspdHouse = extractHouseNumber(addressLower);
                 const nspdStreet = normalizeString(extractStreetFromAddress(addressLower));
+                const nspdPlot = extractPlotNumber(address); // 🔥 НОВОЕ!
 
                 let streetMatch = false;
                 if (targetStreet && nspdStreet) {
@@ -324,6 +334,12 @@
                     houseMatch = nspdHouse === targetHouse;
                 }
 
+                // 🔥 НОВАЯ ПРОВЕРКА: совпадение по номеру участка
+                let plotMatch = false;
+                if (targetPlot && nspdPlot) {
+                    plotMatch = nspdPlot === targetPlot;
+                }
+
                 let fullAddressMatch = false;
                 if (targetAddress && address) {
                     const normalizedAddress = normalizeString(address);
@@ -332,7 +348,8 @@
                                        normalizedTarget.includes(normalizedAddress);
                 }
 
-                if (streetMatch || houseMatch || fullAddressMatch) {
+                // 🔥 ДОБАВЛЯЕМ plotMatch В УСЛОВИЕ
+                if (streetMatch || houseMatch || plotMatch || fullAddressMatch) {
                     candidates.push({ 
                         feature, 
                         area, 
