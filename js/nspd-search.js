@@ -38,7 +38,6 @@
             getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
             searchType: 'address'
         },
-        // 🔥 НОВЫЙ ПАРАМЕТР: Глубина
         'depth': {
             label: 'Глубина',
             unit: 'м',
@@ -134,7 +133,6 @@
         return Math.abs(landArea - targetLandArea) <= AREA_TOLERANCE;
     }
 
-    // 🔥 НОВАЯ ФУНКЦИЯ: проверка глубины
     function isDepthMatch(depth, targetDepth) {
         if (!targetDepth || targetDepth <= 0) return true;
         return Math.abs(depth - targetDepth) <= AREA_TOLERANCE;
@@ -209,298 +207,130 @@
     }
 
     // ============================================================
-    // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА (ПЕРЕМЕЩЕНЫ СЮДА, ПОСЛЕ searchByAddress)
+    // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА
     // ============================================================
 
-function downloadTemplate() {
-    // Проверяем, загружена ли библиотека XLSX
-    if (typeof XLSX === 'undefined') {
-        // Если библиотека не загружена, используем CSV
-        const headers = ['Адрес', 'Параметр', 'Значение'];
-        const example = [
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', '113'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', '66.8'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', '1465'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Геологоразведчиков, д 12', 'Площадь застройки', '450'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', '1250'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Строителей, д 5', 'Глубина', '4555']
-        ];
-        
-        let csv = '\uFEFF' + headers.join(';') + '\n';
-        example.forEach(row => {
-            csv += row.join(';') + '\n';
-        });
-        
-        csv += '\n# Доступные параметры (пишите как в списке):\n';
-        for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
-            csv += `# ${param.label}\n`;
-        }
-        csv += '# Допуск: ±0.2\n';
-        
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'nspd_search_template.csv';
-        link.click();
-        URL.revokeObjectURL(link.href);
-        return;
-    }
-
-    // Данные для шаблона с 6 примерами
-    const data = [
-        ['Адрес', 'Параметр', 'Значение'],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', 113],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', 66.8],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', 1465],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Геологоразведчиков, д 12', 'Площадь застройки', 450],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', 1250],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Строителей, д 5', 'Глубина', 4555]
-    ];
-    
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    
-    // Настройка ширины колонок
-    ws['!cols'] = [
-        { wch: 70 }, // Адрес
-        { wch: 25 }, // Параметр
-        { wch: 15 }  // Значение
-    ];
-    
-    // Выпадающий список для колонки "Параметр" (столбец B, индекс 1)
-    const paramLabels = Object.values(SEARCH_PARAMS).map(p => p.label);
-    const validation = {
-        type: 'list',
-        operator: 'between',
-        formula1: '"' + paramLabels.join(',') + '"',
-        showErrorMessage: true,
-        errorTitle: 'Ошибка ввода',
-        error: 'Выберите значение из списка: ' + paramLabels.join(', ')
-    };
-    
-    // Применяем валидацию ко всем ячейкам колонки "Параметр" (столбец B)
-    // Начиная со строки 2 (индекс 2) до 100
-    ws['!validations'] = [];
-    for (let i = 2; i <= 100; i++) {
-        const cellRef = 'B' + i;
-        ws['!validations'].push({
-            ref: cellRef,
-            validation: validation
-        });
-    }
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
-    
-    // Сохраняем
-    XLSX.writeFile(wb, 'nspd_search_template.xlsx');
-}
-
- async function uploadData(file) {
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        // Определяем формат файла по расширению
-        const fileName = file.name.toLowerCase();
-        const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-        
-        let lines = [];
-        let delimiter = ';';
-        
-        if (isExcel) {
-            // Парсим Excel через XLSX
-            if (typeof XLSX === 'undefined') {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Библиотека XLSX не загружена. Поддерживается только CSV.</div>`;
-                return;
-            }
-            
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-            
-            // Пропускаем пустые строки
-            const nonEmptyRows = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''));
-            
-            // Первая строка - заголовки
-            const headerRow = nonEmptyRows[0] || [];
-            const dataRows = nonEmptyRows.slice(1);
-            
-            // Определяем индексы колонок
-            const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
-            const addressIdx = headers.findIndex(h => h.includes('адрес'));
-            const paramIdx = headers.findIndex(h => h.includes('параметр'));
-            const valueIdx = headers.findIndex(h => h.includes('значение'));
-            
-            if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
-                return;
-            }
-            
-            const rows = [];
-            for (const row of dataRows) {
-                if (row.length > Math.max(addressIdx, paramIdx, valueIdx)) {
-                    const paramValue = String(row[paramIdx] || '').trim();
-                    // Ищем ключ по русскому названию
-                    let paramKey = getParamKeyByLabel(paramValue);
-                    // Если не нашли, пробуем как ключ
-                    if (!paramKey && SEARCH_PARAMS[paramValue]) {
-                        paramKey = paramValue;
-                    }
-                    if (paramKey) {
-                        rows.push({
-                            address: String(row[addressIdx] || '').trim(),
-                            param: paramKey,
-                            value: parseFloat(row[valueIdx]) || 0
-                        });
-                    }
-                }
-            }
-            
-            processRows(rows);
-            return;
-        }
-        
-        // Для CSV
-        const text = e.target.result;
-        lines = text.split('\n').filter(line => line.trim() && !line.startsWith('#'));
-        
-        if (lines.length < 2) {
-            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Файл пустой</div>`;
-            return;
-        }
-        
-        // Определяем разделитель
-        const firstLine = lines[0];
-        if (firstLine.includes(';')) delimiter = ';';
-        else if (firstLine.includes(',')) delimiter = ',';
-        else if (firstLine.includes('\t')) delimiter = '\t';
-        
-        const headers = lines[0].split(delimiter).map(h => h.replace(/"/g, '').trim());
-        const addressIdx = headers.findIndex(h => h.toLowerCase().includes('адрес'));
-        const paramIdx = headers.findIndex(h => h.toLowerCase().includes('параметр'));
-        const valueIdx = headers.findIndex(h => h.toLowerCase().includes('значение'));
-        
-        if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
-            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
+    // 🔥 НОВАЯ ФУНКЦИЯ: экспорт результатов в Excel
+    function exportResults() {
+        const table = document.querySelector('#nspd-search-results table');
+        if (!table) {
+            alert('Нет данных для экспорта');
             return;
         }
         
         const rows = [];
-        for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(delimiter).map(c => c.replace(/"/g, '').trim());
-            if (cols.length > Math.max(addressIdx, paramIdx, valueIdx)) {
-                const paramValue = cols[paramIdx].trim();
-                // Ищем ключ по русскому названию
-                let paramKey = getParamKeyByLabel(paramValue);
-                // Если не нашли, пробуем как ключ
-                if (!paramKey && SEARCH_PARAMS[paramValue]) {
-                    paramKey = paramValue;
-                }
-                if (paramKey) {
-                    rows.push({
-                        address: cols[addressIdx],
-                        param: paramKey,
-                        value: parseFloat(cols[valueIdx]) || 0
-                    });
-                }
-            }
-        }
+        const headers = [];
+        const ths = table.querySelectorAll('thead th');
+        ths.forEach(th => headers.push(th.textContent.trim()));
+        rows.push(headers);
         
-        processRows(rows);
-    };
-    
-    // Функция поиска ключа по русскому названию
-    function getParamKeyByLabel(label) {
-        for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
-            if (param.label === label.trim()) {
-                return key;
-            }
-        }
-        return null;
+        const trs = table.querySelectorAll('tbody tr');
+        trs.forEach(tr => {
+            const row = [];
+            const tds = tr.querySelectorAll('td');
+            tds.forEach(td => row.push(td.textContent.trim()));
+            rows.push(row);
+        });
+        
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length * 1.5, 15) }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Результаты');
+        XLSX.writeFile(wb, 'nspd_search_results.xlsx');
     }
-    
-    // Функция обработки строк
-    function processRows(rows) {
-        if (rows.length === 0) {
-            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+
+    function downloadTemplate() {
+        if (typeof XLSX === 'undefined') {
+            const headers = ['Адрес', 'Параметр', 'Значение'];
+            const example = [
+                ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', '113'],
+                ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', '66.8'],
+                ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', '1465'],
+                ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Геологоразведчиков, д 12', 'Площадь застройки', '450'],
+                ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', '1250'],
+                ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Строителей, д 5', 'Глубина', '4555']
+            ];
+            
+            let csv = '\uFEFF' + headers.join(';') + '\n';
+            example.forEach(row => {
+                csv += row.join(';') + '\n';
+            });
+            
+            csv += '\n# Доступные параметры (пишите как в списке):\n';
+            for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
+                csv += `# ${param.label}\n`;
+            }
+            csv += '# Допуск: ±0.2\n';
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'nspd_search_template.csv';
+            link.click();
+            URL.revokeObjectURL(link.href);
             return;
         }
-        
-        const progressContainer = document.getElementById('nspd-progress-container');
-        const progressBar = document.getElementById('nspd-progress-bar');
-        const progressText = document.getElementById('nspd-progress-text');
-        progressContainer.style.display = 'block';
-        progressBar.style.width = '0%';
-        progressText.textContent = '0%';
-        
-        let allResults = [];
-        let total = rows.length;
-        
-        (async function() {
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                const percent = Math.round(((i + 1) / total) * 100);
-                progressBar.style.width = percent + '%';
-                progressText.textContent = percent + '%';
-                
-                const param = SEARCH_PARAMS[row.param];
-                if (!param) continue;
-                
-                try {
-                    const features = await searchByAddress(row.address, param, row.value);
-                    if (features.length > 0) {
-                        const candidates = features.map(f => {
-                            const props = f.properties || {};
-                            const opts = props.options || {};
-                            return {
-                                feature: f,
-                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                                address: opts.address_readable_address || opts.readable_address || '',
-                                cadNumber: getCadNumber(opts, props),
-                                type: opts.type || opts.object_type_value || '—',
-                                cadastralCost: parseFloat(opts.cost_value) || 0,
-                                name: opts.params_name || opts.name || '',
-                                determination_couse: opts.determination_couse || '',
-                                rawData: { feature: f, opts: opts, props: props }
-                            };
-                        });
-                        allResults = allResults.concat(candidates);
-                    }
-                } catch (e) {
-                    console.warn('Ошибка:', e.message);
-                }
-            }
-            
-            progressContainer.style.display = 'none';
-            
-            if (allResults.length === 0) {
-                resultsContainer.innerHTML = `<div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">🔍 Объектов не найдено. Обработано ${total} строк.</div>`;
-                return;
-            }
-            
-            displayMassResults(allResults);
-        })();
-    }
-    
-    // Для Excel читаем как ArrayBuffer
-    if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
-        reader.readAsArrayBuffer(file);
-    } else {
-        reader.readAsText(file);
-    }
-}
 
-    function displayMassResults(candidates) {
+        const data = [
+            ['Адрес', 'Параметр', 'Значение'],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', 113],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', 66.8],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', 1465],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Геологоразведчиков, д 12', 'Площадь застройки', 450],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', 1250],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Строителей, д 5', 'Глубина', 4555]
+        ];
+        
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{ wch: 70 }, { wch: 25 }, { wch: 15 }];
+        
+        const paramLabels = Object.values(SEARCH_PARAMS).map(p => p.label);
+        const validation = {
+            type: 'list',
+            operator: 'between',
+            formula1: '"' + paramLabels.join(',') + '"',
+            showErrorMessage: true,
+            errorTitle: 'Ошибка ввода',
+            error: 'Выберите значение из списка: ' + paramLabels.join(', ')
+        };
+        
+        ws['!validations'] = [];
+        for (let i = 2; i <= 100; i++) {
+            ws['!validations'].push({
+                ref: 'B' + i,
+                validation: validation
+            });
+        }
+        
+        XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
+        XLSX.writeFile(wb, 'nspd_search_template.xlsx');
+    }
+
+    // 🔥 ИЗМЕНЕНА: добавлен notFoundCount
+    function displayMassResults(candidates, notFoundCount) {
         const tableData = candidates.map(item => extractAllFields(item));
         const orderedColumns = ['Кадастровый номер', 'Вид объекта', 'Наименование', 'Материал стен', 'Адрес', 
                                'Площадь (м²)', 'Площадь застройки (м²)', 'Объем (м³)', 'Протяженность (м)',
                                'Глубина (м)', 'Площадь ЗУ (м²)', 'Кадастровая стоимость', 'УПКС (₽/м²)'];
 
-        let html = `
+        let html = '';
+        if (notFoundCount > 0) {
+            html += `
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-sm mb-3">
+                    ✅ Найдено: <strong>${candidates.length}</strong> объектов | 
+                    ❌ Не найдено: <strong>${notFoundCount}</strong>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm mb-3">
+                    ✅ Найдено: <strong>${candidates.length}</strong> объектов
+                </div>
+            `;
+        }
+
+        html += `
             <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
@@ -517,18 +347,28 @@ function downloadTemplate() {
                         <tbody>
         `;
 
-        tableData.forEach((row, index) => {
-            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        if (candidates.length === 0) {
             html += `
-                <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
-                    ${orderedColumns.map(col => {
-                        let val = row[col] || '—';
-                        return `<td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
-                    }).join('')}
+                <tr>
+                    <td colspan="${orderedColumns.length + 1}" style="padding: 20px; text-align: center; color: #94a3b8;">
+                        Объекты не найдены
+                    </td>
                 </tr>
             `;
-        });
+        } else {
+            tableData.forEach((row, index) => {
+                const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                html += `
+                    <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
+                        ${orderedColumns.map(col => {
+                            let val = row[col] || '—';
+                            return `<td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
+                        }).join('')}
+                    </tr>
+                `;
+            });
+        }
 
         html += `
                         </tbody>
@@ -536,16 +376,210 @@ function downloadTemplate() {
                 </div>
             </div>
             <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
-                <span>Найдено объектов: <strong>${candidates.length}</strong></span>
-                <span style="font-size: 10px; color: #94a3b8;">Метод: массовый поиск</span>
-                <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
-                        style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
-                    ✕ Очистить
-                </button>
+                <span>Всего объектов: <strong>${candidates.length}</strong></span>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
+                            style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
+                        ✕ Очистить
+                    </button>
+                </div>
             </div>
         `;
 
         resultsContainer.innerHTML = html;
+        
+        // Показываем кнопку экспорта, если есть результаты
+        const exportBtn = document.getElementById('nspd-export-results');
+        if (exportBtn && candidates.length > 0) {
+            exportBtn.style.display = 'inline-flex';
+        }
+    }
+
+    // 🔥 ИЗМЕНЕНА: добавлен notFoundCount и счетчик в прогресс-баре
+    async function uploadData(file) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const fileName = file.name.toLowerCase();
+            const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+            
+            let lines = [];
+            let delimiter = ';';
+            
+            if (isExcel) {
+                if (typeof XLSX === 'undefined') {
+                    resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Библиотека XLSX не загружена. Поддерживается только CSV.</div>`;
+                    return;
+                }
+                
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                const nonEmptyRows = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''));
+                const headerRow = nonEmptyRows[0] || [];
+                const dataRows = nonEmptyRows.slice(1);
+                
+                const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
+                const addressIdx = headers.findIndex(h => h.includes('адрес'));
+                const paramIdx = headers.findIndex(h => h.includes('параметр'));
+                const valueIdx = headers.findIndex(h => h.includes('значение'));
+                
+                if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
+                    resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
+                    return;
+                }
+                
+                const rows = [];
+                for (const row of dataRows) {
+                    if (row.length > Math.max(addressIdx, paramIdx, valueIdx)) {
+                        const paramValue = String(row[paramIdx] || '').trim();
+                        let paramKey = getParamKeyByLabel(paramValue);
+                        if (!paramKey && SEARCH_PARAMS[paramValue]) {
+                            paramKey = paramValue;
+                        }
+                        if (paramKey) {
+                            rows.push({
+                                address: String(row[addressIdx] || '').trim(),
+                                param: paramKey,
+                                value: parseFloat(row[valueIdx]) || 0
+                            });
+                        }
+                    }
+                }
+                
+                processRows(rows);
+                return;
+            }
+            
+            const text = e.target.result;
+            lines = text.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+            
+            if (lines.length < 2) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Файл пустой</div>`;
+                return;
+            }
+            
+            const firstLine = lines[0];
+            if (firstLine.includes(';')) delimiter = ';';
+            else if (firstLine.includes(',')) delimiter = ',';
+            else if (firstLine.includes('\t')) delimiter = '\t';
+            
+            const headers = lines[0].split(delimiter).map(h => h.replace(/"/g, '').trim());
+            const addressIdx = headers.findIndex(h => h.toLowerCase().includes('адрес'));
+            const paramIdx = headers.findIndex(h => h.toLowerCase().includes('параметр'));
+            const valueIdx = headers.findIndex(h => h.toLowerCase().includes('значение'));
+            
+            if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
+                return;
+            }
+            
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(delimiter).map(c => c.replace(/"/g, '').trim());
+                if (cols.length > Math.max(addressIdx, paramIdx, valueIdx)) {
+                    const paramValue = cols[paramIdx].trim();
+                    let paramKey = getParamKeyByLabel(paramValue);
+                    if (!paramKey && SEARCH_PARAMS[paramValue]) {
+                        paramKey = paramValue;
+                    }
+                    if (paramKey) {
+                        rows.push({
+                            address: cols[addressIdx],
+                            param: paramKey,
+                            value: parseFloat(cols[valueIdx]) || 0
+                        });
+                    }
+                }
+            }
+            
+            processRows(rows);
+        };
+        
+        function getParamKeyByLabel(label) {
+            for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
+                if (param.label === label.trim()) {
+                    return key;
+                }
+            }
+            return null;
+        }
+        
+        // 🔥 ИЗМЕНЕНА: добавлен notFoundCount и счетчик (i+1/total)
+        function processRows(rows) {
+            if (rows.length === 0) {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+                return;
+            }
+            
+            const progressContainer = document.getElementById('nspd-progress-container');
+            const progressBar = document.getElementById('nspd-progress-bar');
+            const progressText = document.getElementById('nspd-progress-text');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            
+            let allResults = [];
+            let notFoundCount = 0;
+            let total = rows.length;
+            
+            (async function() {
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const percent = Math.round(((i + 1) / total) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `${percent}% (${i + 1}/${total})`;
+                    
+                    const param = SEARCH_PARAMS[row.param];
+                    if (!param) {
+                        notFoundCount++;
+                        continue;
+                    }
+                    
+                    try {
+                        const features = await searchByAddress(row.address, param, row.value);
+                        if (features.length > 0) {
+                            const candidates = features.map(f => {
+                                const props = f.properties || {};
+                                const opts = props.options || {};
+                                return {
+                                    feature: f,
+                                    area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                    builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                    volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                    extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                    landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                    depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+                                    address: opts.address_readable_address || opts.readable_address || '',
+                                    cadNumber: getCadNumber(opts, props),
+                                    type: opts.type || opts.object_type_value || '—',
+                                    cadastralCost: parseFloat(opts.cost_value) || 0,
+                                    name: opts.params_name || opts.name || '',
+                                    determination_couse: opts.determination_couse || '',
+                                    rawData: { feature: f, opts: opts, props: props }
+                                };
+                            });
+                            allResults = allResults.concat(candidates);
+                        } else {
+                            notFoundCount++;
+                        }
+                    } catch (e) {
+                        console.warn('Ошибка:', e.message);
+                        notFoundCount++;
+                    }
+                }
+                
+                progressContainer.style.display = 'none';
+                displayMassResults(allResults, notFoundCount);
+            })();
+        }
+        
+        if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
     }
 
     // ============================================================
@@ -619,6 +653,15 @@ function downloadTemplate() {
                         Загрузить данные
                         <input type="file" id="nspd-file-input" accept=".xlsx,.xls,.csv" style="display:none">
                     </label>
+
+                    <!-- 🔥 НОВАЯ КНОПКА: Экспорт в Excel -->
+                    <button id="nspd-export-results" 
+                            class="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2" style="display:none;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Экспорт в Excel
+                    </button>
                 </div>
 
                 <div id="nspd-progress-container" style="display:none;" class="mb-4">
@@ -695,7 +738,6 @@ function downloadTemplate() {
                                parseFloat(opts.specified_area) || 0;
                 if (targetLandArea && targetLandArea > 0 && !isLandAreaMatch(landArea, targetLandArea)) continue;
 
-                // 🔥 ПРОВЕРКА ГЛУБИНЫ
                 let depth = parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
                 if (targetDepth && targetDepth > 0 && !isDepthMatch(depth, targetDepth)) continue;
 
@@ -769,7 +811,7 @@ function downloadTemplate() {
         }
 
         // ============================================================
-        // ФУНКЦИЯ findInQuarter (БЕЗ ИЗМЕНЕНИЙ)
+        // ФУНКЦИЯ findInQuarter
         // ============================================================
 
         function findInQuarter(features, targetArea, targetBuiltUpArea, targetVolume, targetExtension, targetLandArea, targetDepth, targetQuarter) {
@@ -802,7 +844,6 @@ function downloadTemplate() {
                                parseFloat(opts.specified_area) || 0;
                 if (targetLandArea && targetLandArea > 0 && !isLandAreaMatch(landArea, targetLandArea)) continue;
 
-                // 🔥 ПРОВЕРКА ГЛУБИНЫ
                 let depth = parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
                 if (targetDepth && targetDepth > 0 && !isDepthMatch(depth, targetDepth)) continue;
 
@@ -881,7 +922,6 @@ function downloadTemplate() {
             const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
             const volumeValue = item.volume || parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
             const landAreaValue = item.landArea || parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
-            // 🔥 ИЗВЛЕЧЕНИЕ ГЛУБИНЫ
             const depthValue = item.depth || parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
             const address = getAddress(opts, props);
             
@@ -1239,6 +1279,12 @@ function downloadTemplate() {
 
                 resultsContainer.innerHTML = tableHtml;
 
+                // 🔥 Показываем кнопку экспорта после успешного поиска
+                const exportBtn = document.getElementById('nspd-export-results');
+                if (exportBtn && candidates.length > 0) {
+                    exportBtn.style.display = 'inline-flex';
+                }
+
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: ${error.message}</div>`;
@@ -1249,7 +1295,6 @@ function downloadTemplate() {
         addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
         valueInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
 
-        // Обработчики для массового поиска
         const downloadBtn = document.getElementById('nspd-download-template');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', downloadTemplate);
@@ -1263,6 +1308,12 @@ function downloadTemplate() {
                     this.value = '';
                 }
             });
+        }
+
+        // 🔥 Обработчик для кнопки экспорта
+        const exportBtn = document.getElementById('nspd-export-results');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportResults);
         }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
