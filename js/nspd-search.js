@@ -419,91 +419,98 @@ try {
         }
         
 function processRows(rows) {
-            // Ждем, пока resultsContainer появится
-            let attempts = 0;
-            const maxAttempts = 50;
-            
-            function waitForContainer() {
-                if (typeof resultsContainer !== 'undefined' && resultsContainer) {
-                    // Контейнер готов — обрабатываем
-                    if (rows.length === 0) {
-                        resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
-                        return;
-                    }
-                    
-                    const progressContainer = document.getElementById('nspd-progress-container');
-                    const progressBar = document.getElementById('nspd-progress-bar');
-                    const progressText = document.getElementById('nspd-progress-text');
-                    progressContainer.style.display = 'block';
-                    progressBar.style.width = '0%';
-                    progressText.textContent = '0%';
-                    
-                    let allResults = [];
-                    let notFoundCount = 0;
-                    let total = rows.length;
-                    
-                    (async function() {
-                        for (let i = 0; i < rows.length; i++) {
-                            const row = rows[i];
-                            const percent = Math.round(((i + 1) / total) * 100);
-                            progressBar.style.width = percent + '%';
-                            progressText.textContent = `${percent}% (${i + 1}/${total})`;
-                            
-                            const param = SEARCH_PARAMS[row.param];
-                            if (!param) {
-                                notFoundCount++;
-                                continue;
-                            }
-                            
-                            try {
-                                const features = await searchByAddress(row.address, param, row.value);
-                                if (features.length > 0) {
-                                    const candidates = features.map(f => {
-                                        const props = f.properties || {};
-                                        const opts = props.options || {};
-                                        return {
-                                            feature: f,
-                                            area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                            builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                            volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                            extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                            landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                            depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                                            address: opts.address_readable_address || opts.readable_address || '',
-                                            cadNumber: getCadNumber(opts, props),
-                                            type: opts.type || opts.object_type_value || '—',
-                                            cadastralCost: parseFloat(opts.cost_value) || 0,
-                                            name: opts.params_name || opts.name || '',
-                                            determination_couse: opts.determination_couse || '',
-                                            rawData: { feature: f, opts: opts, props: props }
-                                        };
-                                    });
-                                    allResults = allResults.concat(candidates);
-                                } else {
-                                    notFoundCount++;
-                                }
-                            } catch (e) {
-                                console.warn('Ошибка:', e.message);
-                                notFoundCount++;
-                            }
-                        }
-                        
-                        progressContainer.style.display = 'none';
-                        displayMassResults(allResults, notFoundCount);
-                    })();
-                } else {
-                    attempts++;
-                    if (attempts < maxAttempts) {
-                        setTimeout(waitForContainer, 100);
-                    } else {
-                        console.error('❌ resultsContainer не появился после ожидания');
-                        // Показываем сообщение в консоли, но не блокируем выполнение
-                    }
-                }
+    // Ждем, пока resultsContainer появится
+    let attempts = 0;
+    const maxAttempts = 100; // увеличил до 100 (10 секунд)
+    
+    function waitForContainer() {
+        // Пытаемся найти resultsContainer заново каждый раз
+        const container = document.getElementById('nspd-search-results');
+        
+        if (container) {
+            // Контейнер готов — обрабатываем
+            if (rows.length === 0) {
+                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+                return;
             }
             
-            waitForContainer();
+            const progressContainer = document.getElementById('nspd-progress-container');
+            const progressBar = document.getElementById('nspd-progress-bar');
+            const progressText = document.getElementById('nspd-progress-text');
+            if (progressContainer) progressContainer.style.display = 'block';
+            if (progressBar) progressBar.style.width = '0%';
+            if (progressText) progressText.textContent = '0%';
+            
+            let allResults = [];
+            let notFoundCount = 0;
+            let total = rows.length;
+            
+            (async function() {
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const percent = Math.round(((i + 1) / total) * 100);
+                    if (progressBar) progressBar.style.width = percent + '%';
+                    if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
+                    
+                    const param = SEARCH_PARAMS[row.param];
+                    if (!param) {
+                        notFoundCount++;
+                        continue;
+                    }
+                    
+                    try {
+                        const features = await searchByAddress(row.address, param, row.value);
+                        if (features.length > 0) {
+                            const candidates = features.map(f => {
+                                const props = f.properties || {};
+                                const opts = props.options || {};
+                                return {
+                                    feature: f,
+                                    area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                    builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                    volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                    extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                    landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                    depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+                                    address: opts.address_readable_address || opts.readable_address || '',
+                                    cadNumber: getCadNumber(opts, props),
+                                    type: opts.type || opts.object_type_value || '—',
+                                    cadastralCost: parseFloat(opts.cost_value) || 0,
+                                    name: opts.params_name || opts.name || '',
+                                    determination_couse: opts.determination_couse || '',
+                                    rawData: { feature: f, opts: opts, props: props }
+                                };
+                            });
+                            allResults = allResults.concat(candidates);
+                        } else {
+                            notFoundCount++;
+                        }
+                    } catch (e) {
+                        console.warn('Ошибка:', e.message);
+                        notFoundCount++;
+                    }
+                }
+                
+                if (progressContainer) progressContainer.style.display = 'none';
+                displayMassResults(allResults, notFoundCount);
+            })();
+        } else {
+            attempts++;
+            if (attempts < maxAttempts) {
+                setTimeout(waitForContainer, 100);
+            } else {
+                console.error('❌ resultsContainer не появился после ожидания');
+                // Показываем сообщение пользователю
+                const container = document.getElementById('nspd-search-results');
+                if (container) {
+                    container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
+                }
+            }
         }
+    }
+    
+    waitForContainer();
+}
         
         // --- Парсинг Excel ---
         const data = new Uint8Array(e.target.result);
