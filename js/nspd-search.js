@@ -199,12 +199,15 @@
     // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА (ПЕРЕМЕЩЕНЫ СЮДА, ПОСЛЕ searchByAddress)
     // ============================================================
 
-    function downloadTemplate() {
+function downloadTemplate() {
+    // Проверяем, загружена ли библиотека XLSX
+    if (typeof XLSX === 'undefined') {
+        // Если библиотека не загружена, используем CSV
         const headers = ['Адрес', 'Параметр', 'Значение'];
         const example = [
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'extension', '113'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'area', '66.8'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'land_area', '1465']
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', '113'],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', '66.8'],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', '1465']
         ];
         
         let csv = '\uFEFF' + headers.join(';') + '\n';
@@ -212,9 +215,9 @@
             csv += row.join(';') + '\n';
         });
         
-        csv += '\n# Доступные параметры:\n';
+        csv += '\n# Доступные параметры (пишите как в списке):\n';
         for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
-            csv += `# ${key} - ${param.label} (${param.unit})\n`;
+            csv += `# ${param.label}\n`;
         }
         csv += '# Допуск: ±0.2\n';
         
@@ -224,23 +227,103 @@
         link.download = 'nspd_search_template.csv';
         link.click();
         URL.revokeObjectURL(link.href);
+        return;
     }
 
-    async function uploadData(file) {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            const text = e.target.result;
-            const lines = text.split('\n').filter(line => line.trim() && !line.startsWith('#'));
-            
-            if (lines.length < 2) {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Файл пустой</div>`;
+    // Создаем данные
+    const data = [
+        ['Адрес', 'Параметр', 'Значение'],
+        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', 113],
+        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', 66.8],
+        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', 1465]
+    ];
+    
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // Настройка ширины колонок
+    ws['!cols'] = [
+        { wch: 60 }, // Адрес
+        { wch: 20 }, // Параметр
+        { wch: 15 }  // Значение
+    ];
+    
+    // Добавляем выпадающий список для колонки "Параметр" (индекс 1)
+    const paramLabels = Object.values(SEARCH_PARAMS).map(p => p.label);
+    const validation = {
+        type: 'list',
+        operator: 'between',
+        formula1: '"' + paramLabels.join(',') + '"',
+        showErrorMessage: true,
+        errorTitle: 'Ошибка ввода',
+        error: 'Выберите значение из списка'
+    };
+    
+    // Применяем валидацию ко всем ячейкам колонки "Параметр" (столбец B)
+    ws['!validations'] = [];
+    for (let i = 2; i <= 100; i++) {
+        const cellRef = 'B' + i;
+        ws['!validations'].push({
+            ref: cellRef,
+            validation: validation
+        });
+    }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
+    
+    // Добавляем лист с подсказками
+    const helpData = [
+        ['ДОСТУПНЫЕ ПАРАМЕТРЫ:'],
+        [''],
+        ['Параметр', 'Описание', 'Единица измерения'],
+        ...Object.entries(SEARCH_PARAMS).map(([key, param]) => [param.label, key, param.unit])
+    ];
+    const wsHelp = XLSX.utils.aoa_to_sheet(helpData);
+    wsHelp['!cols'] = [
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 15 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsHelp, 'Подсказки');
+    
+    // Сохраняем
+    XLSX.writeFile(wb, 'nspd_search_template.xlsx');
+}
+
+ async function uploadData(file) {
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        // Определяем формат файла по расширению
+        const fileName = file.name.toLowerCase();
+        const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+        
+        let lines = [];
+        let delimiter = ';';
+        
+        if (isExcel) {
+            // Парсим Excel через XLSX
+            if (typeof XLSX === 'undefined') {
+                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Библиотека XLSX не загружена. Поддерживается только CSV.</div>`;
                 return;
             }
             
-            const headers = lines[0].split(';').map(h => h.replace(/"/g, '').trim());
-            const addressIdx = headers.findIndex(h => h.toLowerCase().includes('адрес'));
-            const paramIdx = headers.findIndex(h => h.toLowerCase().includes('параметр'));
-            const valueIdx = headers.findIndex(h => h.toLowerCase().includes('значение'));
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+            
+            // Пропускаем пустые строки
+            const nonEmptyRows = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''));
+            
+            // Первая строка - заголовки
+            const headerRow = nonEmptyRows[0] || [];
+            const dataRows = nonEmptyRows.slice(1);
+            
+            // Определяем индексы колонок
+            const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
+            const addressIdx = headers.findIndex(h => h.includes('адрес'));
+            const paramIdx = headers.findIndex(h => h.includes('параметр'));
+            const valueIdx = headers.findIndex(h => h.includes('значение'));
             
             if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
@@ -248,35 +331,106 @@
             }
             
             const rows = [];
-            for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(';').map(c => c.replace(/"/g, '').trim());
-                if (cols.length > Math.max(addressIdx, paramIdx, valueIdx)) {
-                    const paramKey = cols[paramIdx].trim();
-                    if (SEARCH_PARAMS[paramKey]) {
+            for (const row of dataRows) {
+                if (row.length > Math.max(addressIdx, paramIdx, valueIdx)) {
+                    const paramValue = String(row[paramIdx] || '').trim();
+                    // Ищем ключ по русскому названию
+                    let paramKey = getParamKeyByLabel(paramValue);
+                    // Если не нашли, пробуем как ключ
+                    if (!paramKey && SEARCH_PARAMS[paramValue]) {
+                        paramKey = paramValue;
+                    }
+                    if (paramKey) {
                         rows.push({
-                            address: cols[addressIdx],
+                            address: String(row[addressIdx] || '').trim(),
                             param: paramKey,
-                            value: parseFloat(cols[valueIdx]) || 0
+                            value: parseFloat(row[valueIdx]) || 0
                         });
                     }
                 }
             }
             
-            if (rows.length === 0) {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки</div>`;
-                return;
+            processRows(rows);
+            return;
+        }
+        
+        // Для CSV
+        const text = e.target.result;
+        lines = text.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+        
+        if (lines.length < 2) {
+            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Файл пустой</div>`;
+            return;
+        }
+        
+        // Определяем разделитель
+        const firstLine = lines[0];
+        if (firstLine.includes(';')) delimiter = ';';
+        else if (firstLine.includes(',')) delimiter = ',';
+        else if (firstLine.includes('\t')) delimiter = '\t';
+        
+        const headers = lines[0].split(delimiter).map(h => h.replace(/"/g, '').trim());
+        const addressIdx = headers.findIndex(h => h.toLowerCase().includes('адрес'));
+        const paramIdx = headers.findIndex(h => h.toLowerCase().includes('параметр'));
+        const valueIdx = headers.findIndex(h => h.toLowerCase().includes('значение'));
+        
+        if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
+            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нужны колонки: Адрес; Параметр; Значение</div>`;
+            return;
+        }
+        
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(delimiter).map(c => c.replace(/"/g, '').trim());
+            if (cols.length > Math.max(addressIdx, paramIdx, valueIdx)) {
+                const paramValue = cols[paramIdx].trim();
+                // Ищем ключ по русскому названию
+                let paramKey = getParamKeyByLabel(paramValue);
+                // Если не нашли, пробуем как ключ
+                if (!paramKey && SEARCH_PARAMS[paramValue]) {
+                    paramKey = paramValue;
+                }
+                if (paramKey) {
+                    rows.push({
+                        address: cols[addressIdx],
+                        param: paramKey,
+                        value: parseFloat(cols[valueIdx]) || 0
+                    });
+                }
             }
-            
-            const progressContainer = document.getElementById('nspd-progress-container');
-            const progressBar = document.getElementById('nspd-progress-bar');
-            const progressText = document.getElementById('nspd-progress-text');
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
-            
-            let allResults = [];
-            let total = rows.length;
-            
+        }
+        
+        processRows(rows);
+    };
+    
+    // Функция поиска ключа по русскому названию
+    function getParamKeyByLabel(label) {
+        for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
+            if (param.label === label.trim()) {
+                return key;
+            }
+        }
+        return null;
+    }
+    
+    // Функция обработки строк
+    function processRows(rows) {
+        if (rows.length === 0) {
+            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+            return;
+        }
+        
+        const progressContainer = document.getElementById('nspd-progress-container');
+        const progressBar = document.getElementById('nspd-progress-bar');
+        const progressText = document.getElementById('nspd-progress-text');
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        
+        let allResults = [];
+        let total = rows.length;
+        
+        (async function() {
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
                 const percent = Math.round(((i + 1) / total) * 100);
@@ -323,10 +477,16 @@
             }
             
             displayMassResults(allResults);
-        };
-        
+        })();
+    }
+    
+    // Для Excel читаем как ArrayBuffer
+    if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+        reader.readAsArrayBuffer(file);
+    } else {
         reader.readAsText(file);
     }
+}
 
     function displayMassResults(candidates) {
         const tableData = candidates.map(item => extractAllFields(item));
