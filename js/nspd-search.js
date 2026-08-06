@@ -37,6 +37,13 @@
             unit: 'м²',
             getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
             searchType: 'address'
+        },
+        // 🔥 НОВЫЙ ПАРАМЕТР: Глубина
+        'depth': {
+            label: 'Глубина',
+            unit: 'м',
+            getValue: (opts) => parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+            searchType: 'address'
         }
     };
 
@@ -127,6 +134,12 @@
         return Math.abs(landArea - targetLandArea) <= AREA_TOLERANCE;
     }
 
+    // 🔥 НОВАЯ ФУНКЦИЯ: проверка глубины
+    function isDepthMatch(depth, targetDepth) {
+        if (!targetDepth || targetDepth <= 0) return true;
+        return Math.abs(depth - targetDepth) <= AREA_TOLERANCE;
+    }
+
     function getAddress(opts, props) {
         return opts.readable_address || opts.address_readable_address || props.descr || '';
     }
@@ -209,7 +222,8 @@ function downloadTemplate() {
             ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', '66.8'],
             ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', '1465'],
             ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Геологоразведчиков, д 12', 'Площадь застройки', '450'],
-            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', '1250']
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', '1250'],
+            ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Строителей, д 5', 'Глубина', '4555']
         ];
         
         let csv = '\uFEFF' + headers.join(';') + '\n';
@@ -232,14 +246,15 @@ function downloadTemplate() {
         return;
     }
 
-    // Данные для шаблона с 5 примерами
+    // Данные для шаблона с 6 примерами
     const data = [
         ['Адрес', 'Параметр', 'Значение'],
         ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', 113],
         ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', 66.8],
         ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', 1465],
         ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Геологоразведчиков, д 12', 'Площадь застройки', 450],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', 1250]
+        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул 26 Съезда КПСС, д 8', 'Объем', 1250],
+        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, ул Строителей, д 5', 'Глубина', 4555]
     ];
     
     const wb = XLSX.utils.book_new();
@@ -443,6 +458,7 @@ function downloadTemplate() {
                                 volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
                                 extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
                                 landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
                                 address: opts.address_readable_address || opts.readable_address || '',
                                 cadNumber: getCadNumber(opts, props),
                                 type: opts.type || opts.object_type_value || '—',
@@ -482,7 +498,7 @@ function downloadTemplate() {
         const tableData = candidates.map(item => extractAllFields(item));
         const orderedColumns = ['Кадастровый номер', 'Вид объекта', 'Наименование', 'Материал стен', 'Адрес', 
                                'Площадь (м²)', 'Площадь застройки (м²)', 'Объем (м³)', 'Протяженность (м)',
-                               'Площадь ЗУ (м²)', 'Кадастровая стоимость', 'УПКС (₽/м²)'];
+                               'Глубина (м)', 'Площадь ЗУ (м²)', 'Кадастровая стоимость', 'УПКС (₽/м²)'];
 
         let html = `
             <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
@@ -645,10 +661,10 @@ function downloadTemplate() {
         });
 
         // ============================================================
-        // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ findBestMatch С ПРОВЕРКОЙ ПО НОМЕРУ УЧАСТКА
+        // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ findBestMatch С ПРОВЕРКОЙ ПО НОМЕРУ УЧАСТКА И ГЛУБИНЕ
         // ============================================================
 
-        function findBestMatch(features, targetArea, targetBuiltUpArea, targetVolume, targetExtension, targetLandArea, targetAddress) {
+        function findBestMatch(features, targetArea, targetBuiltUpArea, targetVolume, targetExtension, targetLandArea, targetDepth, targetAddress) {
             const normalizedTargetAddress = normalizeString(targetAddress);
             const targetHouse = extractHouseNumber(targetAddress);
             const targetStreet = normalizeString(extractStreetFromAddress(targetAddress));
@@ -678,6 +694,10 @@ function downloadTemplate() {
                 let landArea = parseFloat(opts.land_record_area) || 
                                parseFloat(opts.specified_area) || 0;
                 if (targetLandArea && targetLandArea > 0 && !isLandAreaMatch(landArea, targetLandArea)) continue;
+
+                // 🔥 ПРОВЕРКА ГЛУБИНЫ
+                let depth = parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
+                if (targetDepth && targetDepth > 0 && !isDepthMatch(depth, targetDepth)) continue;
 
                 const address = getAddress(opts, props);
                 const addressLower = address.toLowerCase();
@@ -718,6 +738,7 @@ function downloadTemplate() {
                         volume: volume,
                         extension: extension,
                         landArea: landArea,
+                        depth: depth,
                         address: address,
                         house: nspdHouse,
                         street: nspdStreet,
@@ -738,10 +759,10 @@ function downloadTemplate() {
             candidates.sort((a, b) => {
                 const diffA = Math.abs(a.area - targetArea) + Math.abs(a.builtUpArea - targetBuiltUpArea) + 
                               Math.abs(a.volume - targetVolume) + Math.abs(a.extension - targetExtension) +
-                              Math.abs(a.landArea - targetLandArea);
+                              Math.abs(a.landArea - targetLandArea) + Math.abs(a.depth - targetDepth);
                 const diffB = Math.abs(b.area - targetArea) + Math.abs(b.builtUpArea - targetBuiltUpArea) + 
                               Math.abs(b.volume - targetVolume) + Math.abs(b.extension - targetExtension) +
-                              Math.abs(b.landArea - targetLandArea);
+                              Math.abs(b.landArea - targetLandArea) + Math.abs(b.depth - targetDepth);
                 return diffA - diffB;
             });
             return candidates;
@@ -751,7 +772,7 @@ function downloadTemplate() {
         // ФУНКЦИЯ findInQuarter (БЕЗ ИЗМЕНЕНИЙ)
         // ============================================================
 
-        function findInQuarter(features, targetArea, targetBuiltUpArea, targetVolume, targetExtension, targetLandArea, targetQuarter) {
+        function findInQuarter(features, targetArea, targetBuiltUpArea, targetVolume, targetExtension, targetLandArea, targetDepth, targetQuarter) {
             let candidates = [];
             for (const feature of features) {
                 const props = feature.properties || {};
@@ -781,6 +802,10 @@ function downloadTemplate() {
                                parseFloat(opts.specified_area) || 0;
                 if (targetLandArea && targetLandArea > 0 && !isLandAreaMatch(landArea, targetLandArea)) continue;
 
+                // 🔥 ПРОВЕРКА ГЛУБИНЫ
+                let depth = parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
+                if (targetDepth && targetDepth > 0 && !isDepthMatch(depth, targetDepth)) continue;
+
                 const address = getAddress(opts, props);
 
                 candidates.push({ 
@@ -790,6 +815,7 @@ function downloadTemplate() {
                     volume: volume,
                     extension: extension,
                     landArea: landArea,
+                    depth: depth,
                     address: address,
                     house: extractHouseNumber(address),
                     street: normalizeString(extractStreetFromAddress(address)),
@@ -809,10 +835,10 @@ function downloadTemplate() {
             candidates.sort((a, b) => {
                 const diffA = Math.abs(a.area - targetArea) + Math.abs(a.builtUpArea - targetBuiltUpArea) + 
                               Math.abs(a.volume - targetVolume) + Math.abs(a.extension - targetExtension) +
-                              Math.abs(a.landArea - targetLandArea);
+                              Math.abs(a.landArea - targetLandArea) + Math.abs(a.depth - targetDepth);
                 const diffB = Math.abs(b.area - targetArea) + Math.abs(b.builtUpArea - targetBuiltUpArea) + 
                               Math.abs(b.volume - targetVolume) + Math.abs(b.extension - targetExtension) +
-                              Math.abs(b.landArea - targetLandArea);
+                              Math.abs(b.landArea - targetLandArea) + Math.abs(b.depth - targetDepth);
                 return diffA - diffB;
             });
             return candidates;
@@ -855,6 +881,8 @@ function downloadTemplate() {
             const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
             const volumeValue = item.volume || parseFloat(opts.params_volume) || parseFloat(opts.volume) || 0;
             const landAreaValue = item.landArea || parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0;
+            // 🔥 ИЗВЛЕЧЕНИЕ ГЛУБИНЫ
+            const depthValue = item.depth || parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
             const address = getAddress(opts, props);
             
             const determinationCouse = opts.determination_couse || '';
@@ -878,6 +906,7 @@ function downloadTemplate() {
                 'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
                 'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
                 'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
+                'Глубина (м)': depthValue > 0 ? depthValue.toFixed(1) : '—',
                 'Площадь ЗУ (м²)': landAreaValue > 0 ? landAreaValue.toFixed(1) : '—',
                 'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
                 'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
@@ -949,6 +978,7 @@ function downloadTemplate() {
                             volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
                             extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
                             landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                            depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
                             address: opts.address_readable_address || opts.readable_address || '',
                             cadNumber: getCadNumber(opts, props),
                             type: opts.type || opts.object_type_value || '—',
@@ -1011,7 +1041,7 @@ function downloadTemplate() {
                                 const qFeatures = quarterData?.data?.features || [];
                                 console.log(`   В квартале ${quarter} найдено ${qFeatures.length} объектов`);
                                 
-                                const qCandidates = findInQuarter(qFeatures, value, 0, 0, 0, 0, quarter);
+                                const qCandidates = findInQuarter(qFeatures, value, 0, 0, 0, 0, 0, quarter);
                                 if (qCandidates.length > 0) {
                                     candidates = candidates.concat(qCandidates);
                                     console.log(`   ✅ Найдено ${qCandidates.length} объектов в квартале ${quarter}`);
@@ -1083,6 +1113,7 @@ function downloadTemplate() {
                                             volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
                                             extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
                                             landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                            depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
                                             address: opts.address_readable_address || opts.readable_address || '',
                                             cadNumber: getCadNumber(opts, props),
                                             type: opts.type || opts.object_type_value || '—',
