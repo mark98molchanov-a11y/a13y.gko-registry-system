@@ -377,91 +377,119 @@
         XLSX.writeFile(wb, 'nspd_search_template.xlsx');
     }
 
-    function displayMassResults(candidates, notFoundCount, container) {
-        const tableData = candidates.map(item => extractAllFields(item));
-        const orderedColumns = ['Кадастровый номер', 'Вид объекта', 'Наименование', 'Материал стен', 'Адрес', 
-                               'Площадь (м²)', 'Площадь застройки (м²)', 'Объем (м³)', 'Протяженность (м)',
-                               'Глубина (м)', 'Площадь ЗУ (м²)', 'Кадастровая стоимость', 'УПКС (₽/м²)'];
+   function displayMassResults(candidates, notFoundCount, container, searchParamLabel) {
+    const tableData = candidates.map(item => {
+        const fields = extractAllFields(item);
+        // Добавляем поле с названием параметра поиска
+        fields['Параметр поиска'] = searchParamLabel || '—';
+        return fields;
+    });
+    
+    const orderedColumns = [
+        'Параметр поиска',  // 🔥 НОВАЯ КОЛОНКА ПЕРВАЯ
+        'Кадастровый номер',
+        'Вид объекта',
+        'Наименование',
+        'Материал стен',
+        'Адрес',
+        'Площадь (м²)',
+        'Площадь застройки (м²)',
+        'Объем (м³)',
+        'Протяженность (м)',
+        'Глубина (м)',
+        'Площадь ЗУ (м²)',
+        'Кадастровая стоимость',
+        'УПКС (₽/м²)',
+        'Назначение',
+        'Статус',
+        'Форма собственности',
+        'Этаж',
+        'Год постройки',
+        'ВРИ',
+        'Категория земель',
+        'Дата регистрации',
+        'Основание оценки'
+    ];
 
-        let html = '';
-        if (notFoundCount > 0) {
-            html += `
-                <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-sm mb-3">
-                    ✅ Найдено: <strong>${candidates.length}</strong> объектов | 
-                    ❌ Не найдено: <strong>${notFoundCount}</strong>
-                </div>
-            `;
-        } else {
-            html += `
-                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm mb-3">
-                    ✅ Найдено: <strong>${candidates.length}</strong> объектов
-                </div>
-            `;
-        }
-
+    let html = '';
+    if (notFoundCount > 0) {
         html += `
-            <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
-                <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
-                        <thead style="position: sticky; top: 0; z-index: 10;">
-                            <tr style="background: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
-                                <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: 30px;">#</th>
-                                ${orderedColumns.map(col => `
-                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: ${col.includes('Кадастровый') ? '150px' : col.includes('Адрес') ? '200px' : '100px'}; max-width: ${col.includes('Адрес') ? '250px' : '200px'};">
-                                        ${col}
-                                    </th>
-                                `).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
+            <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-sm mb-3">
+                ✅ Найдено: <strong>${candidates.length}</strong> объектов | 
+                ❌ Не найдено: <strong>${notFoundCount}</strong>
+            </div>
         `;
+    } else {
+        html += `
+            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm mb-3">
+                ✅ Найдено: <strong>${candidates.length}</strong> объектов
+            </div>
+        `;
+    }
 
-        if (candidates.length === 0) {
+    html += `
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" style="max-height: 600px; overflow-y: auto;">
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'Inter', sans-serif;">
+                    <thead style="position: sticky; top: 0; z-index: 10;">
+                        <tr style="background: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: 30px;">#</th>
+                            ${orderedColumns.map(col => `
+                                <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; min-width: ${col.includes('Кадастровый') ? '150px' : col.includes('Адрес') ? '200px' : '100px'}; max-width: ${col.includes('Адрес') ? '250px' : '200px'};">
+                                    ${col}
+                                </th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    if (candidates.length === 0) {
+        html += `
+            <tr>
+                <td colspan="${orderedColumns.length + 1}" style="padding: 20px; text-align: center; color: #94a3b8;">
+                    Объекты не найдены
+                </td>
+            </tr>
+        `;
+    } else {
+        tableData.forEach((row, index) => {
+            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
             html += `
-                <tr>
-                    <td colspan="${orderedColumns.length + 1}" style="padding: 20px; text-align: center; color: #94a3b8;">
-                        Объекты не найдены
-                    </td>
+                <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
+                    ${orderedColumns.map(col => {
+                        let val = row[col] || '—';
+                        return `<td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
+                    }).join('')}
                 </tr>
             `;
-        } else {
-            tableData.forEach((row, index) => {
-                const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                html += `
-                    <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
-                        ${orderedColumns.map(col => {
-                            let val = row[col] || '—';
-                            return `<td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
-                        }).join('')}
-                    </tr>
-                `;
-            });
-        }
-
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
-                <span>Всего объектов: <strong>${candidates.length}</strong></span>
-                <div style="display: flex; gap: 8px;">
-                    <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
-                            style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
-                        ✕ Очистить
-                    </button>
-                </div>
-            </div>
-        `;
-
-        container.innerHTML = html;
-        
-        const exportBtn = document.getElementById('nspd-export-results');
-        if (exportBtn && candidates.length > 0) {
-            exportBtn.style.display = 'inline-flex';
-        }
+        });
     }
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
+            <span>Всего объектов: <strong>${candidates.length}</strong></span>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
+                        style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
+                    ✕ Очистить
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+    
+    const exportBtn = document.getElementById('nspd-export-results');
+    if (exportBtn && candidates.length > 0) {
+        exportBtn.style.display = 'inline-flex';
+    }
+}
 
     async function uploadData(file) {
         const reader = new FileReader();
@@ -561,7 +589,10 @@
                             }
                             
                             if (progressContainer) progressContainer.style.display = 'none';
-                            displayMassResults(allResults, notFoundCount, container);
+
+// Получаем название параметра из первой строки (если есть)
+const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
+displayMassResults(allResults, notFoundCount, container, searchParamLabel);
                         })();
                     } else {
                         attempts++;
@@ -1278,7 +1309,7 @@
                 if (exportBtn && candidates.length > 0) {
                     exportBtn.style.display = 'inline-flex';
                 }
-
+displayMassResults(candidates, 0, resultsContainer, param.label);
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: ${error.message}</div>`;
