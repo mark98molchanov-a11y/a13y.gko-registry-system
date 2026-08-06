@@ -1,6 +1,4 @@
-// ============================================================
-// 🆕 МОДУЛЬ ПОИСКА НСПД - С КАСКАДНЫМ ПОИСКОМ
-// ============================================================
+try {
 (function() {
     console.log('🚀 Загрузка модуля поиска НСПД...');
 
@@ -1316,3 +1314,17 @@ function processRows(rows) {
 
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
+} catch(e) {
+    console.error('❌ Ошибка в модуле NSPD:', e.message);
+    console.error('   Стек:', e.stack);
+    setTimeout(function() {
+        if (typeof initNSPDSearch === 'function') {
+            console.log('🔄 Пробуем инициализировать интерфейс после ошибки...');
+            try {
+                initNSPDSearch('nspd-search-root');
+            } catch(err) {
+                console.error('❌ Ошибка инициализации:', err.message);
+            }
+        }
+    }, 500);
+}
