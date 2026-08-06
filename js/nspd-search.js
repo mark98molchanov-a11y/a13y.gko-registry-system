@@ -230,12 +230,19 @@ function downloadTemplate() {
         return;
     }
 
-    // Создаем данные
+    // Данные для шаблона
     const data = [
         ['Адрес', 'Параметр', 'Значение'],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, жилрайон Коротчаево', 'Протяженность', 113],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, мкр Мирный, д 1, корп 7, кв 84', 'Площадь', 66.8],
-        ['Ямало-Ненецкий автономный округ, г Новый Уренгой, улица Шоссейная, земельный участок 55', 'Площадь ЗУ', 1465]
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', '']
     ];
     
     const wb = XLSX.utils.book_new();
@@ -244,11 +251,11 @@ function downloadTemplate() {
     // Настройка ширины колонок
     ws['!cols'] = [
         { wch: 60 }, // Адрес
-        { wch: 20 }, // Параметр
+        { wch: 25 }, // Параметр
         { wch: 15 }  // Значение
     ];
     
-    // Добавляем выпадающий список для колонки "Параметр" (индекс 1)
+    // Выпадающий список для колонки "Параметр" (столбец B, индекс 1)
     const paramLabels = Object.values(SEARCH_PARAMS).map(p => p.label);
     const validation = {
         type: 'list',
@@ -256,10 +263,11 @@ function downloadTemplate() {
         formula1: '"' + paramLabels.join(',') + '"',
         showErrorMessage: true,
         errorTitle: 'Ошибка ввода',
-        error: 'Выберите значение из списка'
+        error: 'Выберите значение из списка: ' + paramLabels.join(', ')
     };
     
     // Применяем валидацию ко всем ячейкам колонки "Параметр" (столбец B)
+    // Начиная со строки 2 (индекс 2) до 100
     ws['!validations'] = [];
     for (let i = 2; i <= 100; i++) {
         const cellRef = 'B' + i;
@@ -270,21 +278,6 @@ function downloadTemplate() {
     }
     
     XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
-    
-    // Добавляем лист с подсказками
-    const helpData = [
-        ['ДОСТУПНЫЕ ПАРАМЕТРЫ:'],
-        [''],
-        ['Параметр', 'Описание', 'Единица измерения'],
-        ...Object.entries(SEARCH_PARAMS).map(([key, param]) => [param.label, key, param.unit])
-    ];
-    const wsHelp = XLSX.utils.aoa_to_sheet(helpData);
-    wsHelp['!cols'] = [
-        { wch: 20 },
-        { wch: 25 },
-        { wch: 15 }
-    ];
-    XLSX.utils.book_append_sheet(wb, wsHelp, 'Подсказки');
     
     // Сохраняем
     XLSX.writeFile(wb, 'nspd_search_template.xlsx');
