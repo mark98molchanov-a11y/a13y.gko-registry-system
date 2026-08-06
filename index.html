@@ -3781,7 +3781,7 @@ async function loadFromGitHub() {
         
         // ШАГ 2: Загружаем файл по прямой ссылке с обходом кэша
         const timestamp = Date.now();
-        const fileUrl = `https://ghproxy.net/${meta.download_url}?t=${timestamp}`;
+       const fileUrl = `${meta.download_url}?t=${timestamp}`;
         
         console.log('⏳ Загрузка файла...');
         const fileResponse = await fetch(fileUrl);
