@@ -411,7 +411,6 @@
             return;
         }
         
-        // Функция поиска ключа по русскому названию
         function getParamKeyByLabel(label) {
             for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
                 if (param.label === label.trim()) {
@@ -421,7 +420,6 @@
             return null;
         }
         
-        // Функция обработки строк
         function processRows(rows) {
             if (typeof resultsContainer === 'undefined' || !resultsContainer) {
                 console.error('❌ resultsContainer не определен');
@@ -507,7 +505,6 @@
         
         const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
         
-        // 🔥 АВТОПОИСК КОЛОНОК ПО КЛЮЧЕВЫМ СЛОВАМ
         let addressIdx = headers.findIndex(h => 
             h.includes('адрес') || h.includes('address') || h.includes('объект') || 
             h.includes('местоположение') || h.includes('location')
@@ -523,7 +520,6 @@
             h.includes('площадь') || h.includes('протяженность') || h.includes('глубина')
         );
         
-        // Если не нашли по ключевым словам — берем первые 3 колонки
         if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
             addressIdx = 0;
             paramIdx = 1;
@@ -541,7 +537,6 @@
                 if (!paramKey && SEARCH_PARAMS[paramValue]) {
                     paramKey = paramValue;
                 }
-                // Если не нашли — пробуем частичное совпадение
                 if (!paramKey) {
                     for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
                         if (paramValue.toLowerCase().includes(param.label.toLowerCase()) || 
@@ -567,91 +562,6 @@
     
     reader.readAsArrayBuffer(file);
 }
-        
-        function getParamKeyByLabel(label) {
-            for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
-                if (param.label === label.trim()) {
-                    return key;
-                }
-            }
-            return null;
-        }
-        
-        // 🔥 ИЗМЕНЕНА: добавлен notFoundCount и счетчик (i+1/total)
-        function processRows(rows) {
-            if (rows.length === 0) {
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
-                return;
-            }
-            
-            const progressContainer = document.getElementById('nspd-progress-container');
-            const progressBar = document.getElementById('nspd-progress-bar');
-            const progressText = document.getElementById('nspd-progress-text');
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
-            
-            let allResults = [];
-            let notFoundCount = 0;
-            let total = rows.length;
-            
-            (async function() {
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
-                    const percent = Math.round(((i + 1) / total) * 100);
-                    progressBar.style.width = percent + '%';
-                    progressText.textContent = `${percent}% (${i + 1}/${total})`;
-                    
-                    const param = SEARCH_PARAMS[row.param];
-                    if (!param) {
-                        notFoundCount++;
-                        continue;
-                    }
-                    
-                    try {
-                        const features = await searchByAddress(row.address, param, row.value);
-                        if (features.length > 0) {
-                            const candidates = features.map(f => {
-                                const props = f.properties || {};
-                                const opts = props.options || {};
-                                return {
-                                    feature: f,
-                                    area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                    builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                    volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                    extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                    landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                    depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                                    address: opts.address_readable_address || opts.readable_address || '',
-                                    cadNumber: getCadNumber(opts, props),
-                                    type: opts.type || opts.object_type_value || '—',
-                                    cadastralCost: parseFloat(opts.cost_value) || 0,
-                                    name: opts.params_name || opts.name || '',
-                                    determination_couse: opts.determination_couse || '',
-                                    rawData: { feature: f, opts: opts, props: props }
-                                };
-                            });
-                            allResults = allResults.concat(candidates);
-                        } else {
-                            notFoundCount++;
-                        }
-                    } catch (e) {
-                        console.warn('Ошибка:', e.message);
-                        notFoundCount++;
-                    }
-                }
-                
-                progressContainer.style.display = 'none';
-                displayMassResults(allResults, notFoundCount);
-            })();
-        }
-        
-        if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
-            reader.readAsArrayBuffer(file);
-        } else {
-            reader.readAsText(file);
-        }
-    }
 
     // ============================================================
     // ИНИЦИАЛИЗАЦИЯ
