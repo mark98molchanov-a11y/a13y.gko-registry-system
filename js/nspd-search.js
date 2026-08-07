@@ -43,11 +43,6 @@
             searchType: 'address'
         }
     };
-
-    // ============================================================
-    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-    // ============================================================
-
     function normalizeString(str) {
         if (!str) return '';
         return str.toLowerCase().replace(/\s+/g, ' ').trim();
