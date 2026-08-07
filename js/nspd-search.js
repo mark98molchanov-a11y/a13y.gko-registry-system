@@ -486,200 +486,202 @@
     }
 }
 
-    async function uploadData(file) {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            const fileName = file.name.toLowerCase();
-            const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-            
-            if (!isExcel) {
-                const container = document.getElementById('nspd-search-results');
-                if (container) container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Поддерживаются только файлы Excel (.xlsx, .xls)</div>`;
-                return;
-            }
-            
-            if (typeof XLSX === 'undefined') {
-                const container = document.getElementById('nspd-search-results');
-                if (container) container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Библиотека XLSX не загружена</div>`;
-                return;
-            }
-            
-            function getParamKeyByLabel(label) {
-                for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
-                    if (param.label === label.trim()) {
-                        return key;
-                    }
-                }
-                return null;
-            }
-            
-            function processRows(rows) {
-                let attempts = 0;
-                const maxAttempts = 100;
-                
-                function waitForContainer() {
-                    const container = document.getElementById('nspd-search-results');
-                    
-                    if (container) {
-                        if (rows.length === 0) {
-                            container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
-                            return;
-                        }
-                        
-                        const progressContainer = document.getElementById('nspd-progress-container');
-                        const progressBar = document.getElementById('nspd-progress-bar');
-                        const progressText = document.getElementById('nspd-progress-text');
-                        if (progressContainer) progressContainer.style.display = 'block';
-                        if (progressBar) progressBar.style.width = '0%';
-                        if (progressText) progressText.textContent = '0%';
-                        
-                        let allResults = [];
-                        let notFoundCount = 0;
-                        let total = rows.length;
-                        
-                        (async function() {
-                            for (let i = 0; i < rows.length; i++) {
-                                const row = rows[i];
-                                const percent = Math.round(((i + 1) / total) * 100);
-                                if (progressBar) progressBar.style.width = percent + '%';
-                                if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
-                                
-                                const param = SEARCH_PARAMS[row.param];
-                                if (!param) {
-                                    notFoundCount++;
-                                    continue;
-                                }
-                                
-try {
-    const features = await searchByAddress(row.address, param, row.value);
-    if (features.length > 0) {
-        let candidates = features.map(f => {
-            const props = f.properties || {};
-            const opts = props.options || {};
-            return {
-                feature: f,
-                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                address: opts.address_readable_address || opts.readable_address || '',
-                cadNumber: getCadNumber(opts, props),
-                type: opts.type || opts.object_type_value || '—',
-                cadastralCost: parseFloat(opts.cost_value) || 0,
-                name: opts.params_name || opts.name || '',
-                determination_couse: opts.determination_couse || '',
-                rawData: { feature: f, opts: opts, props: props }
-            };
-        });
+  async function uploadData(file) {
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const fileName = file.name.toLowerCase();
+        const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
         
-        // Фильтруем только один объект
-        if (candidates.length > 1) {
-            candidates.sort((a, b) => (b.address?.length || 0) - (a.address?.length || 0));
-            candidates = candidates.slice(0, 1);
+        if (!isExcel) {
+            const container = document.getElementById('nspd-search-results');
+            if (container) container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Поддерживаются только файлы Excel (.xlsx, .xls)</div>`;
+            return;
         }
         
-        allResults = allResults.concat(candidates);
-    } else {
-        notFoundCount++;
-    }
-} catch (e) {
-    console.warn('Ошибка при поиске:', e.message);
-    notFoundCount++;
-}
-                            
-                            if (progressContainer) progressContainer.style.display = 'none';
-
-// Получаем название параметра из первой строки (если есть)
-const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
-displayMassResults(allResults, notFoundCount, container, searchParamLabel);
-                        })();
-                    } else {
-                        attempts++;
-                        if (attempts < maxAttempts) {
-                            setTimeout(waitForContainer, 100);
-                        } else {
-                            console.error('❌ resultsContainer не появился после ожидания');
-                            const container = document.getElementById('nspd-search-results');
-                            if (container) {
-                                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
-                            }
-                        }
-                    }
-                }
-                
-                waitForContainer();
-            }
-            
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-            
-            const nonEmptyRows = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''));
-            const headerRow = nonEmptyRows[0] || [];
-            const dataRows = nonEmptyRows.slice(1);
-            
-            const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
-            
-            let addressIdx = headers.findIndex(h => 
-                h.includes('адрес') || h.includes('address') || h.includes('объект') || 
-                h.includes('местоположение') || h.includes('location')
-            );
-            
-            let paramIdx = headers.findIndex(h => 
-                h.includes('параметр') || h.includes('param') || h.includes('тип') || 
-                h.includes('характеристика') || h.includes('показатель')
-            );
-            
-            let valueIdx = headers.findIndex(h => 
-                h.includes('значение') || h.includes('value') || h.includes('число') ||
-                h.includes('площадь') || h.includes('протяженность') || h.includes('глубина')
-            );
-            
-            if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
-                addressIdx = 0;
-                paramIdx = 1;
-                valueIdx = 2;
-            }
-            
-            console.log(`📋 Заголовки:`, headers);
-            console.log(`📍 Используем колонки: Адрес=${addressIdx}, Параметр=${paramIdx}, Значение=${valueIdx}`);
-            
-            const rows = [];
-            for (const row of dataRows) {
-                if (row.length > Math.max(addressIdx, paramIdx, valueIdx)) {
-                    const paramValue = String(row[paramIdx] || '').trim();
-                    let paramKey = getParamKeyByLabel(paramValue);
-                    if (!paramKey && SEARCH_PARAMS[paramValue]) {
-                        paramKey = paramValue;
-                    }
-                    if (!paramKey) {
-                        for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
-                            if (paramValue.toLowerCase().includes(param.label.toLowerCase()) || 
-                                param.label.toLowerCase().includes(paramValue.toLowerCase())) {
-                                paramKey = key;
-                                break;
-                            }
-                        }
-                    }
-                    if (paramKey) {
-                        rows.push({
-                            address: String(row[addressIdx] || '').trim(),
-                            param: paramKey,
-                            value: parseFloat(row[valueIdx]) || 0
-                        });
-                    }
-                }
-            }
-            
-            console.log(`✅ Распаршено ${rows.length} строк`);
-            processRows(rows);
-        };
+        if (typeof XLSX === 'undefined') {
+            const container = document.getElementById('nspd-search-results');
+            if (container) container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Библиотека XLSX не загружена</div>`;
+            return;
+        }
         
-        reader.readAsArrayBuffer(file);
-    }
+        function getParamKeyByLabel(label) {
+            for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
+                if (param.label === label.trim()) {
+                    return key;
+                }
+            }
+            return null;
+        }
+        
+        function processRows(rows) {
+            let attempts = 0;
+            const maxAttempts = 100;
+            
+            function waitForContainer() {
+                const container = document.getElementById('nspd-search-results');
+                
+                if (container) {
+                    if (rows.length === 0) {
+                        container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+                        return;
+                    }
+                    
+                    const progressContainer = document.getElementById('nspd-progress-container');
+                    const progressBar = document.getElementById('nspd-progress-bar');
+                    const progressText = document.getElementById('nspd-progress-text');
+                    if (progressContainer) progressContainer.style.display = 'block';
+                    if (progressBar) progressBar.style.width = '0%';
+                    if (progressText) progressText.textContent = '0%';
+                    
+                    let allResults = [];
+                    let notFoundCount = 0;
+                    let total = rows.length;
+                    
+                    (async function() {
+                        for (let i = 0; i < rows.length; i++) {
+                            const row = rows[i];
+                            const percent = Math.round(((i + 1) / total) * 100);
+                            if (progressBar) progressBar.style.width = percent + '%';
+                            if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
+                            
+                            const param = SEARCH_PARAMS[row.param];
+                            if (!param) {
+                                notFoundCount++;
+                                continue;
+                            }
+                            
+                            try {
+                                const features = await searchByAddress(row.address, param, row.value);
+                                if (features.length > 0) {
+                                    let candidates = features.map(f => {
+                                        const props = f.properties || {};
+                                        const opts = props.options || {};
+                                        return {
+                                            feature: f,
+                                            area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                            builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                            volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                            extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                            landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                            depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+                                            address: opts.address_readable_address || opts.readable_address || '',
+                                            cadNumber: getCadNumber(opts, props),
+                                            type: opts.type || opts.object_type_value || '—',
+                                            cadastralCost: parseFloat(opts.cost_value) || 0,
+                                            name: opts.params_name || opts.name || '',
+                                            determination_couse: opts.determination_couse || '',
+                                            rawData: { feature: f, opts: opts, props: props }
+                                        };
+                                    });
+                                    
+                                    // 🔥 НОВЫЙ БЛОК: оставляем только один самый точный объект
+                                    if (candidates.length > 1) {
+                                        // Сортируем по длине адреса (чем длиннее — тем точнее)
+                                        candidates.sort((a, b) => (b.address?.length || 0) - (a.address?.length || 0));
+                                        // Оставляем только первый
+                                        candidates = candidates.slice(0, 1);
+                                    }
+                                    
+                                    allResults = allResults.concat(candidates);
+                                } else {
+                                    notFoundCount++;
+                                }
+                            } catch (e) {
+                                console.warn('Ошибка:', e.message);
+                                notFoundCount++;
+                            }
+                        }
+                        
+                        if (progressContainer) progressContainer.style.display = 'none';
+
+                        const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
+                        displayMassResults(allResults, notFoundCount, container, searchParamLabel);
+                    })();
+                } else {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        setTimeout(waitForContainer, 100);
+                    } else {
+                        console.error('❌ resultsContainer не появился после ожидания');
+                        const container = document.getElementById('nspd-search-results');
+                        if (container) {
+                            container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
+                        }
+                    }
+                }
+            }
+            
+            waitForContainer();
+        }
+        
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        
+        const nonEmptyRows = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''));
+        const headerRow = nonEmptyRows[0] || [];
+        const dataRows = nonEmptyRows.slice(1);
+        
+        const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
+        
+        let addressIdx = headers.findIndex(h => 
+            h.includes('адрес') || h.includes('address') || h.includes('объект') || 
+            h.includes('местоположение') || h.includes('location')
+        );
+        
+        let paramIdx = headers.findIndex(h => 
+            h.includes('параметр') || h.includes('param') || h.includes('тип') || 
+            h.includes('характеристика') || h.includes('показатель')
+        );
+        
+        let valueIdx = headers.findIndex(h => 
+            h.includes('значение') || h.includes('value') || h.includes('число') ||
+            h.includes('площадь') || h.includes('протяженность') || h.includes('глубина')
+        );
+        
+        if (addressIdx === -1 || paramIdx === -1 || valueIdx === -1) {
+            addressIdx = 0;
+            paramIdx = 1;
+            valueIdx = 2;
+        }
+        
+        console.log(`📋 Заголовки:`, headers);
+        console.log(`📍 Используем колонки: Адрес=${addressIdx}, Параметр=${paramIdx}, Значение=${valueIdx}`);
+        
+        const rows = [];
+        for (const row of dataRows) {
+            if (row.length > Math.max(addressIdx, paramIdx, valueIdx)) {
+                const paramValue = String(row[paramIdx] || '').trim();
+                let paramKey = getParamKeyByLabel(paramValue);
+                if (!paramKey && SEARCH_PARAMS[paramValue]) {
+                    paramKey = paramValue;
+                }
+                if (!paramKey) {
+                    for (const [key, param] of Object.entries(SEARCH_PARAMS)) {
+                        if (paramValue.toLowerCase().includes(param.label.toLowerCase()) || 
+                            param.label.toLowerCase().includes(paramValue.toLowerCase())) {
+                            paramKey = key;
+                            break;
+                        }
+                    }
+                }
+                if (paramKey) {
+                    rows.push({
+                        address: String(row[addressIdx] || '').trim(),
+                        param: paramKey,
+                        value: parseFloat(row[valueIdx]) || 0
+                    });
+                }
+            }
+        }
+        
+        console.log(`✅ Распаршено ${rows.length} строк`);
+        processRows(rows);
+    };
+    
+    reader.readAsArrayBuffer(file);
+}
 
     // ============================================================
     // ИНИЦИАЛИЗАЦИЯ
