@@ -202,7 +202,7 @@
     // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА
     // ============================================================
 
-  function extractAllFields(item) {
+function extractAllFields(item) {
     const data = item.rawData;
     const opts = data.opts || {};
     const props = data.props || {};
@@ -254,35 +254,53 @@
     let purpose = '—';
     
     if (isLand) {
-        // ВРИ (разрешенное использование)
         vri = opts.permitted_uses_name || 
               opts.purpose || 
               opts.params_purpose || 
               opts.permitted_use_established_by_document || 
               '—';
         
-        // Назначение
         purpose = opts.purpose || 
                   opts.params_purpose || 
                   opts.permitted_use_established_by_document || 
                   '—';
     }
 
+    // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ
+    let paramsStr = '';
+    const params = [];
+    
+    if (displayArea > 0) {
+        params.push(`Площадь (м²): ${displayArea.toFixed(1)}`);
+    }
+    if (builtUpAreaValue > 0) {
+        params.push(`Площадь застройки (м²): ${builtUpAreaValue.toFixed(1)}`);
+    }
+    if (volumeValue > 0) {
+        params.push(`Объем (м³): ${volumeValue.toFixed(1)}`);
+    }
+    if (extensionValue > 0) {
+        params.push(`Протяженность (м): ${extensionValue.toFixed(1)}`);
+    }
+    if (depthValue > 0) {
+        params.push(`Глубина (м): ${depthValue.toFixed(1)}`);
+    }
+    if (landAreaValue > 0) {
+        params.push(`Площадь ЗУ (м²): ${landAreaValue.toFixed(1)}`);
+    }
+    
+    paramsStr = params.length > 0 ? params.join('; ') : '—';
+
     return {
         'Кадастровый номер': item.cadNumber || '—',
         'Наименование': objectName || '—',
         'Материал стен': materials || '—',
         'Адрес': address || '—',
-        'Площадь (м²)': displayArea > 0 ? displayArea.toFixed(1) : '—',
-        'Площадь застройки (м²)': builtUpAreaValue > 0 ? builtUpAreaValue.toFixed(1) : '—',
-        'Объем (м³)': volumeValue > 0 ? volumeValue.toFixed(1) : '—',
-        'Протяженность (м)': extensionValue > 0 ? extensionValue.toFixed(1) : '—',
-        'Глубина (м)': depthValue > 0 ? depthValue.toFixed(1) : '—',
-        'Площадь ЗУ (м²)': landAreaValue > 0 ? landAreaValue.toFixed(1) : '—',
+        'Параметры': paramsStr,  // 🔥 ОДНА КОЛОНКА СО ВСЕМИ ХАРАКТЕРИСТИКАМИ
         'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
         'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
-        'ВРИ': vri,  // 🔥 ВРИ - только для земельных участков
-        'Назначение': purpose,  // 🔥 Назначение - только для земельных участков
+        'ВРИ': vri,
+        'Назначение': purpose,
         'Статус': opts.common_data_status || opts.status || '—',
         'Форма собственности': opts.ownership_type || '—',
         'Этаж': floorValue,
@@ -388,31 +406,25 @@
         XLSX.writeFile(wb, 'nspd_search_template.xlsx');
     }
 
- function displayMassResults(candidates, notFoundCount, container, searchParamLabel) {
+function displayMassResults(candidates, notFoundCount, container, searchParamLabel) {
     const tableData = candidates.map(item => {
         const fields = extractAllFields(item);
-        // Добавляем поле с названием параметра поиска
         fields['Параметр поиска'] = searchParamLabel || '—';
         return fields;
     });
     
-    // 🔥 НОВЫЙ ПОРЯДОК КОЛОНОК (ВИД ОБЪЕКТА УБРАН, ВРИ И НАЗНАЧЕНИЕ ДОБАВЛЕНЫ)
+    // 🔥 НОВЫЙ ПОРЯДОК КОЛОНОК (ПАРАМЕТРЫ - ОДНА КОЛОНКА)
     const orderedColumns = [
         'Параметр поиска',
         'Кадастровый номер',
         'Наименование',
         'Материал стен',
         'Адрес',
-        'Площадь (м²)',
-        'Площадь застройки (м²)',
-        'Объем (м³)',
-        'Протяженность (м)',
-        'Глубина (м)',
-        'Площадь ЗУ (м²)',
+        'Параметры',  // 🔥 ОДНА КОЛОНКА ВМЕСТО ШЕСТИ
         'Кадастровая стоимость',
         'УПКС (₽/м²)',
-        'ВРИ',  // 🔥 ВРИ - теперь отдельная колонка
-        'Назначение',  // 🔥 Назначение - теперь отдельная колонка
+        'ВРИ',
+        'Назначение',
         'Статус',
         'Форма собственности',
         'Этаж',
@@ -501,7 +513,6 @@
         exportBtn.style.display = 'inline-flex';
     }
 }
-
 
    async function uploadData(file) {
     const reader = new FileReader();
