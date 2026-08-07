@@ -207,7 +207,8 @@ function extractAllFields(item) {
     const opts = data.opts || {};
     const props = data.props || {};
 
-    const objectType = item.type || data.props.categoryName || '';
+    // ✅ БЕРЕМ ТИП ИЗ ПРАВИЛЬНОГО МЕСТА
+    const objectType = item.type || data.props?.categoryName || opts.categoryName || '';
     
     const categoryName = props.categoryName || opts.categoryName || '';
     const materials = opts.materials || opts.wall_material || props.materials || '';
@@ -225,8 +226,16 @@ function extractAllFields(item) {
         }
     }
 
-    let objectName = opts.params_name || opts.name || opts.building_name || '';
-    if (!objectName && objectType) {
+    // ✅ НАИМЕНОВАНИЕ
+    let objectName = opts.params_name || 
+                     opts.name || 
+                     opts.building_name || 
+                     opts.object_name || 
+                     opts.params_type || 
+                     opts.type || 
+                     objectType || 
+                     '';
+    if (!objectName || objectName === '') {
         objectName = objectType;
     }
 
@@ -238,68 +247,62 @@ function extractAllFields(item) {
     const depthValue = item.depth || parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0;
     const address = getAddress(opts, props);
     
-    const determinationCouse = opts.determination_couse || '';
+    const determinationCouse = opts.determination_couse || props.determination_couse || '';
 
     let displayArea = item.area;
     if (!displayArea || displayArea === 0) {
-        const opts2 = data.opts || {};
-        displayArea = parseFloat(opts2.area) || 
-                      parseFloat(opts2.params_area) || 
-                      parseFloat(opts2.specified_area) || 
-                      parseFloat(opts2.build_record_area) || 0;
+        displayArea = parseFloat(opts.area) || 
+                      parseFloat(opts.params_area) || 
+                      parseFloat(opts.specified_area) || 
+                      parseFloat(opts.build_record_area) || 0;
     }
 
-    // 🔥 ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ - ВРИ И НАЗНАЧЕНИЕ
-    let vri = '—';
-    let purpose = '—';
-    
-    if (isLand) {
-        vri = opts.permitted_uses_name || 
-              opts.purpose || 
-              opts.params_purpose || 
-              opts.permitted_use_established_by_document || 
-              '—';
-        
-        purpose = opts.purpose || 
+    // 🔥 НАЗНАЧЕНИЕ (для всех объектов) - берем из opts ИЛИ из item
+    let purpose = opts.purpose || 
                   opts.params_purpose || 
                   opts.permitted_use_established_by_document || 
+                  item.purpose ||  // ✅ ДОБАВЛЯЕМ ИЗ item
                   '—';
+
+    // 🔥 ВРИ (только для земельных участков) - берем из opts ИЛИ из item
+    let vri = '—';
+    if (isLand) {
+        vri = opts.permitted_uses_name || 
+              opts.permitted_use_established_by_document || 
+              opts.purpose || 
+              opts.params_purpose || 
+              item.permitted_uses_name ||  // ✅ ДОБАВЛЯЕМ ИЗ item
+              item.purpose ||               // ✅ ДОБАВЛЯЕМ ИЗ item
+              '—';
     }
 
-    // 🔥 РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number)
-    const parentCadNumber = opts.parent_cad_number || props.parent_cad_number || '—';
-
-    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (для земельных участков)
+    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (только для земельных участков) - берем из opts ИЛИ из item
     let landCategory = '—';
     if (isLand) {
         landCategory = opts.land_record_category_type || 
+                       props.land_record_category_type || 
+                       item.land_record_category_type ||  // ✅ ДОБАВЛЯЕМ ИЗ item
                        opts.categoryName || 
                        props.categoryName || 
                        '—';
     }
 
-    // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ (как было)
+    // 🔥 РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number) - берем из opts ИЛИ из item
+    const parentCadNumber = opts.parent_cad_number || 
+                            props.parent_cad_number || 
+                            item.parent_cad_number ||  // ✅ ДОБАВЛЯЕМ ИЗ item
+                            '—';
+
+    // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ
     let paramsStr = '';
     const params = [];
     
-    if (displayArea > 0) {
-        params.push(`Площадь (м²): ${displayArea.toFixed(1)}`);
-    }
-    if (builtUpAreaValue > 0) {
-        params.push(`Площадь застройки (м²): ${builtUpAreaValue.toFixed(1)}`);
-    }
-    if (volumeValue > 0) {
-        params.push(`Объем (м³): ${volumeValue.toFixed(1)}`);
-    }
-    if (extensionValue > 0) {
-        params.push(`Протяженность (м): ${extensionValue.toFixed(1)}`);
-    }
-    if (depthValue > 0) {
-        params.push(`Глубина (м): ${depthValue.toFixed(1)}`);
-    }
-    if (landAreaValue > 0) {
-        params.push(`Площадь ЗУ (м²): ${landAreaValue.toFixed(1)}`);
-    }
+    if (displayArea > 0) params.push(`Площадь (м²): ${displayArea.toFixed(1)}`);
+    if (builtUpAreaValue > 0) params.push(`Площадь застройки (м²): ${builtUpAreaValue.toFixed(1)}`);
+    if (volumeValue > 0) params.push(`Объем (м³): ${volumeValue.toFixed(1)}`);
+    if (extensionValue > 0) params.push(`Протяженность (м): ${extensionValue.toFixed(1)}`);
+    if (depthValue > 0) params.push(`Глубина (м): ${depthValue.toFixed(1)}`);
+    if (landAreaValue > 0) params.push(`Площадь ЗУ (м²): ${landAreaValue.toFixed(1)}`);
     
     paramsStr = params.length > 0 ? params.join('; ') : '—';
 
