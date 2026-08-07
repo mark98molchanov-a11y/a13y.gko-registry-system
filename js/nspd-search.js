@@ -266,6 +266,9 @@ function extractAllFields(item) {
                   '—';
     }
 
+    // 🔥 ПОЛУЧАЕМ РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number)
+    const parentCadNumber = opts.parent_cad_number || props.parent_cad_number || '—';
+
     // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ
     let paramsStr = '';
     const params = [];
@@ -296,11 +299,12 @@ function extractAllFields(item) {
         'Наименование': objectName || '—',
         'Материал стен': materials || '—',
         'Адрес': address || '—',
-        'Параметры': paramsStr,  // 🔥 ОДНА КОЛОНКА СО ВСЕМИ ХАРАКТЕРИСТИКАМИ
+        'Параметры': paramsStr,
         'Кадастровая стоимость': opts.cost_value ? formatPrice(parseFloat(opts.cost_value)) : '—',
         'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
         'ВРИ': vri,
         'Назначение': purpose,
+        'Родительский объект': parentCadNumber,  // 🔥 НОВАЯ КОЛОНКА
         'Статус': opts.common_data_status || opts.status || '—',
         'Форма собственности': opts.ownership_type || '—',
         'Этаж': floorValue,
@@ -413,18 +417,19 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
         return fields;
     });
     
-    // 🔥 НОВЫЙ ПОРЯДОК КОЛОНОК (ПАРАМЕТРЫ - ОДНА КОЛОНКА)
+    // 🔥 НОВЫЙ ПОРЯДОК КОЛОНОК (добавлен Родительский объект)
     const orderedColumns = [
         'Параметр поиска',
         'Кадастровый номер',
         'Наименование',
         'Материал стен',
         'Адрес',
-        'Параметры',  // 🔥 ОДНА КОЛОНКА ВМЕСТО ШЕСТИ
+        'Параметры',
         'Кадастровая стоимость',
         'УПКС (₽/м²)',
         'ВРИ',
         'Назначение',
+        'Родительский объект',  // 🔥 НОВАЯ КОЛОНКА
         'Статус',
         'Форма собственности',
         'Этаж',
