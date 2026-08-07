@@ -550,38 +550,43 @@
                                     continue;
                                 }
                                 
-                                try {
-                                    const features = await searchByAddress(row.address, param, row.value);
-                                    if (features.length > 0) {
-                                        const candidates = features.map(f => {
-                                            const props = f.properties || {};
-                                            const opts = props.options || {};
-                                            return {
-                                                feature: f,
-                                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                                                address: opts.address_readable_address || opts.readable_address || '',
-                                                cadNumber: getCadNumber(opts, props),
-                                                type: opts.type || opts.object_type_value || '—',
-                                                cadastralCost: parseFloat(opts.cost_value) || 0,
-                                                name: opts.params_name || opts.name || '',
-                                                determination_couse: opts.determination_couse || '',
-                                                rawData: { feature: f, opts: opts, props: props }
-                                            };
-                                        });
-                                        allResults = allResults.concat(candidates);
-                                    } else {
-                                        notFoundCount++;
-                                    }
-                                } catch (e) {
-                                    console.warn('Ошибка:', e.message);
-                                    notFoundCount++;
-                                }
-                            }
+                  try {
+    const features = await searchByAddress(row.address, param, row.value);
+    if (features.length > 0) {
+        let candidates = features.map(f => {
+            const props = f.properties || {};
+            const opts = props.options || {};
+            return {
+                feature: f,
+                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+                address: opts.address_readable_address || opts.readable_address || '',
+                cadNumber: getCadNumber(opts, props),
+                type: opts.type || opts.object_type_value || '—',
+                cadastralCost: parseFloat(opts.cost_value) || 0,
+                name: opts.params_name || opts.name || '',
+                determination_couse: opts.determination_couse || '',
+                rawData: { feature: f, opts: opts, props: props }
+            };
+        });
+        
+        // 🔥 НОВЫЙ БЛОК: выбираем только один самый точный объект
+        if (candidates.length > 1) {
+            // Сортируем по длине адреса (чем длиннее — тем точнее)
+            candidates.sort((a, b) => (b.address?.length || 0) - (a.address?.length || 0));
+            // Оставляем только первый
+            candidates = candidates.slice(0, 1);
+        }
+        
+        allResults = allResults.concat(candidates);
+    } else {
+        notFoundCount++;
+    }
+}
                             
                             if (progressContainer) progressContainer.style.display = 'none';
 
