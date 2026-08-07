@@ -423,15 +423,50 @@ function extractAllFields(item) {
     }
 
 function displayMassResults(candidates, notFoundCount, container, searchParamLabel) {
-    const tableData = candidates.map(item => {
+    // 🔥 ДЛЯ КАЖДОГО НАЙДЕННОГО ОБЪЕКТА - берем данные
+    // ДЛЯ НЕНАЙДЕННЫХ - создаем заглушку
+    let tableData = [];
+    
+    // Добавляем найденные объекты
+    candidates.forEach(item => {
         const fields = extractAllFields(item);
         fields['Параметр поиска'] = searchParamLabel || '—';
-        return fields;
+        tableData.push(fields);
     });
     
+    // 🔥 ДОБАВЛЯЕМ "НЕ ОПРЕДЕЛЕНО" ДЛЯ КАЖДОГО НЕНАЙДЕННОГО ОБЪЕКТА
+    // notFoundCount - это количество ненайденных объектов
+    // Нам нужно добавить notFoundCount строк с "Не определено"
+    for (let i = 0; i < notFoundCount; i++) {
+        const emptyRow = {
+            'Параметр поиска': searchParamLabel || '—',
+            'Кадастровый номер': 'Не определено',
+            'Наименование': '—',
+            'Вид объекта': '—',
+            'Материал стен': '—',
+            'Адрес': '—',
+            'Параметры': '—',
+            'Кадастровая стоимость': '—',
+            'УПКС (₽/м²)': '—',
+            'ВРИ': '—',
+            'Назначение': '—',
+            'Родительский объект': '—',
+            'Статус': '—',
+            'Форма собственности': '—',
+            'Этаж': '—',
+            'Год постройки': '—',
+            'Категория земель': '—',
+            'Дата регистрации': '—',
+            'Основание оценки': '—'
+        };
+        tableData.push(emptyRow);
+    }
+    
+    // 🔥 ПОРЯДОК КОЛОНОК (ВОЗВРАЩАЕМ ВИД ОБЪЕКТА)
     const orderedColumns = [
         'Параметр поиска',
         'Кадастровый номер',
+        'Вид объекта',  // 🔥 ВЕРНУЛИ ВИД ОБЪЕКТА
         'Наименование',
         'Материал стен',
         'Адрес',
@@ -483,7 +518,7 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
                     <tbody>
     `;
 
-    if (candidates.length === 0) {
+    if (tableData.length === 0) {
         html += `
             <tr>
                 <td colspan="${orderedColumns.length + 1}" style="padding: 20px; text-align: center; color: #94a3b8;">
@@ -494,11 +529,19 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
     } else {
         tableData.forEach((row, index) => {
             const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+            // 🔥 ЕСЛИ КАДАСТРОВЫЙ НОМЕР = "Не определено" - делаем подсветку
+            const isNotFound = row['Кадастровый номер'] === 'Не определено';
+            const rowStyle = isNotFound ? 'background: #fef2f2; border-left: 3px solid #ef4444;' : '';
+            
             html += `
-                <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9;">
+                <tr style="background: ${bgColor}; border-bottom: 1px solid #f1f5f9; ${rowStyle}">
                     <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
                     ${orderedColumns.map(col => {
                         let val = row[col] || '—';
+                        // 🔥 Если это колонка с кадастровым номером и значение "Не определено" - выделяем красным
+                        if (col === 'Кадастровый номер' && val === 'Не определено') {
+                            return `<td style="padding: 6px 10px; color: #dc2626; font-weight: 600; font-size: 10px;">${val}</td>`;
+                        }
                         return `<td style="padding: 6px 10px; color: #1e293b; font-size: 10px; word-break: break-word; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
                     }).join('')}
                 </tr>
@@ -512,7 +555,7 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
             </div>
         </div>
         <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
-            <span>Всего объектов: <strong>${candidates.length}</strong></span>
+            <span>Всего объектов: <strong>${tableData.length}</strong> (найдено: ${candidates.length}, не найдено: ${notFoundCount})</span>
             <div style="display: flex; gap: 8px;">
                 <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                         style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
