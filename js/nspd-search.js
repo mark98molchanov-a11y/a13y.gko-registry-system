@@ -239,6 +239,23 @@ function extractAllFields(item) {
         objectName = objectType;
     }
 
+    // ✅ ВИД ОБЪЕКТА (из NSPDIntegration)
+    let objectView = opts.type || 
+                     opts.object_type_value || 
+                     opts.land_record_type || 
+                     props.categoryName || 
+                     objectType || 
+                     '—';
+    
+    // Если objectView пустой или содержит только тип, используем categoryName
+    if (!objectView || objectView === '' || objectView === '—') {
+        objectView = opts.categoryName || props.categoryName || '—';
+    }
+    // Для земельных участков используем land_record_type
+    if (isLand && (objectView === '—' || objectView === '')) {
+        objectView = opts.land_record_type || 'Земельный участок';
+    }
+
     const floorValue = getFloorValue(opts.floor);
     const extensionValue = item.extension || parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0;
     const builtUpAreaValue = item.builtUpArea || parseFloat(opts.params_built_up_area) || parseFloat(opts.built_up_area) || 0;
@@ -257,40 +274,40 @@ function extractAllFields(item) {
                       parseFloat(opts.build_record_area) || 0;
     }
 
-    // 🔥 НАЗНАЧЕНИЕ (для всех объектов) - берем из opts ИЛИ из item
+    // 🔥 НАЗНАЧЕНИЕ (для всех объектов)
     let purpose = opts.purpose || 
                   opts.params_purpose || 
                   opts.permitted_use_established_by_document || 
-                  item.purpose ||  // ✅ ДОБАВЛЯЕМ ИЗ item
+                  item.purpose || 
                   '—';
 
-    // 🔥 ВРИ (только для земельных участков) - берем из opts ИЛИ из item
+    // 🔥 ВРИ (только для земельных участков)
     let vri = '—';
     if (isLand) {
         vri = opts.permitted_uses_name || 
               opts.permitted_use_established_by_document || 
               opts.purpose || 
               opts.params_purpose || 
-              item.permitted_uses_name ||  // ✅ ДОБАВЛЯЕМ ИЗ item
-              item.purpose ||               // ✅ ДОБАВЛЯЕМ ИЗ item
+              item.permitted_uses_name || 
+              item.purpose || 
               '—';
     }
 
-    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (только для земельных участков) - берем из opts ИЛИ из item
+    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (только для земельных участков)
     let landCategory = '—';
     if (isLand) {
         landCategory = opts.land_record_category_type || 
                        props.land_record_category_type || 
-                       item.land_record_category_type ||  // ✅ ДОБАВЛЯЕМ ИЗ item
+                       item.land_record_category_type || 
                        opts.categoryName || 
                        props.categoryName || 
                        '—';
     }
 
-    // 🔥 РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number) - берем из opts ИЛИ из item
+    // 🔥 РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number)
     const parentCadNumber = opts.parent_cad_number || 
                             props.parent_cad_number || 
-                            item.parent_cad_number ||  // ✅ ДОБАВЛЯЕМ ИЗ item
+                            item.parent_cad_number || 
                             '—';
 
     // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ
@@ -308,6 +325,7 @@ function extractAllFields(item) {
 
     return {
         'Кадастровый номер': item.cadNumber || '—',
+        'Вид объекта': objectView,  // 🔥 ВОЗВРАЩАЕМ ВИД ОБЪЕКТА
         'Наименование': objectName || '—',
         'Материал стен': materials || '—',
         'Адрес': address || '—',
@@ -423,26 +441,20 @@ function extractAllFields(item) {
     }
 
 function displayMassResults(candidates, notFoundCount, container, searchParamLabel) {
-    // 🔥 ДЛЯ КАЖДОГО НАЙДЕННОГО ОБЪЕКТА - берем данные
-    // ДЛЯ НЕНАЙДЕННЫХ - создаем заглушку
     let tableData = [];
     
-    // Добавляем найденные объекты
     candidates.forEach(item => {
         const fields = extractAllFields(item);
         fields['Параметр поиска'] = searchParamLabel || '—';
         tableData.push(fields);
     });
     
-    // 🔥 ДОБАВЛЯЕМ "НЕ ОПРЕДЕЛЕНО" ДЛЯ КАЖДОГО НЕНАЙДЕННОГО ОБЪЕКТА
-    // notFoundCount - это количество ненайденных объектов
-    // Нам нужно добавить notFoundCount строк с "Не определено"
     for (let i = 0; i < notFoundCount; i++) {
         const emptyRow = {
             'Параметр поиска': searchParamLabel || '—',
             'Кадастровый номер': 'Не определено',
+            'Вид объекта': '—',  // 🔥 ДЛЯ НЕНАЙДЕННЫХ
             'Наименование': '—',
-            'Вид объекта': '—',
             'Материал стен': '—',
             'Адрес': '—',
             'Параметры': '—',
@@ -462,11 +474,10 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
         tableData.push(emptyRow);
     }
     
-    // 🔥 ПОРЯДОК КОЛОНОК (ВОЗВРАЩАЕМ ВИД ОБЪЕКТА)
     const orderedColumns = [
         'Параметр поиска',
         'Кадастровый номер',
-        'Вид объекта',  // 🔥 ВЕРНУЛИ ВИД ОБЪЕКТА
+        'Вид объекта',  // 🔥 ВЕРНУЛИ
         'Наименование',
         'Материал стен',
         'Адрес',
@@ -529,7 +540,6 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
     } else {
         tableData.forEach((row, index) => {
             const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-            // 🔥 ЕСЛИ КАДАСТРОВЫЙ НОМЕР = "Не определено" - делаем подсветку
             const isNotFound = row['Кадастровый номер'] === 'Не определено';
             const rowStyle = isNotFound ? 'background: #fef2f2; border-left: 3px solid #ef4444;' : '';
             
@@ -538,7 +548,6 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
                     <td style="padding: 6px 10px; text-align: center; color: #94a3b8; font-weight: 500; font-size: 10px;">${index + 1}</td>
                     ${orderedColumns.map(col => {
                         let val = row[col] || '—';
-                        // 🔥 Если это колонка с кадастровым номером и значение "Не определено" - выделяем красным
                         if (col === 'Кадастровый номер' && val === 'Не определено') {
                             return `<td style="padding: 6px 10px; color: #dc2626; font-weight: 600; font-size: 10px;">${val}</td>`;
                         }
