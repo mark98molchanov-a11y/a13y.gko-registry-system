@@ -249,7 +249,7 @@ function extractAllFields(item) {
                       parseFloat(opts2.build_record_area) || 0;
     }
 
-    // 🔥 ПОЛУЧАЕМ ВРИ И НАЗНАЧЕНИЕ (для земельных участков)
+    // 🔥 ДЛЯ ЗЕМЕЛЬНЫХ УЧАСТКОВ - ВРИ И НАЗНАЧЕНИЕ
     let vri = '—';
     let purpose = '—';
     
@@ -266,10 +266,19 @@ function extractAllFields(item) {
                   '—';
     }
 
-    // 🔥 ПОЛУЧАЕМ РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number)
+    // 🔥 РОДИТЕЛЬСКИЙ ОБЪЕКТ (parent_cad_number)
     const parentCadNumber = opts.parent_cad_number || props.parent_cad_number || '—';
 
-    // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ
+    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (для земельных участков)
+    let landCategory = '—';
+    if (isLand) {
+        landCategory = opts.land_record_category_type || 
+                       opts.categoryName || 
+                       props.categoryName || 
+                       '—';
+    }
+
+    // 🔥 СОБИРАЕМ ВСЕ ПАРАМЕТРЫ В ОДНУ СТРОКУ (как было)
     let paramsStr = '';
     const params = [];
     
@@ -304,12 +313,12 @@ function extractAllFields(item) {
         'УПКС (₽/м²)': upksValue > 0 ? upksValue.toFixed(2) : '—',
         'ВРИ': vri,
         'Назначение': purpose,
-        'Родительский объект': parentCadNumber,  // 🔥 НОВАЯ КОЛОНКА
+        'Родительский объект': parentCadNumber,
         'Статус': opts.common_data_status || opts.status || '—',
         'Форма собственности': opts.ownership_type || '—',
         'Этаж': floorValue,
         'Год постройки': opts.year_built || opts.params_year_built || '—',
-        'Категория земель': isLand ? (opts.land_record_category_type || props.categoryName || '—') : '—',
+        'Категория земель': landCategory,
         'Дата регистрации': opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || '—',
         'Основание оценки': determinationCouse || '—'
     };
@@ -417,19 +426,19 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
         return fields;
     });
     
-    // 🔥 НОВЫЙ ПОРЯДОК КОЛОНОК (добавлен Родительский объект)
+    // 🔥 ПОРЯДОК КОЛОНОК (ПАРАМЕТРЫ - ОДНА КОЛОНКА)
     const orderedColumns = [
         'Параметр поиска',
         'Кадастровый номер',
         'Наименование',
         'Материал стен',
         'Адрес',
-        'Параметры',
+        'Параметры',  // 🔥 ОДНА КОЛОНКА СО ВСЕМИ ХАРАКТЕРИСТИКАМИ
         'Кадастровая стоимость',
         'УПКС (₽/м²)',
         'ВРИ',
         'Назначение',
-        'Родительский объект',  // 🔥 НОВАЯ КОЛОНКА
+        'Родительский объект',
         'Статус',
         'Форма собственности',
         'Этаж',
@@ -518,7 +527,6 @@ function displayMassResults(candidates, notFoundCount, container, searchParamLab
         exportBtn.style.display = 'inline-flex';
     }
 }
-
    async function uploadData(file) {
     const reader = new FileReader();
     reader.onload = async function(e) {
