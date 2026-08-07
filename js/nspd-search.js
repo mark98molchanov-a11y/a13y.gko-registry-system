@@ -550,7 +550,7 @@
                                     continue;
                                 }
                                 
-                  try {
+try {
     const features = await searchByAddress(row.address, param, row.value);
     if (features.length > 0) {
         let candidates = features.map(f => {
@@ -574,11 +574,9 @@
             };
         });
         
-        // 🔥 НОВЫЙ БЛОК: выбираем только один самый точный объект
+        // Фильтруем только один объект
         if (candidates.length > 1) {
-            // Сортируем по длине адреса (чем длиннее — тем точнее)
             candidates.sort((a, b) => (b.address?.length || 0) - (a.address?.length || 0));
-            // Оставляем только первый
             candidates = candidates.slice(0, 1);
         }
         
@@ -586,6 +584,9 @@
     } else {
         notFoundCount++;
     }
+} catch (e) {
+    console.warn('Ошибка при поиске:', e.message);
+    notFoundCount++;
 }
                             
                             if (progressContainer) progressContainer.style.display = 'none';
