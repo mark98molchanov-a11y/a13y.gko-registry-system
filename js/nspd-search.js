@@ -1312,7 +1312,7 @@
                 if (exportBtn && candidates.length > 0) {
                     exportBtn.style.display = 'inline-flex';
                 }
-displayMassResults(candidates, 0, resultsContainer, param.label);
+
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: ${error.message}</div>`;
