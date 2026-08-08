@@ -153,7 +153,7 @@
 async function searchByAddress(address, param, value) {
     console.log(`📌 Исходный адрес: "${address}"`);
     
-    // 🔥 ОЧИЩАЕМ АДРЕС
+    // 🔥 ОЧИЩАЕМ АДРЕС ОТ ЛИШНИХ ПРОБЕЛОВ И ЗАПЯТЫХ
     function cleanAddress(addr) {
         return addr
             .replace(/\s+/g, ' ')
@@ -162,82 +162,98 @@ async function searchByAddress(address, param, value) {
             .replace(/\s+,/g, ',')
             .replace(/,\s*$/, '')
             .replace(/^\s*,\s*/, '')
+            .replace(/["']/g, '')  // 🔥 УДАЛЯЕМ КАВЫЧКИ!
             .trim();
     }
     
     const cleaned = cleanAddress(address);
+    console.log(`🧹 Очищенный адрес: "${cleaned}"`);
     
-    // 🔥 ГЕНЕРИРУЕМ ВАРИАНТЫ АДРЕСА (от короткого к длинному)
-    const variants = [];
-    
-    // 1. Извлекаем город
-    let city = '';
-    const cityMatch = cleaned.match(/(?:г(?:ород)?|пгт|п|с|д)\s*([А-Яа-яЁё\s-]+)/i);
-    if (cityMatch) {
-        city = cityMatch[1].trim();
-    } else {
-        // Пробуем найти по списку городов
-        const cities = ['Новый Уренгой', 'Ноябрьск', 'Салехард', 'Муравленко', 'Надым', 'Губкинский', 'Тарко-Сале', 'Лабытнанги'];
-        for (const c of cities) {
-            if (cleaned.includes(c)) {
-                city = c;
-                break;
+    // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ ЭЛЕМЕНТЫ
+    function extractParts(addr) {
+        // 1. Город
+        let city = '';
+        const cityMatch = addr.match(/(?:г(?:ород)?|пгт|п|с|д)\s*([А-Яа-яЁё\s-]+)/i);
+        if (cityMatch) {
+            city = cityMatch[1].trim();
+        } else {
+            const cities = ['Новый Уренгой', 'Ноябрьск', 'Салехард', 'Муравленко', 'Надым', 'Губкинский', 'Тарко-Сале', 'Лабытнанги'];
+            for (const c of cities) {
+                if (addr.includes(c)) {
+                    city = c;
+                    break;
+                }
             }
         }
+        
+        // 2. Улица/проезд
+        let street = '';
+        const streetMatch = addr.match(/(ул(?:ица)?|проспект|проезд|пер(?:еулок)?|бульвар|наб(?:ережная)?|шоссе|пл(?:ощадь)?|аллея)\s*([А-Яа-яЁё\s-]+)/i);
+        if (streetMatch) {
+            street = streetMatch[1] + ' ' + streetMatch[2].trim();
+        }
+        
+        // 3. Номер (дом или участок)
+        let number = '';
+        // Ищем любой номер: дом, участок, корпус
+        const numberMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?|корп(?:ус)?)\.?\s*([\d]+[А-Яа-я]?)/i);
+        if (numberMatch) {
+            number = numberMatch[1].trim();
+        } else {
+            // Если не нашли с префиксом — ищем просто число в конце
+            const simpleMatch = addr.match(/(\d+[А-Яа-я]?)$/);
+            if (simpleMatch) {
+                number = simpleMatch[1].trim();
+            }
+        }
+        
+        return { city, street, number };
     }
     
-    // 2. Извлекаем улицу/проезд
-    let street = '';
-    const streetMatch = cleaned.match(/(ул(?:ица)?|проспект|проезд|пер(?:еулок)?|бульвар|наб(?:ережная)?|шоссе|пл(?:ощадь)?|аллея)\s*([А-Яа-яЁё\s-]+)/i);
-    if (streetMatch) {
-        street = streetMatch[1] + ' ' + streetMatch[2].trim();
+    const parts = extractParts(cleaned);
+    console.log(`🔑 Извлечено: город="${parts.city}", улица="${parts.street}", номер="${parts.number}"`);
+    
+    // 🔥 ГЕНЕРИРУЕМ ВАРИАНТЫ
+    const variants = [];
+    
+    // 1. Город + улица + номер (самый точный)
+    if (parts.city && parts.street && parts.number) {
+        variants.push(`${parts.city}, ${parts.street}, ${parts.number}`);
+        variants.push(`${parts.city}, ${parts.street}, ${parts.number}`);
+        variants.push(`г ${parts.city}, ${parts.street}, ${parts.number}`);
     }
     
-    // 3. Извлекаем номер (дом или участок)
-    let number = '';
-    const numberMatch = cleaned.match(/(?:д(?:ом)?|уч(?:асток)?)\.?\s*([\d]+[А-Яа-я]?)/i);
-    if (numberMatch) {
-        number = numberMatch[1].trim();
+    // 2. Город + улица
+    if (parts.city && parts.street) {
+        variants.push(`${parts.city}, ${parts.street}`);
+        variants.push(`г ${parts.city}, ${parts.street}`);
     }
     
-    // 4. Собираем варианты
-    if (city && street && number) {
-        variants.push(`${city}, ${street}, ${number}`);
-        variants.push(`${city}, ${street}`);
-        variants.push(`${street}, ${number}`);
-    }
-    if (city && street) {
-        variants.push(`${city}, ${street}`);
-    }
-    if (city && number) {
-        variants.push(`${city}, ${number}`);
-    }
-    if (street && number) {
-        variants.push(`${street}, ${number}`);
-    }
-    if (city) {
-        variants.push(city);
+    // 3. Только улица + номер
+    if (parts.street && parts.number) {
+        variants.push(`${parts.street}, ${parts.number}`);
     }
     
-    // 5. Добавляем полный адрес без ДПК/СНТ/ТСН
-    let withoutCoop = cleaned
+    // 4. Полный адрес без кавычек и лишнего
+    let withoutExtra = cleaned
         .replace(/ДПК\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .replace(/СНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .replace(/ТСН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .replace(/ДНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+        .replace(/территория\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .trim()
         .replace(/,\s*,/g, ',')
         .replace(/^,\s*/, '')
         .replace(/,\s*$/, '');
     
-    if (withoutCoop.length > 5 && withoutCoop !== cleaned) {
-        variants.push(withoutCoop);
+    if (withoutExtra.length > 5 && withoutExtra !== cleaned) {
+        variants.push(withoutExtra);
     }
     
-    // 6. Добавляем очищенный полный адрес
+    // 5. Добавляем очищенный адрес
     variants.push(cleaned);
     
-    // Удаляем дубликаты
+    // Удаляем дубликаты и пустые
     const allVariants = [...new Set(variants)].filter(a => a && a.length > 5);
     
     console.log(`🔍 Вариантов для поиска: ${allVariants.length}`);
@@ -284,7 +300,6 @@ async function searchByAddress(address, param, value) {
                 }
             }
             
-            // Если нашли хоть что-то — прекращаем поиск
             if (allFound.length > 0) {
                 console.log(`✅ Найдено ${allFound.length} объектов по варианту: "${variant}"`);
                 break;
