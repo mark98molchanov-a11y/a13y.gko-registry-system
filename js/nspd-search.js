@@ -170,45 +170,48 @@ async function searchByAddress(address, param, value) {
     console.log(`🧹 Очищенный адрес: "${cleaned}"`);
     
     // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ ЭЛЕМЕНТЫ
-    function extractParts(addr) {
-        // 1. Город
-        let city = '';
-        const cityMatch = addr.match(/(?:г(?:ород)?|пгт|п|с|д)\s*([А-Яа-яЁё\s-]+)/i);
-        if (cityMatch) {
-            city = cityMatch[1].trim();
-        } else {
-            const cities = ['Новый Уренгой', 'Ноябрьск', 'Салехард', 'Муравленко', 'Надым', 'Губкинский', 'Тарко-Сале', 'Лабытнанги'];
-            for (const c of cities) {
-                if (addr.includes(c)) {
-                    city = c;
-                    break;
-                }
-            }
-        }
-        
-        // 2. Улица/проезд
-        let street = '';
-        const streetMatch = addr.match(/(ул(?:ица)?|проспект|проезд|пер(?:еулок)?|бульвар|наб(?:ережная)?|шоссе|пл(?:ощадь)?|аллея)\s*([А-Яа-яЁё\s-]+)/i);
-        if (streetMatch) {
-            street = streetMatch[1] + ' ' + streetMatch[2].trim();
-        }
-        
-        // 3. Номер (дом или участок)
-        let number = '';
-        // Ищем любой номер: дом, участок, корпус
-        const numberMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?|корп(?:ус)?)\.?\s*([\d]+[А-Яа-я]?)/i);
-        if (numberMatch) {
-            number = numberMatch[1].trim();
-        } else {
-            // Если не нашли с префиксом — ищем просто число в конце
-            const simpleMatch = addr.match(/(\d+[А-Яа-я]?)$/);
-            if (simpleMatch) {
-                number = simpleMatch[1].trim();
-            }
-        }
-        
-        return { city, street, number };
+  function extractParts(addr) {
+    // 1. Город — извлекаем ТОЛЬКО НАЗВАНИЕ
+    let city = '';
+    
+    // Пробуем найти "город XXX" или "г XXX"
+    const cityMatch = addr.match(/(?:город|г|пгт|п|с|д)\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i);
+    if (cityMatch) {
+        city = cityMatch[1].trim();
     }
+    
+    // Если не нашли — ищем по списку городов
+    if (!city) {
+        const cities = ['Новый Уренгой', 'Ноябрьск', 'Салехард', 'Муравленко', 'Надым', 'Губкинский', 'Тарко-Сале', 'Лабытнанги'];
+        for (const c of cities) {
+            if (addr.includes(c)) {
+                city = c;
+                break;
+            }
+        }
+    }
+    
+    // 2. Улица/проезд
+    let street = '';
+    const streetMatch = addr.match(/(ул(?:ица)?|проспект|проезд|пер(?:еулок)?|бульвар|наб(?:ережная)?|шоссе|пл(?:ощадь)?|аллея)\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|уч|д)/i);
+    if (streetMatch) {
+        street = streetMatch[1] + ' ' + streetMatch[2].trim();
+    }
+    
+    // 3. Номер
+    let number = '';
+    const numberMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?|дом|участок)\.?\s*([\d]+[А-Яа-я]?)/i);
+    if (numberMatch) {
+        number = numberMatch[1].trim();
+    } else {
+        const simpleMatch = addr.match(/(\d+[А-Яа-я]?)$/);
+        if (simpleMatch) {
+            number = simpleMatch[1].trim();
+        }
+    }
+    
+    return { city, street, number };
+}
     
     const parts = extractParts(cleaned);
     console.log(`🔑 Извлечено: город="${parts.city}", улица="${parts.street}", номер="${parts.number}"`);
