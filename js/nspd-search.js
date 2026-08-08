@@ -168,86 +168,89 @@ async function searchByAddress(address, param, value) {
     console.log(`🧹 Очищенный адрес: "${cleanedAddress}"`);
     
     // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ СЛОВА ИЗ ОЧИЩЕННОГО АДРЕСА
-    function extractKeywords(addr) {
-        const keywords = [];
-        
-        // 1. 🔥 ГОРОД — ищем с "г"/"город" ИЛИ просто по названию
-        let cityMatch = addr.match(/(?:г|пгт|п|с|д|р-н|город|поселок|село|деревня)\s+([А-Яа-яЁё\s-]+)/i);
-        
-        // Если не нашли с префиксом — ищем просто "Новый Уренгой", "Салехард" и т.д.
-        if (!cityMatch) {
-            const cities = [
-                'Новый Уренгой', 'Новыи Уренгой', 
-                'Ноябрьск', 
-                'Салехард', 
-                'Муравленко', 
-                'Надым', 
-                'Губкинский', 
-                'Тарко-Сале', 
-                'Лабытнанги',
-                'Пангоды',
-                'Уренгой'
-            ];
-            for (const city of cities) {
-                const regex = new RegExp(city, 'i');
-                const match = addr.match(regex);
-                if (match) {
-                    cityMatch = match;
-                    break;
-                }
-            }
-        }
-        
-        if (cityMatch) {
-            let city = cityMatch[0]?.trim() || cityMatch[1]?.trim() || cityMatch[0];
-            city = city.replace(/["']/g, '').trim();
-            if (city.length > 2) keywords.push(city);
-        }
-        
-        // 2. Улица с типом
-        const streetPatterns = [
-            /(ул(?:ица)?\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(проспект\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(проезд\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(пер(?:еулок)?\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(бульвар\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(наб(?:ережная)?\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(шоссе\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(пл(?:ощадь)?\.?\s+[А-Яа-яЁё\s-]+)/i,
-            /(аллея\.?\s+[А-Яа-яЁё\s-]+)/i,
+function extractKeywords(addr) {
+    const keywords = [];
+    
+    // 1. Город
+    let cityMatch = addr.match(/(?:г|пгт|п|с|д|р-н|город|поселок|село|деревня)\s+([А-Яа-яЁё\s-]+)/i);
+    
+    if (!cityMatch) {
+        const cities = [
+            'Новый Уренгой', 'Новыи Уренгой', 
+            'Ноябрьск', 
+            'Салехард', 
+            'Муравленко', 
+            'Надым', 
+            'Губкинский', 
+            'Тарко-Сале', 
+            'Лабытнанги',
+            'Пангоды',
+            'Уренгой'
         ];
-        
-        for (const pattern of streetPatterns) {
-            const match = addr.match(pattern);
+        for (const city of cities) {
+            const regex = new RegExp(city, 'i');
+            const match = addr.match(regex);
             if (match) {
-                let street = match[1].trim().replace(/["']/g, '');
-                if (street.length > 2) {
-                    keywords.push(street);
-                    break;
-                }
+                cityMatch = match;
+                break;
             }
         }
-        
-        // 3. Номер
-        const houseMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?)\.?\s*([\d]+[А-Яа-я]?)/i);
-        if (houseMatch) {
-            keywords.push(houseMatch[1].trim());
-        }
-        
-        // 4. Корпус
-        const buildingMatch = addr.match(/(?:корп(?:ус)?|строен(?:ие)?|влад(?:ение)?)\.?\s*([\d]+[А-Яа-я]?)/i);
-        if (buildingMatch) {
-            keywords.push('корп.' + buildingMatch[1].trim());
-        }
-        
-        // 5. Квартира
-        const apartmentMatch = addr.match(/(?:кв(?:артира)?|офис|помещ(?:ение)?)\.?\s*([\d]+)/i);
-        if (apartmentMatch) {
-            keywords.push('кв.' + apartmentMatch[1].trim());
-        }
-        
-        return keywords;
     }
+    
+    if (cityMatch) {
+        let city = cityMatch[0]?.trim() || cityMatch[1]?.trim() || cityMatch[0];
+        city = city.replace(/["']/g, '').trim();
+        if (city.length > 2) keywords.push(city);
+    }
+    
+    // 2. 🔥 Улица — ПРАВИЛЬНОЕ ИЗВЛЕЧЕНИЕ
+    const streetPatterns = [
+        /(ул(?:ица)?\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(проспект\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(проезд\.?\s+[А-Яа-яЁё\s-]+)/i,    // "проезд Южный"
+        /(пер(?:еулок)?\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(бульвар\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(наб(?:ережная)?\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(шоссе\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(пл(?:ощадь)?\.?\s+[А-Яа-яЁё\s-]+)/i,
+        /(аллея\.?\s+[А-Яа-яЁё\s-]+)/i,
+    ];
+    
+    let streetFound = false;
+    for (const pattern of streetPatterns) {
+        const match = addr.match(pattern);
+        if (match) {
+            let street = match[1].trim().replace(/["']/g, '');
+            // 🔥 Убираем "д." в начале (если оно попало)
+            street = street.replace(/^д\.?\s*/i, '').trim();
+            if (street.length > 2 && !street.match(/^\d+$/)) {  // не должно быть только цифрами
+                keywords.push(street);
+                streetFound = true;
+                break;
+            }
+        }
+    }
+    
+    // 3. Номер дома или участка
+    const houseMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?)\.?\s*([\d]+[А-Яа-я]?)/i);
+    if (houseMatch) {
+        keywords.push(houseMatch[1].trim());
+    }
+    
+    // 4. Корпус
+    const buildingMatch = addr.match(/(?:корп(?:ус)?|строен(?:ие)?|влад(?:ение)?)\.?\s*([\d]+[А-Яа-я]?)/i);
+    if (buildingMatch) {
+        keywords.push('корп.' + buildingMatch[1].trim());
+    }
+    
+    // 5. Квартира
+    const apartmentMatch = addr.match(/(?:кв(?:артира)?|офис|помещ(?:ение)?)\.?\s*([\d]+)/i);
+    if (apartmentMatch) {
+        keywords.push('кв.' + apartmentMatch[1].trim());
+    }
+    
+    return keywords;
+}
     
     const keywords = extractKeywords(cleanedAddress);
     console.log(`🔑 Ключевые слова:`, keywords);
