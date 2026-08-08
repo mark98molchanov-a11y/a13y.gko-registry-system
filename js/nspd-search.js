@@ -149,11 +149,9 @@
     // ============================================================
     // ФУНКЦИЯ ПОИСКА ПО АДРЕСУ (ДЛЯ КАСКАДНОГО ПОИСКА)
     // ============================================================
- async function searchByAddress(address, param, value) {
-    // Если адрес слишком длинный (> 100 символов) — обрезаем
+async function searchByAddress(address, param, value) {
     let searchAddress = address;
     if (searchAddress.length > 100) {
-        // Пробуем взять только первую часть (до запятой)
         const parts = searchAddress.split(',');
         if (parts.length > 1) {
             searchAddress = parts.slice(0, 2).join(',').trim();
@@ -163,21 +161,134 @@
         console.log(`✂️ Адрес слишком длинный, обрезан до: ${searchAddress}`);
     }
     
-    const addressVariants = [
+    // 🔥 ГЕНЕРИРУЕМ ВАРИАНТЫ АДРЕСА
+    const variants = [
         searchAddress,
         searchAddress.split(',').slice(0, -1).join(',').trim(),
         searchAddress.split(',').slice(0, -2).join(',').trim(),
         searchAddress.split(',').slice(0, 1).join(',').trim()
-    ].filter(a => a && a.length > 0);
+    ];
     
-    const uniqueVariants = [...new Set(addressVariants)];
+    const extraVariants = [];
+    
+    // 🔥 ЕСЛИ ЕСТЬ ДНТ/СНТ — УБИРАЕМ ЕГО И ДОБАВЛЯЕМ УПРОЩЕННЫЕ ВАРИАНТЫ
+    if (address.includes('ДНТ') || address.includes('СНТ') || address.includes('днт') || address.includes('снт') ||
+        address.includes('СН') || address.includes('ДН') || address.includes('ТСН')) {
+        
+        // 1. Убираем ДНТ/СНТ/ТСН полностью
+        let cleanAddress = address
+            .replace(/ДНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/СНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/ТСН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/днт\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/снт\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/тсн\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/ДН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/СН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/дн\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/сн\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .trim();
+        cleanAddress = cleanAddress.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+        
+        if (cleanAddress.length > 5 && cleanAddress !== address) {
+            extraVariants.push(cleanAddress);
+            console.log(`🔄 Вариант без ДНТ/СНТ/ТСН: "${cleanAddress}"`);
+        }
+        
+        // 2. 🔥 УНИВЕРСАЛЬНЫЙ ВАРИАНТ: Город + Улица + Дом (для любого города ЯНАО)
+        // Ищем город (любой город ЯНАО)
+        const cityPatterns = [
+            /г\s*[А-Яа-яЁё\s-]+/i,  // любой город
+            /пгт\s*[А-Яа-яЁё\s-]+/i, // поселок городского типа
+            /п\s*[А-Яа-яЁё\s-]+/i,   // поселок
+            /с\s*[А-Яа-яЁё\s-]+/i,   // село
+            /д\s*[А-Яа-яЁё\s-]+/i,   // деревня
+        ];
+        
+        let cityMatch = null;
+        for (const pattern of cityPatterns) {
+            const match = address.match(pattern);
+            if (match) {
+                cityMatch = match;
+                break;
+            }
+        }
+        
+        // Ищем улицу
+        const streetMatch = address.match(/ул(?:ица)?\.?\s*[А-Яа-яЁё\s-]+/i);
+        
+        // Ищем номер дома
+        const houseMatch = address.match(/д\.?\s*(\d+[А-Яа-я]?)/i);
+        
+        if (cityMatch) {
+            let simpleAddress = cityMatch[0].trim();
+            
+            if (streetMatch) {
+                const street = streetMatch[0].trim();
+                simpleAddress += `, ${street}`;
+            }
+            
+            if (houseMatch) {
+                simpleAddress += `, д.${houseMatch[1]}`;
+            }
+            
+            // Убираем лишние запятые
+            simpleAddress = simpleAddress.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+            
+            if (simpleAddress.length > 5 && !variants.includes(simpleAddress) && !extraVariants.includes(simpleAddress)) {
+                extraVariants.push(simpleAddress);
+                console.log(`🔄 Упрощенный вариант (город + улица + дом): "${simpleAddress}"`);
+            }
+        }
+        
+        // 3. 🔥 ВАРИАНТ: Город + Улица (без номера дома)
+        if (cityMatch && streetMatch) {
+            let simpleAddress = cityMatch[0].trim();
+            const street = streetMatch[0].trim();
+            simpleAddress += `, ${street}`;
+            simpleAddress = simpleAddress.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+            
+            if (simpleAddress.length > 5 && !variants.includes(simpleAddress) && !extraVariants.includes(simpleAddress)) {
+                extraVariants.push(simpleAddress);
+                console.log(`🔄 Упрощенный вариант (город + улица): "${simpleAddress}"`);
+            }
+        }
+        
+        // 4. 🔥 ВАРИАНТ: Только город + номер дома
+        if (cityMatch && houseMatch) {
+            let simpleAddress = cityMatch[0].trim();
+            simpleAddress += `, д.${houseMatch[1]}`;
+            simpleAddress = simpleAddress.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+            
+            if (simpleAddress.length > 5 && !variants.includes(simpleAddress) && !extraVariants.includes(simpleAddress)) {
+                extraVariants.push(simpleAddress);
+                console.log(`🔄 Упрощенный вариант (город + дом): "${simpleAddress}"`);
+            }
+        }
+        
+        // 5. 🔥 ВАРИАНТ: Только улица + дом (для поиска по всей области)
+        if (streetMatch && houseMatch) {
+            let simpleAddress = streetMatch[0].trim();
+            simpleAddress += `, д.${houseMatch[1]}`;
+            simpleAddress = simpleAddress.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+            
+            if (simpleAddress.length > 5 && !variants.includes(simpleAddress) && !extraVariants.includes(simpleAddress)) {
+                extraVariants.push(simpleAddress);
+                console.log(`🔄 Упрощенный вариант (улица + дом): "${simpleAddress}"`);
+            }
+        }
+    }
+    
+    // Объединяем все варианты
+    const allVariants = [...new Set([...variants, ...extraVariants])].filter(a => a && a.length > 5);
+    
+    console.log(`🔍 Вариантов для поиска: ${allVariants.length}`);
+    allVariants.forEach((v, i) => console.log(`  ${i+1}. "${v}"`));
+    
     let allFound = [];
     const seenCadNumbers = new Set();
     
-    for (const variant of uniqueVariants) {
-        // Пропускаем слишком короткие варианты (< 5 символов)
-        if (variant.length < 5) continue;
-        
+    for (const variant of allVariants) {
         const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(variant)}&thematicSearchId=1&limit=200`;
         try {
             const response = await fetch(url, {
@@ -187,13 +298,11 @@
                 }
             });
             
-            // ✅ ОБРАБАТЫВАЕМ 404 КАК "НИЧЕГО НЕ НАЙДЕНО"
             if (!response.ok) {
                 if (response.status === 404) {
                     console.log(`ℹ️ По запросу "${variant}" ничего не найдено (404)`);
-                    continue;  // Просто пропускаем этот вариант
+                    continue;
                 }
-                // Для других ошибок тоже пропускаем
                 console.warn(`⚠️ Ошибка ${response.status} при поиске по "${variant}"`);
                 continue;
             }
@@ -217,13 +326,11 @@
                 }
             }
         } catch (e) {
-            // Логируем, но не прерываем выполнение
             console.warn(`Ошибка поиска по варианту "${variant}":`, e.message);
         }
     }
     return allFound;
 }
-
     // ============================================================
     // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА
     // ============================================================
