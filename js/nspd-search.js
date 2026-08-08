@@ -149,6 +149,7 @@
     // ============================================================
     // ФУНКЦИЯ ПОИСКА ПО АДРЕСУ (ДЛЯ КАСКАДНОГО ПОИСКА)
     // ============================================================
+
 async function searchByAddress(address, param, value) {
     // 🔥 ОЧИЩАЕМ АДРЕС ОТ ЛИШНИХ ПРОБЕЛОВ И ЗАПЯТЫХ
     function cleanAddress(addr) {
@@ -170,10 +171,36 @@ async function searchByAddress(address, param, value) {
     function extractKeywords(addr) {
         const keywords = [];
         
-        // 1. Город
-        const cityMatch = addr.match(/(?:г|пгт|п|с|д|р-н|город|поселок|село|деревня)\s+([А-Яа-яЁё\s-]+)/i);
+        // 1. 🔥 ГОРОД — ищем с "г"/"город" ИЛИ просто по названию
+        let cityMatch = addr.match(/(?:г|пгт|п|с|д|р-н|город|поселок|село|деревня)\s+([А-Яа-яЁё\s-]+)/i);
+        
+        // Если не нашли с префиксом — ищем просто "Новый Уренгой", "Салехард" и т.д.
+        if (!cityMatch) {
+            const cities = [
+                'Новый Уренгой', 'Новыи Уренгой', 
+                'Ноябрьск', 
+                'Салехард', 
+                'Муравленко', 
+                'Надым', 
+                'Губкинский', 
+                'Тарко-Сале', 
+                'Лабытнанги',
+                'Пангоды',
+                'Уренгой'
+            ];
+            for (const city of cities) {
+                const regex = new RegExp(city, 'i');
+                const match = addr.match(regex);
+                if (match) {
+                    cityMatch = match;
+                    break;
+                }
+            }
+        }
+        
         if (cityMatch) {
-            let city = cityMatch[1].trim().replace(/["']/g, '');
+            let city = cityMatch[0]?.trim() || cityMatch[1]?.trim() || cityMatch[0];
+            city = city.replace(/["']/g, '').trim();
             if (city.length > 2) keywords.push(city);
         }
         
@@ -240,11 +267,11 @@ async function searchByAddress(address, param, value) {
         }
     }
     
-    // 3. Вариант из ключевых слов (город + улица + номер)
+    // 3. 🔥 ВАРИАНТ ИЗ КЛЮЧЕВЫХ СЛОВ (город + улица + номер)
     if (keywords.length >= 2) {
         let keywordVariant = '';
         
-        // Ищем город
+        // Ищем город (первое ключевое слово, которое похоже на город)
         let cityIndex = -1;
         const cityKeywords = ['г', 'пгт', 'п', 'с', 'д', 'р-н', 'город', 'поселок', 'село', 'деревня'];
         for (const kw of cityKeywords) {
@@ -253,6 +280,12 @@ async function searchByAddress(address, param, value) {
                 cityIndex = idx;
                 break;
             }
+        }
+        
+        // Если не нашли по префиксу — берем первое слово, которое не улица и не номер
+        if (cityIndex === -1 && keywords.length >= 2) {
+            // Первое слово — город
+            cityIndex = 0;
         }
         
         if (cityIndex !== -1) {
