@@ -150,59 +150,184 @@
     // ФУНКЦИЯ ПОИСКА ПО АДРЕСУ (ДЛЯ КАСКАДНОГО ПОИСКА)
     // ============================================================
 async function searchByAddress(address, param, value) {
-    // 🔥 НЕ ОБРЕЗАЕМ АДРЕС, А ГЕНЕРИРУЕМ ВАРИАНТЫ
     console.log(`📌 Исходный адрес: "${address}"`);
     
-    // 🔥 ГЕНЕРИРУЕМ ВАРИАНТЫ АДРЕСА (постепенно укорачивая)
-    const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ СЛОВА ИЗ АДРЕСА
+    function extractKeywords(addr) {
+        const keywords = [];
+        
+        // 1. Город/населенный пункт
+        const cityMatch = addr.match(/(?:г|пгт|п|с|д|р-н|город|поселок|село|деревня)\s+([А-Яа-яЁё\s-]+)/i);
+        if (cityMatch) {
+            // Очищаем от лишнего
+            let city = cityMatch[1].trim();
+            // Убираем кавычки и лишние пробелы
+            city = city.replace(/["']/g, '').trim();
+            if (city.length > 2) keywords.push(city);
+        }
+        
+        // 2. Улица/проезд/переулок и т.д.
+        const streetPatterns = [
+            /ул(?:ица)?\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /проспект\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /проезд\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /пер(?:еулок)?\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /бульвар\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /наб(?:ережная)?\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /шоссе\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /пл(?:ощадь)?\.?\s+([А-Яа-яЁё\s-]+)/i,
+            /аллея\.?\s+([А-Яа-яЁё\s-]+)/i,
+        ];
+        
+        for (const pattern of streetPatterns) {
+            const match = addr.match(pattern);
+            if (match) {
+                let street = match[1].trim();
+                street = street.replace(/["']/g, '').trim();
+                if (street.length > 2) {
+                    keywords.push(street);
+                    break;
+                }
+            }
+        }
+        
+        // 3. Номер дома или участка
+        const houseMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?)\.?\s*([\d]+[А-Яа-я]?)/i);
+        if (houseMatch) {
+            keywords.push(houseMatch[1].trim());
+        }
+        
+        // 4. Корпус/строение (если есть)
+        const buildingMatch = addr.match(/(?:корп(?:ус)?|строен(?:ие)?|влад(?:ение)?)\.?\s*([\d]+[А-Яа-я]?)/i);
+        if (buildingMatch) {
+            keywords.push('корп.' + buildingMatch[1].trim());
+        }
+        
+        // 5. Квартира/офис (если есть)
+        const apartmentMatch = addr.match(/(?:кв(?:артира)?|офис|помещ(?:ение)?)\.?\s*([\d]+)/i);
+        if (apartmentMatch) {
+            keywords.push('кв.' + apartmentMatch[1].trim());
+        }
+        
+        return keywords;
+    }
     
+    // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ СЛОВА
+    const keywords = extractKeywords(address);
+    console.log(`🔑 Ключевые слова:`, keywords);
+    
+    // 🔥 ФОРМИРУЕМ ВАРИАНТЫ ПОИСКА
     const variants = [];
     
     // 1. Полный адрес
-    variants.push(parts.join(', '));
+    variants.push(address);
     
-    // 2. Постепенно укорачиваем (отбрасываем последние части)
+    // 2. Постепенно укорачиваем (по частям)
+    const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0);
     for (let i = parts.length - 1; i >= 1; i--) {
         const shortened = parts.slice(0, i).join(', ');
-        if (shortened.length > 5) {
+        if (shortened.length > 5 && !variants.includes(shortened)) {
             variants.push(shortened);
         }
     }
     
-    // 3. Только город + улица + дом (если есть)
-    const cityMatch = address.match(/(?:г|пгт|п|с|д|р-н)\s*[А-Яа-яЁё\s-]+/i);
-    const streetMatch = address.match(/(?:ул|проспект|пер|бульвар|наб|шоссе|пл|аллея)\.?\s*[А-Яа-яЁё\s-]+/i);
-    const houseMatch = address.match(/д\.?\s*(\d+[А-Яа-я]?)/i);
-    const buildingMatch = address.match(/(?:корп|строен|влад)\.?\s*(\d+[А-Яа-я]?)/i);
-    const apartmentMatch = address.match(/(?:кв|офис|помещ)\.?\s*(\d+[А-Яа-я]?)/i);
-    
-    let simpleAddress = '';
-    if (cityMatch) simpleAddress += cityMatch[0].trim();
-    if (streetMatch) simpleAddress += (simpleAddress ? ', ' : '') + streetMatch[0].trim();
-    if (houseMatch) simpleAddress += (simpleAddress ? ', ' : '') + `д.${houseMatch[1]}`;
-    if (buildingMatch && !houseMatch) simpleAddress += (simpleAddress ? ', ' : '') + `корп.${buildingMatch[1]}`;
-    
-    if (simpleAddress.length > 5 && !variants.includes(simpleAddress)) {
-        variants.push(simpleAddress);
-        console.log(`🔄 Упрощенный вариант: "${simpleAddress}"`);
-    }
-    
-    // 4. Только улица + дом (если нет города)
-    if (streetMatch && houseMatch) {
-        let streetOnly = streetMatch[0].trim();
-        streetOnly += `, д.${houseMatch[1]}`;
-        if (streetOnly.length > 5 && !variants.includes(streetOnly)) {
-            variants.push(streetOnly);
-            console.log(`🔄 Вариант (улица + дом): "${streetOnly}"`);
+    // 3. 🔥 ВАРИАНТ ИЗ КЛЮЧЕВЫХ СЛОВ (город + улица + номер)
+    if (keywords.length >= 2) {
+        let keywordVariant = '';
+        
+        // Берем город (первое ключевое слово)
+        let cityIndex = -1;
+        const cityKeywords = ['г', 'пгт', 'п', 'с', 'д', 'р-н'];
+        for (const kw of cityKeywords) {
+            const idx = keywords.findIndex(k => k.toLowerCase().includes(kw));
+            if (idx !== -1) {
+                cityIndex = idx;
+                break;
+            }
+        }
+        
+        // Если нашли город — берем его
+        if (cityIndex !== -1) {
+            keywordVariant = keywords[cityIndex];
+            // Добавляем улицу
+            const streetIdx = keywords.findIndex(k => 
+                !k.match(/^\d+$/) && 
+                k !== keywords[cityIndex] &&
+                !k.toLowerCase().includes('корп') &&
+                !k.toLowerCase().includes('кв')
+            );
+            if (streetIdx !== -1) {
+                keywordVariant += ', ' + keywords[streetIdx];
+                // Добавляем номер дома
+                const houseIdx = keywords.findIndex(k => k.match(/^\d+[А-Яа-я]?$/));
+                if (houseIdx !== -1) {
+                    keywordVariant += ', ' + keywords[houseIdx];
+                }
+            }
+        } else {
+            // Если город не найден — берем улицу + номер
+            const streetIdx = keywords.findIndex(k => 
+                !k.match(/^\d+$/) && 
+                !k.toLowerCase().includes('корп') &&
+                !k.toLowerCase().includes('кв')
+            );
+            if (streetIdx !== -1) {
+                keywordVariant = keywords[streetIdx];
+                const houseIdx = keywords.findIndex(k => k.match(/^\d+[А-Яа-я]?$/));
+                if (houseIdx !== -1) {
+                    keywordVariant += ', ' + keywords[houseIdx];
+                }
+            }
+        }
+        
+        if (keywordVariant.length > 5 && !variants.includes(keywordVariant)) {
+            variants.push(keywordVariant);
+            console.log(`🔄 Вариант из ключевых слов: "${keywordVariant}"`);
         }
     }
     
-    // 5. Если есть ДНТ/СНТ — убираем его
-    if (address.includes('ДНТ') || address.includes('СНТ') || address.includes('ТСН')) {
+    // 4. 🔥 ВАРИАНТ: только улица + номер (без города)
+    const streetKeyword = keywords.find(k => 
+        !k.match(/^\d+$/) && 
+        !k.toLowerCase().includes('корп') &&
+        !k.toLowerCase().includes('кв') &&
+        !k.toLowerCase().includes('г') &&
+        !k.toLowerCase().includes('пгт') &&
+        !k.toLowerCase().includes('поселок') &&
+        !k.toLowerCase().includes('село')
+    );
+    const houseKeyword = keywords.find(k => k.match(/^\d+[А-Яа-я]?$/));
+    
+    if (streetKeyword && houseKeyword) {
+        const variant = `${streetKeyword}, ${houseKeyword}`;
+        if (!variants.includes(variant) && variant.length > 5) {
+            variants.push(variant);
+            console.log(`🔄 Вариант (улица + номер): "${variant}"`);
+        }
+    }
+    
+    // 5. 🔥 УДАЛЯЕМ ДНТ/СНТ/ТСН/ДПК ИЗ АДРЕСА
+    const removePatterns = [
+        'ДНТ', 'СНТ', 'ТСН', 'ДПК', 'ДН', 'СН',
+        'днт', 'снт', 'тсн', 'дпк', 'дн', 'сн'
+    ];
+    
+    const hasCooperative = removePatterns.some(p => address.includes(p));
+    
+    if (hasCooperative) {
         let cleanAddress = address
             .replace(/ДНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
             .replace(/СНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
             .replace(/ТСН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/ДПК\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/ДН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/СН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/днт\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/снт\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/тсн\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/дпк\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/дн\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+            .replace(/сн\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
             .trim()
             .replace(/,\s*,/g, ',')
             .replace(/^,\s*/, '')
@@ -210,7 +335,7 @@ async function searchByAddress(address, param, value) {
         
         if (cleanAddress.length > 5 && cleanAddress !== address && !variants.includes(cleanAddress)) {
             variants.push(cleanAddress);
-            console.log(`🔄 Вариант без ДНТ/СНТ/ТСН: "${cleanAddress}"`);
+            console.log(`🔄 Вариант без ДНТ/СНТ/ТСН/ДПК: "${cleanAddress}"`);
         }
     }
     
