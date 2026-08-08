@@ -149,54 +149,80 @@
     // ============================================================
     // ФУНКЦИЯ ПОИСКА ПО АДРЕСУ (ДЛЯ КАСКАДНОГО ПОИСКА)
     // ============================================================
-    async function searchByAddress(address, param, value) {
-        const addressVariants = [
-            address,
-            address.split(',').slice(0, -1).join(',').trim(),
-            address.split(',').slice(0, -2).join(',').trim(),
-            address.split(',').slice(0, 1).join(',').trim()
-        ].filter(a => a && a.length > 0);
-        
-        const uniqueVariants = [...new Set(addressVariants)];
-        let allFound = [];
-        const seenCadNumbers = new Set();
-        
-        for (const variant of uniqueVariants) {
-            const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(variant)}&thematicSearchId=1&limit=200`;
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const features = data?.data?.features || [];
-                    
-                    const filtered = features.filter(f => {
-                        const opts = f.properties?.options || {};
-                        const paramValue = param.getValue(opts);
-                        const cadNumber = getCadNumber(opts, {});
-                        return paramValue > 0 && Math.abs(paramValue - value) <= AREA_TOLERANCE && cadNumber;
-                    });
-                    
-                    for (const f of filtered) {
-                        const opts = f.properties?.options || {};
-                        const cadNumber = getCadNumber(opts, {});
-                        if (cadNumber && !seenCadNumbers.has(cadNumber)) {
-                            seenCadNumbers.add(cadNumber);
-                            allFound.push(f);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn(`Ошибка поиска по варианту "${variant}":`, e.message);
-            }
+ async function searchByAddress(address, param, value) {
+    // Если адрес слишком длинный (> 100 символов) — обрезаем
+    let searchAddress = address;
+    if (searchAddress.length > 100) {
+        // Пробуем взять только первую часть (до запятой)
+        const parts = searchAddress.split(',');
+        if (parts.length > 1) {
+            searchAddress = parts.slice(0, 2).join(',').trim();
+        } else {
+            searchAddress = searchAddress.substring(0, 100);
         }
-        return allFound;
+        console.log(`✂️ Адрес слишком длинный, обрезан до: ${searchAddress}`);
     }
+    
+    const addressVariants = [
+        searchAddress,
+        searchAddress.split(',').slice(0, -1).join(',').trim(),
+        searchAddress.split(',').slice(0, -2).join(',').trim(),
+        searchAddress.split(',').slice(0, 1).join(',').trim()
+    ].filter(a => a && a.length > 0);
+    
+    const uniqueVariants = [...new Set(addressVariants)];
+    let allFound = [];
+    const seenCadNumbers = new Set();
+    
+    for (const variant of uniqueVariants) {
+        // Пропускаем слишком короткие варианты (< 5 символов)
+        if (variant.length < 5) continue;
+        
+        const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(variant)}&thematicSearchId=1&limit=200`;
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            
+            // ✅ ОБРАБАТЫВАЕМ 404 КАК "НИЧЕГО НЕ НАЙДЕНО"
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log(`ℹ️ По запросу "${variant}" ничего не найдено (404)`);
+                    continue;  // Просто пропускаем этот вариант
+                }
+                // Для других ошибок тоже пропускаем
+                console.warn(`⚠️ Ошибка ${response.status} при поиске по "${variant}"`);
+                continue;
+            }
+            
+            const data = await response.json();
+            const features = data?.data?.features || [];
+            
+            const filtered = features.filter(f => {
+                const opts = f.properties?.options || {};
+                const paramValue = param.getValue(opts);
+                const cadNumber = getCadNumber(opts, {});
+                return paramValue > 0 && Math.abs(paramValue - value) <= AREA_TOLERANCE && cadNumber;
+            });
+            
+            for (const f of filtered) {
+                const opts = f.properties?.options || {};
+                const cadNumber = getCadNumber(opts, {});
+                if (cadNumber && !seenCadNumbers.has(cadNumber)) {
+                    seenCadNumbers.add(cadNumber);
+                    allFound.push(f);
+                }
+            }
+        } catch (e) {
+            // Логируем, но не прерываем выполнение
+            console.warn(`Ошибка поиска по варианту "${variant}":`, e.message);
+        }
+    }
+    return allFound;
+}
 
     // ============================================================
     // 🔥 ФУНКЦИИ ДЛЯ МАССОВОГО ПОИСКА
