@@ -153,7 +153,6 @@
 async function searchByAddress(address, param, value) {
     console.log(`📌 Исходный адрес: "${address}"`);
     
-    // 🔥 ОЧИЩАЕМ АДРЕС ОТ ЛИШНИХ ПРОБЕЛОВ И ЗАПЯТЫХ
     function cleanAddress(addr) {
         return addr
             .replace(/\s+/g, ' ')
@@ -162,99 +161,147 @@ async function searchByAddress(address, param, value) {
             .replace(/\s+,/g, ',')
             .replace(/,\s*$/, '')
             .replace(/^\s*,\s*/, '')
-            .replace(/["']/g, '')  // 🔥 УДАЛЯЕМ КАВЫЧКИ!
+            .replace(/["']/g, '')
             .trim();
     }
     
     const cleaned = cleanAddress(address);
     console.log(`🧹 Очищенный адрес: "${cleaned}"`);
     
-    // 🔥 ИЗВЛЕКАЕМ КЛЮЧЕВЫЕ ЭЛЕМЕНТЫ
-  function extractParts(addr) {
-    // 1. Город — извлекаем ТОЛЬКО НАЗВАНИЕ
-    let city = '';
-    
-    // Пробуем найти "город XXX" или "г XXX"
-    const cityMatch = addr.match(/(?:город|г|пгт|п|с|д)\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i);
-    if (cityMatch) {
-        city = cityMatch[1].trim();
-    }
-    
-    // Если не нашли — ищем по списку городов
-    if (!city) {
-        const cities = ['Новый Уренгой', 'Ноябрьск', 'Салехард', 'Муравленко', 'Надым', 'Губкинский', 'Тарко-Сале', 'Лабытнанги'];
-        for (const c of cities) {
-            if (addr.includes(c)) {
-                city = c;
+    function extractParts(addr) {
+        let city = '';
+        let street = '';
+        let number = '';
+        
+        // 🔥 1. ИЗВЛЕКАЕМ ГОРОД (улучшенный поиск)
+        // Пробуем найти "город XXX" или "г XXX" или "г.о. город XXX"
+        const cityPatterns = [
+            /г\.о\.\s*город\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i,
+            /город\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i,
+            /г\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i,
+            /пгт\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i,
+            /п\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i,
+            /с\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i,
+            /д\s+([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$)/i
+        ];
+        
+        for (const pattern of cityPatterns) {
+            const match = addr.match(pattern);
+            if (match) {
+                city = match[1].trim();
                 break;
             }
         }
-    }
-    
-    // 2. Улица/проезд
-    let street = '';
-    const streetMatch = addr.match(/(ул(?:ица)?|проспект|проезд|пер(?:еулок)?|бульвар|наб(?:ережная)?|шоссе|пл(?:ощадь)?|аллея)\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|уч|д)/i);
-    if (streetMatch) {
-        street = streetMatch[1] + ' ' + streetMatch[2].trim();
-    }
-    
-    // 3. Номер
-    let number = '';
-    const numberMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?|дом|участок)\.?\s*([\d]+[А-Яа-я]?)/i);
-    if (numberMatch) {
-        number = numberMatch[1].trim();
-    } else {
-        const simpleMatch = addr.match(/(\d+[А-Яа-я]?)$/);
-        if (simpleMatch) {
-            number = simpleMatch[1].trim();
+        
+        // Если не нашли — ищем по списку городов
+        if (!city) {
+            const cities = ['Новый Уренгой', 'Ноябрьск', 'Салехард', 'Муравленко', 'Надым', 'Губкинский', 'Тарко-Сале', 'Лабытнанги'];
+            for (const c of cities) {
+                if (addr.includes(c)) {
+                    city = c;
+                    break;
+                }
+            }
         }
+        
+        // 🔥 2. ИЗВЛЕКАЕМ УЛИЦУ
+        const streetPatterns = [
+            /ул(?:ица)?\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /проспект\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /проезд\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /пер(?:еулок)?\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /бульвар\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /наб(?:ережная)?\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /шоссе\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /пл(?:ощадь)?\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i,
+            /аллея\.?\s*([А-Яа-яЁё\s-]+?)(?:\s*[,.]|$|д|уч)/i
+        ];
+        
+        for (const pattern of streetPatterns) {
+            const match = addr.match(pattern);
+            if (match) {
+                street = match[1].trim();
+                break;
+            }
+        }
+        
+        // 🔥 3. ИЗВЛЕКАЕМ НОМЕР
+        const numberMatch = addr.match(/(?:д(?:ом)?|уч(?:асток)?|дом|участок)\.?\s*([\d]+[А-Яа-я]?)/i);
+        if (numberMatch) {
+            number = numberMatch[1].trim();
+        } else {
+            const simpleMatch = addr.match(/(\d+[А-Яа-я]?)$/);
+            if (simpleMatch) {
+                number = simpleMatch[1].trim();
+            }
+        }
+        
+        return { city, street, number };
     }
-    
-    return { city, street, number };
-}
     
     const parts = extractParts(cleaned);
     console.log(`🔑 Извлечено: город="${parts.city}", улица="${parts.street}", номер="${parts.number}"`);
     
-    // 🔥 ГЕНЕРИРУЕМ ВАРИАНТЫ
+    // 🔥 ГЕНЕРИРУЕМ ВСЕ ВОЗМОЖНЫЕ ВАРИАНТЫ
     const variants = [];
     
-    // 1. Город + улица + номер (самый точный)
+    // 1. Основные варианты (город + улица + номер)
     if (parts.city && parts.street && parts.number) {
         variants.push(`${parts.city}, ${parts.street}, ${parts.number}`);
-        variants.push(`${parts.city}, ${parts.street}, ${parts.number}`);
         variants.push(`г ${parts.city}, ${parts.street}, ${parts.number}`);
+        variants.push(`г. ${parts.city}, ${parts.street}, ${parts.number}`);
     }
     
     // 2. Город + улица
     if (parts.city && parts.street) {
         variants.push(`${parts.city}, ${parts.street}`);
         variants.push(`г ${parts.city}, ${parts.street}`);
+        variants.push(`г. ${parts.city}, ${parts.street}`);
     }
     
-    // 3. Только улица + номер
+    // 3. Улица + номер
     if (parts.street && parts.number) {
         variants.push(`${parts.street}, ${parts.number}`);
+        variants.push(`${parts.street}, д.${parts.number}`);
+        variants.push(`${parts.street}, уч.${parts.number}`);
     }
     
-    // 4. Полный адрес без кавычек и лишнего
-    let withoutExtra = cleaned
-        .replace(/ДПК\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+    // 4. Только улица (если есть)
+    if (parts.street) {
+        variants.push(parts.street);
+    }
+    
+    // 5. Варианты без ДНТ/СНТ/ТСН/ДПК
+    let withoutCoop = cleaned
+        .replace(/ДНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .replace(/СНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .replace(/ТСН\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
-        .replace(/ДНТ\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
+        .replace(/ДПК\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .replace(/территория\s*["']?[^"',]*["']?\s*,?\s*/gi, '')
         .trim()
         .replace(/,\s*,/g, ',')
         .replace(/^,\s*/, '')
         .replace(/,\s*$/, '');
     
-    if (withoutExtra.length > 5 && withoutExtra !== cleaned) {
-        variants.push(withoutExtra);
+    if (withoutCoop.length > 5 && withoutCoop !== cleaned) {
+        variants.push(withoutCoop);
+        // Также добавляем вариант "город + улица + номер" из очищенного
+        if (parts.city && parts.street && parts.number) {
+            const short = `${parts.city}, ${parts.street}, ${parts.number}`;
+            if (!variants.includes(short)) {
+                variants.push(short);
+            }
+        }
     }
     
-    // 5. Добавляем очищенный адрес
+    // 6. Полный очищенный адрес
     variants.push(cleaned);
+    
+    // 7. Дополнительные варианты: "город + номер"
+    if (parts.city && parts.number) {
+        variants.push(`${parts.city}, ${parts.number}`);
+        variants.push(`г ${parts.city}, ${parts.number}`);
+    }
     
     // Удаляем дубликаты и пустые
     const allVariants = [...new Set(variants)].filter(a => a && a.length > 5);
@@ -265,6 +312,7 @@ async function searchByAddress(address, param, value) {
     let allFound = [];
     const seenCadNumbers = new Set();
     
+    // 🔥 ПРОБУЕМ ВСЕ ВАРИАНТЫ
     for (const variant of allVariants) {
         const url = `https://nspd.gov.ru/api/geoportal/v2/search/geoportal?query=${encodeURIComponent(variant)}&thematicSearchId=1&limit=200`;
         try {
