@@ -1020,32 +1020,33 @@ function processRows(rows) {
             paramOptions += `<option value="${key}">${param.label} (${param.unit})</option>`;
         }
 
-        const html = `
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h2 class="text-xl font-bold text-slate-800 mb-6">Поиск объектов в НСПД</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Адрес / Улица</label>
-                        <input type="text" id="nspd-search-address" 
-                               placeholder="Введите адрес или улицу" 
-                               class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Параметр</label>
-                        <select id="nspd-search-param" 
-                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-white">
-                            ${paramOptions}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Значение</label>
-                        <input type="number" id="nspd-search-value" 
-                               placeholder="Введите значение" 
-                               class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
-                        <span class="text-xs text-slate-400 mt-1 block" id="nspd-search-unit">Допуск ±${AREA_TOLERANCE}</span>
-                    </div>
-                </div>
+const html = `
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-bold text-slate-800 mb-6">Поиск объектов в НСПД</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Адрес / Улица</label>
+                <div class="text-xs text-slate-400 mb-1 flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>💡 Старайтесь вводить точный адрес: <span class="text-slate-500 font-medium">Город/район, улица, номер</span></span>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Параметр</label>
+                <select id="nspd-search-param" 
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-white">
+                    ${paramOptions}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Значение</label>
+                <input type="number" id="nspd-search-value" 
+                       placeholder="Введите значение" 
+                       class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
+                <span class="text-xs text-slate-400 mt-1 block" id="nspd-search-unit">Допуск ±${AREA_TOLERANCE}</span>
+            </div>
+        </div>
 
                 <div class="flex flex-wrap gap-3 mb-4">
                     <button id="nspd-search-btn" 
