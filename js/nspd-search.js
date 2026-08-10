@@ -446,12 +446,24 @@ function extractAllFields(item) {
     }
 
     // 🔥 НАЗНАЧЕНИЕ (для всех объектов)
-    let purpose = opts.purpose || 
+     let purpose = '—';
+    if (isLand) {
+        // Для земельных участков берем land_record_subtype
+        purpose = opts.land_record_subtype || 
+                  item.land_record_subtype || 
+                  opts.purpose || 
+                  item.purpose || 
+                  opts.params_purpose || 
+                  '—';
+    } else {
+        // Для всех остальных объектов
+        purpose = opts.purpose || 
                   item.purpose || 
                   opts.params_purpose || 
                   opts.permitted_use_established_by_document || 
                   item.permitted_use_established_by_document ||
                   '—';
+    }
 
     // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (только для земельных участков)
     let landCategory = '—';
