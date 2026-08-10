@@ -16,16 +16,37 @@
         }
     }
 
-    function saveLocalHistory(data) {
+       function saveLocalHistory(data) {
         try {
             const history = getLocalHistory();
             const timestamp = new Date().toISOString();
+            let addedCount = 0;
             
             data.forEach(row => {
-                history.push({
-                    ...row,
-                    saved_at: timestamp
+                // 🔥 ПРОВЕРКА НА ДУБЛИКАТЫ
+                const isDuplicate = history.some(existing => {
+                    // Проверяем по ключевым полям
+                    const sameAddress = existing.address === row.address;
+                    const sameParam = existing.paramName === row.paramName;
+                    const sameValue = Math.abs(existing.paramValue - row.paramValue) < 0.01;
+                    const sameCadNumber = existing.cadNumber === row.cadNumber;
+                    
+                    // Если кадастровый номер определен, проверяем по нему
+                    if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                        return sameCadNumber;
+                    }
+                    
+                    // Если адрес совпадает, параметр и значение - считаем дубликатом
+                    return sameAddress && sameParam && sameValue;
                 });
+                
+                if (!isDuplicate) {
+                    history.push({
+                        ...row,
+                        saved_at: timestamp
+                    });
+                    addedCount++;
+                }
             });
             
             // Ограничиваем размер (последние 1000 записей)
@@ -34,7 +55,7 @@
             }
             
             localStorage.setItem('nspd_search_history', JSON.stringify(history));
-            console.log('✅ История сохранена локально, всего записей:', history.length);
+            console.log(`✅ История сохранена локально: +${addedCount} новых записей, всего: ${history.length}`);
             return true;
         } catch (e) {
             console.warn('⚠️ Ошибка сохранения локальной истории:', e);
@@ -168,23 +189,33 @@
                     return;
                 }
             } else {
-                // 4. Получаем существующую историю из Gist
+               
                 const gistHistory = await getGistHistory();
                 
-                // 5. Находим новые записи (которых нет в Gist)
+    
                 const existingKeys = new Set();
                 if (gistHistory) {
                     gistHistory.forEach(row => {
                         if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                            existingKeys.add(row.cadNumber + row.address);
+                            // Ключ: кадастровый номер + адрес + параметр + значение
+                            existingKeys.add(row.cadNumber + row.address + row.paramName + row.paramValue);
+                        } else {
+                            // Если нет кадастрового номера, используем адрес + параметр + значение
+                            existingKeys.add(row.address + row.paramName + row.paramValue);
                         }
                     });
                 }
                 
                 const newRecords = localHistory.filter(row => {
-                    const key = (row.cadNumber || '') + (row.address || '');
+                    let key;
+                    if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                        key = row.cadNumber + row.address + row.paramName + row.paramValue;
+                    } else {
+                        key = row.address + row.paramName + row.paramValue;
+                    }
                     return !existingKeys.has(key);
                 });
+
                 
                 if (newRecords.length === 0) {
                     alert('✅ Все записи уже синхронизированы с Gist');
@@ -213,6 +244,7 @@
         }
     }
     // 🔥 ФУНКЦИЯ СОХРАНЕНИЯ В GIST
+    // 🔥 ФУНКЦИЯ СОХРАНЕНИЯ В GIST (С ПРОВЕРКОЙ ДУБЛИКАТОВ)
     async function saveToGist(data) {
         try {
             const timestamp = new Date().toISOString();
@@ -236,17 +268,19 @@
             sql += `    cad_number TEXT,\n`;
             sql += `    object_type TEXT,\n`;
             sql += `    found INTEGER DEFAULT 0,  -- 1 - найден, 0 - не найден\n`;
-            sql += `    raw_data TEXT  -- JSON с полными данными\n`;
+            sql += `    raw_data TEXT,  -- JSON с полными данными\n`;
+            sql += `    UNIQUE(cad_number, address, param_name, param_value)  -- 🔥 УНИКАЛЬНОСТЬ\n`;
             sql += `);\n\n`;
             
-            // Вставляем данные
+            // Вставляем данные с проверкой на дубликаты
             for (const row of data) {
                 const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
                 const cadNumber = row.cadNumber || 'Не определено';
                 const objectType = row.objectView || '—';
                 const rawData = JSON.stringify(row).replace(/'/g, "''");
                 
-                sql += `INSERT INTO nspd_search_history (\n`;
+                // 🔥 ИСПОЛЬЗУЕМ INSERT OR IGNORE ДЛЯ ПРОПУСКА ДУБЛИКАТОВ
+                sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
                 sql += `    search_date, search_type, address, param_name, param_value,\n`;
                 sql += `    cad_number, object_type, found, raw_data\n`;
                 sql += `) VALUES (\n`;
