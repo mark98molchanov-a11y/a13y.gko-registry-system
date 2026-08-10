@@ -4,11 +4,214 @@
     const AREA_TOLERANCE = 0.2;
     const GIST_CONFIG = {
         // 🔥 ЗАМЕНИ НА СВОИ ДАННЫЕ!
-        token: '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',  // Твой GitHub токен
+        token: '',  // Твой GitHub токен
         gistId: '',       // ID существующего Gist или оставь пустым для создания нового
         filename: 'nspd_search_history.sql'
     };
+    function getLocalHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('nspd_search_history') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
 
+    function saveLocalHistory(data) {
+        try {
+            const history = getLocalHistory();
+            const timestamp = new Date().toISOString();
+            
+            data.forEach(row => {
+                history.push({
+                    ...row,
+                    saved_at: timestamp
+                });
+            });
+            
+            // Ограничиваем размер (последние 1000 записей)
+            if (history.length > 1000) {
+                history.splice(0, history.length - 1000);
+            }
+            
+            localStorage.setItem('nspd_search_history', JSON.stringify(history));
+            console.log('✅ История сохранена локально, всего записей:', history.length);
+            return true;
+        } catch (e) {
+            console.warn('⚠️ Ошибка сохранения локальной истории:', e);
+            return false;
+        }
+    }
+
+    // 🔥 ПОЛУЧЕНИЕ ПОСЛЕДНИХ ЗАПИСЕЙ ИЗ GIST
+    async function getGistHistory() {
+        if (!GIST_CONFIG.token || !GIST_CONFIG.gistId) {
+            console.warn('⚠️ Токен или Gist ID не настроены');
+            return null;
+        }
+        
+        try {
+            const url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${GIST_CONFIG.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const content = data.files?.[GIST_CONFIG.filename]?.content || '';
+            
+            // Парсим SQL в массив объектов
+            const history = parseSQLToArray(content);
+            console.log(`📥 Загружено ${history.length} записей из Gist`);
+            return history;
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки из Gist:', error);
+            return null;
+        }
+    }
+
+    // 🔥 ПАРСИНГ SQL В МАССИВ ОБЪЕКТОВ
+    function parseSQLToArray(sqlContent) {
+        const history = [];
+        const lines = sqlContent.split('\n');
+        let inInsert = false;
+        let values = [];
+        
+        for (const line of lines) {
+            if (line.includes('INSERT INTO nspd_search_history')) {
+                inInsert = true;
+                values = [];
+                continue;
+            }
+            
+            if (inInsert && line.includes(');')) {
+                inInsert = false;
+                if (values.length >= 8) {
+                    history.push({
+                        searchType: values[1]?.replace(/'/g, '') || 'single',
+                        address: values[2]?.replace(/'/g, '') || '',
+                        paramName: values[3]?.replace(/'/g, '') || '',
+                        paramValue: parseFloat(values[4]) || 0,
+                        cadNumber: values[5]?.replace(/'/g, '') || 'Не определено',
+                        objectView: values[6]?.replace(/'/g, '') || '—',
+                        found: parseInt(values[7]) || 0,
+                        saved_at: values[0]?.replace(/'/g, '') || new Date().toISOString()
+                    });
+                }
+                continue;
+            }
+            
+            if (inInsert) {
+                const matches = line.match(/'([^']*)'|(\d+\.?\d*)/g);
+                if (matches) {
+                    matches.forEach(m => {
+                        values.push(m);
+                    });
+                }
+            }
+        }
+        
+        return history;
+    }
+
+    // 🔥 СИНХРОНИЗАЦИЯ ЛОКАЛЬНЫХ ЛОГОВ С GIST
+    async function syncLocalToGist() {
+        const syncBtn = document.getElementById('nspd-sync-gist');
+        const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
+        
+        try {
+            // Меняем состояние кнопки
+            if (syncBtn) {
+                syncBtn.innerHTML = `
+                    <svg class="animate-spin h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Синхронизация...
+                `;
+                syncBtn.disabled = true;
+            }
+            
+            // 1. Получаем локальную историю
+            const localHistory = getLocalHistory();
+            if (localHistory.length === 0) {
+                alert('📭 Нет локальных записей для синхронизации');
+                return;
+            }
+            
+            console.log(`📊 Локальных записей: ${localHistory.length}`);
+            
+            // 2. Проверяем токен
+            if (!GIST_CONFIG.token) {
+                const token = prompt('Введите GitHub токен (права на Gist):');
+                if (!token) return;
+                GIST_CONFIG.token = token;
+                localStorage.setItem('github_token', token);
+            }
+            
+            // 3. Проверяем Gist ID
+            if (!GIST_CONFIG.gistId) {
+                // Создаем новый Gist
+                const result = await saveToGist(localHistory);
+                if (result && result.id) {
+                    GIST_CONFIG.gistId = result.id;
+                    localStorage.setItem('gist_id', result.id);
+                    alert(`✅ Gist создан! ID: ${result.id}`);
+                } else {
+                    alert('❌ Не удалось создать Gist');
+                    return;
+                }
+            } else {
+                // 4. Получаем существующую историю из Gist
+                const gistHistory = await getGistHistory();
+                
+                // 5. Находим новые записи (которых нет в Gist)
+                const existingKeys = new Set();
+                if (gistHistory) {
+                    gistHistory.forEach(row => {
+                        if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                            existingKeys.add(row.cadNumber + row.address);
+                        }
+                    });
+                }
+                
+                const newRecords = localHistory.filter(row => {
+                    const key = (row.cadNumber || '') + (row.address || '');
+                    return !existingKeys.has(key);
+                });
+                
+                if (newRecords.length === 0) {
+                    alert('✅ Все записи уже синхронизированы с Gist');
+                    return;
+                }
+                
+                console.log(`📤 Новых записей для отправки: ${newRecords.length}`);
+                
+                // 6. Отправляем новые записи в Gist
+                const result = await saveToGist(newRecords);
+                if (result) {
+                    alert(`✅ Синхронизация завершена! Отправлено ${newRecords.length} записей`);
+                    console.log('✅ Синхронизация завершена:', result.html_url);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации:', error);
+            alert('❌ Ошибка синхронизации: ' + error.message);
+        } finally {
+            // Восстанавливаем кнопку
+            if (syncBtn) {
+                syncBtn.innerHTML = originalText;
+                syncBtn.disabled = false;
+            }
+        }
+    }
     // 🔥 ФУНКЦИЯ СОХРАНЕНИЯ В GIST
     async function saveToGist(data) {
         try {
@@ -1098,8 +1301,15 @@ function processRows(rows) {
                             });
                         });
                         
-                        if (typeof saveToGist === 'function' && historyData.length > 0) {
-                            await saveToGist(historyData);
+                                             saveLocalHistory(historyData);
+                        
+                        // Если есть токен и Gist ID, пробуем сохранить в Gist
+                        if (GIST_CONFIG.token && GIST_CONFIG.gistId && historyData.length > 0) {
+                            try {
+                                await saveToGist(historyData);
+                            } catch (e) {
+                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
+                            }
                         }
                     } catch (e) {
                         console.debug('⚠️ Не удалось сохранить историю:', e.message);
@@ -1245,7 +1455,7 @@ function processRows(rows) {
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-3 mb-4">
+                               <div class="flex flex-wrap gap-3 mb-4">
                     <button id="nspd-search-btn" 
                             class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1277,6 +1487,14 @@ function processRows(rows) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         Экспорт в Excel
+                    </button>
+
+                    <button id="nspd-sync-gist" 
+                            class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2" style="display:none;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Обновить SQL в Gist
                     </button>
                 </div>
 
@@ -1854,8 +2072,15 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                         }
                         
                         // Сохраняем в Gist (асинхронно, не блокируя UI)
-                        if (typeof saveToGist === 'function') {
-                            await saveToGist(historyData);
+                               saveLocalHistory(historyData);
+                        
+                        // Если есть токен и Gist ID, пробуем сохранить в Gist
+                        if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
+                            try {
+                                await saveToGist(historyData);
+                            } catch (e) {
+                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
+                            }
                         }
                     } catch (e) {
                         // Тихо логируем ошибку, не мешая пользователю
@@ -1872,7 +2097,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
         addressInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(resultsContainer); });
         valueInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(resultsContainer); });
 
-        const downloadBtn = document.getElementById('nspd-download-template');
+               const downloadBtn = document.getElementById('nspd-download-template');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', downloadTemplate);
         }
@@ -1891,6 +2116,18 @@ displayMassResults(candidates, [], resultsContainer, param.label);
         const exportBtn = document.getElementById('nspd-export-results');
         if (exportBtn) {
             exportBtn.addEventListener('click', exportResults);
+        }
+
+        // 🔥 КНОПКА СИНХРОНИЗАЦИИ
+        const syncBtn = document.getElementById('nspd-sync-gist');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', syncLocalToGist);
+        }
+        
+        // Показываем кнопку синхронизации только если есть локальная история
+        const localHistory = getLocalHistory();
+        if (localHistory.length > 0 && syncBtn) {
+            syncBtn.style.display = 'inline-flex';
         }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
