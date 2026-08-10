@@ -2692,5 +2692,31 @@ function processRows(rows) {
             }
         }
     }
+       function tryInitNSPD(containerId) {
+        const container = document.getElementById(containerId);
+        if (container && typeof window.initNSPDSearch === 'function') {
+            console.log('✅ Контейнер найден, инициализируем НСПД');
+            window.initNSPDSearch(containerId);
+            return true;
+        }
+        return false;
+    }
+    
+    if (!tryInitNSPD('nspd-search')) {
+        console.log('⏳ Контейнер еще не создан, ждем...');
+        const observer = new MutationObserver(function() {
+            if (tryInitNSPD('nspd-search')) {
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        setTimeout(function() {
+            if (!tryInitNSPD('nspd-search')) {
+                console.warn('⚠️ Контейнер так и не найден');
+            }
+        }, 5000);
+    }
+
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
