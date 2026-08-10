@@ -1453,9 +1453,9 @@ function processRows(rows) {
                     } catch (e) {
                         console.debug('⚠️ Ошибка сохранения:', e.message);
                     }
-                })();
-             }                
-        } else {
+                })();  // ← ТОЛЬКО ЭТА ЗАКРЫВАЮЩАЯ!
+                
+        } else {  // ← else от if (container)
             attempts++;
             if (attempts < maxAttempts) {
                 setTimeout(waitForContainer, 100);
