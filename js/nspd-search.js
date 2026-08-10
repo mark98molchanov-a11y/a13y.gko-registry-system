@@ -232,7 +232,6 @@
                     if (getResponse.ok) {
                         const gistData = await getResponse.json();
                         existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
-                        // Парсим существующие записи для проверки дубликатов
                         existingHistory = parseSQLToArray(existingContent);
                         console.log(`📥 В Gist уже есть ${existingHistory.length} записей`);
                     }
@@ -244,11 +243,13 @@
             // 2. ФОРМИРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (без дубликатов)
             const existingKeys = new Set();
             existingHistory.forEach(row => {
+                // 🔥 ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ cadNumber + address + paramName + paramValue
+                // БЕЗ saved_at, потому что он может меняться
                 let key;
                 if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                    key = row.cadNumber + row.address + row.paramName + row.paramValue;
+                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
                 } else {
-                    key = row.address + row.paramName + row.paramValue;
+                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
                 }
                 existingKeys.add(key);
             });
@@ -257,9 +258,9 @@
             const newData = data.filter(row => {
                 let key;
                 if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                    key = row.cadNumber + row.address + row.paramName + row.paramValue;
+                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
                 } else {
-                    key = row.address + row.paramName + row.paramValue;
+                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
                 }
                 return !existingKeys.has(key);
             });
@@ -276,7 +277,6 @@
             newSql += `-- НСПД: НОВЫЕ ЗАПИСИ (добавлены ${dateStr} ${timeStr})\n`;
             newSql += `-- ===========================================\n\n`;
             
-            // Проверяем, есть ли CREATE TABLE в существующем содержимом
             if (!existingContent.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
                 newSql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
                 newSql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
@@ -323,12 +323,12 @@
             newSql += `-- ===========================================\n`;
             
             // 4. ОБЪЕДИНЯЕМ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ + НОВЫЕ ДАННЫЕ
-            // Удаляем старые INSERT-ы, чтобы не было дублирования
             let cleanExisting = existingContent;
-            // Удаляем все INSERT INTO ... VALUES, чтобы оставить только CREATE TABLE и комментарии
-            const insertRegex = /INSERT\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
+            // Удаляем старые INSERT-ы
+            const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
             cleanExisting = cleanExisting.replace(insertRegex, '');
-            // Удаляем лишние пустые строки
+            // Удаляем комментарии о новых записях
+            cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
             cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
             
             // Если в существующем содержимом нет CREATE TABLE, добавляем его
@@ -356,7 +356,7 @@
             // Добавляем новые данные в конец
             finalContent = finalContent + '\n' + newSql;
             
-            // 5. ОТПРАВЛЯЕМ В GIST (PATCH - обновляем файл)
+            // 5. ОТПРАВЛЯЕМ В GIST
             const url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
             
             const body = {
