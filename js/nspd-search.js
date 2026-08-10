@@ -364,12 +364,13 @@ function extractAllFields(item) {
     const opts = data.opts || {};
     const props = data.props || {};
 
-    // ✅ ТИП ОБЪЕКТА (приоритет: item → props → opts)
-    const objectType = item.object_type || 
-                       item.type || 
-                       props.categoryName || 
+    // ✅ ТИП ОБЪЕКТА (приоритет: props.categoryName → opts → item)
+    const objectType = props.categoryName || 
                        opts.categoryName || 
                        opts.object_type_value || 
+                       opts.type || 
+                       item.object_type || 
+                       item.type || 
                        '';
     
     // ✅ ПРОВЕРКА НА ЗЕМЕЛЬНЫЙ УЧАСТОК
@@ -392,22 +393,22 @@ function extractAllFields(item) {
     }
 
     // ✅ НАИМЕНОВАНИЕ
-    let objectName = item.object_name || 
+    let objectName = opts.building_name || 
                      opts.params_name || 
                      opts.name || 
-                     opts.building_name || 
+                     item.object_name || 
                      opts.params_type || 
                      objectType || 
                      '';
 
-    // ✅ ВИД ОБЪЕКТА (используем opts.land_record_type для земельных участков)
-    let objectView = item.object_type || 
-                     item.type || 
-                     opts.type || 
-                     opts.object_type_value || 
-                     opts.land_record_type || 
-                     props.categoryName || 
+    // ✅ ВИД ОБЪЕКТА (приоритет: props.categoryName → opts.land_record_type → остальное)
+    let objectView = props.categoryName ||   // 🔥 ПЕРВЫЙ ПРИОРИТЕТ для зданий!
                      opts.categoryName || 
+                     opts.land_record_type || 
+                     opts.object_type_value || 
+                     opts.type || 
+                     item.object_type || 
+                     item.type || 
                      '—';
     if (isLand && (objectView === '—' || objectView === '')) {
         objectView = 'Земельный участок';
@@ -419,7 +420,7 @@ function extractAllFields(item) {
     const volumeValue = item.params_volume || opts.params_volume || opts.volume || 0;
     const landAreaValue = item.specified_area || opts.land_record_area || opts.specified_area || 0;
     const depthValue = item.params_depth || opts.params_depth || opts.depth || 0;
-    const address = item.address || opts.readable_address || opts.address_readable_address || props.descr || '';
+    const address = opts.readable_address || opts.address_readable_address || props.descr || item.address || '';
     
     const determinationCouse = opts.determination_couse || item.determination_couse || props.determination_couse || '';
 
@@ -431,10 +432,10 @@ function extractAllFields(item) {
                       parseFloat(opts.build_record_area) || 0;
     }
 
-    // 🔥 ВРИ (приоритет: permitted_use_established_by_document → permitted_uses_name → purpose)
+    // 🔥 ВРИ (только для земельных участков)
     let vri = '—';
     if (isLand) {
-        vri = opts.permitted_use_established_by_document ||  // 🔥 ПЕРВЫЙ ПРИОРИТЕТ!
+        vri = opts.permitted_use_established_by_document || 
               item.permitted_use_established_by_document ||
               opts.permitted_uses_name || 
               item.permitted_uses_name || 
@@ -444,18 +445,18 @@ function extractAllFields(item) {
               '—';
     }
 
-    // 🔥 НАЗНАЧЕНИЕ (приоритет: purpose → permitted_use_established_by_document)
+    // 🔥 НАЗНАЧЕНИЕ (для всех объектов)
     let purpose = opts.purpose || 
                   item.purpose || 
                   opts.params_purpose || 
-                  opts.permitted_use_established_by_document ||  // 🔥 ДОБАВЛЯЕМ!
+                  opts.permitted_use_established_by_document || 
                   item.permitted_use_established_by_document ||
                   '—';
 
-    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (приоритет: opts → props → item)
+    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (только для земельных участков)
     let landCategory = '—';
     if (isLand) {
-        landCategory = opts.land_record_category_type ||   // 🔥 ПЕРВЫЙ ПРИОРИТЕТ!
+        landCategory = opts.land_record_category_type || 
                        props.land_record_category_type || 
                        item.land_record_category_type || 
                        opts.categoryName || 
@@ -470,8 +471,17 @@ function extractAllFields(item) {
                             item.parent_cad_number || 
                             '—';
 
-    const status = opts.common_data_status || opts.status || item.status || '—';
-    const ownershipType = opts.ownership_type || item.ownership_type || '—';
+    // 🔥 СТАТУС (приоритет: status → common_data_status)
+    const status = opts.status || 
+                   opts.common_data_status || 
+                   item.status || 
+                   '—';
+
+    // 🔥 ФОРМА СОБСТВЕННОСТИ (обрабатываем null)
+    const ownershipType = (opts.ownership_type !== null && opts.ownership_type !== undefined) 
+                          ? opts.ownership_type 
+                          : (item.ownership_type || '—');
+    
     const yearBuilt = opts.year_built || opts.params_year_built || item.year_built || '—';
     const registrationDate = opts.registration_date || opts.build_record_registration_date || opts.land_record_reg_date || item.registration_date || '—';
     const materials = opts.materials || opts.wall_material || props.materials || '—';
