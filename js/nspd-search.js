@@ -2,6 +2,136 @@
     console.log('🚀 Загрузка модуля поиска НСПД...');
 
     const AREA_TOLERANCE = 0.2;
+    const GIST_CONFIG = {
+        // 🔥 ЗАМЕНИ НА СВОИ ДАННЫЕ!
+        token: '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',  // Твой GitHub токен
+        gistId: '',       // ID существующего Gist или оставь пустым для создания нового
+        filename: 'nspd_search_history.sql'
+    };
+
+    // 🔥 ФУНКЦИЯ СОХРАНЕНИЯ В GIST
+    async function saveToGist(data) {
+        try {
+            const timestamp = new Date().toISOString();
+            const dateStr = new Date().toISOString().split('T')[0];
+            const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
+            
+            // Формируем SQL-запрос
+            let sql = `-- ===========================================\n`;
+            sql += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
+            sql += `-- Дата: ${timestamp}\n`;
+            sql += `-- ===========================================\n\n`;
+            
+            // Создаем таблицу, если её нет
+            sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+            sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+            sql += `    search_date TEXT NOT NULL,\n`;
+            sql += `    search_type TEXT NOT NULL,  -- 'single' или 'mass'\n`;
+            sql += `    address TEXT NOT NULL,\n`;
+            sql += `    param_name TEXT,\n`;
+            sql += `    param_value REAL,\n`;
+            sql += `    cad_number TEXT,\n`;
+            sql += `    object_type TEXT,\n`;
+            sql += `    found INTEGER DEFAULT 0,  -- 1 - найден, 0 - не найден\n`;
+            sql += `    raw_data TEXT  -- JSON с полными данными\n`;
+            sql += `);\n\n`;
+            
+            // Вставляем данные
+            for (const row of data) {
+                const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
+                const cadNumber = row.cadNumber || 'Не определено';
+                const objectType = row.objectView || '—';
+                const rawData = JSON.stringify(row).replace(/'/g, "''");
+                
+                sql += `INSERT INTO nspd_search_history (\n`;
+                sql += `    search_date, search_type, address, param_name, param_value,\n`;
+                sql += `    cad_number, object_type, found, raw_data\n`;
+                sql += `) VALUES (\n`;
+                sql += `    '${timestamp}',\n`;
+                sql += `    '${row.searchType || 'single'}',\n`;
+                sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+                sql += `    '${row.paramName || ''}',\n`;
+                sql += `    ${row.paramValue || 0},\n`;
+                sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+                sql += `    '${objectType.replace(/'/g, "''")}',\n`;
+                sql += `    ${found},\n`;
+                sql += `    '${rawData}'\n`;
+                sql += `);\n\n`;
+            }
+            
+            // Добавляем статистику
+            const totalFound = data.filter(r => r.cadNumber && r.cadNumber !== 'Не определено').length;
+            const totalNotFound = data.length - totalFound;
+            
+            sql += `-- ===========================================\n`;
+            sql += `-- СТАТИСТИКА:\n`;
+            sql += `-- Всего запросов: ${data.length}\n`;
+            sql += `-- Найдено: ${totalFound}\n`;
+            sql += `-- Не найдено: ${totalNotFound}\n`;
+            sql += `-- ===========================================\n`;
+            
+            // Отправляем в Gist
+            const url = GIST_CONFIG.gistId 
+                ? `https://api.github.com/gists/${GIST_CONFIG.gistId}`
+                : 'https://api.github.com/gists';
+            
+            const method = GIST_CONFIG.gistId ? 'PATCH' : 'POST';
+            
+            // Получаем текущее содержимое, если gistId указан
+            let currentContent = '';
+            if (GIST_CONFIG.gistId) {
+                try {
+                    const getResponse = await fetch(url, {
+                        headers: {
+                            'Authorization': `token ${GIST_CONFIG.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    if (getResponse.ok) {
+                        const gistData = await getResponse.json();
+                        currentContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
+                    }
+                } catch (e) {
+                    console.warn('Не удалось получить текущее содержимое Gist:', e);
+                }
+            }
+            
+            // Добавляем новый SQL к существующему
+            const newContent = currentContent + '\n' + sql;
+            
+            const body = {
+                description: `НСПД история запросов ${dateStr} ${timeStr}`,
+                public: false,
+                files: {
+                    [GIST_CONFIG.filename]: {
+                        content: newContent
+                    }
+                }
+            };
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Authorization': `token ${GIST_CONFIG.token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify(body)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ История сохранена в Gist:', result.html_url);
+            return result;
+            
+        } catch (error) {
+            console.error('❌ Ошибка сохранения в Gist:', error);
+            return null;
+        }
+    }
 
     // 🔥 ПАРАМЕТРЫ ДЛЯ ПОИСКА (ПЕРЕКЛЮЧАТЕЛЬ)
     const SEARCH_PARAMS = {
@@ -940,8 +1070,49 @@ function processRows(rows) {
                 
                 // 🔥 ПЕРЕДАЕМ НЕНАЙДЕННЫЕ ОБЪЕКТЫ В displayMassResults
                 const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
-                displayMassResults(allResults, notFoundItems, container, searchParamLabel);
-            })();
+                               displayMassResults(allResults, notFoundItems, container, searchParamLabel);
+
+                // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (массовый запрос) - НЕ БЛОКИРУЕТ ОТОБРАЖЕНИЕ
+                (async function() {
+                    try {
+                        const historyData = [];
+                        
+                        // Добавляем найденные объекты
+                        allResults.forEach(item => {
+                            const fields = extractAllFields(item);
+                            historyData.push({
+                                searchType: 'mass',
+                                address: fields['Адрес'] || '—',
+                                paramName: searchParamLabel || '—',
+                                paramValue: 0,
+                                cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                                objectView: fields['Вид объекта'] || '—',
+                                found: 1
+                            });
+                        });
+                        
+                        // Добавляем ненайденные
+                        notFoundItems.forEach(item => {
+                            historyData.push({
+                                searchType: 'mass',
+                                address: item.address || '—',
+                                paramName: item.paramLabel || '—',
+                                paramValue: item.paramValue || 0,
+                                cadNumber: 'Не определено',
+                                objectView: '—',
+                                found: 0
+                            });
+                        });
+                        
+                        // Сохраняем в Gist (асинхронно, не блокируя UI)
+                        if (typeof saveToGist === 'function' && historyData.length > 0) {
+                            await saveToGist(historyData);
+                        }
+                    } catch (e) {
+                        // Тихо логируем ошибку, не мешая пользователю
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                    }
+                })();
         } else {
             attempts++;
             if (attempts < maxAttempts) {
@@ -1656,6 +1827,46 @@ function processRows(rows) {
                 `;
 
 displayMassResults(candidates, [], resultsContainer, param.label);
+                  (async function() {
+                    try {
+                        const historyData = [];
+                        
+                        if (candidates.length > 0) {
+                            // Добавляем найденные объекты
+                            candidates.forEach(item => {
+                                const fields = extractAllFields(item);
+                                historyData.push({
+                                    searchType: 'single',
+                                    address: address,
+                                    paramName: param.label,
+                                    paramValue: value,
+                                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                                    objectView: fields['Вид объекта'] || '—',
+                                    found: 1
+                                });
+                            });
+                        } else {
+                            // Если ничего не найдено, добавляем запись с "Не определено"
+                            historyData.push({
+                                searchType: 'single',
+                                address: address,
+                                paramName: param.label,
+                                paramValue: value,
+                                cadNumber: 'Не определено',
+                                objectView: '—',
+                                found: 0
+                            });
+                        }
+                        
+                        // Сохраняем в Gist (асинхронно, не блокируя UI)
+                        if (typeof saveToGist === 'function') {
+                            await saveToGist(historyData);
+                        }
+                    } catch (e) {
+                        // Тихо логируем ошибку, не мешая пользователю
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                    }
+                })();
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: ${error.message}</div>`;
