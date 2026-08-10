@@ -5,7 +5,7 @@
     const GIST_CONFIG = {
         // 🔥 ЗАМЕНИ НА СВОИ ДАННЫЕ!
         token: '',  // Твой GitHub токен
-        gistId: 'bc41846b7ac1f0f10eda5199342352a3',       
+        gistId: '',       
         filename: 'nspd_search_history.sql'
     };
     function getLocalHistory() {
