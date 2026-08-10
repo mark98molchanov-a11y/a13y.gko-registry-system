@@ -12,63 +12,7 @@
         repo: 'mark98molchanov-a11y/a13y.gko-registry-system',  // ТВОЙ РЕПОЗИТОРИЙ
         label: 'nspd-search-log'  // МЕТКА ДЛЯ ПОИСКА
     };
-    function getLocalHistory() {
-        try {
-            return JSON.parse(localStorage.getItem('nspd_search_history') || '[]');
-        } catch (e) {
-            return [];
-        }
-    }
-
-       function saveLocalHistory(data) {
-        try {
-            const history = getLocalHistory();
-            const timestamp = new Date().toISOString();
-            let addedCount = 0;
-            за
-            data.forEach(row => {
-                // 🔥 ПРОВЕРКА НА ДУБЛИКАТЫ
-                const isDuplicate = history.some(existing => {
-                    // Проверяем по ключевым полям
-                    const sameAddress = existing.address === row.address;
-                    const sameParam = existing.paramName === row.paramName;
-                    const sameValue = Math.abs(existing.paramValue - row.paramValue) < 0.01;
-                    const sameCadNumber = existing.cadNumber === row.cadNumber;
-                    
-                    // Если кадастровый номер определен, проверяем по нему
-                    if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                        return sameCadNumber;
-                    }
-                    
-                    // Если адрес совпадает, параметр и значение - считаем дубликатом
-                    return sameAddress && sameParam && sameValue;
-                });
-                
-                if (!isDuplicate) {
-                    history.push({
-                        ...row,
-                        saved_at: timestamp
-                    });
-                    addedCount++;
-                }
-            });
-            
-            // Ограничиваем размер (последние 1000 записей)
-            if (history.length > 1000) {
-                history.splice(0, history.length - 1000);
-            }
-            
-            localStorage.setItem('nspd_search_history', JSON.stringify(history));
-            console.log(`✅ История сохранена локально: +${addedCount} новых записей, всего: ${history.length}`);
-            return true;
-        } catch (e) {
-            console.warn('⚠️ Ошибка сохранения локальной истории:', e);
-            return false;
-        }
-    }
-
-    // 🔥 ПОЛУЧЕНИЕ ПОСЛЕДНИХ ЗАПИСЕЙ ИЗ GIST
-    async function getGistHistory() {
+    async function getGistData() {
         if (!GIST_CONFIG.token || !GIST_CONFIG.gistId) {
             console.warn('⚠️ Токен или Gist ID не настроены');
             return null;
@@ -144,7 +88,7 @@
         
         return history;
     }
-         async function syncLocalToGist() {
+           async function syncLocalToGist() {
         const syncBtn = document.getElementById('nspd-sync-gist');
         const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
         
@@ -160,28 +104,30 @@
                 syncBtn.disabled = true;
             }
             
-            // Получаем локальную историю
-            const localHistory = getLocalHistory();
-            if (localHistory.length === 0) {
-                alert('📭 Нет локальных записей для синхронизации');
+            // 🔥 ПРОВЕРЯЕМ ТОКЕН
+            if (!GIST_CONFIG.token) {
+                const token = prompt('Введите GitHub токен (права на Gist):');
+                if (!token) {
+                    alert('❌ Токен не введен. Синхронизация отменена.');
+                    return;
+                }
+                GIST_CONFIG.token = token;
+                console.log('✅ Токен введен');
+            }
+            
+            // 🔥 ЗАГРУЖАЕМ ДАННЫЕ ИЗ GIST
+            const existingHistory = await getGistData();
+            if (!existingHistory || existingHistory.length === 0) {
+                alert('📭 В Gist нет данных для синхронизации. Сначала выполните поиск.');
                 return;
             }
             
-            console.log(`📊 Локальных записей: ${localHistory.length}`);
-            
-            // 🔥 ВСЕГДА ЗАПРАШИВАЕМ ТОКЕН (НЕ СОХРАНЯЕМ В localStorage)
-            const token = prompt('Введите GitHub токен (права на Gist):');
-            if (!token) {
-                alert('❌ Токен не введен. Синхронизация отменена.');
-                return;
-            }
-            GIST_CONFIG.token = token;
-            console.log('✅ Токен введен');
+            console.log(`📊 В Gist найдено ${existingHistory.length} записей`);
             
             // 🔥 ПРОВЕРЯЕМ GIST ID - если пустой, создаем новый
             if (!GIST_CONFIG.gistId) {
                 // Создаем новый Gist
-                const result = await saveToGist(localHistory, true);
+                const result = await saveToGist(existingHistory, true);
                 if (result && result.id) {
                     GIST_CONFIG.gistId = result.id;
                     alert(`✅ Gist создан! ID: ${result.id}\nСкопируйте этот ID и вставьте в код в GIST_CONFIG.gistId`);
@@ -193,10 +139,12 @@
             }
             
             // 🔥 ВЫЗЫВАЕМ saveToGist ДЛЯ ОБНОВЛЕНИЯ
-            const result = await saveToGist(localHistory, false);
-            if (result) {
-                alert(`✅ Синхронизация завершена!`);
+            const result = await saveToGist(existingHistory, false);
+            if (result && result.added > 0) {
+                alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} новых записей\nВсего в Gist: ${result.total}`);
                 console.log('✅ Синхронизация завершена:', result.html_url);
+            } else if (result && result.added === 0) {
+                alert('ℹ️ Нет новых записей для синхронизации');
             } else {
                 alert('❌ Ошибка синхронизации');
             }
@@ -1450,7 +1398,7 @@ function processRows(rows) {
                 const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
                 displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
-                // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (массовый запрос)
+                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!) — МАССОВЫЙ ЗАПРОС
                 (async function() {
                     try {
                         const historyData = [];
@@ -1480,23 +1428,33 @@ function processRows(rows) {
                             });
                         });
                         
-                                             saveLocalHistory(historyData);
-                        
-                        // Если есть токен и Gist ID, пробуем сохранить в Gist
-                        if (GIST_CONFIG.token && GIST_CONFIG.gistId && historyData.length > 0) {
-                            try {
-                                await saveToGist(historyData);
-                            } catch (e) {
-                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
+                        // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
+                        if (historyData && historyData.length > 0) {
+                            // Проверяем токен
+                            if (!GIST_CONFIG.token) {
+                                const token = prompt('Введите GitHub токен (права на Gist):');
+                                if (token) {
+                                    GIST_CONFIG.token = token;
+                                } else {
+                                    console.log('ℹ️ Токен не введен, данные не сохранены');
+                                    return;
+                                }
+                            }
+                            
+                            // Сохраняем в Gist с проверкой дубликатов
+                            const result = await saveToGist(historyData, false);
+                            if (result && result.added > 0) {
+                                console.log(`✅ Добавлено ${result.added} записей в Gist (массовый импорт)`);
+                            } else if (result && result.added === 0) {
+                                console.log('ℹ️ Нет новых записей для добавления (массовый импорт)');
                             }
                         }
+                        
                     } catch (e) {
-                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                        console.debug('⚠️ Ошибка сохранения:', e.message);
                     }
                 })();
-                
-            })();  // 🔥 ВОТ ЭТУ СКОБКУ ТЫ ПОТЕРЯЛ!
-            
+                           
         } else {
             attempts++;
             if (attempts < maxAttempts) {
@@ -2226,7 +2184,9 @@ function processRows(rows) {
                 `;
 
 displayMassResults(candidates, [], resultsContainer, param.label);
-                  (async function() {
+                
+                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
+                (async function() {
                     try {
                         const historyData = [];
                         
@@ -2257,31 +2217,39 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                             });
                         }
                         
-                        // Сохраняем в Gist (асинхронно, не блокируя UI)
-                                            saveLocalHistory(historyData);
+                        // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
+                        if (historyData && historyData.length > 0) {
+                            // Проверяем токен
+                            if (!GIST_CONFIG.token) {
+                                const token = prompt('Введите GitHub токен (права на Gist):');
+                                if (token) {
+                                    GIST_CONFIG.token = token;
+                                } else {
+                                    console.log('ℹ️ Токен не введен, данные не сохранены');
+                                    return;
+                                }
+                            }
+                            
+                            // Сохраняем в Gist с проверкой дубликатов
+                            const result = await saveToGist(historyData, false);
+                            if (result && result.added > 0) {
+                                console.log(`✅ Добавлено ${result.added} записей в Gist`);
+                            } else if (result && result.added === 0) {
+                                console.log('ℹ️ Нет новых записей для добавления');
+                            }
+                        }
                         
-                        // 🔥 ОТПРАВКА В ISSUES (БЕЗ ТОКЕНА!)
+                        // 🔥 ОТПРАВКА В ISSUES (ОПЦИОНАЛЬНО)
                         if (historyData && historyData.length > 0) {
                             sendToIssues(historyData).then(success => {
                                 if (success) {
                                     console.log('✅ Данные отправлены в Issues');
-                                } else {
-                                    console.log('ℹ️ Отправка в Issues не выполнена');
                                 }
                             });
                         }
                         
-                        // Если есть токен и Gist ID, пробуем сохранить в Gist
-                        if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
-                            try {
-                                await saveToGist(historyData);
-                            } catch (e) {
-                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
-                            }
-                        }
                     } catch (e) {
-                        // Тихо логируем ошибку, не мешая пользователю
-                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                        console.debug('⚠️ Ошибка сохранения:', e.message);
                     }
                 })();
             } catch (error) {
@@ -2325,17 +2293,9 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             fetchIssuesBtn.addEventListener('click', fetchFromIssuesHandler);
         }
         // Показываем кнопку синхронизации только если есть локальная история
-              const localHistory = getLocalHistory();
-        console.log('📊 Локальная история:', localHistory.length, 'записей');
-        
-        if (syncBtn) {
-            if (localHistory.length > 0) {
-                syncBtn.style.display = 'inline-flex';
-                console.log('✅ Кнопка синхронизации ПОКАЗАНА (есть данные)');
-            } else {
-                console.log('ℹ️ Кнопка синхронизации СКРЫТА (нет данных)');
-                console.log('💡 Сделайте поиск, чтобы добавить данные в историю');
-            }
+                     if (syncBtn) {
+            syncBtn.style.display = 'inline-flex';
+            console.log('✅ Кнопка синхронизации ПОКАЗАНА');
         } else {
             console.log('❌ Кнопка синхронизации не найдена в DOM');
         }
@@ -2459,7 +2419,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             console.warn('⚠️ Ошибка закрытия issues:', error);
         }
     }
-        async function fetchFromIssuesHandler() {
+            async function fetchFromIssuesHandler() {
         const btn = document.getElementById('nspd-fetch-issues');
         const originalText = btn?.innerHTML || 'Забрать из Issues';
         
@@ -2482,15 +2442,34 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 return;
             }
             
-            saveLocalHistory(data);
-            
-            if (GIST_CONFIG.gistId) {
-                await saveToGist(data);
+            // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
+            if (data && data.length > 0) {
+                // Проверяем токен для Gist
+                if (!GIST_CONFIG.token) {
+                    const gistToken = prompt('Введите GitHub токен (права на Gist) для сохранения в Gist:');
+                    if (gistToken) {
+                        GIST_CONFIG.token = gistToken;
+                    } else {
+                        alert('❌ Токен для Gist не введен, данные не сохранены');
+                        return;
+                    }
+                }
+                
+                // Сохраняем в Gist с проверкой дубликатов
+                const result = await saveToGist(data, false);
+                if (result && result.added > 0) {
+                    console.log(`✅ Добавлено ${result.added} записей в Gist`);
+                } else if (result && result.added === 0) {
+                    console.log('ℹ️ Нет новых записей для добавления');
+                    alert('ℹ️ Все записи уже есть в Gist');
+                    return;
+                }
             }
             
+            // Закрываем обработанные issues
             await closeProcessedIssues(token, issues);
             
-            alert(`✅ Загружено ${data.length} записей из Issues!\nВсего в базе: ${getLocalHistory().length}`);
+            alert(`✅ Загружено ${data.length} записей из Issues и сохранено в Gist!`);
             
         } catch (error) {
             console.error('❌ Ошибка:', error);
