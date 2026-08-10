@@ -8,230 +8,65 @@
         gistId: 'de65c48d1a525b9e7ee8695bd19f19b2',       
         filename: 'nspd_search_history.sql'
     };
-    const ISSUES_CONFIG = {
-        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',
-        label: 'nspd-search-log',
-        token: ''  // ← ДОБАВЬ СЮДА ТОКЕН (или запрашивай при отправке)
+        const ISSUES_CONFIG = {
+        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',  // ТВОЙ РЕПОЗИТОРИЙ
+        label: 'nspd-search-log'  // МЕТКА ДЛЯ ПОИСКА
     };
-    async function getGistData() {
-        const gistId = GIST_CONFIG.gistId;
+    function getLocalHistory() {
         try {
-            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-            if (!response.ok) return [];
-            const data = await response.json();
-            const content = data.files?.[GIST_CONFIG.filename]?.content || '';
-            return parseSQLToArray(content);
+            return JSON.parse(localStorage.getItem('nspd_search_history') || '[]');
         } catch (e) {
-            console.warn('⚠️ Ошибка загрузки Gist:', e);
             return [];
         }
     }
 
-    // 🔥 СОХРАНЕНИЕ В GIST (ТОЛЬКО НОВЫЕ ЗАПИСИ, БЕЗ LOCALSTORAGE!)
-    async function saveToGist(data) {
+       function saveLocalHistory(data) {
         try {
+            const history = getLocalHistory();
             const timestamp = new Date().toISOString();
-            const dateStr = new Date().toISOString().split('T')[0];
-            const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
-            
-            // 1. Получаем существующие записи из Gist (для проверки дубликатов)
-            const existingHistory = await getGistData();
-            const existingKeys = new Set();
-            
-            existingHistory.forEach(row => {
-                let key;
-                if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-                } else {
-                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
-                }
-                existingKeys.add(key);
-            });
-            
-            // 2. Фильтруем ТОЛЬКО НОВЫЕ записи
-            const newData = data.filter(row => {
-                let key;
-                if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-                } else {
-                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
-                }
-                return !existingKeys.has(key);
-            });
-            
-            if (newData.length === 0) {
-                console.log('ℹ️ Нет новых записей для добавления в Gist');
-                return { added: 0 };
-            }
-            
-            console.log(`📤 Добавляем ${newData.length} новых записей в Gist`);
-            
-            // 3. Формируем SQL только для новых записей
-            let sql = `-- ===========================================\n`;
-            sql += `-- НСПД: НОВЫЕ ЗАПИСИ (добавлены ${dateStr} ${timeStr})\n`;
-            sql += `-- ===========================================\n\n`;
-            
-            // Проверяем, есть ли CREATE TABLE в существующем содержимом
-            let existingContent = '';
-            try {
-                const response = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
-                    headers: { 'Accept': 'application/json' }
-                });
-                if (response.ok) {
-                    const gistData = await response.json();
-                    existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
-                }
-            } catch(e) {}
-            
-            if (!existingContent.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
-                sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-                sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-                sql += `    search_date TEXT NOT NULL,\n`;
-                sql += `    search_type TEXT NOT NULL,\n`;
-                sql += `    address TEXT NOT NULL,\n`;
-                sql += `    param_name TEXT,\n`;
-                sql += `    param_value REAL,\n`;
-                sql += `    cad_number TEXT,\n`;
-                sql += `    object_type TEXT,\n`;
-                sql += `    found INTEGER DEFAULT 0,\n`;
-                sql += `    raw_data TEXT,\n`;
-                sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-                sql += `);\n\n`;
-            }
-            
-            // Добавляем только новые записи
-            for (const row of newData) {
-                const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
-                const cadNumber = row.cadNumber || 'Не определено';
-                const objectType = row.objectView || '—';
-                const rawData = JSON.stringify(row).replace(/'/g, "''");
-                
-                sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
-                sql += `    search_date, search_type, address, param_name, param_value,\n`;
-                sql += `    cad_number, object_type, found, raw_data\n`;
-                sql += `) VALUES (\n`;
-                sql += `    '${timestamp}',\n`;
-                sql += `    '${row.searchType || 'single'}',\n`;
-                sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
-                sql += `    '${row.paramName || ''}',\n`;
-                sql += `    ${row.paramValue || 0},\n`;
-                sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
-                sql += `    '${objectType.replace(/'/g, "''")}',\n`;
-                sql += `    ${found},\n`;
-                sql += `    '${rawData}'\n`;
-                sql += `);\n\n`;
-            }
-            
-            sql += `-- ===========================================\n`;
-            sql += `-- Добавлено: ${newData.length} новых записей\n`;
-            sql += `-- Всего в Gist: ${existingHistory.length + newData.length} записей\n`;
-            sql += `-- ===========================================\n`;
-            
-            // 4. Получаем текущее содержимое Gist для обновления
-            const getResponse = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
-                headers: {
-                    'Authorization': `token ${GIST_CONFIG.token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-            
-            if (!getResponse.ok) {
-                throw new Error(`HTTP ${getResponse.status}`);
-            }
-            
-            const gistData = await getResponse.json();
-            const existingFileContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
-            const fileSha = gistData.files?.[GIST_CONFIG.filename]?.sha || null;
-            
-            // Удаляем старые INSERT-ы
-            let cleanExisting = existingFileContent;
-            const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
-            cleanExisting = cleanExisting.replace(insertRegex, '');
-            cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
-            cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
-            
-            let finalContent = cleanExisting;
-            if (!finalContent.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
-                finalContent = `-- ===========================================\n`;
-                finalContent += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
-                finalContent += `-- Создано: ${timestamp}\n`;
-                finalContent += `-- ===========================================\n\n`;
-                finalContent += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-                finalContent += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-                finalContent += `    search_date TEXT NOT NULL,\n`;
-                finalContent += `    search_type TEXT NOT NULL,\n`;
-                finalContent += `    address TEXT NOT NULL,\n`;
-                finalContent += `    param_name TEXT,\n`;
-                finalContent += `    param_value REAL,\n`;
-                finalContent += `    cad_number TEXT,\n`;
-                finalContent += `    object_type TEXT,\n`;
-                finalContent += `    found INTEGER DEFAULT 0,\n`;
-                finalContent += `    raw_data TEXT,\n`;
-                finalContent += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-                finalContent += `);\n\n`;
-            }
-            
-            finalContent = finalContent + '\n' + sql;
-            
-            // 5. Обновляем Gist
-            const updateResponse = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${GIST_CONFIG.token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
-                },
-                body: JSON.stringify({
-                    description: `НСПД история запросов (обновлено ${dateStr} ${timeStr})`,
-                    files: {
-                        [GIST_CONFIG.filename]: {
-                            content: finalContent,
-                            sha: fileSha
-                        }
+            let addedCount = 0;
+            за
+            data.forEach(row => {
+                // 🔥 ПРОВЕРКА НА ДУБЛИКАТЫ
+                const isDuplicate = history.some(existing => {
+                    // Проверяем по ключевым полям
+                    const sameAddress = existing.address === row.address;
+                    const sameParam = existing.paramName === row.paramName;
+                    const sameValue = Math.abs(existing.paramValue - row.paramValue) < 0.01;
+                    const sameCadNumber = existing.cadNumber === row.cadNumber;
+                    
+                    // Если кадастровый номер определен, проверяем по нему
+                    if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                        return sameCadNumber;
                     }
-                })
+                    
+                    // Если адрес совпадает, параметр и значение - считаем дубликатом
+                    return sameAddress && sameParam && sameValue;
+                });
+                
+                if (!isDuplicate) {
+                    history.push({
+                        ...row,
+                        saved_at: timestamp
+                    });
+                    addedCount++;
+                }
             });
             
-            if (!updateResponse.ok) {
-                throw new Error(`HTTP ${updateResponse.status}`);
+            // Ограничиваем размер (последние 1000 записей)
+            if (history.length > 1000) {
+                history.splice(0, history.length - 1000);
             }
             
-            const result = await updateResponse.json();
-            console.log(`✅ Добавлено ${newData.length} записей в Gist:`, result.html_url);
-            
-            return { 
-                added: newData.length,
-                total: existingHistory.length + newData.length,
-                url: result.html_url
-            };
-            
-        } catch (error) {
-            console.error('❌ Ошибка сохранения в Gist:', error);
-            return null;
+            localStorage.setItem('nspd_search_history', JSON.stringify(history));
+            console.log(`✅ История сохранена локально: +${addedCount} новых записей, всего: ${history.length}`);
+            return true;
+        } catch (e) {
+            console.warn('⚠️ Ошибка сохранения локальной истории:', e);
+            return false;
         }
     }
-    async function syncSearchHistory(data) {
-        if (!data || data.length === 0) {
-            alert('📭 Нет данных для синхронизации');
-            return;
-        }
-        
-        // Проверяем токен
-        if (!GIST_CONFIG.token) {
-            const token = prompt('Введите GitHub токен (права на Gist):');
-            if (!token) return;
-            GIST_CONFIG.token = token;
-        }
-        
-        const result = await saveToGist(data);
-        if (result) {
-            alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} записей\nВсего в Gist: ${result.total}`);
-        } else {
-            alert('❌ Ошибка синхронизации');
-        }
-    }
+
     // 🔥 ПОЛУЧЕНИЕ ПОСЛЕДНИХ ЗАПИСЕЙ ИЗ GIST
     async function getGistHistory() {
         if (!GIST_CONFIG.token || !GIST_CONFIG.gistId) {
@@ -309,6 +144,416 @@
         
         return history;
     }
+         async function syncLocalToGist() {
+        const syncBtn = document.getElementById('nspd-sync-gist');
+        const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
+        
+        try {
+            if (syncBtn) {
+                syncBtn.innerHTML = `
+                    <svg class="animate-spin h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Синхронизация...
+                `;
+                syncBtn.disabled = true;
+            }
+            
+            // Получаем локальную историю
+            const localHistory = getLocalHistory();
+            if (localHistory.length === 0) {
+                alert('📭 Нет локальных записей для синхронизации');
+                return;
+            }
+            
+            console.log(`📊 Локальных записей: ${localHistory.length}`);
+            
+            // 🔥 ВСЕГДА ЗАПРАШИВАЕМ ТОКЕН (НЕ СОХРАНЯЕМ В localStorage)
+            const token = prompt('Введите GitHub токен (права на Gist):');
+            if (!token) {
+                alert('❌ Токен не введен. Синхронизация отменена.');
+                return;
+            }
+            GIST_CONFIG.token = token;
+            console.log('✅ Токен введен');
+            
+            // 🔥 ПРОВЕРЯЕМ GIST ID - если пустой, создаем новый
+            if (!GIST_CONFIG.gistId) {
+                // Создаем новый Gist
+                const result = await saveToGist(localHistory, true);
+                if (result && result.id) {
+                    GIST_CONFIG.gistId = result.id;
+                    alert(`✅ Gist создан! ID: ${result.id}\nСкопируйте этот ID и вставьте в код в GIST_CONFIG.gistId`);
+                    console.log('📌 Сохраните этот ID в коде:', result.id);
+                } else {
+                    alert('❌ Не удалось создать Gist');
+                    return;
+                }
+            }
+            
+            // 🔥 ВЫЗЫВАЕМ saveToGist ДЛЯ ОБНОВЛЕНИЯ
+            const result = await saveToGist(localHistory, false);
+            if (result) {
+                alert(`✅ Синхронизация завершена!`);
+                console.log('✅ Синхронизация завершена:', result.html_url);
+            } else {
+                alert('❌ Ошибка синхронизации');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации:', error);
+            
+            let errorMsg = error.message;
+            if (error.message.includes('Failed to fetch')) {
+                errorMsg = 'Не удалось подключиться к GitHub. Проверьте интернет или CORS.';
+            } else if (error.message.includes('401')) {
+                errorMsg = 'Неверный токен. Проверьте права доступа (нужно право gist).';
+            } else if (error.message.includes('404')) {
+                errorMsg = 'Gist не найден. Проверьте ID или создайте новый.';
+            }
+            alert('❌ Ошибка синхронизации: ' + errorMsg);
+        } finally {
+            if (syncBtn) {
+                syncBtn.innerHTML = originalText;
+                syncBtn.disabled = false;
+            }
+        }
+    }
+            async function saveToGist(data, createNew = false) {
+        try {
+            // 🔥 ПРОВЕРЯЕМ ТОКЕН
+            if (!GIST_CONFIG.token) {
+                throw new Error('Токен GitHub не введен.');
+            }
+            
+            console.log(`🔑 Используем токен: ${GIST_CONFIG.token.substring(0, 10)}...`);
+            
+            const timestamp = new Date().toISOString();
+            const dateStr = new Date().toISOString().split('T')[0];
+            const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
+            
+            // 🔥 ЕСЛИ НЕТ GIST ID ИЛИ НУЖНО СОЗДАТЬ НОВЫЙ
+            if (!GIST_CONFIG.gistId || createNew) {
+                console.log('📝 Создаем новый Gist...');
+                
+                // Формируем SQL для нового Gist
+                let sql = `-- ===========================================\n`;
+                sql += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
+                sql += `-- Создано: ${timestamp}\n`;
+                sql += `-- ===========================================\n\n`;
+                
+                sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+                sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+                sql += `    search_date TEXT NOT NULL,\n`;
+                sql += `    search_type TEXT NOT NULL,\n`;
+                sql += `    address TEXT NOT NULL,\n`;
+                sql += `    param_name TEXT,\n`;
+                sql += `    param_value REAL,\n`;
+                sql += `    cad_number TEXT,\n`;
+                sql += `    object_type TEXT,\n`;
+                sql += `    found INTEGER DEFAULT 0,\n`;
+                sql += `    raw_data TEXT,\n`;
+                sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+                sql += `);\n\n`;
+                
+                // Добавляем все данные
+                for (const row of data) {
+                    const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
+                    const cadNumber = row.cadNumber || 'Не определено';
+                    const objectType = row.objectView || '—';
+                    const rawData = JSON.stringify(row).replace(/'/g, "''");
+                    
+                    sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
+                    sql += `    search_date, search_type, address, param_name, param_value,\n`;
+                    sql += `    cad_number, object_type, found, raw_data\n`;
+                    sql += `) VALUES (\n`;
+                    sql += `    '${timestamp}',\n`;
+                    sql += `    '${row.searchType || 'single'}',\n`;
+                    sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+                    sql += `    '${row.paramName || ''}',\n`;
+                    sql += `    ${row.paramValue || 0},\n`;
+                    sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+                    sql += `    '${objectType.replace(/'/g, "''")}',\n`;
+                    sql += `    ${found},\n`;
+                    sql += `    '${rawData}'\n`;
+                    sql += `);\n\n`;
+                }
+                
+                sql += `-- ===========================================\n`;
+                sql += `-- Всего записей: ${data.length}\n`;
+                sql += `-- ===========================================\n`;
+                
+                // Создаем Gist
+                const createUrl = 'https://api.github.com/gists';
+                const createBody = {
+                    description: `НСПД история запросов ${dateStr} ${timeStr}`,
+                    public: false,
+                    files: {
+                        [GIST_CONFIG.filename]: {
+                            content: sql
+                        }
+                    }
+                };
+                
+                const createResponse = await fetch(createUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${GIST_CONFIG.token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(createBody)
+                });
+                
+                if (!createResponse.ok) {
+                    let errorMsg = `HTTP ${createResponse.status}`;
+                    try {
+                        const errorData = await createResponse.json();
+                        errorMsg += `: ${errorData.message || createResponse.statusText}`;
+                    } catch (e) {
+                        errorMsg += `: ${createResponse.statusText}`;
+                    }
+                    throw new Error(errorMsg);
+                }
+                
+                const result = await createResponse.json();
+                console.log(`✅ Создан новый Gist:`, result.html_url);
+                return result;
+            }
+            
+            // 🔥 ЕСЛИ GIST ID ЕСТЬ - ОБНОВЛЯЕМ (ТОЛЬКО НОВЫЕ ЗАПИСИ)
+            console.log(`📌 Gist ID: ${GIST_CONFIG.gistId}`);
+            
+            // 1. ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ GIST
+            let existingContent = '';
+            let existingHistory = [];
+            
+            try {
+                const getUrl = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+                console.log(`📡 Загружаем существующий Gist...`);
+                
+                const getResponse = await fetch(getUrl, {
+                    headers: {
+                        'Authorization': `token ${GIST_CONFIG.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (!getResponse.ok) {
+                    if (getResponse.status === 404) {
+                        // Если Gist не найден - создаем новый
+                        console.log('⚠️ Gist не найден, создаем новый...');
+                        return await saveToGist(data, true);
+                    } else if (getResponse.status === 401) {
+                        throw new Error('Неверный токен. Проверьте права доступа (нужно право gist).');
+                    } else {
+                        throw new Error(`HTTP ${getResponse.status}: ${getResponse.statusText}`);
+                    }
+                }
+                
+                const gistData = await getResponse.json();
+                existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
+                existingHistory = parseSQLToArray(existingContent);
+                console.log(`📥 В Gist уже есть ${existingHistory.length} записей`);
+                
+            } catch (fetchError) {
+                console.error('❌ Ошибка загрузки Gist:', fetchError);
+                throw fetchError;
+            }
+            
+            // 2. ФОРМИРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (без дубликатов)
+            const existingKeys = new Set();
+            existingHistory.forEach(row => {
+                let key;
+                if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+                } else {
+                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
+                }
+                existingKeys.add(key);
+            });
+            
+            const newData = data.filter(row => {
+                let key;
+                if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+                } else {
+                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
+                }
+                return !existingKeys.has(key);
+            });
+            
+            if (newData.length === 0) {
+                console.log('ℹ️ Нет новых записей для добавления в Gist');
+                return { html_url: `https://gist.github.com/${GIST_CONFIG.gistId}`, added: 0 };
+            }
+            
+            console.log(`📤 Добавляем ${newData.length} новых записей в Gist`);
+            
+            // 3. ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
+            let newSql = `-- ===========================================\n`;
+            newSql += `-- НСПД: НОВЫЕ ЗАПИСИ (добавлены ${dateStr} ${timeStr})\n`;
+            newSql += `-- ===========================================\n\n`;
+            
+            if (!existingContent.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
+                newSql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+                newSql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+                newSql += `    search_date TEXT NOT NULL,\n`;
+                newSql += `    search_type TEXT NOT NULL,\n`;
+                newSql += `    address TEXT NOT NULL,\n`;
+                newSql += `    param_name TEXT,\n`;
+                newSql += `    param_value REAL,\n`;
+                newSql += `    cad_number TEXT,\n`;
+                newSql += `    object_type TEXT,\n`;
+                newSql += `    found INTEGER DEFAULT 0,\n`;
+                newSql += `    raw_data TEXT,\n`;
+                newSql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+                newSql += `);\n\n`;
+            }
+            
+            for (const row of newData) {
+                const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
+                const cadNumber = row.cadNumber || 'Не определено';
+                const objectType = row.objectView || '—';
+                const rawData = JSON.stringify(row).replace(/'/g, "''");
+                
+                newSql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
+                newSql += `    search_date, search_type, address, param_name, param_value,\n`;
+                newSql += `    cad_number, object_type, found, raw_data\n`;
+                newSql += `) VALUES (\n`;
+                newSql += `    '${timestamp}',\n`;
+                newSql += `    '${row.searchType || 'single'}',\n`;
+                newSql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+                newSql += `    '${row.paramName || ''}',\n`;
+                newSql += `    ${row.paramValue || 0},\n`;
+                newSql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+                newSql += `    '${objectType.replace(/'/g, "''")}',\n`;
+                newSql += `    ${found},\n`;
+                newSql += `    '${rawData}'\n`;
+                newSql += `);\n\n`;
+            }
+            
+            newSql += `-- ===========================================\n`;
+            newSql += `-- Добавлено: ${newData.length} новых записей\n`;
+            newSql += `-- Всего в Gist: ${existingHistory.length + newData.length} записей\n`;
+            newSql += `-- ===========================================\n`;
+            
+            // 4. ОБЪЕДИНЯЕМ
+            let cleanExisting = existingContent;
+            const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
+            cleanExisting = cleanExisting.replace(insertRegex, '');
+            cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
+            cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
+            
+            let finalContent = cleanExisting;
+            if (!finalContent.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
+                finalContent = `-- ===========================================\n`;
+                finalContent += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
+                finalContent += `-- Создано: ${timestamp}\n`;
+                finalContent += `-- ===========================================\n\n`;
+                finalContent += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+                finalContent += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+                finalContent += `    search_date TEXT NOT NULL,\n`;
+                finalContent += `    search_type TEXT NOT NULL,\n`;
+                finalContent += `    address TEXT NOT NULL,\n`;
+                finalContent += `    param_name TEXT,\n`;
+                finalContent += `    param_value REAL,\n`;
+                finalContent += `    cad_number TEXT,\n`;
+                finalContent += `    object_type TEXT,\n`;
+                finalContent += `    found INTEGER DEFAULT 0,\n`;
+                finalContent += `    raw_data TEXT,\n`;
+                finalContent += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+                finalContent += `);\n\n`;
+            }
+            
+            // 🔥 ПРОВЕРЯЕМ, ЧТОБЫ НЕ БЫЛО ДУБЛИРОВАНИЯ
+            // Удаляем старые комментарии о новых записях
+            finalContent = finalContent.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
+            
+            finalContent = finalContent + '\n' + newSql;
+            
+            // 5. ОТПРАВЛЯЕМ В GIST
+            const url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+            
+            const body = {
+                description: `НСПД история запросов (обновлено ${dateStr} ${timeStr})`,
+                files: {
+                    [GIST_CONFIG.filename]: {
+                        content: finalContent
+                    }
+                }
+            };
+            
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `token ${GIST_CONFIG.token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify(body)
+            });
+            
+            if (!response.ok) {
+                let errorMsg = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg += `: ${errorData.message || response.statusText}`;
+                } catch (e) {
+                    errorMsg += `: ${response.statusText}`;
+                }
+                throw new Error(errorMsg);
+            }
+            
+            const result = await response.json();
+            console.log(`✅ Добавлено ${newData.length} записей в Gist:`, result.html_url);
+            return result;
+            
+        } catch (error) {
+            console.error('❌ Ошибка сохранения в Gist:', error);
+            throw error;
+        }
+    }
+    // 🔥 ПАРАМЕТРЫ ДЛЯ ПОИСКА (ПЕРЕКЛЮЧАТЕЛЬ)
+    const SEARCH_PARAMS = {
+        'area': {
+            label: 'Площадь',
+            unit: 'м²',
+            getValue: (opts) => parseFloat(opts.area) || parseFloat(opts.params_area) || parseFloat(opts.specified_area) || parseFloat(opts.build_record_area) || 0,
+            searchType: 'quarter'
+        },
+        'built_up_area': {
+            label: 'Площадь застройки',
+            unit: 'м²',
+            getValue: (opts) => parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+            searchType: 'address'
+        },
+        'volume': {
+            label: 'Объем',
+            unit: 'м³',
+            getValue: (opts) => parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+            searchType: 'address'
+        },
+        'extension': {
+            label: 'Протяженность',
+            unit: 'м',
+            getValue: (opts) => parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+            searchType: 'address'
+        },
+        'land_area': {
+            label: 'Площадь ЗУ',
+            unit: 'м²',
+            getValue: (opts) => parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+            searchType: 'address'
+        },
+        'depth': {
+            label: 'Глубина',
+            unit: 'м',
+            getValue: (opts) => parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+            searchType: 'address'
+        }
+    };
     function normalizeString(str) {
         if (!str) return '';
         return str.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -1206,74 +1451,51 @@ function processRows(rows) {
                 displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
                 // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (массовый запрос)
-                                (async function() {
+                (async function() {
                     try {
                         const historyData = [];
                         
-                        if (candidates.length > 0) {
-                            // Добавляем найденные объекты
-                            candidates.forEach(item => {
-                                const fields = extractAllFields(item);
-                                historyData.push({
-                                    searchType: 'single',
-                                    address: address,
-                                    paramName: param.label,
-                                    paramValue: value,
-                                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                                    objectView: fields['Вид объекта'] || '—',
-                                    found: 1
-                                });
-                            });
-                        } else {
-                            // Если ничего не найдено, добавляем запись с "Не определено"
+                        allResults.forEach(item => {
+                            const fields = extractAllFields(item);
                             historyData.push({
-                                searchType: 'single',
-                                address: address,
-                                paramName: param.label,
-                                paramValue: value,
+                                searchType: 'mass',
+                                address: fields['Адрес'] || '—',
+                                paramName: searchParamLabel || '—',
+                                paramValue: 0,
+                                cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                                objectView: fields['Вид объекта'] || '—',
+                                found: 1
+                            });
+                        });
+                        
+                        notFoundItems.forEach(item => {
+                            historyData.push({
+                                searchType: 'mass',
+                                address: item.address || '—',
+                                paramName: item.paramLabel || '—',
+                                paramValue: item.paramValue || 0,
                                 cadNumber: 'Не определено',
                                 objectView: '—',
                                 found: 0
                             });
-                        }
+                        });
                         
-                        // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                        if (historyData && historyData.length > 0) {
-                            // Проверяем токен
-                            if (!GIST_CONFIG.token) {
-                                const token = prompt('Введите GitHub токен (права на Gist):');
-                                if (token) {
-                                    GIST_CONFIG.token = token;
-                                } else {
-                                    console.log('ℹ️ Токен не введен, данные не сохранены');
-                                    return;
-                                }
-                            }
-                            
-                            // Сохраняем в Gist с проверкой дубликатов
-                            const result = await saveToGist(historyData);
-                            if (result && result.added > 0) {
-                                console.log(`✅ Добавлено ${result.added} записей в Gist`);
-                            } else if (result && result.added === 0) {
-                                console.log('ℹ️ Нет новых записей для добавления');
+                                             saveLocalHistory(historyData);
+                        
+                        // Если есть токен и Gist ID, пробуем сохранить в Gist
+                        if (GIST_CONFIG.token && GIST_CONFIG.gistId && historyData.length > 0) {
+                            try {
+                                await saveToGist(historyData);
+                            } catch (e) {
+                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
                             }
                         }
-                        
-                        // 🔥 ОТПРАВКА В ISSUES (ОПЦИОНАЛЬНО)
-                        if (historyData && historyData.length > 0) {
-                            sendToIssues(historyData).then(success => {
-                                if (success) {
-                                    console.log('✅ Данные отправлены в Issues');
-                                }
-                            });
-                        }
-                        
                     } catch (e) {
-                        console.debug('⚠️ Ошибка сохранения:', e.message);
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
                     }
                 })();
                 
-            })();  
+            })();  // 🔥 ВОТ ЭТУ СКОБКУ ТЫ ПОТЕРЯЛ!
             
         } else {
             attempts++;
@@ -1684,7 +1906,7 @@ function processRows(rows) {
         }
 
 
-               async function performSearch(container) {
+        async function performSearch(container) {
             const address = addressInput.value.trim();
             const paramKey = paramSelect.value;
             const value = parseFloat(valueInput.value) || 0;
@@ -2003,10 +2225,8 @@ function processRows(rows) {
                     </div>
                 `;
 
-                displayMassResults(candidates, [], resultsContainer, param.label);
-                
-                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                (async function() {
+displayMassResults(candidates, [], resultsContainer, param.label);
+                  (async function() {
                     try {
                         const historyData = [];
                         
@@ -2037,66 +2257,94 @@ function processRows(rows) {
                             });
                         }
                         
-                        // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                        if (historyData && historyData.length > 0) {
-                            // Проверяем токен
-                            if (!GIST_CONFIG.token) {
-                                const token = prompt('Введите GitHub токен (права на Gist):');
-                                if (token) {
-                                    GIST_CONFIG.token = token;
-                                } else {
-                                    console.log('ℹ️ Токен не введен, данные не сохранены');
-                                    return;
-                                }
-                            }
-                            
-                            // Сохраняем в Gist с проверкой дубликатов
-                            const result = await saveToGist(historyData);
-                            if (result && result.added > 0) {
-                                console.log(`✅ Добавлено ${result.added} записей в Gist`);
-                            } else if (result && result.added === 0) {
-                                console.log('ℹ️ Нет новых записей для добавления');
-                            }
-                        }
+                        // Сохраняем в Gist (асинхронно, не блокируя UI)
+                                            saveLocalHistory(historyData);
                         
-                        // 🔥 ОТПРАВКА В ISSUES (ОПЦИОНАЛЬНО)
+                        // 🔥 ОТПРАВКА В ISSUES (БЕЗ ТОКЕНА!)
                         if (historyData && historyData.length > 0) {
                             sendToIssues(historyData).then(success => {
                                 if (success) {
                                     console.log('✅ Данные отправлены в Issues');
+                                } else {
+                                    console.log('ℹ️ Отправка в Issues не выполнена');
                                 }
                             });
                         }
                         
+                        // Если есть токен и Gist ID, пробуем сохранить в Gist
+                        if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
+                            try {
+                                await saveToGist(historyData);
+                            } catch (e) {
+                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
+                            }
+                        }
                     } catch (e) {
-                        console.debug('⚠️ Ошибка сохранения:', e.message);
+                        // Тихо логируем ошибку, не мешая пользователю
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
                     }
                 })();
-                
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
                 resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: ${error.message}</div>`;
             }
         }
-       async function sendToIssues(data) {
+
+        searchBtn.addEventListener('click', function() { performSearch(resultsContainer); });
+        addressInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(resultsContainer); });
+        valueInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(resultsContainer); });
+
+               const downloadBtn = document.getElementById('nspd-download-template');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', downloadTemplate);
+        }
+
+        const fileInput = document.getElementById('nspd-file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                if (this.files && this.files.length > 0) {
+                    uploadData(this.files[0]);
+                    this.value = '';
+                }
+            });
+        }
+
+        // 🔥 Обработчик для кнопки экспорта
+        const exportBtn = document.getElementById('nspd-export-results');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportResults);
+        }
+
+        // 🔥 КНОПКА СИНХРОНИЗАЦИИ
+        const syncBtn = document.getElementById('nspd-sync-gist');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', syncLocalToGist);
+        }
+                const fetchIssuesBtn = document.getElementById('nspd-fetch-issues');
+        if (fetchIssuesBtn) {
+            fetchIssuesBtn.addEventListener('click', fetchFromIssuesHandler);
+        }
+        // Показываем кнопку синхронизации только если есть локальная история
+              const localHistory = getLocalHistory();
+        console.log('📊 Локальная история:', localHistory.length, 'записей');
+        
+        if (syncBtn) {
+            if (localHistory.length > 0) {
+                syncBtn.style.display = 'inline-flex';
+                console.log('✅ Кнопка синхронизации ПОКАЗАНА (есть данные)');
+            } else {
+                console.log('ℹ️ Кнопка синхронизации СКРЫТА (нет данных)');
+                console.log('💡 Сделайте поиск, чтобы добавить данные в историю');
+            }
+        } else {
+            console.log('❌ Кнопка синхронизации не найдена в DOM');
+        }
+
+        console.log('✅ Интерфейс поиска НСПД успешно загружен.');
+    };
+    async function sendToIssues(data) {
         try {
             if (!data || data.length === 0) return false;
-            
-            // Проверяем токен
-            if (!ISSUES_CONFIG.token) {
-                // Пробуем загрузить из localStorage
-                const savedToken = localStorage.getItem('issues_token');
-                if (savedToken) {
-                    ISSUES_CONFIG.token = savedToken;
-                } else {
-                    // Запрашиваем токен для Issues (только если репозиторий приватный)
-                    console.warn('⚠️ Для отправки в Issues нужен токен (репозиторий приватный)');
-                    // Можно запросить токен:
-                    // const token = prompt('Введите GitHub токен для отправки в Issues:');
-                    // if (token) ISSUES_CONFIG.token = token;
-                    return false;
-                }
-            }
             
             const issueData = {
                 title: `📊 Поиск НСПД ${new Date().toLocaleString()}`,
@@ -2104,28 +2352,20 @@ function processRows(rows) {
                 labels: [ISSUES_CONFIG.label]
             };
             
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.github.v3+json'
-            };
-            
-            // Добавляем токен если есть
-            if (ISSUES_CONFIG.token) {
-                headers['Authorization'] = `token ${ISSUES_CONFIG.token}`;
-            }
-            
             const response = await fetch(
                 `https://api.github.com/repos/${ISSUES_CONFIG.repo}/issues`,
                 {
                     method: 'POST',
-                    headers: headers,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
                     body: JSON.stringify(issueData)
                 }
             );
             
             if (!response.ok) {
-                const error = await response.json();
-                console.warn('⚠️ Не удалось отправить в Issues:', error.message);
+                console.warn('⚠️ Не удалось отправить в Issues:', await response.text());
                 return false;
             }
             
@@ -2137,7 +2377,7 @@ function processRows(rows) {
             return false;
         }
     }
-       async function fetchFromIssues(token) {
+    async function fetchFromIssues(token) {
         try {
             if (!token) {
                 throw new Error('Токен не введен');
@@ -2168,7 +2408,6 @@ function processRows(rows) {
             
             for (const issue of issues) {
                 try {
-                    // Парсим тело issue
                     const data = JSON.parse(issue.body);
                     if (Array.isArray(data)) {
                         allData = allData.concat(data);
@@ -2178,7 +2417,7 @@ function processRows(rows) {
                 }
             }
             
-            console.log(`📥 Загружено ${allData.length} записей из Issues (${issues.length} issues)`);
+            console.log(`📥 Загружено ${allData.length} записей из Issues`);
             return { data: allData, issues: issues };
             
         } catch (error) {
@@ -2220,7 +2459,7 @@ function processRows(rows) {
             console.warn('⚠️ Ошибка закрытия issues:', error);
         }
     }
-    async function fetchFromIssuesHandler() {
+        async function fetchFromIssuesHandler() {
         const btn = document.getElementById('nspd-fetch-issues');
         const originalText = btn?.innerHTML || 'Забрать из Issues';
         
@@ -2243,34 +2482,15 @@ function processRows(rows) {
                 return;
             }
             
-            // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-            if (data && data.length > 0) {
-                // Проверяем токен для Gist
-                if (!GIST_CONFIG.token) {
-                    const gistToken = prompt('Введите GitHub токен (права на Gist) для сохранения в Gist:');
-                    if (gistToken) {
-                        GIST_CONFIG.token = gistToken;
-                    } else {
-                        alert('❌ Токен для Gist не введен, данные не сохранены');
-                        return;
-                    }
-                }
-                
-                // Сохраняем в Gist с проверкой дубликатов
-                const result = await saveToGist(data);
-                if (result && result.added > 0) {
-                    console.log(`✅ Добавлено ${result.added} записей в Gist`);
-                } else if (result && result.added === 0) {
-                    console.log('ℹ️ Нет новых записей для добавления');
-                    alert('ℹ️ Все записи уже есть в Gist');
-                    return;
-                }
+            saveLocalHistory(data);
+            
+            if (GIST_CONFIG.gistId) {
+                await saveToGist(data);
             }
             
-            // Закрываем обработанные issues
             await closeProcessedIssues(token, issues);
             
-            alert(`✅ Загружено ${data.length} записей из Issues и сохранено в Gist!`);
+            alert(`✅ Загружено ${data.length} записей из Issues!\nВсего в базе: ${getLocalHistory().length}`);
             
         } catch (error) {
             console.error('❌ Ошибка:', error);
@@ -2282,39 +2502,5 @@ function processRows(rows) {
             }
         }
     }
-    function tryInitNSPD(containerId) {
-        const container = document.getElementById(containerId);
-        if (container && typeof window.initNSPDSearch === 'function') {
-            console.log('✅ Контейнер найден, инициализируем НСПД');
-            window.initNSPDSearch(containerId);
-            return true;
-        }
-        return false;
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            tryInitNSPD('nspd-search');
-        });
-    } else {
-        setTimeout(function() {
-            tryInitNSPD('nspd-search');
-        }, 100);
-    }
-    
-    const observer = new MutationObserver(function() {
-        if (tryInitNSPD('nspd-search')) {
-            observer.disconnect();
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    
-    setTimeout(function() {
-        if (!tryInitNSPD('nspd-search')) {
-            console.warn('⚠️ Контейнер так и не найден');
-        }
-        observer.disconnect();
-    }, 5000);
-
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
