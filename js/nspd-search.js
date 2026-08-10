@@ -965,7 +965,7 @@ function processRows(rows) {
             if (progressText) progressText.textContent = '0%';
             
             let allResults = [];
-            let notFoundItems = [];  // 🔥 СОХРАНЯЕМ НЕНАЙДЕННЫЕ ОБЪЕКТЫ
+            let notFoundItems = [];
             let total = rows.length;
             
             (async function() {
@@ -977,7 +977,6 @@ function processRows(rows) {
                     
                     const param = SEARCH_PARAMS[row.param];
                     if (!param) {
-                        // 🔥 СОХРАНЯЕМ ИНФОРМАЦИЮ О НЕНАЙДЕННОМ
                         notFoundItems.push({
                             address: row.address,
                             paramLabel: row.param,
@@ -1044,7 +1043,6 @@ function processRows(rows) {
                             
                             allResults = allResults.concat(candidates);
                         } else {
-                            // 🔥 СОХРАНЯЕМ ИНФОРМАЦИЮ О НЕНАЙДЕННОМ
                             const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
                             notFoundItems.push({
                                 address: row.address,
@@ -1055,7 +1053,6 @@ function processRows(rows) {
                         }
                     } catch (e) {
                         console.warn('Ошибка при поиске для строки', i + 1, ':', e.message);
-                        // 🔥 СОХРАНЯЕМ ИНФОРМАЦИЮ О НЕНАЙДЕННОМ (при ошибке)
                         const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
                         notFoundItems.push({
                             address: row.address,
@@ -1068,16 +1065,14 @@ function processRows(rows) {
                 
                 if (progressContainer) progressContainer.style.display = 'none';
                 
-                // 🔥 ПЕРЕДАЕМ НЕНАЙДЕННЫЕ ОБЪЕКТЫ В displayMassResults
                 const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
-                               displayMassResults(allResults, notFoundItems, container, searchParamLabel);
+                displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
-                // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (массовый запрос) - НЕ БЛОКИРУЕТ ОТОБРАЖЕНИЕ
+                // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (массовый запрос)
                 (async function() {
                     try {
                         const historyData = [];
                         
-                        // Добавляем найденные объекты
                         allResults.forEach(item => {
                             const fields = extractAllFields(item);
                             historyData.push({
@@ -1091,7 +1086,6 @@ function processRows(rows) {
                             });
                         });
                         
-                        // Добавляем ненайденные
                         notFoundItems.forEach(item => {
                             historyData.push({
                                 searchType: 'mass',
@@ -1104,15 +1098,16 @@ function processRows(rows) {
                             });
                         });
                         
-                        // Сохраняем в Gist (асинхронно, не блокируя UI)
                         if (typeof saveToGist === 'function' && historyData.length > 0) {
                             await saveToGist(historyData);
                         }
                     } catch (e) {
-                        // Тихо логируем ошибку, не мешая пользователю
                         console.debug('⚠️ Не удалось сохранить историю:', e.message);
                     }
                 })();
+                
+            })();  // 🔥 ВОТ ЭТУ СКОБКУ ТЫ ПОТЕРЯЛ!
+            
         } else {
             attempts++;
             if (attempts < maxAttempts) {
