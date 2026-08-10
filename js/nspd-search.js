@@ -234,13 +234,10 @@
             }
         }
     }
-    // 🔥 ФУНКЦИЯ СОХРАНЕНИЯ В GIST (ДОБАВЛЯЕТ НОВЫЕ ЗАПИСИ, НЕ ПЕРЕЗАПИСЫВАЕТ)
-      async function saveToGist(data) {
+        async function saveToGist(data, createNew = false) {
         try {
             // 🔥 ПРОВЕРЯЕМ ТОКЕН
             if (!GIST_CONFIG.token) {
-                console.error('❌ Токен не установлен!');
-                // Пытаемся загрузить из localStorage
                 const savedToken = localStorage.getItem('github_token');
                 if (savedToken) {
                     GIST_CONFIG.token = savedToken;
@@ -250,23 +247,103 @@
                 }
             }
             
-            // 🔥 ПРОВЕРЯЕМ GIST ID
-            if (!GIST_CONFIG.gistId) {
-                const savedGistId = localStorage.getItem('gist_id');
-                if (savedGistId) {
-                    GIST_CONFIG.gistId = savedGistId;
-                    console.log('✅ Gist ID загружен из localStorage');
-                } else {
-                    throw new Error('Gist ID не найден. Нажмите "Обновить SQL в Gist" для создания нового.');
-                }
-            }
-            
             console.log(`🔑 Используем токен: ${GIST_CONFIG.token.substring(0, 10)}...`);
-            console.log(`📌 Gist ID: ${GIST_CONFIG.gistId}`);
             
             const timestamp = new Date().toISOString();
             const dateStr = new Date().toISOString().split('T')[0];
             const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
+            
+            // 🔥 ЕСЛИ НЕТ GIST ID ИЛИ НУЖНО СОЗДАТЬ НОВЫЙ
+            if (!GIST_CONFIG.gistId || createNew) {
+                console.log('📝 Создаем новый Gist...');
+                
+                // Формируем SQL для нового Gist
+                let sql = `-- ===========================================\n`;
+                sql += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
+                sql += `-- Создано: ${timestamp}\n`;
+                sql += `-- ===========================================\n\n`;
+                
+                sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+                sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+                sql += `    search_date TEXT NOT NULL,\n`;
+                sql += `    search_type TEXT NOT NULL,\n`;
+                sql += `    address TEXT NOT NULL,\n`;
+                sql += `    param_name TEXT,\n`;
+                sql += `    param_value REAL,\n`;
+                sql += `    cad_number TEXT,\n`;
+                sql += `    object_type TEXT,\n`;
+                sql += `    found INTEGER DEFAULT 0,\n`;
+                sql += `    raw_data TEXT,\n`;
+                sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+                sql += `);\n\n`;
+                
+                // Добавляем все данные
+                for (const row of data) {
+                    const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
+                    const cadNumber = row.cadNumber || 'Не определено';
+                    const objectType = row.objectView || '—';
+                    const rawData = JSON.stringify(row).replace(/'/g, "''");
+                    
+                    sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
+                    sql += `    search_date, search_type, address, param_name, param_value,\n`;
+                    sql += `    cad_number, object_type, found, raw_data\n`;
+                    sql += `) VALUES (\n`;
+                    sql += `    '${timestamp}',\n`;
+                    sql += `    '${row.searchType || 'single'}',\n`;
+                    sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+                    sql += `    '${row.paramName || ''}',\n`;
+                    sql += `    ${row.paramValue || 0},\n`;
+                    sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+                    sql += `    '${objectType.replace(/'/g, "''")}',\n`;
+                    sql += `    ${found},\n`;
+                    sql += `    '${rawData}'\n`;
+                    sql += `);\n\n`;
+                }
+                
+                sql += `-- ===========================================\n`;
+                sql += `-- Всего записей: ${data.length}\n`;
+                sql += `-- ===========================================\n`;
+                
+                // Создаем Gist
+                const createUrl = 'https://api.github.com/gists';
+                const createBody = {
+                    description: `НСПД история запросов ${dateStr} ${timeStr}`,
+                    public: false,
+                    files: {
+                        [GIST_CONFIG.filename]: {
+                            content: sql
+                        }
+                    }
+                };
+                
+                const createResponse = await fetch(createUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${GIST_CONFIG.token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(createBody)
+                });
+                
+                if (!createResponse.ok) {
+                    let errorMsg = `HTTP ${createResponse.status}`;
+                    try {
+                        const errorData = await createResponse.json();
+                        errorMsg += `: ${errorData.message || createResponse.statusText}`;
+                    } catch (e) {
+                        errorMsg += `: ${createResponse.statusText}`;
+                    }
+                    throw new Error(errorMsg);
+                }
+                
+                const result = await createResponse.json();
+                console.log(`✅ Создан новый Gist:`, result.html_url);
+                return result;
+            }
+            
+            // 🔥 ЕСЛИ GIST ID ЕСТЬ - ОБНОВЛЯЕМ
+            console.log(`📌 Gist ID: ${GIST_CONFIG.gistId}`);
             
             // 1. ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ GIST
             let existingContent = '';
@@ -285,7 +362,9 @@
                 
                 if (!getResponse.ok) {
                     if (getResponse.status === 404) {
-                        throw new Error(`Gist с ID "${GIST_CONFIG.gistId}" не найден. Проверьте ID или создайте новый.`);
+                        // Если Gist не найден - создаем новый
+                        console.log('⚠️ Gist не найден, создаем новый...');
+                        return await saveToGist(data, true);
                     } else if (getResponse.status === 401) {
                         throw new Error('Неверный токен. Проверьте права доступа (нужно право gist).');
                     } else {
@@ -315,7 +394,6 @@
                 existingKeys.add(key);
             });
             
-            // Фильтруем новые записи
             const newData = data.filter(row => {
                 let key;
                 if (row.cadNumber && row.cadNumber !== 'Не определено') {
@@ -354,7 +432,6 @@
                 newSql += `);\n\n`;
             }
             
-            // Вставляем только новые данные
             for (const row of newData) {
                 const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
                 const cadNumber = row.cadNumber || 'Не определено';
@@ -377,22 +454,18 @@
                 newSql += `);\n\n`;
             }
             
-            // Добавляем статистику
             newSql += `-- ===========================================\n`;
             newSql += `-- Добавлено: ${newData.length} новых записей\n`;
             newSql += `-- Всего в Gist: ${existingHistory.length + newData.length} записей\n`;
             newSql += `-- ===========================================\n`;
             
-            // 4. ОБЪЕДИНЯЕМ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ + НОВЫЕ ДАННЫЕ
+            // 4. ОБЪЕДИНЯЕМ
             let cleanExisting = existingContent;
-            // Удаляем старые INSERT-ы
             const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
             cleanExisting = cleanExisting.replace(insertRegex, '');
-            // Удаляем комментарии о новых записях
             cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
             cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
             
-            // Если в существующем содержимом нет CREATE TABLE, добавляем его
             let finalContent = cleanExisting;
             if (!finalContent.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
                 finalContent = `-- ===========================================\n`;
@@ -414,7 +487,6 @@
                 finalContent += `);\n\n`;
             }
             
-            // Добавляем новые данные в конец
             finalContent = finalContent + '\n' + newSql;
             
             // 5. ОТПРАВЛЯЕМ В GIST
@@ -456,7 +528,6 @@
             
         } catch (error) {
             console.error('❌ Ошибка сохранения в Gist:', error);
-            // Пробрасываем ошибку дальше, чтобы syncLocalToGist мог ее обработать
             throw error;
         }
     }
