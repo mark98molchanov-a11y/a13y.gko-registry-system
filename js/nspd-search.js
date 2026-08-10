@@ -8,6 +8,10 @@
         gistId: 'de65c48d1a525b9e7ee8695bd19f19b2',       
         filename: 'nspd_search_history.sql'
     };
+        const ISSUES_CONFIG = {
+        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',  // ТВОЙ РЕПОЗИТОРИЙ
+        label: 'nspd-search-log'  // МЕТКА ДЛЯ ПОИСКА
+    };
     function getLocalHistory() {
         try {
             return JSON.parse(localStorage.getItem('nspd_search_history') || '[]');
@@ -1671,6 +1675,13 @@ function processRows(rows) {
                         </svg>
                         Обновить SQL в Gist
                     </button>
+                                        <button id="nspd-fetch-issues" 
+                            class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        📥 Забрать из Issues
+                    </button>
                 </div>
 
                 <div id="nspd-progress-container" style="display:none;" class="mb-4">
@@ -2247,7 +2258,18 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                         }
                         
                         // Сохраняем в Gist (асинхронно, не блокируя UI)
-                               saveLocalHistory(historyData);
+                                            saveLocalHistory(historyData);
+                        
+                        // 🔥 ОТПРАВКА В ISSUES (БЕЗ ТОКЕНА!)
+                        if (historyData && historyData.length > 0) {
+                            sendToIssues(historyData).then(success => {
+                                if (success) {
+                                    console.log('✅ Данные отправлены в Issues');
+                                } else {
+                                    console.log('ℹ️ Отправка в Issues не выполнена');
+                                }
+                            });
+                        }
                         
                         // Если есть токен и Gist ID, пробуем сохранить в Gist
                         if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
@@ -2298,7 +2320,10 @@ displayMassResults(candidates, [], resultsContainer, param.label);
         if (syncBtn) {
             syncBtn.addEventListener('click', syncLocalToGist);
         }
-        
+                const fetchIssuesBtn = document.getElementById('nspd-fetch-issues');
+        if (fetchIssuesBtn) {
+            fetchIssuesBtn.addEventListener('click', fetchFromIssuesHandler);
+        }
         // Показываем кнопку синхронизации только если есть локальная история
               const localHistory = getLocalHistory();
         console.log('📊 Локальная история:', localHistory.length, 'записей');
@@ -2317,6 +2342,165 @@ displayMassResults(candidates, [], resultsContainer, param.label);
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
-
+    async function sendToIssues(data) {
+        try {
+            if (!data || data.length === 0) return false;
+            
+            const issueData = {
+                title: `📊 Поиск НСПД ${new Date().toLocaleString()}`,
+                body: JSON.stringify(data, null, 2),
+                labels: [ISSUES_CONFIG.label]
+            };
+            
+            const response = await fetch(
+                `https://api.github.com/repos/${ISSUES_CONFIG.repo}/issues`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(issueData)
+                }
+            );
+            
+            if (!response.ok) {
+                console.warn('⚠️ Не удалось отправить в Issues:', await response.text());
+                return false;
+            }
+            
+            console.log('✅ Данные отправлены в Issues');
+            return true;
+            
+        } catch (error) {
+            console.warn('⚠️ Ошибка отправки в Issues:', error.message);
+            return false;
+        }
+    }
+    async function fetchFromIssues(token) {
+        try {
+            if (!token) {
+                throw new Error('Токен не введен');
+            }
+            
+            const response = await fetch(
+                `https://api.github.com/repos/${ISSUES_CONFIG.repo}/issues?labels=${ISSUES_CONFIG.label}&state=open&per_page=100`,
+                {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                }
+            );
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Неверный токен. Проверьте права доступа.');
+                } else if (response.status === 404) {
+                    throw new Error('Репозиторий не найден.');
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            }
+            
+            const issues = await response.json();
+            let allData = [];
+            
+            for (const issue of issues) {
+                try {
+                    const data = JSON.parse(issue.body);
+                    if (Array.isArray(data)) {
+                        allData = allData.concat(data);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Не удалось распарсить issue #' + issue.number);
+                }
+            }
+            
+            console.log(`📥 Загружено ${allData.length} записей из Issues`);
+            return { data: allData, issues: issues };
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки из Issues:', error);
+            throw error;
+        }
+    }
+      async function closeProcessedIssues(token, issues) {
+        try {
+            if (!token || !issues || issues.length === 0) return;
+            
+            let closed = 0;
+            for (const issue of issues) {
+                const response = await fetch(
+                    `https://api.github.com/repos/${ISSUES_CONFIG.repo}/issues/${issue.number}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({ 
+                            state: 'closed',
+                            state_reason: 'completed'
+                        })
+                    }
+                );
+                
+                if (response.ok) {
+                    closed++;
+                    console.log(`✅ Issue #${issue.number} закрыт`);
+                }
+            }
+            
+            console.log(`✅ Закрыто ${closed} issues`);
+            
+        } catch (error) {
+            console.warn('⚠️ Ошибка закрытия issues:', error);
+        }
+    }
+        async function fetchFromIssuesHandler() {
+        const btn = document.getElementById('nspd-fetch-issues');
+        const originalText = btn?.innerHTML || 'Забрать из Issues';
+        
+        try {
+            if (btn) {
+                btn.innerHTML = '⏳ Загрузка...';
+                btn.disabled = true;
+            }
+            
+            const token = prompt('Введите GitHub токен (права на repo):');
+            if (!token) {
+                alert('❌ Токен не введен');
+                return;
+            }
+            
+            const { data, issues } = await fetchFromIssues(token);
+            
+            if (data.length === 0) {
+                alert('📭 Нет новых данных в Issues');
+                return;
+            }
+            
+            saveLocalHistory(data);
+            
+            if (GIST_CONFIG.gistId) {
+                await saveToGist(data);
+            }
+            
+            await closeProcessedIssues(token, issues);
+            
+            alert(`✅ Загружено ${data.length} записей из Issues!\nВсего в базе: ${getLocalHistory().length}`);
+            
+        } catch (error) {
+            console.error('❌ Ошибка:', error);
+            alert('❌ Ошибка загрузки: ' + error.message);
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    }
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
