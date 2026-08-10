@@ -140,10 +140,7 @@
         
         return history;
     }
-
-    // 🔥 СИНХРОНИЗАЦИЯ ЛОКАЛЬНЫХ ЛОГОВ С GIST
-      // 🔥 СИНХРОНИЗАЦИЯ ЛОКАЛЬНЫХ ЛОГОВ С GIST
-    async function syncLocalToGist() {
+      async function syncLocalToGist() {
         const syncBtn = document.getElementById('nspd-sync-gist');
         const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
         
@@ -168,40 +165,68 @@
             
             console.log(`📊 Локальных записей: ${localHistory.length}`);
             
-            // Проверяем токен
+            // 🔥 ПРОВЕРЯЕМ ТОКЕН (ВСЕГДА!)
             if (!GIST_CONFIG.token) {
-                const token = prompt('Введите GitHub токен (права на Gist):');
-                if (!token) return;
-                GIST_CONFIG.token = token;
-                localStorage.setItem('github_token', token);
+                // Сначала проверяем localStorage
+                const savedToken = localStorage.getItem('github_token');
+                if (savedToken) {
+                    GIST_CONFIG.token = savedToken;
+                    console.log('✅ Токен загружен из localStorage');
+                } else {
+                    const token = prompt('Введите GitHub токен (права на Gist):');
+                    if (!token) {
+                        alert('❌ Токен не введен. Синхронизация отменена.');
+                        return;
+                    }
+                    GIST_CONFIG.token = token;
+                    localStorage.setItem('github_token', token);
+                    console.log('✅ Токен сохранен в localStorage');
+                }
             }
             
-            // Проверяем Gist ID
+            // 🔥 ПРОВЕРЯЕМ GIST ID
             if (!GIST_CONFIG.gistId) {
-                // Создаем новый Gist
-                const result = await saveToGist(localHistory);
-                if (result && result.id) {
-                    GIST_CONFIG.gistId = result.id;
-                    localStorage.setItem('gist_id', result.id);
-                    alert(`✅ Gist создан! ID: ${result.id}`);
+                // Проверяем localStorage
+                const savedGistId = localStorage.getItem('gist_id');
+                if (savedGistId) {
+                    GIST_CONFIG.gistId = savedGistId;
+                    console.log('✅ Gist ID загружен из localStorage');
                 } else {
-                    alert('❌ Не удалось создать Gist');
-                    return;
+                    // Создаем новый Gist
+                    const result = await saveToGist(localHistory);
+                    if (result && result.id) {
+                        GIST_CONFIG.gistId = result.id;
+                        localStorage.setItem('gist_id', result.id);
+                        alert(`✅ Gist создан! ID: ${result.id}`);
+                    } else {
+                        alert('❌ Не удалось создать Gist');
+                        return;
+                    }
                 }
+            }
+            
+            // 🔥 ВЫЗЫВАЕМ saveToGist
+            const result = await saveToGist(localHistory);
+            if (result) {
+                alert(`✅ Синхронизация завершена!`);
+                console.log('✅ Синхронизация завершена:', result.html_url);
             } else {
-                // 🔥 ПРОСТО ВЫЗЫВАЕМ saveToGist - ОН САМ ОТФИЛЬТРУЕТ ДУБЛИКАТЫ
-                const result = await saveToGist(localHistory);
-                if (result) {
-                    alert(`✅ Синхронизация завершена!`);
-                    console.log('✅ Синхронизация завершена:', result.html_url);
-                } else {
-                    alert('❌ Ошибка синхронизации');
-                }
+                alert('❌ Ошибка синхронизации');
             }
             
         } catch (error) {
             console.error('❌ Ошибка синхронизации:', error);
-            alert('❌ Ошибка синхронизации: ' + error.message);
+            
+            // 🔥 ОБРАБОТКА КОНКРЕТНЫХ ОШИБОК
+            let errorMsg = error.message;
+            if (error.message.includes('Failed to fetch')) {
+                errorMsg = 'Не удалось подключиться к GitHub. Проверьте интернет или CORS.';
+            } else if (error.message.includes('401')) {
+                errorMsg = 'Неверный токен. Проверьте права доступа (нужно право gist).';
+            } else if (error.message.includes('404')) {
+                errorMsg = 'Gist не найден. Проверьте ID или создайте новый.';
+            }
+            alert('❌ Ошибка синхронизации: ' + errorMsg);
         } finally {
             if (syncBtn) {
                 syncBtn.innerHTML = originalText;
@@ -210,41 +235,77 @@
         }
     }
     // 🔥 ФУНКЦИЯ СОХРАНЕНИЯ В GIST (ДОБАВЛЯЕТ НОВЫЕ ЗАПИСИ, НЕ ПЕРЕЗАПИСЫВАЕТ)
-    async function saveToGist(data) {
+      async function saveToGist(data) {
         try {
+            // 🔥 ПРОВЕРЯЕМ ТОКЕН
+            if (!GIST_CONFIG.token) {
+                console.error('❌ Токен не установлен!');
+                // Пытаемся загрузить из localStorage
+                const savedToken = localStorage.getItem('github_token');
+                if (savedToken) {
+                    GIST_CONFIG.token = savedToken;
+                    console.log('✅ Токен загружен из localStorage');
+                } else {
+                    throw new Error('Токен GitHub не найден. Нажмите "Обновить SQL в Gist" и введите токен.');
+                }
+            }
+            
+            // 🔥 ПРОВЕРЯЕМ GIST ID
+            if (!GIST_CONFIG.gistId) {
+                const savedGistId = localStorage.getItem('gist_id');
+                if (savedGistId) {
+                    GIST_CONFIG.gistId = savedGistId;
+                    console.log('✅ Gist ID загружен из localStorage');
+                } else {
+                    throw new Error('Gist ID не найден. Нажмите "Обновить SQL в Gist" для создания нового.');
+                }
+            }
+            
+            console.log(`🔑 Используем токен: ${GIST_CONFIG.token.substring(0, 10)}...`);
+            console.log(`📌 Gist ID: ${GIST_CONFIG.gistId}`);
+            
             const timestamp = new Date().toISOString();
             const dateStr = new Date().toISOString().split('T')[0];
             const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
             
-            // 1. СНАЧАЛА ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ GIST
+            // 1. ПОЛУЧАЕМ ТЕКУЩЕЕ СОДЕРЖИМОЕ GIST
             let existingContent = '';
             let existingHistory = [];
             
-            if (GIST_CONFIG.gistId) {
-                try {
-                    const getUrl = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
-                    const getResponse = await fetch(getUrl, {
-                        headers: {
-                            'Authorization': `token ${GIST_CONFIG.token}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
-                    });
-                    if (getResponse.ok) {
-                        const gistData = await getResponse.json();
-                        existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
-                        existingHistory = parseSQLToArray(existingContent);
-                        console.log(`📥 В Gist уже есть ${existingHistory.length} записей`);
+            try {
+                const getUrl = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+                console.log(`📡 Загружаем существующий Gist...`);
+                
+                const getResponse = await fetch(getUrl, {
+                    headers: {
+                        'Authorization': `token ${GIST_CONFIG.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
                     }
-                } catch (e) {
-                    console.warn('⚠️ Не удалось получить текущее содержимое Gist:', e);
+                });
+                
+                if (!getResponse.ok) {
+                    if (getResponse.status === 404) {
+                        throw new Error(`Gist с ID "${GIST_CONFIG.gistId}" не найден. Проверьте ID или создайте новый.`);
+                    } else if (getResponse.status === 401) {
+                        throw new Error('Неверный токен. Проверьте права доступа (нужно право gist).');
+                    } else {
+                        throw new Error(`HTTP ${getResponse.status}: ${getResponse.statusText}`);
+                    }
                 }
+                
+                const gistData = await getResponse.json();
+                existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
+                existingHistory = parseSQLToArray(existingContent);
+                console.log(`📥 В Gist уже есть ${existingHistory.length} записей`);
+                
+            } catch (fetchError) {
+                console.error('❌ Ошибка загрузки Gist:', fetchError);
+                throw fetchError;
             }
             
             // 2. ФОРМИРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (без дубликатов)
             const existingKeys = new Set();
             existingHistory.forEach(row => {
-                // 🔥 ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ cadNumber + address + paramName + paramValue
-                // БЕЗ saved_at, потому что он может меняться
                 let key;
                 if (row.cadNumber && row.cadNumber !== 'Не определено') {
                     key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
@@ -267,7 +328,7 @@
             
             if (newData.length === 0) {
                 console.log('ℹ️ Нет новых записей для добавления в Gist');
-                return { html_url: GIST_CONFIG.gistId ? `https://gist.github.com/${GIST_CONFIG.gistId}` : null };
+                return { html_url: `https://gist.github.com/${GIST_CONFIG.gistId}`, added: 0 };
             }
             
             console.log(`📤 Добавляем ${newData.length} новых записей в Gist`);
@@ -379,7 +440,14 @@
             });
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                let errorMsg = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg += `: ${errorData.message || response.statusText}`;
+                } catch (e) {
+                    errorMsg += `: ${response.statusText}`;
+                }
+                throw new Error(errorMsg);
             }
             
             const result = await response.json();
@@ -388,7 +456,8 @@
             
         } catch (error) {
             console.error('❌ Ошибка сохранения в Gist:', error);
-            return null;
+            // Пробрасываем ошибку дальше, чтобы syncLocalToGist мог ее обработать
+            throw error;
         }
     }
     // 🔥 ПАРАМЕТРЫ ДЛЯ ПОИСКА (ПЕРЕКЛЮЧАТЕЛЬ)
