@@ -1490,7 +1490,7 @@ function processRows(rows) {
                     </button>
 
                     <button id="nspd-sync-gist" 
-                            class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2" style="display:none;">
+        class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
@@ -2125,9 +2125,19 @@ displayMassResults(candidates, [], resultsContainer, param.label);
         }
         
         // Показываем кнопку синхронизации только если есть локальная история
-        const localHistory = getLocalHistory();
-        if (localHistory.length > 0 && syncBtn) {
-            syncBtn.style.display = 'inline-flex';
+              const localHistory = getLocalHistory();
+        console.log('📊 Локальная история:', localHistory.length, 'записей');
+        
+        if (syncBtn) {
+            if (localHistory.length > 0) {
+                syncBtn.style.display = 'inline-flex';
+                console.log('✅ Кнопка синхронизации ПОКАЗАНА (есть данные)');
+            } else {
+                console.log('ℹ️ Кнопка синхронизации СКРЫТА (нет данных)');
+                console.log('💡 Сделайте поиск, чтобы добавить данные в историю');
+            }
+        } else {
+            console.log('❌ Кнопка синхронизации не найдена в DOM');
         }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
