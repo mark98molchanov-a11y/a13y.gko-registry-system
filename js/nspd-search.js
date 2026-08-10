@@ -429,23 +429,25 @@ function extractAllFields(item) {
                       parseFloat(opts.build_record_area) || 0;
     }
 
-    // 🔥 ВРИ (приоритет: item → opts → props)
+    // 🔥 ВРИ (приоритет: permitted_use_established_by_document → permitted_uses_name → purpose)
     let vri = '—';
     if (isLand) {
-        vri = item.permitted_uses_name || 
+        vri = opts.permitted_use_established_by_document ||  // 🔥 ПЕРВЫЙ ПРИОРИТЕТ!
+              item.permitted_use_established_by_document ||
               opts.permitted_uses_name || 
-              opts.permitted_use_established_by_document || 
-              item.purpose || 
+              item.permitted_uses_name || 
               opts.purpose || 
+              item.purpose || 
               opts.params_purpose || 
               '—';
     }
 
-    // 🔥 НАЗНАЧЕНИЕ (приоритет: item → opts → props)
-    let purpose = item.purpose || 
-                  opts.purpose || 
+    // 🔥 НАЗНАЧЕНИЕ (приоритет: purpose → permitted_use_established_by_document)
+    let purpose = opts.purpose || 
+                  item.purpose || 
                   opts.params_purpose || 
-                  opts.permitted_use_established_by_document || 
+                  opts.permitted_use_established_by_document ||  // 🔥 ДОБАВЛЯЕМ!
+                  item.permitted_use_established_by_document ||
                   '—';
 
     // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (приоритет: item → opts → props)
