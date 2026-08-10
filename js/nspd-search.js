@@ -8,9 +8,10 @@
         gistId: 'de65c48d1a525b9e7ee8695bd19f19b2',       
         filename: 'nspd_search_history.sql'
     };
-        const ISSUES_CONFIG = {
-        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',  // ТВОЙ РЕПОЗИТОРИЙ
-        label: 'nspd-search-log'  // МЕТКА ДЛЯ ПОИСКА
+    const ISSUES_CONFIG = {
+        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',
+        label: 'nspd-search-log',
+        token: ''  // ← ДОБАВЬ СЮДА ТОКЕН (или запрашивай при отправке)
     };
     function getLocalHistory() {
         try {
@@ -25,7 +26,6 @@
             const history = getLocalHistory();
             const timestamp = new Date().toISOString();
             let addedCount = 0;
-            за
             data.forEach(row => {
                 // 🔥 ПРОВЕРКА НА ДУБЛИКАТЫ
                 const isDuplicate = history.some(existing => {
@@ -2342,9 +2342,25 @@ displayMassResults(candidates, [], resultsContainer, param.label);
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
-    async function sendToIssues(data) {
+       async function sendToIssues(data) {
         try {
             if (!data || data.length === 0) return false;
+            
+            // Проверяем токен
+            if (!ISSUES_CONFIG.token) {
+                // Пробуем загрузить из localStorage
+                const savedToken = localStorage.getItem('issues_token');
+                if (savedToken) {
+                    ISSUES_CONFIG.token = savedToken;
+                } else {
+                    // Запрашиваем токен для Issues (только если репозиторий приватный)
+                    console.warn('⚠️ Для отправки в Issues нужен токен (репозиторий приватный)');
+                    // Можно запросить токен:
+                    // const token = prompt('Введите GitHub токен для отправки в Issues:');
+                    // if (token) ISSUES_CONFIG.token = token;
+                    return false;
+                }
+            }
             
             const issueData = {
                 title: `📊 Поиск НСПД ${new Date().toLocaleString()}`,
@@ -2352,20 +2368,28 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 labels: [ISSUES_CONFIG.label]
             };
             
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            };
+            
+            // Добавляем токен если есть
+            if (ISSUES_CONFIG.token) {
+                headers['Authorization'] = `token ${ISSUES_CONFIG.token}`;
+            }
+            
             const response = await fetch(
                 `https://api.github.com/repos/${ISSUES_CONFIG.repo}/issues`,
                 {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
+                    headers: headers,
                     body: JSON.stringify(issueData)
                 }
             );
             
             if (!response.ok) {
-                console.warn('⚠️ Не удалось отправить в Issues:', await response.text());
+                const error = await response.json();
+                console.warn('⚠️ Не удалось отправить в Issues:', error.message);
                 return false;
             }
             
@@ -2377,7 +2401,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             return false;
         }
     }
-    async function fetchFromIssues(token) {
+       async function fetchFromIssues(token) {
         try {
             if (!token) {
                 throw new Error('Токен не введен');
@@ -2408,6 +2432,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             
             for (const issue of issues) {
                 try {
+                    // Парсим тело issue
                     const data = JSON.parse(issue.body);
                     if (Array.isArray(data)) {
                         allData = allData.concat(data);
@@ -2417,7 +2442,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 }
             }
             
-            console.log(`📥 Загружено ${allData.length} записей из Issues`);
+            console.log(`📥 Загружено ${allData.length} записей из Issues (${issues.length} issues)`);
             return { data: allData, issues: issues };
             
         } catch (error) {
