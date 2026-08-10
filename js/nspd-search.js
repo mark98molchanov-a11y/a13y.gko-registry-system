@@ -2282,7 +2282,7 @@ function processRows(rows) {
             }
         }
     }
-        function tryInitNSPD(containerId) {
+    function tryInitNSPD(containerId) {
         const container = document.getElementById(containerId);
         if (container && typeof window.initNSPDSearch === 'function') {
             console.log('✅ Контейнер найден, инициализируем НСПД');
@@ -2292,19 +2292,16 @@ function processRows(rows) {
         return false;
     }
     
-    // Ждем полной загрузки DOM
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             tryInitNSPD('nspd-search');
         });
     } else {
-        // DOM уже загружен
         setTimeout(function() {
             tryInitNSPD('nspd-search');
         }, 100);
     }
     
-    // Дополнительная проверка через MutationObserver (если контейнер создается позже)
     const observer = new MutationObserver(function() {
         if (tryInitNSPD('nspd-search')) {
             observer.disconnect();
@@ -2312,7 +2309,6 @@ function processRows(rows) {
     });
     observer.observe(document.body, { childList: true, subtree: true });
     
-    // Таймаут на всякий случай
     setTimeout(function() {
         if (!tryInitNSPD('nspd-search')) {
             console.warn('⚠️ Контейнер так и не найден');
