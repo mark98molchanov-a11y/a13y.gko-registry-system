@@ -4,7 +4,7 @@
     const AREA_TOLERANCE = 0.2;
     const GIST_CONFIG = {
         // 🔥 ЗАМЕНИ НА СВОИ ДАННЫЕ!
-        token: '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',  // Твой GitHub токен
+        token: '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',  // Твой GitHub токен
         gistId: '',       // ID существующего Gist или оставь пустым для создания нового
         filename: 'nspd_search_history.sql'
     };
