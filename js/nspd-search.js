@@ -377,7 +377,9 @@ function extractAllFields(item) {
                    objectType.includes('Земельный') || 
                    objectType.includes('земельный участок') ||
                    (item.categoryName && item.categoryName.includes('Земельные участки')) ||
-                   (opts.categoryName && opts.categoryName.includes('Земельные участки'));
+                   (opts.categoryName && opts.categoryName.includes('Земельные участки')) ||
+                   (props.categoryName && props.categoryName.includes('Земельные участки')) ||
+                   (opts.land_record_type && opts.land_record_type.includes('Земельный участок'));
     
     // УПКС
     let upksValue = parseFloat(opts.cost_index) || item.cadastral_index || 0;
@@ -398,7 +400,7 @@ function extractAllFields(item) {
                      objectType || 
                      '';
 
-    // ✅ ВИД ОБЪЕКТА
+    // ✅ ВИД ОБЪЕКТА (используем opts.land_record_type для земельных участков)
     let objectView = item.object_type || 
                      item.type || 
                      opts.type || 
@@ -450,14 +452,15 @@ function extractAllFields(item) {
                   item.permitted_use_established_by_document ||
                   '—';
 
-    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (приоритет: item → opts → props)
+    // 🔥 КАТЕГОРИЯ ЗЕМЕЛЬ (приоритет: opts → props → item)
     let landCategory = '—';
     if (isLand) {
-        landCategory = item.land_record_category_type || 
-                       opts.land_record_category_type || 
+        landCategory = opts.land_record_category_type ||   // 🔥 ПЕРВЫЙ ПРИОРИТЕТ!
                        props.land_record_category_type || 
-                       item.categoryName || 
+                       item.land_record_category_type || 
                        opts.categoryName || 
+                       props.categoryName || 
+                       item.categoryName || 
                        '—';
     }
 
