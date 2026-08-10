@@ -2692,7 +2692,7 @@ function processRows(rows) {
             }
         }
     }
-       function tryInitNSPD(containerId) {
+        function tryInitNSPD(containerId) {
         const container = document.getElementById(containerId);
         if (container && typeof window.initNSPDSearch === 'function') {
             console.log('✅ Контейнер найден, инициализируем НСПД');
@@ -2702,21 +2702,33 @@ function processRows(rows) {
         return false;
     }
     
-    if (!tryInitNSPD('nspd-search')) {
-        console.log('⏳ Контейнер еще не создан, ждем...');
-        const observer = new MutationObserver(function() {
-            if (tryInitNSPD('nspd-search')) {
-                observer.disconnect();
-            }
+    // Ждем полной загрузки DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            tryInitNSPD('nspd-search');
         });
-        observer.observe(document.body, { childList: true, subtree: true });
-        
+    } else {
+        // DOM уже загружен
         setTimeout(function() {
-            if (!tryInitNSPD('nspd-search')) {
-                console.warn('⚠️ Контейнер так и не найден');
-            }
-        }, 5000);
+            tryInitNSPD('nspd-search');
+        }, 100);
     }
+    
+    // Дополнительная проверка через MutationObserver (если контейнер создается позже)
+    const observer = new MutationObserver(function() {
+        if (tryInitNSPD('nspd-search')) {
+            observer.disconnect();
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Таймаут на всякий случай
+    setTimeout(function() {
+        if (!tryInitNSPD('nspd-search')) {
+            console.warn('⚠️ Контейнер так и не найден');
+        }
+        observer.disconnect();
+    }, 5000);
 
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
