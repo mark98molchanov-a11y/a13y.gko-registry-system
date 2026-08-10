@@ -1454,7 +1454,7 @@ function processRows(rows) {
                         console.debug('⚠️ Ошибка сохранения:', e.message);
                     }
                 })();
-                           
+             }                
         } else {
             attempts++;
             if (attempts < maxAttempts) {
