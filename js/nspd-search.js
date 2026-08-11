@@ -2201,42 +2201,53 @@ async function saveSearchResult(historyData) {
                 displayMassResults(candidates, [], resultsContainer, param.label);
                 
                 // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
-                (async function() {
-                    try {
-                        const historyData = [];
-                        
-                        if (candidates.length > 0) {
-                            candidates.forEach(item => {
-                                const fields = extractAllFields(item);
-                                historyData.push({
-                                    searchType: 'single',
-                                    address: address,
-                                    paramName: param.label,
-                                    paramValue: value,
-                                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                                    objectView: fields['Вид объекта'] || '—',
-                                    found: 1
-                                });
-                            });
-                        } else {
-                            historyData.push({
-                                searchType: 'single',
-                                address: address,
-                                paramName: param.label,
-                                paramValue: value,
-                                cadNumber: 'Не определено',
-                                objectView: '—',
-                                found: 0
-                            });
-                        }
-                        
-                        // ✅ СОХРАНЯЕМ В GIST (НОВАЯ ФУНКЦИЯ)
-                        await saveSearchResult(historyData);
-                        
-                    } catch (e) {
-                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
-                    }
-                })();
+             (async function() {
+    try {
+        const historyData = [];
+        
+        if (candidates.length > 0) {
+            // ✅ ФИЛЬТРУЕМ ТОЛЬКО ТОЧНЫЕ СОВПАДЕНИЯ ПО ПЛОЩАДИ
+            const exactMatches = candidates.filter(item => {
+                const paramValue = param.getValue(item.rawData.opts || {});
+                return Math.abs(paramValue - value) <= AREA_TOLERANCE;
+            });
+            
+            // ✅ ЕСЛИ ЕСТЬ ТОЧНЫЕ СОВПАДЕНИЯ — БЕРЕМ ИХ
+            // ✅ ЕСЛИ НЕТ — БЕРЕМ ПЕРВЫЙ (САМЫЙ БЛИЗКИЙ)
+            const itemsToSave = exactMatches.length > 0 ? exactMatches : [candidates[0]];
+            
+            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений: ${exactMatches.length}, сохраняем: ${itemsToSave.length}`);
+            
+            itemsToSave.forEach(item => {
+                const fields = extractAllFields(item);
+                historyData.push({
+                    searchType: 'single',
+                    address: address,
+                    paramName: param.label,
+                    paramValue: value,
+                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                    objectView: fields['Вид объекта'] || '—',
+                    found: 1
+                });
+            });
+        } else {
+            historyData.push({
+                searchType: 'single',
+                address: address,
+                paramName: param.label,
+                paramValue: value,
+                cadNumber: 'Не определено',
+                objectView: '—',
+                found: 0
+            });
+        }
+        
+        await saveSearchResult(historyData);
+        
+    } catch (e) {
+        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+    }
+})();
                 
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
