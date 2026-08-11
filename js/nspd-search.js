@@ -2314,7 +2314,8 @@ displayMassResults(candidates, [], resultsContainer, param.label);
         }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
-    } 
+    }
+
     async function sendToIssues(data) {
         try {
             if (!data || data.length === 0) return false;
@@ -2350,6 +2351,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             return false;
         }
     }
+
     async function fetchFromIssues(token) {
         try {
             if (!token) {
@@ -2398,7 +2400,8 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             throw error;
         }
     }
-      async function closeProcessedIssues(token, issues) {
+
+    async function closeProcessedIssues(token, issues) {
         try {
             if (!token || !issues || issues.length === 0) return;
             
@@ -2432,7 +2435,8 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             console.warn('⚠️ Ошибка закрытия issues:', error);
         }
     }
-            async function fetchFromIssuesHandler() {
+
+    async function fetchFromIssuesHandler() {
         const btn = document.getElementById('nspd-fetch-issues');
         const originalText = btn?.innerHTML || 'Забрать из Issues';
         
@@ -2493,7 +2497,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 btn.disabled = false;
             }
         }
-    }  // ← ДОБАВЬТЕ ЭТУ СКОБКУ!
-    
+    }
+
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
