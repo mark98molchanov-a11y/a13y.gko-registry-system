@@ -298,17 +298,17 @@ async function saveToGist(data, token) {
             // ✅ СОЗДАЕМ НОВЫЙ ФАЙЛ
             finalContent = sql;
         } else {
-            // ✅ ЕСТЬ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ — ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ В КОНЕЦ
+            // ✅ ЕСТЬ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ — ПРОСТО ДОБАВЛЯЕМ В КОНЕЦ
+            // НЕ УДАЛЯЕМ СТАРЫЕ INSERT-ы!
             finalContent = existingContent;
             
-            // ✅ УДАЛЯЕМ СТАРЫЕ INSERT-Ы (чтобы не было дублирования)
-            const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
-            finalContent = finalContent.replace(insertRegex, '');
-            finalContent = finalContent.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
-            finalContent = finalContent.replace(/\n{3,}/g, '\n\n').trim();
+            // ✅ ПРОВЕРЯЕМ, ЧТО ПОСЛЕДНЯЯ СТРОКА НЕ ПУСТАЯ
+            if (!finalContent.endsWith('\n')) {
+                finalContent += '\n';
+            }
             
-            // ✅ ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ В КОНЕЦ
-            finalContent = finalContent + '\n\n' + sql;
+            // ✅ ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ В КОНЕЦ (БЕЗ УДАЛЕНИЯ СТАРЫХ)
+            finalContent += '\n' + sql;
         }
         
         // ============================================================
@@ -483,6 +483,11 @@ async function syncLocalToGist() {
         
         if (newData.length === 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${gistHistory.length} записей`);
+            
+            // ✅ ОЧИЩАЕМ КЕШ, ТАК КАК ВСЕ ДАННЫЕ УЖЕ В GIST
+            localStorage.removeItem('nspd_gist_cache');
+            console.log('🧹 Кеш очищен (все данные уже в Gist)');
+            
             return;
         }
         
@@ -493,8 +498,18 @@ async function syncLocalToGist() {
         
         if (result && result.added > 0) {
             alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} записей\nВсего в Gist: ${result.total}`);
+            
+            // ✅ ПОСЛЕ УСПЕШНОЙ СИНХРОНИЗАЦИИ — ОЧИЩАЕМ КЕШ
+            localStorage.removeItem('nspd_gist_cache');
+            console.log(`🧹 Кеш очищен! Все ${result.total} записей теперь в Gist`);
+            
         } else if (result && result.added === 0 && result.total > 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${result.total} записей`);
+            
+            // ✅ ОЧИЩАЕМ КЕШ
+            localStorage.removeItem('nspd_gist_cache');
+            console.log('🧹 Кеш очищен (все данные уже в Gist)');
+            
         } else if (result && result.error) {
             alert(`❌ Ошибка: ${result.error}`);
         } else {
