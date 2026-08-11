@@ -1452,9 +1452,7 @@ function processRows(rows) {
                         
                     } catch (e) {
                         console.debug('⚠️ Ошибка сохранения:', e.message);
-                    }
-                })();  // ← ТОЛЬКО ЭТА ЗАКРЫВАЮЩАЯ!
-                
+                    }            
         } else {  // ← else от if (container)
             attempts++;
             if (attempts < maxAttempts) {
