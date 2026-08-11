@@ -2493,5 +2493,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 btn.disabled = false;
             }
         }
+    }  // ← ДОБАВЬТЕ ЭТУ СКОБКУ!
+    
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
