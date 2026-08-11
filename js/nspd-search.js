@@ -1492,7 +1492,6 @@ async function saveSearchResult(historyData) {
                     const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
                     displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
-
 (async function() {
     try {
         const historyData = [];
@@ -1512,17 +1511,9 @@ async function saveSearchResult(historyData) {
                 return areaMatch && addressMatch;
             });
             
-            // ✅ СОРТИРУЕМ ПО БЛИЗОСТИ ПЛОЩАДИ
-            const sortedMatches = exactMatches.sort((a, b) => {
-                const valA = param.getValue(a.rawData.opts || {});
-                const valB = param.getValue(b.rawData.opts || {});
-                return Math.abs(valA - value) - Math.abs(valB - value);
-            });
+            const itemsToSave = exactMatches.length > 0 ? exactMatches : [];
             
-            // ✅ БЕРЕМ ТОЛЬКО ПЕРВЫЙ (САМЫЙ БЛИЗКИЙ)
-            const itemsToSave = sortedMatches.length > 0 ? [sortedMatches[0]] : [];
-            
-            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений: ${exactMatches.length}, сохраняем: ${itemsToSave.length} (самый близкий)`);
+            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений (площадь+адрес): ${exactMatches.length}, сохраняем: ${itemsToSave.length}`);
             
             if (itemsToSave.length === 0) {
                 historyData.push({
@@ -1537,10 +1528,9 @@ async function saveSearchResult(historyData) {
             } else {
                 itemsToSave.forEach(item => {
                     const fields = extractAllFields(item);
-                    const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
                     historyData.push({
                         searchType: 'mass',
-                        address: objAddress,
+                        address: fields['Адрес'] || '—',
                         paramName: searchParamLabel || '—',
                         paramValue: 0,
                         cadNumber: fields['Кадастровый номер'] || 'Не определено',
@@ -2226,7 +2216,8 @@ async function saveSearchResult(historyData) {
 
                 displayMassResults(candidates, [], resultsContainer, param.label);
                 
-               // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
+                // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
+             // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
 (async function() {
     try {
         const historyData = [];
@@ -2234,9 +2225,11 @@ async function saveSearchResult(historyData) {
         if (candidates.length > 0) {
             // ✅ ФИЛЬТРУЕМ: площадь совпадает И адрес совпадает
             const exactMatches = candidates.filter(item => {
+                // Проверяем площадь
                 const paramValue = param.getValue(item.rawData.opts || {});
                 const areaMatch = Math.abs(paramValue - value) <= AREA_TOLERANCE;
                 
+                // Проверяем адрес (нормализованное сравнение)
                 const itemAddress = normalizeString(item.address || '');
                 const searchAddress = normalizeString(address || '');
                 const addressMatch = itemAddress === searchAddress || 
@@ -2246,22 +2239,17 @@ async function saveSearchResult(historyData) {
                 return areaMatch && addressMatch;
             });
             
-            // ✅ СОРТИРУЕМ ПО БЛИЗОСТИ ПЛОЩАДИ
-            const sortedMatches = exactMatches.sort((a, b) => {
-                const valA = param.getValue(a.rawData.opts || {});
-                const valB = param.getValue(b.rawData.opts || {});
-                return Math.abs(valA - value) - Math.abs(valB - value);
-            });
+            // ✅ ЕСЛИ ЕСТЬ ТОЧНЫЕ СОВПАДЕНИЯ — БЕРЕМ ИХ (ВСЕ)
+            // ✅ ЕСЛИ НЕТ — НИЧЕГО НЕ СОХРАНЯЕМ
+            const itemsToSave = exactMatches.length > 0 ? exactMatches : [];
             
-            // ✅ БЕРЕМ ТОЛЬКО ПЕРВЫЙ (САМЫЙ БЛИЗКИЙ)
-            const itemsToSave = sortedMatches.length > 0 ? [sortedMatches[0]] : [];
-            
-            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений: ${exactMatches.length}, сохраняем: ${itemsToSave.length} (самый близкий)`);
+            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений (площадь+адрес): ${exactMatches.length}, сохраняем: ${itemsToSave.length}`);
             
             if (itemsToSave.length === 0) {
+                // Если ничего не найдено — сохраняем запись "не найден"
                 historyData.push({
                     searchType: 'single',
-                    address: address || 'Не определено',
+                    address: address,
                     paramName: param.label,
                     paramValue: value,
                     cadNumber: 'Не определено',
@@ -2271,11 +2259,9 @@ async function saveSearchResult(historyData) {
             } else {
                 itemsToSave.forEach(item => {
                     const fields = extractAllFields(item);
-                    // ✅ БЕРЕМ АДРЕС ИЗ ОБЪЕКТА!
-                    const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
                     historyData.push({
                         searchType: 'single',
-                        address: objAddress,
+                        address: address,
                         paramName: param.label,
                         paramValue: value,
                         cadNumber: fields['Кадастровый номер'] || 'Не определено',
@@ -2287,7 +2273,7 @@ async function saveSearchResult(historyData) {
         } else {
             historyData.push({
                 searchType: 'single',
-                address: address || 'Не определено',
+                address: address,
                 paramName: param.label,
                 paramValue: value,
                 cadNumber: 'Не определено',
