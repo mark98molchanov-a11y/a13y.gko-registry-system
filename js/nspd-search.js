@@ -1493,7 +1493,7 @@ async function saveSearchResult(historyData) {
                     displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
                     // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ В GIST (ЧЕРЕЗ saveSearchResult)
-   (async function() {
+  (async function() {
     try {
         const historyData = [];
         
