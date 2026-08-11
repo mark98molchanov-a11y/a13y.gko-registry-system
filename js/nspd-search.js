@@ -8,11 +8,67 @@
         gistId: 'de65c48d1a525b9e7ee8695bd19f19b2',       
         filename: 'nspd_search_history.sql'
     };
-        const ISSUES_CONFIG = {
-        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',  // ТВОЙ РЕПОЗИТОРИЙ
-        label: 'nspd-search-log'  // МЕТКА ДЛЯ ПОИСКА
+    const ISSUES_CONFIG = {
+        repo: 'mark98molchanov-a11y/a13y.gko-registry-system',
+        label: 'nspd-search-log',
+        token: ''  // ← ДОБАВЬ СЮДА ТОКЕН (или запрашивай при отправке)
     };
-    async function getGistData() {
+    function getLocalHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('nspd_search_history') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+       function saveLocalHistory(data) {
+        try {
+            const history = getLocalHistory();
+            const timestamp = new Date().toISOString();
+            let addedCount = 0;
+            data.forEach(row => {
+                // 🔥 ПРОВЕРКА НА ДУБЛИКАТЫ
+                const isDuplicate = history.some(existing => {
+                    // Проверяем по ключевым полям
+                    const sameAddress = existing.address === row.address;
+                    const sameParam = existing.paramName === row.paramName;
+                    const sameValue = Math.abs(existing.paramValue - row.paramValue) < 0.01;
+                    const sameCadNumber = existing.cadNumber === row.cadNumber;
+                    
+                    // Если кадастровый номер определен, проверяем по нему
+                    if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                        return sameCadNumber;
+                    }
+                    
+                    // Если адрес совпадает, параметр и значение - считаем дубликатом
+                    return sameAddress && sameParam && sameValue;
+                });
+                
+                if (!isDuplicate) {
+                    history.push({
+                        ...row,
+                        saved_at: timestamp
+                    });
+                    addedCount++;
+                }
+            });
+            
+            // Ограничиваем размер (последние 1000 записей)
+            if (history.length > 1000) {
+                history.splice(0, history.length - 1000);
+            }
+            
+            localStorage.setItem('nspd_search_history', JSON.stringify(history));
+            console.log(`✅ История сохранена локально: +${addedCount} новых записей, всего: ${history.length}`);
+            return true;
+        } catch (e) {
+            console.warn('⚠️ Ошибка сохранения локальной истории:', e);
+            return false;
+        }
+    }
+
+    // 🔥 ПОЛУЧЕНИЕ ПОСЛЕДНИХ ЗАПИСЕЙ ИЗ GIST
+    async function getGistHistory() {
         if (!GIST_CONFIG.token || !GIST_CONFIG.gistId) {
             console.warn('⚠️ Токен или Gist ID не настроены');
             return null;
@@ -88,7 +144,7 @@
         
         return history;
     }
-           async function syncLocalToGist() {
+         async function syncLocalToGist() {
         const syncBtn = document.getElementById('nspd-sync-gist');
         const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
         
@@ -104,30 +160,28 @@
                 syncBtn.disabled = true;
             }
             
-            // 🔥 ПРОВЕРЯЕМ ТОКЕН
-            if (!GIST_CONFIG.token) {
-                const token = prompt('Введите GitHub токен (права на Gist):');
-                if (!token) {
-                    alert('❌ Токен не введен. Синхронизация отменена.');
-                    return;
-                }
-                GIST_CONFIG.token = token;
-                console.log('✅ Токен введен');
-            }
-            
-            // 🔥 ЗАГРУЖАЕМ ДАННЫЕ ИЗ GIST
-            const existingHistory = await getGistData();
-            if (!existingHistory || existingHistory.length === 0) {
-                alert('📭 В Gist нет данных для синхронизации. Сначала выполните поиск.');
+            // Получаем локальную историю
+            const localHistory = getLocalHistory();
+            if (localHistory.length === 0) {
+                alert('📭 Нет локальных записей для синхронизации');
                 return;
             }
             
-            console.log(`📊 В Gist найдено ${existingHistory.length} записей`);
+            console.log(`📊 Локальных записей: ${localHistory.length}`);
+            
+            // 🔥 ВСЕГДА ЗАПРАШИВАЕМ ТОКЕН (НЕ СОХРАНЯЕМ В localStorage)
+            const token = prompt('Введите GitHub токен (права на Gist):');
+            if (!token) {
+                alert('❌ Токен не введен. Синхронизация отменена.');
+                return;
+            }
+            GIST_CONFIG.token = token;
+            console.log('✅ Токен введен');
             
             // 🔥 ПРОВЕРЯЕМ GIST ID - если пустой, создаем новый
             if (!GIST_CONFIG.gistId) {
                 // Создаем новый Gist
-                const result = await saveToGist(existingHistory, true);
+                const result = await saveToGist(localHistory, true);
                 if (result && result.id) {
                     GIST_CONFIG.gistId = result.id;
                     alert(`✅ Gist создан! ID: ${result.id}\nСкопируйте этот ID и вставьте в код в GIST_CONFIG.gistId`);
@@ -139,12 +193,10 @@
             }
             
             // 🔥 ВЫЗЫВАЕМ saveToGist ДЛЯ ОБНОВЛЕНИЯ
-            const result = await saveToGist(existingHistory, false);
-            if (result && result.added > 0) {
-                alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} новых записей\nВсего в Gist: ${result.total}`);
+            const result = await saveToGist(localHistory, false);
+            if (result) {
+                alert(`✅ Синхронизация завершена!`);
                 console.log('✅ Синхронизация завершена:', result.html_url);
-            } else if (result && result.added === 0) {
-                alert('ℹ️ Нет новых записей для синхронизации');
             } else {
                 alert('❌ Ошибка синхронизации');
             }
@@ -1278,106 +1330,111 @@ function processRows(rows) {
     let attempts = 0;
     const maxAttempts = 100;
     
- function waitForContainer() {
-    const container = document.getElementById('nspd-search-results');
-    
-    // Проверяем наличие контейнера
-    if (container) {
-        // Если данных нет
-        if (rows.length === 0) {
-            container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
-            return;
-        }
+    function waitForContainer() {
+        const container = document.getElementById('nspd-search-results');
         
-        const progressContainer = document.getElementById('nspd-progress-container');
-        const progressBar = document.getElementById('nspd-progress-bar');
-        const progressText = document.getElementById('nspd-progress-text');
-        
-        if (progressContainer) progressContainer.style.display = 'block';
-        if (progressBar) progressBar.style.width = '0%';
-        if (progressText) progressText.textContent = '0%';
-        
-        let allResults = [];
-        let notFoundItems = [];
-        let total = rows.length;
-        
-        // Запускаем основной цикл обработки
-        (async function() {
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                const percent = Math.round(((i + 1) / total) * 100);
-                
-                if (progressBar) progressBar.style.width = percent + '%';
-                if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
-                
-                const param = SEARCH_PARAMS[row.param];
-                if (!param) {
-                    notFoundItems.push({
-                        address: row.address,
-                        paramLabel: row.param,
-                        paramValue: row.value
-                    });
-                    continue;
-                }
-                
-                try {
-                    const features = await searchByAddress(row.address, param, row.value);
-                    if (features.length > 0) {
-                        let candidates = features.map(f => {
-                            const props = f.properties || {};
-                            const opts = props.options || {};
-                            return {
-                                feature: f,
-                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                                address: opts.address_readable_address || opts.readable_address || '',
-                                cadNumber: getCadNumber(opts, props),
-                                type: opts.type || opts.object_type_value || '—',
-                                cadastralCost: parseFloat(opts.cost_value) || 0,
-                                name: opts.params_name || opts.name || '',
-                                determination_couse: opts.determination_couse || '',
-                                rawData: { feature: f, opts: opts, props: props }
-                            };
+        if (container) {
+            if (rows.length === 0) {
+                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+                return;
+            }
+            
+            const progressContainer = document.getElementById('nspd-progress-container');
+            const progressBar = document.getElementById('nspd-progress-bar');
+            const progressText = document.getElementById('nspd-progress-text');
+            if (progressContainer) progressContainer.style.display = 'block';
+            if (progressBar) progressBar.style.width = '0%';
+            if (progressText) progressText.textContent = '0%';
+            
+            let allResults = [];
+            let notFoundItems = [];
+            let total = rows.length;
+            
+            (async function() {
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const percent = Math.round(((i + 1) / total) * 100);
+                    if (progressBar) progressBar.style.width = percent + '%';
+                    if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
+                    
+                    const param = SEARCH_PARAMS[row.param];
+                    if (!param) {
+                        notFoundItems.push({
+                            address: row.address,
+                            paramLabel: row.param,
+                            paramValue: row.value
                         });
-                        
-                        if (candidates.length > 1) {
-                            function getAddressScore(candidateAddress, targetAddress) {
-                                if (!candidateAddress || !targetAddress) return 0;
-                                const normalizedTarget = normalizeString(targetAddress);
-                                const normalizedCandidate = normalizeString(candidateAddress);
-                                
-                                let score = 0;
-                                if (normalizedCandidate === normalizedTarget) return 100;
-                                if (normalizedCandidate.includes(normalizedTarget)) score += 50;
-                                if (normalizedTarget.includes(normalizedCandidate)) score += 30;
-                                
-                                const targetHouse = extractHouseNumber(targetAddress);
-                                const candidateHouse = extractHouseNumber(candidateAddress);
-                                if (targetHouse && candidateHouse && targetHouse === candidateHouse) score += 20;
-                                
-                                const targetPlot = extractPlotNumber(targetAddress);
-                                const candidatePlot = extractPlotNumber(candidateAddress);
-                                if (targetPlot && candidatePlot && targetPlot === candidatePlot) score += 20;
-                                
-                                score += normalizedCandidate.length / 10;
-                                return score;
-                            }
-                            
-                            candidates.sort((a, b) => {
-                                const scoreA = getAddressScore(a.address, row.address);
-                                const scoreB = getAddressScore(b.address, row.address);
-                                return scoreB - scoreA;
+                        continue;
+                    }
+                    
+                    try {
+                        const features = await searchByAddress(row.address, param, row.value);
+                        if (features.length > 0) {
+                            let candidates = features.map(f => {
+                                const props = f.properties || {};
+                                const opts = props.options || {};
+                                return {
+                                    feature: f,
+                                    area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                    builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                    volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                    extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                    landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                    depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+                                    address: opts.address_readable_address || opts.readable_address || '',
+                                    cadNumber: getCadNumber(opts, props),
+                                    type: opts.type || opts.object_type_value || '—',
+                                    cadastralCost: parseFloat(opts.cost_value) || 0,
+                                    name: opts.params_name || opts.name || '',
+                                    determination_couse: opts.determination_couse || '',
+                                    rawData: { feature: f, opts: opts, props: props }
+                                };
                             });
                             
-                            candidates = candidates.slice(0, 1);
+                            if (candidates.length > 1) {
+                                function getAddressScore(candidateAddress, targetAddress) {
+                                    if (!candidateAddress || !targetAddress) return 0;
+                                    const normalizedTarget = normalizeString(targetAddress);
+                                    const normalizedCandidate = normalizeString(candidateAddress);
+                                    
+                                    let score = 0;
+                                    if (normalizedCandidate === normalizedTarget) return 100;
+                                    if (normalizedCandidate.includes(normalizedTarget)) score += 50;
+                                    if (normalizedTarget.includes(normalizedCandidate)) score += 30;
+                                    
+                                    const targetHouse = extractHouseNumber(targetAddress);
+                                    const candidateHouse = extractHouseNumber(candidateAddress);
+                                    if (targetHouse && candidateHouse && targetHouse === candidateHouse) score += 20;
+                                    
+                                    const targetPlot = extractPlotNumber(targetAddress);
+                                    const candidatePlot = extractPlotNumber(candidateAddress);
+                                    if (targetPlot && candidatePlot && targetPlot === candidatePlot) score += 20;
+                                    
+                                    score += normalizedCandidate.length / 10;
+                                    return score;
+                                }
+                                
+                                candidates.sort((a, b) => {
+                                    const scoreA = getAddressScore(a.address, row.address);
+                                    const scoreB = getAddressScore(b.address, row.address);
+                                    return scoreB - scoreA;
+                                });
+                                
+                                candidates = candidates.slice(0, 1);
+                            }
+                            
+                            allResults = allResults.concat(candidates);
+                        } else {
+                            const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
+                            notFoundItems.push({
+                                address: row.address,
+                                paramLabel: paramLabel,
+                                paramValue: row.value,
+                                paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
+                            });
                         }
-                        
-                        allResults = allResults.concat(candidates);
-                    } else {
+                    } catch (e) {
+                        console.warn('Ошибка при поиске для строки', i + 1, ':', e.message);
                         const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
                         notFoundItems.push({
                             address: row.address,
@@ -1386,105 +1443,77 @@ function processRows(rows) {
                             paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
                         });
                     }
-                } catch (e) {
-                    console.warn('Ошибка при поиске для строки', i + 1, ':', e.message);
-                    const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
-                    notFoundItems.push({
-                        address: row.address,
-                        paramLabel: paramLabel,
-                        paramValue: row.value,
-                        paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
-                    });
                 }
-            }
-            
-            // Цикл завершен
-            if (progressContainer) progressContainer.style.display = 'none';
-            
-            const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
-            displayMassResults(allResults, notFoundItems, container, searchParamLabel);
+                
+                if (progressContainer) progressContainer.style.display = 'none';
+                
+                const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
+                displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
-            // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!) — МАССОВЫЙ ЗАПРОС
-            try {
-                const historyData = [];
-                
-                allResults.forEach(item => {
-                    const fields = extractAllFields(item);
-                    historyData.push({
-                        searchType: 'mass',
-                        address: fields['Адрес'] || '—',
-                        paramName: searchParamLabel || '—',
-                        paramValue: 0,
-                        cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                        objectView: fields['Вид объекта'] || '—',
-                        found: 1
-                    });
-                });
-                
-                notFoundItems.forEach(item => {
-                    historyData.push({
-                        searchType: 'mass',
-                        address: item.address || '—',
-                        paramName: item.paramLabel || '—',
-                        paramValue: item.paramValue || 0,
-                        cadNumber: 'Не определено',
-                        objectView: '—',
-                        found: 0
-                    });
-                });
-                
-                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                if (historyData && historyData.length > 0) {
-                    // Проверяем токен
-                    if (!GIST_CONFIG.token) {
-                        const token = prompt('Введите GitHub токен (права на Gist):');
-                        if (token) {
-                            GIST_CONFIG.token = token;
-                        } else {
-                            console.log('ℹ️ Токен не введен, данные не сохранены');
-                            return;
+                // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (массовый запрос)
+                (async function() {
+                    try {
+                        const historyData = [];
+                        
+                        allResults.forEach(item => {
+                            const fields = extractAllFields(item);
+                            historyData.push({
+                                searchType: 'mass',
+                                address: fields['Адрес'] || '—',
+                                paramName: searchParamLabel || '—',
+                                paramValue: 0,
+                                cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                                objectView: fields['Вид объекта'] || '—',
+                                found: 1
+                            });
+                        });
+                        
+                        notFoundItems.forEach(item => {
+                            historyData.push({
+                                searchType: 'mass',
+                                address: item.address || '—',
+                                paramName: item.paramLabel || '—',
+                                paramValue: item.paramValue || 0,
+                                cadNumber: 'Не определено',
+                                objectView: '—',
+                                found: 0
+                            });
+                        });
+                        
+                                             saveLocalHistory(historyData);
+                        
+                        // Если есть токен и Gist ID, пробуем сохранить в Gist
+                        if (GIST_CONFIG.token && GIST_CONFIG.gistId && historyData.length > 0) {
+                            try {
+                                await saveToGist(historyData);
+                            } catch (e) {
+                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
+                            }
                         }
+                    } catch (e) {
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
                     }
-                    
-                    // Сохраняем в Gist с проверкой дубликатов
-                    const result = await saveToGist(historyData, false);
-                    if (result && result.added > 0) {
-                        console.log(`✅ Добавлено ${result.added} записей в Gist (массовый импорт)`);
-                    } else if (result && result.added === 0) {
-                        console.log('ℹ️ Нет новых записей для добавления (массовый импорт)');
-                    }
-                }
+                })();
                 
-            } catch (e) {
-                console.debug('⚠️ Ошибка сохранения:', e.message);
-            }
-            // Конец внутренней async функции сохранения
-        })(); 
-        // Конец внешней async функции цикла
-        
-    } else {  
-        // ← Теперь else корректно относится к if (container)
-        attempts++;
-        if (attempts < maxAttempts) {
-            setTimeout(waitForContainer, 100);
+            })();  // 🔥 ВОТ ЭТУ СКОБКУ ТЫ ПОТЕРЯЛ!
+            
         } else {
-            console.error('❌ resultsContainer не появился после ожидания');
-            const container = document.getElementById('nspd-search-results');
-            if (container) {
-                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
+            attempts++;
+            if (attempts < maxAttempts) {
+                setTimeout(waitForContainer, 100);
+            } else {
+                console.error('❌ resultsContainer не появился после ожидания');
+                const container = document.getElementById('nspd-search-results');
+                if (container) {
+                    container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
+                }
             }
         }
     }
+    
+    waitForContainer();
 }
-
-waitForContainer();
-        }
-        function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
+        
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -2197,9 +2226,7 @@ waitForContainer();
                 `;
 
 displayMassResults(candidates, [], resultsContainer, param.label);
-                
-                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                (async function() {
+                  (async function() {
                     try {
                         const historyData = [];
                         
@@ -2230,39 +2257,31 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                             });
                         }
                         
-                        // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                        if (historyData && historyData.length > 0) {
-                            // Проверяем токен
-                            if (!GIST_CONFIG.token) {
-                                const token = prompt('Введите GitHub токен (права на Gist):');
-                                if (token) {
-                                    GIST_CONFIG.token = token;
-                                } else {
-                                    console.log('ℹ️ Токен не введен, данные не сохранены');
-                                    return;
-                                }
-                            }
-                            
-                            // Сохраняем в Gist с проверкой дубликатов
-                            const result = await saveToGist(historyData, false);
-                            if (result && result.added > 0) {
-                                console.log(`✅ Добавлено ${result.added} записей в Gist`);
-                            } else if (result && result.added === 0) {
-                                console.log('ℹ️ Нет новых записей для добавления');
-                            }
-                        }
+                        // Сохраняем в Gist (асинхронно, не блокируя UI)
+                                            saveLocalHistory(historyData);
                         
-                        // 🔥 ОТПРАВКА В ISSUES (ОПЦИОНАЛЬНО)
+                        // 🔥 ОТПРАВКА В ISSUES (БЕЗ ТОКЕНА!)
                         if (historyData && historyData.length > 0) {
                             sendToIssues(historyData).then(success => {
                                 if (success) {
                                     console.log('✅ Данные отправлены в Issues');
+                                } else {
+                                    console.log('ℹ️ Отправка в Issues не выполнена');
                                 }
                             });
                         }
                         
+                        // Если есть токен и Gist ID, пробуем сохранить в Gist
+                        if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
+                            try {
+                                await saveToGist(historyData);
+                            } catch (e) {
+                                console.debug('⚠️ Не удалось сохранить в Gist:', e.message);
+                            }
+                        }
                     } catch (e) {
-                        console.debug('⚠️ Ошибка сохранения:', e.message);
+                        // Тихо логируем ошибку, не мешая пользователю
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
                     }
                 })();
             } catch (error) {
@@ -2306,19 +2325,42 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             fetchIssuesBtn.addEventListener('click', fetchFromIssuesHandler);
         }
         // Показываем кнопку синхронизации только если есть локальная история
-                     if (syncBtn) {
-            syncBtn.style.display = 'inline-flex';
-            console.log('✅ Кнопка синхронизации ПОКАЗАНА');
+              const localHistory = getLocalHistory();
+        console.log('📊 Локальная история:', localHistory.length, 'записей');
+        
+        if (syncBtn) {
+            if (localHistory.length > 0) {
+                syncBtn.style.display = 'inline-flex';
+                console.log('✅ Кнопка синхронизации ПОКАЗАНА (есть данные)');
+            } else {
+                console.log('ℹ️ Кнопка синхронизации СКРЫТА (нет данных)');
+                console.log('💡 Сделайте поиск, чтобы добавить данные в историю');
+            }
         } else {
             console.log('❌ Кнопка синхронизации не найдена в DOM');
         }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
-    }
-
-    async function sendToIssues(data) {
+    };
+       async function sendToIssues(data) {
         try {
             if (!data || data.length === 0) return false;
+            
+            // Проверяем токен
+            if (!ISSUES_CONFIG.token) {
+                // Пробуем загрузить из localStorage
+                const savedToken = localStorage.getItem('issues_token');
+                if (savedToken) {
+                    ISSUES_CONFIG.token = savedToken;
+                } else {
+                    // Запрашиваем токен для Issues (только если репозиторий приватный)
+                    console.warn('⚠️ Для отправки в Issues нужен токен (репозиторий приватный)');
+                    // Можно запросить токен:
+                    // const token = prompt('Введите GitHub токен для отправки в Issues:');
+                    // if (token) ISSUES_CONFIG.token = token;
+                    return false;
+                }
+            }
             
             const issueData = {
                 title: `📊 Поиск НСПД ${new Date().toLocaleString()}`,
@@ -2326,20 +2368,28 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 labels: [ISSUES_CONFIG.label]
             };
             
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            };
+            
+            // Добавляем токен если есть
+            if (ISSUES_CONFIG.token) {
+                headers['Authorization'] = `token ${ISSUES_CONFIG.token}`;
+            }
+            
             const response = await fetch(
                 `https://api.github.com/repos/${ISSUES_CONFIG.repo}/issues`,
                 {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
+                    headers: headers,
                     body: JSON.stringify(issueData)
                 }
             );
             
             if (!response.ok) {
-                console.warn('⚠️ Не удалось отправить в Issues:', await response.text());
+                const error = await response.json();
+                console.warn('⚠️ Не удалось отправить в Issues:', error.message);
                 return false;
             }
             
@@ -2351,8 +2401,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             return false;
         }
     }
-
-    async function fetchFromIssues(token) {
+       async function fetchFromIssues(token) {
         try {
             if (!token) {
                 throw new Error('Токен не введен');
@@ -2383,6 +2432,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             
             for (const issue of issues) {
                 try {
+                    // Парсим тело issue
                     const data = JSON.parse(issue.body);
                     if (Array.isArray(data)) {
                         allData = allData.concat(data);
@@ -2392,7 +2442,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 }
             }
             
-            console.log(`📥 Загружено ${allData.length} записей из Issues`);
+            console.log(`📥 Загружено ${allData.length} записей из Issues (${issues.length} issues)`);
             return { data: allData, issues: issues };
             
         } catch (error) {
@@ -2400,8 +2450,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             throw error;
         }
     }
-
-    async function closeProcessedIssues(token, issues) {
+      async function closeProcessedIssues(token, issues) {
         try {
             if (!token || !issues || issues.length === 0) return;
             
@@ -2435,8 +2484,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             console.warn('⚠️ Ошибка закрытия issues:', error);
         }
     }
-
-    async function fetchFromIssuesHandler() {
+        async function fetchFromIssuesHandler() {
         const btn = document.getElementById('nspd-fetch-issues');
         const originalText = btn?.innerHTML || 'Забрать из Issues';
         
@@ -2459,34 +2507,15 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 return;
             }
             
-            // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-            if (data && data.length > 0) {
-                // Проверяем токен для Gist
-                if (!GIST_CONFIG.token) {
-                    const gistToken = prompt('Введите GitHub токен (права на Gist) для сохранения в Gist:');
-                    if (gistToken) {
-                        GIST_CONFIG.token = gistToken;
-                    } else {
-                        alert('❌ Токен для Gist не введен, данные не сохранены');
-                        return;
-                    }
-                }
-                
-                // Сохраняем в Gist с проверкой дубликатов
-                const result = await saveToGist(data, false);
-                if (result && result.added > 0) {
-                    console.log(`✅ Добавлено ${result.added} записей в Gist`);
-                } else if (result && result.added === 0) {
-                    console.log('ℹ️ Нет новых записей для добавления');
-                    alert('ℹ️ Все записи уже есть в Gist');
-                    return;
-                }
+            saveLocalHistory(data);
+            
+            if (GIST_CONFIG.gistId) {
+                await saveToGist(data);
             }
             
-            // Закрываем обработанные issues
             await closeProcessedIssues(token, issues);
             
-            alert(`✅ Загружено ${data.length} записей из Issues и сохранено в Gist!`);
+            alert(`✅ Загружено ${data.length} записей из Issues!\nВсего в базе: ${getLocalHistory().length}`);
             
         } catch (error) {
             console.error('❌ Ошибка:', error);
@@ -2498,6 +2527,5 @@ displayMassResults(candidates, [], resultsContainer, param.label);
             }
         }
     }
-
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
