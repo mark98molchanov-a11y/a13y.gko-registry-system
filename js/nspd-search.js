@@ -1511,11 +1511,19 @@ async function saveSearchResult(historyData) {
                 return areaMatch && addressMatch;
             });
             
-            const itemsToSave = exactMatches.length > 0 ? exactMatches : [];
+            // ✅ СОРТИРУЕМ ПО БЛИЗОСТИ ПЛОЩАДИ (от меньшей разницы к большей)
+            const sortedMatches = exactMatches.sort((a, b) => {
+                const valA = param.getValue(a.rawData.opts || {});
+                const valB = param.getValue(b.rawData.opts || {});
+                return Math.abs(valA - value) - Math.abs(valB - value);
+            });
             
-            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений (площадь+адрес): ${exactMatches.length}, сохраняем: ${itemsToSave.length}`);
+            // ✅ БЕРЕМ ТОЛЬКО ПЕРВЫЙ (САМЫЙ БЛИЗКИЙ) — ЕСЛИ НЕТ ТОЧНЫХ, БЕРЕМ ПЕРВЫЙ ИЗ ВСЕХ
+            const item = sortedMatches.length > 0 ? sortedMatches[0] : candidates[0];
             
-            if (itemsToSave.length === 0) {
+            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений: ${exactMatches.length}, сохраняем: 1 (самый близкий)`);
+            
+            if (!item) {
                 historyData.push({
                     searchType: 'mass',
                     address: address || '—',
@@ -1526,17 +1534,16 @@ async function saveSearchResult(historyData) {
                     found: 0
                 });
             } else {
-                itemsToSave.forEach(item => {
-                    const fields = extractAllFields(item);
-                    historyData.push({
-                        searchType: 'mass',
-                        address: fields['Адрес'] || '—',
-                        paramName: searchParamLabel || '—',
-                        paramValue: 0,
-                        cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                        objectView: fields['Вид объекта'] || '—',
-                        found: 1
-                    });
+                const fields = extractAllFields(item);
+                const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
+                historyData.push({
+                    searchType: 'mass',
+                    address: objAddress,
+                    paramName: searchParamLabel || '—',
+                    paramValue: 0,
+                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                    objectView: fields['Вид объекта'] || '—',
+                    found: 1
                 });
             }
         } else {
@@ -1556,8 +1563,6 @@ async function saveSearchResult(historyData) {
         console.debug('⚠️ Не удалось сохранить историю:', e.message);
     }
 })();
-                })();
-            }
             
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
@@ -2216,8 +2221,6 @@ async function saveSearchResult(historyData) {
 
                 displayMassResults(candidates, [], resultsContainer, param.label);
                 
-                // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
-             // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
 (async function() {
     try {
         const historyData = [];
@@ -2225,11 +2228,9 @@ async function saveSearchResult(historyData) {
         if (candidates.length > 0) {
             // ✅ ФИЛЬТРУЕМ: площадь совпадает И адрес совпадает
             const exactMatches = candidates.filter(item => {
-                // Проверяем площадь
                 const paramValue = param.getValue(item.rawData.opts || {});
                 const areaMatch = Math.abs(paramValue - value) <= AREA_TOLERANCE;
                 
-                // Проверяем адрес (нормализованное сравнение)
                 const itemAddress = normalizeString(item.address || '');
                 const searchAddress = normalizeString(address || '');
                 const addressMatch = itemAddress === searchAddress || 
@@ -2239,17 +2240,22 @@ async function saveSearchResult(historyData) {
                 return areaMatch && addressMatch;
             });
             
-            // ✅ ЕСЛИ ЕСТЬ ТОЧНЫЕ СОВПАДЕНИЯ — БЕРЕМ ИХ (ВСЕ)
-            // ✅ ЕСЛИ НЕТ — НИЧЕГО НЕ СОХРАНЯЕМ
-            const itemsToSave = exactMatches.length > 0 ? exactMatches : [];
+            // ✅ СОРТИРУЕМ ПО БЛИЗОСТИ ПЛОЩАДИ
+            const sortedMatches = exactMatches.sort((a, b) => {
+                const valA = param.getValue(a.rawData.opts || {});
+                const valB = param.getValue(b.rawData.opts || {});
+                return Math.abs(valA - value) - Math.abs(valB - value);
+            });
             
-            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений (площадь+адрес): ${exactMatches.length}, сохраняем: ${itemsToSave.length}`);
+            // ✅ БЕРЕМ ТОЛЬКО ПЕРВЫЙ (САМЫЙ БЛИЗКИЙ) — ЕСЛИ НЕТ ТОЧНЫХ, БЕРЕМ ПЕРВЫЙ ИЗ ВСЕХ
+            const item = sortedMatches.length > 0 ? sortedMatches[0] : candidates[0];
             
-            if (itemsToSave.length === 0) {
-                // Если ничего не найдено — сохраняем запись "не найден"
+            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений: ${exactMatches.length}, сохраняем: 1 (самый близкий)`);
+            
+            if (!item) {
                 historyData.push({
                     searchType: 'single',
-                    address: address,
+                    address: address || 'Не определено',
                     paramName: param.label,
                     paramValue: value,
                     cadNumber: 'Не определено',
@@ -2257,23 +2263,22 @@ async function saveSearchResult(historyData) {
                     found: 0
                 });
             } else {
-                itemsToSave.forEach(item => {
-                    const fields = extractAllFields(item);
-                    historyData.push({
-                        searchType: 'single',
-                        address: address,
-                        paramName: param.label,
-                        paramValue: value,
-                        cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                        objectView: fields['Вид объекта'] || '—',
-                        found: 1
-                    });
+                const fields = extractAllFields(item);
+                const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
+                historyData.push({
+                    searchType: 'single',
+                    address: objAddress,
+                    paramName: param.label,
+                    paramValue: value,
+                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                    objectView: fields['Вид объекта'] || '—',
+                    found: 1
                 });
             }
         } else {
             historyData.push({
                 searchType: 'single',
-                address: address,
+                address: address || 'Не определено',
                 paramName: param.label,
                 paramValue: value,
                 cadNumber: 'Не определено',
@@ -2287,49 +2292,4 @@ async function saveSearchResult(historyData) {
     } catch (e) {
         console.debug('⚠️ Не удалось сохранить историю:', e.message);
     }
-})();
-                
-            } catch (error) {
-                console.error('❌ Ошибка поиска:', error);
-                resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: ${error.message}</div>`;
-            }
-        }
-
-        // ============================================================
-        // ПРИВЯЗКА СОБЫТИЙ
-        // ============================================================
-
-        searchBtn.addEventListener('click', function() { performSearch(resultsContainer); });
-        addressInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(resultsContainer); });
-        valueInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') performSearch(resultsContainer); });
-
-        const downloadBtn = document.getElementById('nspd-download-template');
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', downloadTemplate);
-        }
-
-        const fileInput = document.getElementById('nspd-file-input');
-        if (fileInput) {
-            fileInput.addEventListener('change', function(e) {
-                if (this.files && this.files.length > 0) {
-                    uploadData(this.files[0]);
-                    this.value = '';
-                }
-            });
-        }
-
-        const exportBtn = document.getElementById('nspd-export-results');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', exportResults);
-        }
-
-        const syncBtn = document.getElementById('nspd-sync-gist');
-        if (syncBtn) {
-            syncBtn.addEventListener('click', syncLocalToGist);
-        }
-
-        console.log('✅ Интерфейс поиска НСПД успешно загружен.');
-    };
-
-    console.log('✅ Модуль поиска НСПД загружен (Gist-only режим).');
 })();
