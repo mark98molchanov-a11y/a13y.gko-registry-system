@@ -101,53 +101,54 @@ async function validateToken(token) {
     }
 }
 
-    // 🔥 ПАРСИНГ SQL → массив объектов
-    function parseSQLToArray(sqlContent) {
-        const history = [];
-        if (!sqlContent) return history;
-        
-        const lines = sqlContent.split('\n');
-        let inInsert = false;
-        let values = [];
-        
-        for (const line of lines) {
-            const trimmed = line.trim();
-            
-            if (trimmed.includes('INSERT INTO nspd_search_history')) {
-                inInsert = true;
-                values = [];
-                continue;
-            }
-            
-            if (inInsert && trimmed.includes(');')) {
-                inInsert = false;
-                if (values.length >= 8) {
-                    history.push({
-                        searchType: values[1]?.replace(/'/g, '') || 'single',
-                        address: values[2]?.replace(/'/g, '') || '',
-                        paramName: values[3]?.replace(/'/g, '') || '',
-                        paramValue: parseFloat(values[4]) || 0,
-                        cadNumber: values[5]?.replace(/'/g, '') || 'Не определено',
-                        objectView: values[6]?.replace(/'/g, '') || '—',
-                        found: parseInt(values[7]) || 0,
-                        saved_at: values[0]?.replace(/'/g, '') || new Date().toISOString()
-                    });
-                }
-                continue;
-            }
-            
-            if (inInsert) {
-                // Ищем значения в кавычках или числа
-                const matches = line.match(/'([^']*)'|(\d+\.?\d*)/g);
-                if (matches) {
-                    matches.forEach(m => values.push(m));
-                }
-            }
-        }
-        
+   function parseSQLToArray(sqlContent) {
+    const history = [];
+    if (!sqlContent) {
+        console.log('ℹ️ SQL-контент пуст');
         return history;
     }
-
+    
+    console.log(`📄 Парсинг SQL, длина: ${sqlContent.length} символов`);
+    
+    // ✅ ПРЯМОЙ ПОИСК INSERT-запросов
+    const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\(([^)]+)\)\s*VALUES\s*\(([^;]+)\);/gi;
+    let match;
+    let count = 0;
+    
+    while ((match = insertRegex.exec(sqlContent)) !== null) {
+        count++;
+        const columns = match[1].split(',').map(c => c.trim());
+        const values = match[2].split(',').map(v => v.trim());
+        
+        // Создаем объект из колонок и значений
+        const row = {};
+        columns.forEach((col, idx) => {
+            let val = values[idx] || '';
+            // Убираем кавычки
+            val = val.replace(/^'|'$/g, '');
+            // Парсим числа
+            if (col === 'param_value' || col === 'found') {
+                val = parseFloat(val) || 0;
+            }
+            row[col] = val;
+        });
+        
+        // Приводим к стандартному формату
+        history.push({
+            searchType: row.search_type || 'single',
+            address: row.address || '',
+            paramName: row.param_name || '',
+            paramValue: row.param_value || 0,
+            cadNumber: row.cad_number || 'Не определено',
+            objectView: row.object_type || '—',
+            found: row.found || 0,
+            saved_at: row.search_date || new Date().toISOString()
+        });
+    }
+    
+    console.log(`📊 Найдено ${count} INSERT-запросов`);
+    return history;
+}
   // ============================================================
 // 🔥 СОХРАНЕНИЕ В GIST (ТОЛЬКО НОВЫЕ ЗАПИСИ)
 // ============================================================
@@ -294,40 +295,20 @@ async function saveToGist(data, token) {
         let finalContent = '';
         
         if (!existingContent || !gistExists) {
+            // ✅ СОЗДАЕМ НОВЫЙ ФАЙЛ
             finalContent = sql;
         } else {
-            // ✅ СОХРАНЯЕМ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ
-            let cleanExisting = existingContent;
+            // ✅ ЕСТЬ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ — ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ В КОНЕЦ
+            finalContent = existingContent;
             
-            // Удаляем старые INSERT-ы
+            // ✅ УДАЛЯЕМ СТАРЫЕ INSERT-Ы (чтобы не было дублирования)
             const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
-            cleanExisting = cleanExisting.replace(insertRegex, '');
-            cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
-            cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
+            finalContent = finalContent.replace(insertRegex, '');
+            finalContent = finalContent.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
+            finalContent = finalContent.replace(/\n{3,}/g, '\n\n').trim();
             
-            // Проверяем наличие CREATE TABLE
-            if (!cleanExisting.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
-                cleanExisting = `-- ===========================================\n`;
-                cleanExisting += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
-                cleanExisting += `-- Создано: ${timestamp}\n`;
-                cleanExisting += `-- ===========================================\n\n`;
-                cleanExisting += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-                cleanExisting += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-                cleanExisting += `    search_date TEXT NOT NULL,\n`;
-                cleanExisting += `    search_type TEXT NOT NULL,\n`;
-                cleanExisting += `    address TEXT NOT NULL,\n`;
-                cleanExisting += `    param_name TEXT,\n`;
-                cleanExisting += `    param_value REAL,\n`;
-                cleanExisting += `    cad_number TEXT,\n`;
-                cleanExisting += `    object_type TEXT,\n`;
-                cleanExisting += `    found INTEGER DEFAULT 0,\n`;
-                cleanExisting += `    raw_data TEXT,\n`;
-                cleanExisting += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-                cleanExisting += `);\n\n`;
-            }
-            
-            // ✅ ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ
-            finalContent = cleanExisting + '\n' + sql;
+            // ✅ ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ В КОНЕЦ
+            finalContent = finalContent + '\n\n' + sql;
         }
         
         // ============================================================
@@ -412,6 +393,7 @@ async function saveToGist(data, token) {
         return { added: 0, error: error.message };
     }
 }
+
     // ============================================================
     // 🔥 ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
     // ============================================================
