@@ -142,288 +142,275 @@ async function validateToken(token) {
         return history;
     }
 
-    // 🔥 СОХРАНЕНИЕ В GIST (ТОЛЬКО НОВЫЕ ЗАПИСИ)
-    async function saveToGist(data, createNew = false) {
-        if (!data || data.length === 0) {
-            console.log('ℹ️ Нет данных для сохранения');
-            return { added: 0 };
+  // ============================================================
+// 🔥 СОХРАНЕНИЕ В GIST (ТОЛЬКО НОВЫЕ ЗАПИСИ)
+// ============================================================
+async function saveToGist(data, token) {
+    if (!data || data.length === 0) {
+        console.log('ℹ️ Нет данных для сохранения');
+        return { added: 0 };
+    }
+    
+    try {
+        const timestamp = new Date().toISOString();
+        const dateStr = new Date().toISOString().split('T')[0];
+        const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
+        
+        // ============================================================
+        // ШАГ 1: ЗАГРУЖАЕМ СУЩЕСТВУЮЩИЕ ДАННЫЕ ИЗ GIST
+        // ============================================================
+        let existingContent = '';
+        let existingHistory = [];
+        let fileSha = null;
+        let gistExists = false;
+        
+        if (GIST_CONFIG.gistId) {
+            try {
+                const getUrl = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+                const getResponse = await fetch(getUrl, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (getResponse.ok) {
+                    const gistData = await getResponse.json();
+                    existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
+                    fileSha = gistData.files?.[GIST_CONFIG.filename]?.sha || null;
+                    existingHistory = parseSQLToArray(existingContent);
+                    gistExists = true;
+                    console.log(`📥 В Gist уже есть ${existingHistory.length} записей`);
+                } else if (getResponse.status === 404) {
+                    console.log('⚠️ Gist не найден, создаем новый');
+                    gistExists = false;
+                } else {
+                    throw new Error(`HTTP ${getResponse.status}: ${getResponse.statusText}`);
+                }
+            } catch (e) {
+                console.warn('⚠️ Ошибка загрузки существующего Gist:', e.message);
+                gistExists = false;
+            }
         }
         
-        try {
-            // Проверяем токен
-       const token = getToken();
-if (!token) {
-    console.warn('⚠️ Токен не введен');
-    return { added: 0, error: 'No token' };
-}
-
-// ✅ Проверяем токен
-const isValid = await validateToken(token);
-if (!isValid) {
-    alert('❌ Неверный токен. Проверьте права (нужно gist).');
-    return { added: 0, error: 'Invalid token' };
-}
-            
-            const timestamp = new Date().toISOString();
-            const dateStr = new Date().toISOString().split('T')[0];
-            const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
-            
-            // ============================================================
-            // ШАГ 1: ЗАГРУЖАЕМ СУЩЕСТВУЮЩИЕ ДАННЫЕ ИЗ GIST
-            // ============================================================
-            let existingContent = '';
-            let existingHistory = [];
-            let fileSha = null;
-            let gistExists = false;
-            
-            if (!createNew && GIST_CONFIG.gistId) {
-                try {
-                    const getUrl = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
-                    const getResponse = await fetch(getUrl, {
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
-                    });
-                    
-                    if (getResponse.ok) {
-                        const gistData = await getResponse.json();
-                        existingContent = gistData.files?.[GIST_CONFIG.filename]?.content || '';
-                        fileSha = gistData.files?.[GIST_CONFIG.filename]?.sha || null;
-                        existingHistory = parseSQLToArray(existingContent);
-                        gistExists = true;
-                        console.log(`📥 В Gist уже есть ${existingHistory.length} записей`);
-                    } else if (getResponse.status === 404) {
-                        console.log('⚠️ Gist не найден, создаем новый');
-                        createNew = true;
-                    } else {
-                        throw new Error(`HTTP ${getResponse.status}: ${getResponse.statusText}`);
-                    }
-                } catch (e) {
-                    console.warn('⚠️ Ошибка загрузки существующего Gist:', e.message);
-                    createNew = true;
-                }
-            }
-            
-            // ============================================================
-            // ШАГ 2: ФОРМИРУЕМ МНОЖЕСТВО СУЩЕСТВУЮЩИХ КЛЮЧЕЙ
-            // ============================================================
-            const existingKeys = new Set();
-            existingHistory.forEach(row => {
-                let key;
-                if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-                } else {
-                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
-                }
-                existingKeys.add(key);
-            });
-            
-            // ============================================================
-            // ШАГ 3: ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ
-            // ============================================================
-            const newData = data.filter(row => {
-                let key;
-                if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                    key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-                } else {
-                    key = row.address + '|' + row.paramName + '|' + row.paramValue;
-                }
-                return !existingKeys.has(key);
-            });
-            
-            if (newData.length === 0) {
-                console.log('ℹ️ Нет новых записей для добавления в Gist');
-                return { added: 0, total: existingHistory.length };
-            }
-            
-            console.log(`📤 Добавляем ${newData.length} новых записей в Gist`);
-            
-            // ============================================================
-            // ШАГ 4: ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
-            // ============================================================
-            let sql = '';
-            
-            // Если нет существующего содержимого или создаем новый
-            if (!existingContent || createNew) {
-                sql += `-- ===========================================\n`;
-                sql += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
-                sql += `-- Создано: ${timestamp}\n`;
-                sql += `-- ===========================================\n\n`;
-                
-                sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-                sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-                sql += `    search_date TEXT NOT NULL,\n`;
-                sql += `    search_type TEXT NOT NULL,\n`;
-                sql += `    address TEXT NOT NULL,\n`;
-                sql += `    param_name TEXT,\n`;
-                sql += `    param_value REAL,\n`;
-                sql += `    cad_number TEXT,\n`;
-                sql += `    object_type TEXT,\n`;
-                sql += `    found INTEGER DEFAULT 0,\n`;
-                sql += `    raw_data TEXT,\n`;
-                sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-                sql += `);\n\n`;
-            }
-            
-            // Добавляем новые записи
-            for (const row of newData) {
-                const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
-                const cadNumber = row.cadNumber || 'Не определено';
-                const objectType = row.objectView || '—';
-                const rawData = JSON.stringify(row).replace(/'/g, "''");
-                
-                sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
-                sql += `    search_date, search_type, address, param_name, param_value,\n`;
-                sql += `    cad_number, object_type, found, raw_data\n`;
-                sql += `) VALUES (\n`;
-                sql += `    '${timestamp}',\n`;
-                sql += `    '${row.searchType || 'single'}',\n`;
-                sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
-                sql += `    '${row.paramName || ''}',\n`;
-                sql += `    ${row.paramValue || 0},\n`;
-                sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
-                sql += `    '${objectType.replace(/'/g, "''")}',\n`;
-                sql += `    ${found},\n`;
-                sql += `    '${rawData}'\n`;
-                sql += `);\n\n`;
-            }
-            
-            sql += `-- ===========================================\n`;
-            sql += `-- Добавлено: ${newData.length} новых записей\n`;
-            sql += `-- Всего в Gist: ${existingHistory.length + newData.length} записей\n`;
-            sql += `-- ===========================================\n`;
-            
-            // ============================================================
-            // ШАГ 5: ОБЪЕДИНЯЕМ С СУЩЕСТВУЮЩИМ СОДЕРЖИМЫМ
-            // ============================================================
-            let finalContent = '';
-            
-            if (createNew || !existingContent) {
-                finalContent = sql;
+        // ============================================================
+        // ШАГ 2: ФОРМИРУЕМ МНОЖЕСТВО СУЩЕСТВУЮЩИХ КЛЮЧЕЙ
+        // ============================================================
+        const existingKeys = new Set();
+        existingHistory.forEach(row => {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
             } else {
-                // Удаляем старые INSERT-ы, чтобы не было дублирования
-                let cleanExisting = existingContent;
-                const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
-                cleanExisting = cleanExisting.replace(insertRegex, '');
-                cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
-                cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
-                
-                // Проверяем наличие CREATE TABLE
-                if (!cleanExisting.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
-                    cleanExisting = `-- ===========================================\n`;
-                    cleanExisting += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
-                    cleanExisting += `-- Создано: ${timestamp}\n`;
-                    cleanExisting += `-- ===========================================\n\n`;
-                    cleanExisting += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-                    cleanExisting += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-                    cleanExisting += `    search_date TEXT NOT NULL,\n`;
-                    cleanExisting += `    search_type TEXT NOT NULL,\n`;
-                    cleanExisting += `    address TEXT NOT NULL,\n`;
-                    cleanExisting += `    param_name TEXT,\n`;
-                    cleanExisting += `    param_value REAL,\n`;
-                    cleanExisting += `    cad_number TEXT,\n`;
-                    cleanExisting += `    object_type TEXT,\n`;
-                    cleanExisting += `    found INTEGER DEFAULT 0,\n`;
-                    cleanExisting += `    raw_data TEXT,\n`;
-                    cleanExisting += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-                    cleanExisting += `);\n\n`;
-                }
-                
-                finalContent = cleanExisting + '\n' + sql;
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
             }
-            
-            // ============================================================
-            // ШАГ 6: ОТПРАВЛЯЕМ В GIST
-            // ============================================================
-            let url, method, body;
-            
-            if (createNew || !gistExists) {
-                // Создаем новый Gist
-                url = 'https://api.github.com/gists';
-                method = 'POST';
-                body = {
-                    description: `НСПД история запросов ${dateStr} ${timeStr}`,
-                    public: false,
-                    files: {
-                        [GIST_CONFIG.filename]: {
-                            content: finalContent
-                        }
-                    }
-                };
+            existingKeys.add(key);
+        });
+        
+        // ============================================================
+        // ШАГ 3: ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ
+        // ============================================================
+        const newData = data.filter(row => {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
             } else {
-                // Обновляем существующий
-                url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
-                method = 'PATCH';
-                body = {
-                    description: `НСПД история запросов (обновлено ${dateStr} ${timeStr})`,
-                    files: {
-                        [GIST_CONFIG.filename]: {
-                            content: finalContent,
-                            sha: fileSha
-                        }
-                    }
-                };
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
             }
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
-                },
-                body: JSON.stringify(body)
-            });
-            
-            if (!response.ok) {
-                let errorMsg = `HTTP ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMsg += `: ${errorData.message || response.statusText}`;
-                } catch (e) {
-                    errorMsg += `: ${response.statusText}`;
-                }
-                throw new Error(errorMsg);
-            }
-            
-            const result = await response.json();
-            
-            // Сохраняем Gist ID, если создавали новый
-            if (createNew || !gistExists) {
-                GIST_CONFIG.gistId = result.id;
-                console.log(`📌 НОВЫЙ GIST ID: ${result.id}`);
-            }
-            
-            console.log(`✅ Добавлено ${newData.length} записей в Gist:`, result.html_url);
-            
-            // Обновляем кеш
-            const allHistory = [...existingHistory, ...newData];
-            try {
-                localStorage.setItem('nspd_gist_cache', JSON.stringify({
-                    _timestamp: Date.now(),
-                    data: allHistory
-                }));
-            } catch (e) {}
-            
-            return { 
-                added: newData.length,
-                total: existingHistory.length + newData.length,
-                url: result.html_url,
-                gistId: result.id
-            };
-            
-        } catch (error) {
-            console.error('❌ Ошибка сохранения в Gist:', error);
-            return { added: 0, error: error.message };
+            return !existingKeys.has(key);
+        });
+        
+        if (newData.length === 0) {
+            console.log('ℹ️ Нет новых записей для добавления в Gist');
+            return { added: 0, total: existingHistory.length };
         }
+        
+        console.log(`📤 Добавляем ${newData.length} новых записей в Gist`);
+        
+        // ============================================================
+        // ШАГ 4: ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
+        // ============================================================
+        let sql = '';
+        
+        // Если нет существующего содержимого или создаем новый
+        if (!existingContent || !gistExists) {
+            sql += `-- ===========================================\n`;
+            sql += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
+            sql += `-- Создано: ${timestamp}\n`;
+            sql += `-- ===========================================\n\n`;
+            
+            sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+            sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+            sql += `    search_date TEXT NOT NULL,\n`;
+            sql += `    search_type TEXT NOT NULL,\n`;
+            sql += `    address TEXT NOT NULL,\n`;
+            sql += `    param_name TEXT,\n`;
+            sql += `    param_value REAL,\n`;
+            sql += `    cad_number TEXT,\n`;
+            sql += `    object_type TEXT,\n`;
+            sql += `    found INTEGER DEFAULT 0,\n`;
+            sql += `    raw_data TEXT,\n`;
+            sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+            sql += `);\n\n`;
+        }
+        
+        // Добавляем новые записи
+        for (const row of newData) {
+            const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
+            const cadNumber = row.cadNumber || 'Не определено';
+            const objectType = row.objectView || '—';
+            const rawData = JSON.stringify(row).replace(/'/g, "''");
+            
+            sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
+            sql += `    search_date, search_type, address, param_name, param_value,\n`;
+            sql += `    cad_number, object_type, found, raw_data\n`;
+            sql += `) VALUES (\n`;
+            sql += `    '${timestamp}',\n`;
+            sql += `    '${row.searchType || 'single'}',\n`;
+            sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+            sql += `    '${row.paramName || ''}',\n`;
+            sql += `    ${row.paramValue || 0},\n`;
+            sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+            sql += `    '${objectType.replace(/'/g, "''")}',\n`;
+            sql += `    ${found},\n`;
+            sql += `    '${rawData}'\n`;
+            sql += `);\n\n`;
+        }
+        
+        sql += `-- ===========================================\n`;
+        sql += `-- Добавлено: ${newData.length} новых записей\n`;
+        sql += `-- Всего в Gist: ${existingHistory.length + newData.length} записей\n`;
+        sql += `-- ===========================================\n`;
+        
+        // ============================================================
+        // ШАГ 5: ОБЪЕДИНЯЕМ С СУЩЕСТВУЮЩИМ СОДЕРЖИМЫМ
+        // ============================================================
+        let finalContent = '';
+        
+        if (!existingContent || !gistExists) {
+            finalContent = sql;
+        } else {
+            // ✅ СОХРАНЯЕМ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ
+            let cleanExisting = existingContent;
+            
+            // Удаляем старые INSERT-ы
+            const insertRegex = /INSERT\s+OR\s+IGNORE\s+INTO\s+nspd_search_history\s*\([\s\S]*?\)\s*VALUES\s*\([\s\S]*?\);\s*/gi;
+            cleanExisting = cleanExisting.replace(insertRegex, '');
+            cleanExisting = cleanExisting.replace(/-- ===========================================\n-- НСПД: НОВЫЕ ЗАПИСИ \(.*?\)\n-- ===========================================\n/g, '');
+            cleanExisting = cleanExisting.replace(/\n{3,}/g, '\n\n').trim();
+            
+            // Проверяем наличие CREATE TABLE
+            if (!cleanExisting.includes('CREATE TABLE IF NOT EXISTS nspd_search_history')) {
+                cleanExisting = `-- ===========================================\n`;
+                cleanExisting += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
+                cleanExisting += `-- Создано: ${timestamp}\n`;
+                cleanExisting += `-- ===========================================\n\n`;
+                cleanExisting += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+                cleanExisting += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+                cleanExisting += `    search_date TEXT NOT NULL,\n`;
+                cleanExisting += `    search_type TEXT NOT NULL,\n`;
+                cleanExisting += `    address TEXT NOT NULL,\n`;
+                cleanExisting += `    param_name TEXT,\n`;
+                cleanExisting += `    param_value REAL,\n`;
+                cleanExisting += `    cad_number TEXT,\n`;
+                cleanExisting += `    object_type TEXT,\n`;
+                cleanExisting += `    found INTEGER DEFAULT 0,\n`;
+                cleanExisting += `    raw_data TEXT,\n`;
+                cleanExisting += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+                cleanExisting += `);\n\n`;
+            }
+            
+            // ✅ ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ
+            finalContent = cleanExisting + '\n' + sql;
+        }
+        
+        // ============================================================
+        // ШАГ 6: ОТПРАВЛЯЕМ В GIST
+        // ============================================================
+        let url, method, body;
+        
+        if (!gistExists) {
+            url = 'https://api.github.com/gists';
+            method = 'POST';
+            body = {
+                description: `НСПД история запросов ${dateStr} ${timeStr}`,
+                public: false,
+                files: {
+                    [GIST_CONFIG.filename]: {
+                        content: finalContent
+                    }
+                }
+            };
+        } else {
+            url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+            method = 'PATCH';
+            body = {
+                description: `НСПД история запросов (обновлено ${dateStr} ${timeStr})`,
+                files: {
+                    [GIST_CONFIG.filename]: {
+                        content: finalContent,
+                        sha: fileSha
+                    }
+                }
+            };
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `token ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (!response.ok) {
+            let errorMsg = `HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg += `: ${errorData.message || response.statusText}`;
+            } catch (e) {
+                errorMsg += `: ${response.statusText}`;
+            }
+            throw new Error(errorMsg);
+        }
+        
+        const result = await response.json();
+        
+        if (!gistExists) {
+            GIST_CONFIG.gistId = result.id;
+            console.log(`📌 НОВЫЙ GIST ID: ${result.id}`);
+        }
+        
+        console.log(`✅ Добавлено ${newData.length} записей в Gist:`, result.html_url);
+        
+        // Обновляем кеш
+        const allHistory = [...existingHistory, ...newData];
+        try {
+            localStorage.setItem('nspd_gist_cache', JSON.stringify({
+                _timestamp: Date.now(),
+                data: allHistory
+            }));
+        } catch (e) {}
+        
+        return { 
+            added: newData.length,
+            total: existingHistory.length + newData.length,
+            url: result.html_url,
+            gistId: result.id
+        };
+        
+    } catch (error) {
+        console.error('❌ Ошибка сохранения в Gist:', error);
+        return { added: 0, error: error.message };
     }
-
+}
     // ============================================================
     // 🔥 ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
     // ============================================================
 
-   async function syncLocalToGist() {
+  async function syncLocalToGist() {
     const syncBtn = document.getElementById('nspd-sync-gist');
     const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
     
@@ -433,7 +420,7 @@ if (!isValid) {
             syncBtn.disabled = true;
         }
         
-        // ✅ СНАЧАЛА ЗАПРАШИВАЕМ ТОКЕН
+        // ✅ ТОЛЬКО ЗДЕСЬ ЗАПРАШИВАЕМ ТОКЕН!
         const token = getToken();
         if (!token) {
             alert('❌ Токен не введен. Синхронизация отменена.');
@@ -447,7 +434,7 @@ if (!isValid) {
             return;
         }
         
-        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША
+        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША (localStorage)
         let localData = [];
         try {
             const cached = localStorage.getItem('nspd_gist_cache');
@@ -455,37 +442,11 @@ if (!isValid) {
                 const parsed = JSON.parse(cached);
                 localData = parsed.data || [];
                 console.log(`📦 В кеше: ${localData.length} записей`);
-                
-                // 🔥 ДЛЯ ОТЛАДКИ: показываем первую запись
-                if (localData.length > 0) {
-                    console.log('📋 Пример записи в кеше:', localData[0]);
-                }
             } else {
-                console.log('ℹ️ Кеш пуст (нет данных)');
+                console.log('ℹ️ Кеш пуст');
             }
         } catch (e) {
             console.warn('⚠️ Ошибка чтения кеша:', e);
-        }
-        
-        // ✅ ПРОВЕРЯЕМ СТАРЫЙ ФОРМАТ ДАННЫХ
-        if (localData.length === 0) {
-            try {
-                const oldData = localStorage.getItem('nspd_search_history');
-                if (oldData) {
-                    const parsed = JSON.parse(oldData);
-                    if (parsed && parsed.length > 0) {
-                        localData = parsed;
-                        // Сохраняем в новый кеш
-                        localStorage.setItem('nspd_gist_cache', JSON.stringify({
-                            _timestamp: Date.now(),
-                            data: localData
-                        }));
-                        console.log(`📦 Перенесено из старого кеша: ${localData.length} записей`);
-                    }
-                }
-            } catch (e) {
-                console.warn('⚠️ Ошибка чтения старого кеша:', e);
-            }
         }
         
         if (localData.length === 0) {
@@ -493,44 +454,13 @@ if (!isValid) {
             return;
         }
         
-        // ✅ Загружаем данные из Gist
-        const existingHistory = await getGistHistory(true, token);
-        console.log(`📊 В Gist: ${existingHistory.length} записей`);
-        
-        // ✅ Фильтруем только новые записи
-        const existingKeys = new Set();
-        existingHistory.forEach(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            existingKeys.add(key);
-        });
-        
-        const newData = localData.filter(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            return !existingKeys.has(key);
-        });
-        
-        if (newData.length === 0) {
-            alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${existingHistory.length} записей`);
-            return;
-        }
-        
-        console.log(`📤 Будет добавлено ${newData.length} новых записей`);
-        
-        // ✅ Сохраняем только новые записи
-        const result = await saveToGist(newData, false);
+        // ✅ Сохраняем в Gist (с проверкой дубликатов)
+        const result = await saveToGist(localData, token);
         
         if (result && result.added > 0) {
             alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} записей\nВсего в Gist: ${result.total}`);
+        } else if (result && result.added === 0 && result.total > 0) {
+            alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${result.total} записей`);
         } else if (result && result.error) {
             alert(`❌ Ошибка: ${result.error}`);
         } else {
@@ -557,7 +487,7 @@ async function saveSearchResult(historyData) {
         return;
     }
     
-    // 1. Сохраняем в кеш (ПРОСТО ДОБАВЛЯЕМ, БЕЗ ПРОВЕРОК)
+    // ✅ ТОЛЬКО СОХРАНЯЕМ В КЕШ (БЕЗ GIST, БЕЗ ТОКЕНА!)
     try {
         let cached = [];
         const cachedStr = localStorage.getItem('nspd_gist_cache');
@@ -571,9 +501,8 @@ async function saveSearchResult(historyData) {
             }
         }
         
-        // ✅ ПРОСТО ДОБАВЛЯЕМ ВСЕ ДАННЫЕ (БЕЗ ПРОВЕРКИ ДУБЛИКАТОВ)
+        // ✅ ПРОСТО ДОБАВЛЯЕМ ВСЕ ДАННЫЕ
         const newData = historyData.filter(row => {
-            // Проверяем, что есть хоть какие-то данные
             return row && (row.address || row.cadNumber);
         });
         
@@ -595,28 +524,8 @@ async function saveSearchResult(historyData) {
         }));
         console.log(`📦 Кеш обновлен: +${newData.length} записей, всего: ${cached.length}`);
         
-        // 🔥 ДЛЯ ОТЛАДКИ: показываем первую запись
-        if (cached.length > 0) {
-            console.log('📋 Пример записи в кеше:', cached[0]);
-        }
-        
     } catch (e) {
         console.error('❌ Ошибка сохранения кеша:', e);
-    }
-    
-    // 2. Сохраняем в Gist (с проверкой дубликатов)
-    try {
-        const result = await saveToGist(historyData, false);
-        if (result && result.added > 0) {
-            console.log(`✅ Сохранено в Gist: +${result.added} записей`);
-        } else if (result && result.error) {
-            console.warn(`⚠️ Не удалось сохранить в Gist: ${result.error}`);
-            if (result.error === 'No token') {
-                console.log('ℹ️ Токен не введен. Нажмите "Обновить SQL в Gist" позже.');
-            }
-        }
-    } catch (e) {
-        console.warn('⚠️ Не удалось сохранить в Gist:', e.message);
     }
 }
 
