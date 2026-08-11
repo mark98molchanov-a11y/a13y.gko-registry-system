@@ -2326,6 +2326,20 @@ async function saveSearchResult(historyData) {
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
-
+window.extractAllFields = extractAllFields;
+window.normalizeString = normalizeString;
+window.saveSearchResult = saveSearchResult;
+window.searchByAddress = searchByAddress;
+window.performSearch = performSearch;
+window.parseSQLToArray = parseSQLToArray;
+window.getGistHistory = getGistHistory;
+window.saveToGist = saveToGist;
+window.syncLocalToGist = syncLocalToGist;
+window.validateToken = validateToken;
+window.getToken = getToken;
+window.displayMassResults = displayMassResults;
+window.exportResults = exportResults;
+window.downloadTemplate = downloadTemplate;
+window.uploadData = uploadData;
     console.log('✅ Модуль поиска НСПД загружен (Gist-only режим).');
 })();
