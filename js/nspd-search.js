@@ -2493,6 +2493,5 @@ displayMassResults(candidates, [], resultsContainer, param.label);
                 btn.disabled = false;
             }
         }
-    }
     console.log('✅ Модуль поиска НСПД загружен.');
 })();
