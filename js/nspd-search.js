@@ -1492,6 +1492,7 @@ async function saveSearchResult(historyData) {
                     const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
                     displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
+
 (async function() {
     try {
         const historyData = [];
@@ -1525,10 +1526,10 @@ async function saveSearchResult(historyData) {
             
             if (itemsToSave.length === 0) {
                 historyData.push({
-                    searchType: 'single',
-                    address: address || 'Не определено',
-                    paramName: param.label,
-                    paramValue: value,
+                    searchType: 'mass',
+                    address: address || '—',
+                    paramName: searchParamLabel || '—',
+                    paramValue: 0,
                     cadNumber: 'Не определено',
                     objectView: '—',
                     found: 0
@@ -1538,10 +1539,10 @@ async function saveSearchResult(historyData) {
                     const fields = extractAllFields(item);
                     const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
                     historyData.push({
-                        searchType: 'single',
+                        searchType: 'mass',
                         address: objAddress,
-                        paramName: param.label,
-                        paramValue: value,
+                        paramName: searchParamLabel || '—',
+                        paramValue: 0,
                         cadNumber: fields['Кадастровый номер'] || 'Не определено',
                         objectView: fields['Вид объекта'] || '—',
                         found: 1
@@ -1550,10 +1551,10 @@ async function saveSearchResult(historyData) {
             }
         } else {
             historyData.push({
-                searchType: 'single',
-                address: address || 'Не определено',
-                paramName: param.label,
-                paramValue: value,
+                searchType: 'mass',
+                address: address || '—',
+                paramName: searchParamLabel || '—',
+                paramValue: 0,
                 cadNumber: 'Не определено',
                 objectView: '—',
                 found: 0
@@ -1561,7 +1562,6 @@ async function saveSearchResult(historyData) {
         }
         
         await saveSearchResult(historyData);
-        
     } catch (e) {
         console.debug('⚠️ Не удалось сохранить историю:', e.message);
     }
@@ -2226,6 +2226,7 @@ async function saveSearchResult(historyData) {
 
                 displayMassResults(candidates, [], resultsContainer, param.label);
                 
+               // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ ПОИСКА В GIST
 (async function() {
     try {
         const historyData = [];
@@ -2259,10 +2260,10 @@ async function saveSearchResult(historyData) {
             
             if (itemsToSave.length === 0) {
                 historyData.push({
-                    searchType: 'mass',
-                    address: address || '—',
-                    paramName: searchParamLabel || '—',
-                    paramValue: 0,
+                    searchType: 'single',
+                    address: address || 'Не определено',
+                    paramName: param.label,
+                    paramValue: value,
                     cadNumber: 'Не определено',
                     objectView: '—',
                     found: 0
@@ -2270,12 +2271,13 @@ async function saveSearchResult(historyData) {
             } else {
                 itemsToSave.forEach(item => {
                     const fields = extractAllFields(item);
+                    // ✅ БЕРЕМ АДРЕС ИЗ ОБЪЕКТА!
                     const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
                     historyData.push({
-                        searchType: 'mass',
+                        searchType: 'single',
                         address: objAddress,
-                        paramName: searchParamLabel || '—',
-                        paramValue: 0,
+                        paramName: param.label,
+                        paramValue: value,
                         cadNumber: fields['Кадастровый номер'] || 'Не определено',
                         objectView: fields['Вид объекта'] || '—',
                         found: 1
@@ -2284,10 +2286,10 @@ async function saveSearchResult(historyData) {
             }
         } else {
             historyData.push({
-                searchType: 'mass',
-                address: address || '—',
-                paramName: searchParamLabel || '—',
-                paramValue: 0,
+                searchType: 'single',
+                address: address || 'Не определено',
+                paramName: param.label,
+                paramValue: value,
                 cadNumber: 'Не определено',
                 objectView: '—',
                 found: 0
@@ -2295,6 +2297,7 @@ async function saveSearchResult(historyData) {
         }
         
         await saveSearchResult(historyData);
+        
     } catch (e) {
         console.debug('⚠️ Не удалось сохранить историю:', e.message);
     }
