@@ -6,7 +6,7 @@
     // 🔥 КОНФИГУРАЦИЯ GIST (ЕДИНСТВЕННОЕ ХРАНИЛИЩЕ)
 const GIST_CONFIG = {
     token: '',  // ✅ Всегда пустой, запрашивается при каждой операции
-    gistId: 'de65c48d1a525b9e7ee8695bd19f19b2',
+    gistId: '',
     filename: 'nspd_search_history.sql'
 };
 function getToken() {
@@ -237,57 +237,50 @@ async function saveToGist(data, token) {
         // ============================================================
         // ШАГ 4: ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
         // ============================================================
-        let sql = '';
-        
-        // Если нет существующего содержимого или создаем новый
-        if (!existingContent || !gistExists) {
-            sql += `-- ===========================================\n`;
-            sql += `-- НСПД: ИСТОРИЯ ЗАПРОСОВ\n`;
-            sql += `-- Создано: ${timestamp}\n`;
-            sql += `-- ===========================================\n\n`;
-            
-            sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-            sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-            sql += `    search_date TEXT NOT NULL,\n`;
-            sql += `    search_type TEXT NOT NULL,\n`;
-            sql += `    address TEXT NOT NULL,\n`;
-            sql += `    param_name TEXT,\n`;
-            sql += `    param_value REAL,\n`;
-            sql += `    cad_number TEXT,\n`;
-            sql += `    object_type TEXT,\n`;
-            sql += `    found INTEGER DEFAULT 0,\n`;
-            sql += `    raw_data TEXT,\n`;
-            sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-            sql += `);\n\n`;
-        }
-        
-        // Добавляем новые записи
-        for (const row of newData) {
-            const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
-            const cadNumber = row.cadNumber || 'Не определено';
-            const objectType = row.objectView || '—';
-            const rawData = JSON.stringify(row).replace(/'/g, "''");
-            
-            sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
-            sql += `    search_date, search_type, address, param_name, param_value,\n`;
-            sql += `    cad_number, object_type, found, raw_data\n`;
-            sql += `) VALUES (\n`;
-            sql += `    '${timestamp}',\n`;
-            sql += `    '${row.searchType || 'single'}',\n`;
-            sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
-            sql += `    '${row.paramName || ''}',\n`;
-            sql += `    ${row.paramValue || 0},\n`;
-            sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
-            sql += `    '${objectType.replace(/'/g, "''")}',\n`;
-            sql += `    ${found},\n`;
-            sql += `    '${rawData}'\n`;
-            sql += `);\n\n`;
-        }
-        
-        sql += `-- ===========================================\n`;
-        sql += `-- Добавлено: ${newData.length} новых записей\n`;
-        sql += `-- Всего в Gist: ${existingHistory.length + newData.length} записей\n`;
-        sql += `-- ===========================================\n`;
+       // ============================================================
+// ШАГ 4: ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
+// ============================================================
+let sql = '';
+
+// Если нет существующего содержимого или создаем новый
+if (!existingContent || !gistExists) {
+    sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+    sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+    sql += `    search_date TEXT NOT NULL,\n`;
+    sql += `    search_type TEXT NOT NULL,\n`;
+    sql += `    address TEXT NOT NULL,\n`;
+    sql += `    param_name TEXT,\n`;
+    sql += `    param_value REAL,\n`;
+    sql += `    cad_number TEXT,\n`;
+    sql += `    object_type TEXT,\n`;
+    sql += `    found INTEGER DEFAULT 0,\n`;
+    sql += `    raw_data TEXT,\n`;
+    sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+    sql += `);\n\n`;
+}
+
+// Добавляем новые записи
+for (const row of newData) {
+    const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
+    const cadNumber = row.cadNumber || 'Не определено';
+    const objectType = row.objectView || '—';
+    const rawData = JSON.stringify(row).replace(/'/g, "''");
+    
+    sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
+    sql += `    search_date, search_type, address, param_name, param_value,\n`;
+    sql += `    cad_number, object_type, found, raw_data\n`;
+    sql += `) VALUES (\n`;
+    sql += `    '${timestamp}',\n`;
+    sql += `    '${row.searchType || 'single'}',\n`;
+    sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+    sql += `    '${row.paramName || ''}',\n`;
+    sql += `    ${row.paramValue || 0},\n`;
+    sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+    sql += `    '${objectType.replace(/'/g, "''")}',\n`;
+    sql += `    ${found},\n`;
+    sql += `    '${rawData}'\n`;
+    sql += `);\n\n`;
+}
         
         // ============================================================
         // ШАГ 5: ОБЪЕДИНЯЕМ С СУЩЕСТВУЮЩИМ СОДЕРЖИМЫМ
@@ -1500,41 +1493,53 @@ async function saveSearchResult(historyData) {
                     displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
                     // 🔥 СОХРАНЯЕМ РЕЗУЛЬТАТЫ В GIST (ЧЕРЕЗ saveSearchResult)
-                    (async function() {
-                        try {
-                            const historyData = [];
-                            
-                            allResults.forEach(item => {
-                                const fields = extractAllFields(item);
-                                historyData.push({
-                                    searchType: 'mass',
-                                    address: fields['Адрес'] || '—',
-                                    paramName: searchParamLabel || '—',
-                                    paramValue: 0,
-                                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                                    objectView: fields['Вид объекта'] || '—',
-                                    found: 1
-                                });
-                            });
-                            
-                            notFoundItems.forEach(item => {
-                                historyData.push({
-                                    searchType: 'mass',
-                                    address: item.address || '—',
-                                    paramName: item.paramLabel || '—',
-                                    paramValue: item.paramValue || 0,
-                                    cadNumber: 'Не определено',
-                                    objectView: '—',
-                                    found: 0
-                                });
-                            });
-                            
-                            // ✅ СОХРАНЯЕМ В GIST (НОВАЯ ФУНКЦИЯ)
-                            await saveSearchResult(historyData);
-                        } catch (e) {
-                            console.debug('⚠️ Не удалось сохранить историю:', e.message);
-                        }
-                    })();
+   (async function() {
+    try {
+        const historyData = [];
+        
+        if (candidates.length > 0) {
+            // ✅ ФИЛЬТРУЕМ ТОЛЬКО ТОЧНЫЕ СОВПАДЕНИЯ ПО ПЛОЩАДИ
+            const exactMatches = candidates.filter(item => {
+                const paramValue = param.getValue(item.rawData.opts || {});
+                return Math.abs(paramValue - value) <= AREA_TOLERANCE;
+            });
+            
+            // ✅ ЕСЛИ ЕСТЬ ТОЧНЫЕ СОВПАДЕНИЯ — БЕРЕМ ИХ
+            // ✅ ЕСЛИ НЕТ — БЕРЕМ ПЕРВЫЙ (САМЫЙ БЛИЗКИЙ)
+            const itemsToSave = exactMatches.length > 0 ? exactMatches : [candidates[0]];
+            
+            console.log(`📊 Найдено ${candidates.length} объектов, точных совпадений: ${exactMatches.length}, сохраняем: ${itemsToSave.length}`);
+            
+            itemsToSave.forEach(item => {
+                const fields = extractAllFields(item);
+                historyData.push({
+                    searchType: 'single',
+                    address: address,
+                    paramName: param.label,
+                    paramValue: value,
+                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                    objectView: fields['Вид объекта'] || '—',
+                    found: 1
+                });
+            });
+        } else {
+            historyData.push({
+                searchType: 'single',
+                address: address,
+                paramName: param.label,
+                paramValue: value,
+                cadNumber: 'Не определено',
+                objectView: '—',
+                found: 0
+            });
+        }
+        
+        await saveSearchResult(historyData);
+        
+    } catch (e) {
+        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+    }
+})();
                 })();
             }
             
