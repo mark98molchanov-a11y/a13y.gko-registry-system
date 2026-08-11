@@ -1526,20 +1526,20 @@ async function saveSearchResult(historyData) {
                     found: 0
                 });
             } else {
-                itemsToSave.forEach(item => {
-                    const fields = extractAllFields(item);
-                    // ✅ БЕРЕМ АДРЕС ИЗ ОБЪЕКТА!
-                    const objAddress = fields['Адрес'] || address;
-                    historyData.push({
-                        searchType: 'mass',
-                        address: objAddress,
-                        paramName: searchParamLabel || '—',
-                        paramValue: 0,
-                        cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                        objectView: fields['Вид объекта'] || '—',
-                        found: 1
-                    });
-                });
+               itemsToSave.forEach(item => {
+    const fields = extractAllFields(item);
+    // ✅ ГАРАНТИРУЕМ, ЧТО АДРЕС НЕ ПУСТОЙ
+    const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
+    historyData.push({
+        searchType: 'single',
+        address: objAddress,
+        paramName: param.label,
+        paramValue: value,
+        cadNumber: fields['Кадастровый номер'] || 'Не определено',
+        objectView: fields['Вид объекта'] || '—',
+        found: 1
+    });
+});
             }
         } else {
             historyData.push({
@@ -2252,20 +2252,20 @@ async function saveSearchResult(historyData) {
                     found: 0
                 });
             } else {
-                itemsToSave.forEach(item => {
-                    const fields = extractAllFields(item);
-                    // ✅ БЕРЕМ АДРЕС ИЗ ОБЪЕКТА!
-                    const objAddress = fields['Адрес'] || address;
-                    historyData.push({
-                        searchType: 'mass',
-                        address: objAddress,
-                        paramName: searchParamLabel || '—',
-                        paramValue: 0,
-                        cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                        objectView: fields['Вид объекта'] || '—',
-                        found: 1
-                    });
-                });
+             itemsToSave.forEach(item => {
+    const fields = extractAllFields(item);
+    // ✅ ГАРАНТИРУЕМ, ЧТО АДРЕС НЕ ПУСТОЙ
+    const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
+    historyData.push({
+        searchType: 'single',
+        address: objAddress,
+        paramName: param.label,
+        paramValue: value,
+        cadNumber: fields['Кадастровый номер'] || 'Не определено',
+        objectView: fields['Вид объекта'] || '—',
+        found: 1
+    });
+});
             }
         } else {
             historyData.push({
