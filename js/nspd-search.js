@@ -2314,7 +2314,7 @@ displayMassResults(candidates, [], resultsContainer, param.label);
         }
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
-    };
+    } 
     async function sendToIssues(data) {
         try {
             if (!data || data.length === 0) return false;
