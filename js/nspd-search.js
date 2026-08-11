@@ -32,68 +32,74 @@ async function validateToken(token) {
         return false;
     }
 }
-    async function getGistHistory(forceRefresh = false, token = null) {
-        // Проверяем кеш (если не принудительно)
-        if (!forceRefresh) {
-            try {
-                const cached = localStorage.getItem('nspd_gist_cache');
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    const cacheTime = parsed._timestamp || 0;
-                    // Кеш действителен 5 минут
-                    if (Date.now() - cacheTime < 5 * 60 * 1000) {
-                        console.log(`📦 Используем кеш Gist: ${parsed.data.length} записей`);
-                        return parsed.data;
-                    }
-                }
-            } catch (e) {}
-        }
-
-        if (!GIST_CONFIG.gistId) {
-            console.warn('⚠️ Gist ID не настроен');
-            return [];
-        }
-
+   async function getGistHistory(forceRefresh = false, token = null) {
+    // Проверяем кеш (если не принудительно)
+    if (!forceRefresh) {
         try {
-            // Пробуем получить без токена (публичный Gist)
-            const url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
-            const headers = { 'Accept': 'application/vnd.github.v3+json' };
-            
-                if (token) {
-        headers['Authorization'] = `token ${token}`;
-    }
-            const response = await fetch(url, { headers });
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.warn('⚠️ Gist не найден, создаем новый...');
-                    return [];
+            const cached = localStorage.getItem('nspd_gist_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                const cacheTime = parsed._timestamp || 0;
+                if (Date.now() - cacheTime < 5 * 60 * 1000) {
+                    console.log(`📦 Используем кеш Gist: ${parsed.data.length} записей`);
+                    return parsed.data;
                 }
-                throw new Error(`HTTP ${response.status}`);
             }
-            
-            const data = await response.json();
-            const content = data.files?.[GIST_CONFIG.filename]?.content || '';
-            
-            // Парсим SQL в массив объектов
-            const history = parseSQLToArray(content);
-            console.log(`📥 Загружено ${history.length} записей из Gist`);
-            
-            // Сохраняем в кеш
-            try {
-                localStorage.setItem('nspd_gist_cache', JSON.stringify({
-                    _timestamp: Date.now(),
-                    data: history
-                }));
-            } catch (e) {}
-            
-            return history;
-            
-        } catch (error) {
-            console.error('❌ Ошибка загрузки из Gist:', error);
-            return [];
-        }
+        } catch (e) {}
     }
+
+    if (!GIST_CONFIG.gistId) {
+        console.warn('⚠️ Gist ID не настроен');
+        return [];
+    }
+
+    try {
+        const url = `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+        const headers = { 'Accept': 'application/vnd.github.v3+json' };
+        
+        // ✅ ЕСЛИ ТОКЕН ПЕРЕДАН — ИСПОЛЬЗУЕМ ЕГО
+        if (token) {
+            headers['Authorization'] = `token ${token}`;
+            console.log('🔑 Используем токен для загрузки Gist');
+        } else {
+            console.log('ℹ️ Загружаем Gist без токена (только публичные данные)');
+        }
+        
+        const response = await fetch(url, { headers });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.warn('⚠️ Gist не найден, создаем новый...');
+                return [];
+            }
+            if (response.status === 401) {
+                console.warn('⚠️ Ошибка авторизации (401). Проверьте токен.');
+                return [];
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const content = data.files?.[GIST_CONFIG.filename]?.content || '';
+        
+        const history = parseSQLToArray(content);
+        console.log(`📥 Загружено ${history.length} записей из Gist`);
+        
+        // Сохраняем в кеш
+        try {
+            localStorage.setItem('nspd_gist_cache', JSON.stringify({
+                _timestamp: Date.now(),
+                data: history
+            }));
+        } catch (e) {}
+        
+        return history;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки из Gist:', error);
+        return [];
+    }
+}
 
     // 🔥 ПАРСИНГ SQL → массив объектов
     function parseSQLToArray(sqlContent) {
@@ -410,7 +416,7 @@ async function saveToGist(data, token) {
     // 🔥 ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
     // ============================================================
 
- async function syncLocalToGist() {
+async function syncLocalToGist() {
     const syncBtn = document.getElementById('nspd-sync-gist');
     const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
     
@@ -434,10 +440,6 @@ async function saveToGist(data, token) {
             return;
         }
         
-        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ Gist (для проверки)
-        const gistHistory = await getGistHistory(true, token);
-        console.log(`📊 В Gist: ${gistHistory.length} записей`);
-        
         // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША (localStorage)
         let localData = [];
         try {
@@ -453,17 +455,19 @@ async function saveToGist(data, token) {
             console.warn('⚠️ Ошибка чтения кеша:', e);
         }
         
+        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ Gist С ТОКЕНОМ
+        const gistHistory = await getGistHistory(true, token);
+        console.log(`📊 В Gist: ${gistHistory.length} записей`);
+        
         // ✅ ЕСЛИ КЕШ ПУСТ, НО Gist НЕ ПУСТ — ВОССТАНАВЛИВАЕМ КЕШ ИЗ Gist
         if (localData.length === 0 && gistHistory.length > 0) {
             console.log(`🔄 Кеш пуст, но в Gist есть ${gistHistory.length} записей. Восстанавливаем кеш...`);
             
-            // Сохраняем данные из Gist в кеш
             localStorage.setItem('nspd_gist_cache', JSON.stringify({
                 _timestamp: Date.now(),
                 data: gistHistory
             }));
             
-            localData = gistHistory;
             alert(`🔄 Кеш восстановлен из Gist! Загружено ${gistHistory.length} записей.`);
             return;
         }
@@ -576,7 +580,6 @@ async function saveSearchResult(historyData) {
         console.error('❌ Ошибка сохранения кеша:', e);
     }
 }
-
     // ============================================================
     // 🔥 ПАРАМЕТРЫ ДЛЯ ПОИСКА
     // ============================================================
