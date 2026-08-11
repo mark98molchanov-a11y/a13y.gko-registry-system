@@ -1278,111 +1278,106 @@ function processRows(rows) {
     let attempts = 0;
     const maxAttempts = 100;
     
-    function waitForContainer() {
-        const container = document.getElementById('nspd-search-results');
+ function waitForContainer() {
+    const container = document.getElementById('nspd-search-results');
+    
+    // Проверяем наличие контейнера
+    if (container) {
+        // Если данных нет
+        if (rows.length === 0) {
+            container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
+            return;
+        }
         
-        if (container) {
-            if (rows.length === 0) {
-                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
-                return;
-            }
-            
-            const progressContainer = document.getElementById('nspd-progress-container');
-            const progressBar = document.getElementById('nspd-progress-bar');
-            const progressText = document.getElementById('nspd-progress-text');
-            if (progressContainer) progressContainer.style.display = 'block';
-            if (progressBar) progressBar.style.width = '0%';
-            if (progressText) progressText.textContent = '0%';
-            
-            let allResults = [];
-            let notFoundItems = [];
-            let total = rows.length;
-            
-            (async function() {
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
-                    const percent = Math.round(((i + 1) / total) * 100);
-                    if (progressBar) progressBar.style.width = percent + '%';
-                    if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
-                    
-                    const param = SEARCH_PARAMS[row.param];
-                    if (!param) {
-                        notFoundItems.push({
-                            address: row.address,
-                            paramLabel: row.param,
-                            paramValue: row.value
+        const progressContainer = document.getElementById('nspd-progress-container');
+        const progressBar = document.getElementById('nspd-progress-bar');
+        const progressText = document.getElementById('nspd-progress-text');
+        
+        if (progressContainer) progressContainer.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (progressText) progressText.textContent = '0%';
+        
+        let allResults = [];
+        let notFoundItems = [];
+        let total = rows.length;
+        
+        // Запускаем основной цикл обработки
+        (async function() {
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const percent = Math.round(((i + 1) / total) * 100);
+                
+                if (progressBar) progressBar.style.width = percent + '%';
+                if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
+                
+                const param = SEARCH_PARAMS[row.param];
+                if (!param) {
+                    notFoundItems.push({
+                        address: row.address,
+                        paramLabel: row.param,
+                        paramValue: row.value
+                    });
+                    continue;
+                }
+                
+                try {
+                    const features = await searchByAddress(row.address, param, row.value);
+                    if (features.length > 0) {
+                        let candidates = features.map(f => {
+                            const props = f.properties || {};
+                            const opts = props.options || {};
+                            return {
+                                feature: f,
+                                area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
+                                builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
+                                volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
+                                extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
+                                landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
+                                depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
+                                address: opts.address_readable_address || opts.readable_address || '',
+                                cadNumber: getCadNumber(opts, props),
+                                type: opts.type || opts.object_type_value || '—',
+                                cadastralCost: parseFloat(opts.cost_value) || 0,
+                                name: opts.params_name || opts.name || '',
+                                determination_couse: opts.determination_couse || '',
+                                rawData: { feature: f, opts: opts, props: props }
+                            };
                         });
-                        continue;
-                    }
-                    
-                    try {
-                        const features = await searchByAddress(row.address, param, row.value);
-                        if (features.length > 0) {
-                            let candidates = features.map(f => {
-                                const props = f.properties || {};
-                                const opts = props.options || {};
-                                return {
-                                    feature: f,
-                                    area: parseFloat(opts.area) || parseFloat(opts.params_area) || 0,
-                                    builtUpArea: parseFloat(opts.built_up_area) || parseFloat(opts.params_built_up_area) || parseFloat(opts.area) || 0,
-                                    volume: parseFloat(opts.volume) || parseFloat(opts.params_volume) || 0,
-                                    extension: parseFloat(opts.params_extension) || parseFloat(opts.extension) || 0,
-                                    landArea: parseFloat(opts.land_record_area) || parseFloat(opts.specified_area) || 0,
-                                    depth: parseFloat(opts.params_depth) || parseFloat(opts.depth) || 0,
-                                    address: opts.address_readable_address || opts.readable_address || '',
-                                    cadNumber: getCadNumber(opts, props),
-                                    type: opts.type || opts.object_type_value || '—',
-                                    cadastralCost: parseFloat(opts.cost_value) || 0,
-                                    name: opts.params_name || opts.name || '',
-                                    determination_couse: opts.determination_couse || '',
-                                    rawData: { feature: f, opts: opts, props: props }
-                                };
-                            });
-                            
-                            if (candidates.length > 1) {
-                                function getAddressScore(candidateAddress, targetAddress) {
-                                    if (!candidateAddress || !targetAddress) return 0;
-                                    const normalizedTarget = normalizeString(targetAddress);
-                                    const normalizedCandidate = normalizeString(candidateAddress);
-                                    
-                                    let score = 0;
-                                    if (normalizedCandidate === normalizedTarget) return 100;
-                                    if (normalizedCandidate.includes(normalizedTarget)) score += 50;
-                                    if (normalizedTarget.includes(normalizedCandidate)) score += 30;
-                                    
-                                    const targetHouse = extractHouseNumber(targetAddress);
-                                    const candidateHouse = extractHouseNumber(candidateAddress);
-                                    if (targetHouse && candidateHouse && targetHouse === candidateHouse) score += 20;
-                                    
-                                    const targetPlot = extractPlotNumber(targetAddress);
-                                    const candidatePlot = extractPlotNumber(candidateAddress);
-                                    if (targetPlot && candidatePlot && targetPlot === candidatePlot) score += 20;
-                                    
-                                    score += normalizedCandidate.length / 10;
-                                    return score;
-                                }
+                        
+                        if (candidates.length > 1) {
+                            function getAddressScore(candidateAddress, targetAddress) {
+                                if (!candidateAddress || !targetAddress) return 0;
+                                const normalizedTarget = normalizeString(targetAddress);
+                                const normalizedCandidate = normalizeString(candidateAddress);
                                 
-                                candidates.sort((a, b) => {
-                                    const scoreA = getAddressScore(a.address, row.address);
-                                    const scoreB = getAddressScore(b.address, row.address);
-                                    return scoreB - scoreA;
-                                });
+                                let score = 0;
+                                if (normalizedCandidate === normalizedTarget) return 100;
+                                if (normalizedCandidate.includes(normalizedTarget)) score += 50;
+                                if (normalizedTarget.includes(normalizedCandidate)) score += 30;
                                 
-                                candidates = candidates.slice(0, 1);
+                                const targetHouse = extractHouseNumber(targetAddress);
+                                const candidateHouse = extractHouseNumber(candidateAddress);
+                                if (targetHouse && candidateHouse && targetHouse === candidateHouse) score += 20;
+                                
+                                const targetPlot = extractPlotNumber(targetAddress);
+                                const candidatePlot = extractPlotNumber(candidateAddress);
+                                if (targetPlot && candidatePlot && targetPlot === candidatePlot) score += 20;
+                                
+                                score += normalizedCandidate.length / 10;
+                                return score;
                             }
                             
-                            allResults = allResults.concat(candidates);
-                        } else {
-                            const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
-                            notFoundItems.push({
-                                address: row.address,
-                                paramLabel: paramLabel,
-                                paramValue: row.value,
-                                paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
+                            candidates.sort((a, b) => {
+                                const scoreA = getAddressScore(a.address, row.address);
+                                const scoreB = getAddressScore(b.address, row.address);
+                                return scoreB - scoreA;
                             });
+                            
+                            candidates = candidates.slice(0, 1);
                         }
-                    } catch (e) {
-                        console.warn('Ошибка при поиске для строки', i + 1, ':', e.message);
+                        
+                        allResults = allResults.concat(candidates);
+                    } else {
                         const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
                         notFoundItems.push({
                             address: row.address,
@@ -1391,85 +1386,98 @@ function processRows(rows) {
                             paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
                         });
                     }
+                } catch (e) {
+                    console.warn('Ошибка при поиске для строки', i + 1, ':', e.message);
+                    const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
+                    notFoundItems.push({
+                        address: row.address,
+                        paramLabel: paramLabel,
+                        paramValue: row.value,
+                        paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
+                    });
                 }
-                
-                if (progressContainer) progressContainer.style.display = 'none';
-                
-                const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
-                displayMassResults(allResults, notFoundItems, container, searchParamLabel);
+            }
+            
+            // Цикл завершен
+            if (progressContainer) progressContainer.style.display = 'none';
+            
+            const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
+            displayMassResults(allResults, notFoundItems, container, searchParamLabel);
 
-                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!) — МАССОВЫЙ ЗАПРОС
-                (async function() {
-                    try {
-                        const historyData = [];
-                        
-                        allResults.forEach(item => {
-                            const fields = extractAllFields(item);
-                            historyData.push({
-                                searchType: 'mass',
-                                address: fields['Адрес'] || '—',
-                                paramName: searchParamLabel || '—',
-                                paramValue: 0,
-                                cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                                objectView: fields['Вид объекта'] || '—',
-                                found: 1
-                            });
-                        });
-                        
-                        notFoundItems.forEach(item => {
-                            historyData.push({
-                                searchType: 'mass',
-                                address: item.address || '—',
-                                paramName: item.paramLabel || '—',
-                                paramValue: item.paramValue || 0,
-                                cadNumber: 'Не определено',
-                                objectView: '—',
-                                found: 0
-                            });
-                        });
-                        
-                        // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
-                        if (historyData && historyData.length > 0) {
-                            // Проверяем токен
-                            if (!GIST_CONFIG.token) {
-                                const token = prompt('Введите GitHub токен (права на Gist):');
-                                if (token) {
-                                    GIST_CONFIG.token = token;
-                                } else {
-                                    console.log('ℹ️ Токен не введен, данные не сохранены');
-                                    return;
-                                }
-                            }
-                            
-                            // Сохраняем в Gist с проверкой дубликатов
-                            const result = await saveToGist(historyData, false);
-                            if (result && result.added > 0) {
-                                console.log(`✅ Добавлено ${result.added} записей в Gist (массовый импорт)`);
-                            } else if (result && result.added === 0) {
-                                console.log('ℹ️ Нет новых записей для добавления (массовый импорт)');
-                            }
+            // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!) — МАССОВЫЙ ЗАПРОС
+            try {
+                const historyData = [];
+                
+                allResults.forEach(item => {
+                    const fields = extractAllFields(item);
+                    historyData.push({
+                        searchType: 'mass',
+                        address: fields['Адрес'] || '—',
+                        paramName: searchParamLabel || '—',
+                        paramValue: 0,
+                        cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                        objectView: fields['Вид объекта'] || '—',
+                        found: 1
+                    });
+                });
+                
+                notFoundItems.forEach(item => {
+                    historyData.push({
+                        searchType: 'mass',
+                        address: item.address || '—',
+                        paramName: item.paramLabel || '—',
+                        paramValue: item.paramValue || 0,
+                        cadNumber: 'Не определено',
+                        objectView: '—',
+                        found: 0
+                    });
+                });
+                
+                // 🔥 СОХРАНЯЕМ В GIST (БЕЗ LOCALSTORAGE!)
+                if (historyData && historyData.length > 0) {
+                    // Проверяем токен
+                    if (!GIST_CONFIG.token) {
+                        const token = prompt('Введите GitHub токен (права на Gist):');
+                        if (token) {
+                            GIST_CONFIG.token = token;
+                        } else {
+                            console.log('ℹ️ Токен не введен, данные не сохранены');
+                            return;
                         }
-                        
-                    } catch (e) {
-                        console.debug('⚠️ Ошибка сохранения:', e.message);
-                   }
-                })();
-        } else {  // ← else от if (container)
-            attempts++;
-            if (attempts < maxAttempts) {
-                setTimeout(waitForContainer, 100);
-            } else {
-                console.error('❌ resultsContainer не появился после ожидания');
-                const container = document.getElementById('nspd-search-results');
-                if (container) {
-                    container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
+                    }
+                    
+                    // Сохраняем в Gist с проверкой дубликатов
+                    const result = await saveToGist(historyData, false);
+                    if (result && result.added > 0) {
+                        console.log(`✅ Добавлено ${result.added} записей в Gist (массовый импорт)`);
+                    } else if (result && result.added === 0) {
+                        console.log('ℹ️ Нет новых записей для добавления (массовый импорт)');
+                    }
                 }
+                
+            } catch (e) {
+                console.debug('⚠️ Ошибка сохранения:', e.message);
+            }
+            // Конец внутренней async функции сохранения
+        })(); 
+        // Конец внешней async функции цикла
+        
+    } else {  
+        // ← Теперь else корректно относится к if (container)
+        attempts++;
+        if (attempts < maxAttempts) {
+            setTimeout(waitForContainer, 100);
+        } else {
+            console.error('❌ resultsContainer не появился после ожидания');
+            const container = document.getElementById('nspd-search-results');
+            if (container) {
+                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Ошибка: контейнер результатов не найден. Попробуйте обновить страницу.</div>`;
             }
         }
     }
-    
-    waitForContainer();
 }
+
+waitForContainer();
         
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
