@@ -410,7 +410,7 @@ async function saveToGist(data, token) {
     // 🔥 ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
     // ============================================================
 
-  async function syncLocalToGist() {
+ async function syncLocalToGist() {
     const syncBtn = document.getElementById('nspd-sync-gist');
     const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
     
@@ -434,6 +434,10 @@ async function saveToGist(data, token) {
             return;
         }
         
+        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ Gist (для проверки)
+        const gistHistory = await getGistHistory(true, token);
+        console.log(`📊 В Gist: ${gistHistory.length} записей`);
+        
         // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША (localStorage)
         let localData = [];
         try {
@@ -449,13 +453,57 @@ async function saveToGist(data, token) {
             console.warn('⚠️ Ошибка чтения кеша:', e);
         }
         
+        // ✅ ЕСЛИ КЕШ ПУСТ, НО Gist НЕ ПУСТ — ВОССТАНАВЛИВАЕМ КЕШ ИЗ Gist
+        if (localData.length === 0 && gistHistory.length > 0) {
+            console.log(`🔄 Кеш пуст, но в Gist есть ${gistHistory.length} записей. Восстанавливаем кеш...`);
+            
+            // Сохраняем данные из Gist в кеш
+            localStorage.setItem('nspd_gist_cache', JSON.stringify({
+                _timestamp: Date.now(),
+                data: gistHistory
+            }));
+            
+            localData = gistHistory;
+            alert(`🔄 Кеш восстановлен из Gist! Загружено ${gistHistory.length} записей.`);
+            return;
+        }
+        
         if (localData.length === 0) {
             alert('📭 Нет данных для синхронизации. Сделайте поиск сначала.');
             return;
         }
         
-        // ✅ Сохраняем в Gist (с проверкой дубликатов)
-        const result = await saveToGist(localData, token);
+        // ✅ Фильтруем только новые записи (сравниваем с Gist)
+        const existingKeys = new Set();
+        gistHistory.forEach(row => {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+            } else {
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            }
+            existingKeys.add(key);
+        });
+        
+        const newData = localData.filter(row => {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+            } else {
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            }
+            return !existingKeys.has(key);
+        });
+        
+        if (newData.length === 0) {
+            alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${gistHistory.length} записей`);
+            return;
+        }
+        
+        console.log(`📤 Будет добавлено ${newData.length} новых записей`);
+        
+        // ✅ Сохраняем только новые записи
+        const result = await saveToGist(newData, token);
         
         if (result && result.added > 0) {
             alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} записей\nВсего в Gist: ${result.total}`);
