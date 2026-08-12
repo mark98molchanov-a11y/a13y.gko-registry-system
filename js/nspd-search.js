@@ -529,7 +529,6 @@ async function saveSearchResult(historyData) {
         return;
     }
     
-    // ✅ ТОЛЬКО СОХРАНЯЕМ В КЕШ (БЕЗ GIST, БЕЗ ТОКЕНА!)
     try {
         let cached = [];
         const cachedStr = localStorage.getItem('nspd_gist_cache');
@@ -543,13 +542,30 @@ async function saveSearchResult(historyData) {
             }
         }
         
-        // ✅ ПРОСТО ДОБАВЛЯЕМ ВСЕ ДАННЫЕ
+        // ✅ ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (проверка на дубликаты)
+        const existingKeys = new Set();
+        cached.forEach(row => {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+            } else {
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            }
+            existingKeys.add(key);
+        });
+        
         const newData = historyData.filter(row => {
-            return row && (row.address || row.cadNumber);
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+            } else {
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            }
+            return !existingKeys.has(key);
         });
         
         if (newData.length === 0) {
-            console.log('ℹ️ Нет валидных данных для сохранения');
+            console.log('ℹ️ Нет новых записей для добавления в кеш (все уже есть)');
             return;
         }
         
