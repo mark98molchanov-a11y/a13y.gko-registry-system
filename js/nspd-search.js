@@ -2389,12 +2389,18 @@ async function saveSearchResult(historyData) {
             syncBtn.addEventListener('click', syncLocalToGist);
         }
 
+        window.performSearch = performSearch;
+
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
-window.saveSearchResult = saveSearchResult;
-window.uploadData = uploadData;
-window.performSearch = performSearch;
-window.syncLocalToGist = syncLocalToGist;
-window.getGistHistory = getGistHistory;
+    
+    // ============================================================
+    // 🔥 ЭКСПОРТ ОСТАЛЬНЫХ ФУНКЦИЙ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
+    // ============================================================
+    window.saveSearchResult = saveSearchResult;
+    window.uploadData = uploadData;
+    window.syncLocalToGist = syncLocalToGist;
+    window.getGistHistory = getGistHistory;
+    
     console.log('✅ Модуль поиска НСПД загружен (Gist-only режим).');
 })();
