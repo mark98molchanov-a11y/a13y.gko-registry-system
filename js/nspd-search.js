@@ -1342,7 +1342,7 @@ async function saveSearchResult(historyData) {
     // 🔥 ОБРАБОТЧИК ЗАГРУЗКИ ФАЙЛА
     // ============================================================
 
-   async function uploadData(file) {
+  async function uploadData(file) {
         const reader = new FileReader();
         reader.onload = async function(e) {
             const fileName = file.name.toLowerCase();
@@ -1395,8 +1395,8 @@ async function saveSearchResult(historyData) {
                 (async function() {
                   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const address = row.address;   // ✅ ДОБАВЬ ЭТУ СТРОКУ
-    const value = row.value;       // ✅ ДОБАВЬ ЭТУ СТРОКУ
+    const address = row.address;
+    const value = row.value;
     const percent = Math.round(((i + 1) / total) * 100);
     if (progressBar) progressBar.style.width = percent + '%';
     if (progressText) progressText.textContent = `${percent}% (${i + 1}/${total})`;
@@ -1468,6 +1468,76 @@ async function saveSearchResult(historyData) {
                                 }
                                 
                                 allResults = allResults.concat(candidates);
+                                
+                                // ✅ СОХРАНЯЕМ НАЙДЕННЫЙ ОБЪЕКТ
+                                (async function() {
+                                    try {
+                                        const historyData = [];
+                                        
+                                        if (candidates.length > 0) {
+                                            const exactMatches = candidates.filter(item => {
+                                                const paramValue = param.getValue(item.rawData.opts || {});
+                                                const areaMatch = Math.abs(paramValue - value) <= AREA_TOLERANCE;
+                                                
+                                                const itemAddress = normalizeString(item.address || '');
+                                                const searchAddress = normalizeString(address || '');
+                                                const addressMatch = itemAddress === searchAddress || 
+                                                                    itemAddress.includes(searchAddress) || 
+                                                                    searchAddress.includes(itemAddress);
+                                                
+                                                return areaMatch && addressMatch;
+                                            });
+                                            
+                                            const sortedMatches = exactMatches.sort((a, b) => {
+                                                const valA = param.getValue(a.rawData.opts || {});
+                                                const valB = param.getValue(b.rawData.opts || {});
+                                                return Math.abs(valA - value) - Math.abs(valB - value);
+                                            });
+                                            
+                                            const item = sortedMatches.length > 0 ? sortedMatches[0] : candidates[0];
+                                            
+                                            if (item) {
+                                                const fields = extractAllFields(item);
+                                                const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
+                                                historyData.push({
+                                                    searchType: 'mass',
+                                                    address: objAddress,
+                                                    paramName: param.label,
+                                                    paramValue: value,
+                                                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                                                    objectView: fields['Вид объекта'] || '—',
+                                                    found: 1
+                                                });
+                                            } else {
+                                                historyData.push({
+                                                    searchType: 'mass',
+                                                    address: address || '—',
+                                                    paramName: param.label,
+                                                    paramValue: value,
+                                                    cadNumber: 'Не определено',
+                                                    objectView: '—',
+                                                    found: 0
+                                                });
+                                            }
+                                        } else {
+                                            historyData.push({
+                                                searchType: 'mass',
+                                                address: address || '—',
+                                                paramName: param.label,
+                                                paramValue: value,
+                                                cadNumber: 'Не определено',
+                                                objectView: '—',
+                                                found: 0
+                                            });
+                                        }
+                                        
+                                        console.log(`💾 Сохраняем найденный объект (массовый): ${address}, найдено: ${historyData[0]?.found || 0}`);
+                                        await saveSearchResult(historyData);
+                                    } catch (e) {
+                                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                                    }
+                                })();
+                                
                             } else {
                                 const paramLabel = SEARCH_PARAMS[row.param]?.label || row.param;
                                 notFoundItems.push({
@@ -1476,6 +1546,25 @@ async function saveSearchResult(historyData) {
                                     paramValue: row.value,
                                     paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
                                 });
+                                
+                                // ✅ СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
+                                (async function() {
+                                    try {
+                                        const historyData = [{
+                                            searchType: 'mass',
+                                            address: address || '—',
+                                            paramName: param.label,
+                                            paramValue: value,
+                                            cadNumber: 'Не определено',
+                                            objectView: '—',
+                                            found: 0
+                                        }];
+                                        console.log(`💾 Сохраняем НЕНАЙДЕННЫЙ объект (массовый): ${address}`);
+                                        await saveSearchResult(historyData);
+                                    } catch (e) {
+                                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                                    }
+                                })();
                             }
                         } catch (e) {
                             console.warn('Ошибка при поиске для строки', i + 1, ':', e.message);
@@ -1486,6 +1575,25 @@ async function saveSearchResult(historyData) {
                                 paramValue: row.value,
                                 paramUnit: SEARCH_PARAMS[row.param]?.unit || ''
                             });
+                            
+                            // ✅ СОХРАНЯЕМ ОШИБОЧНЫЙ ОБЪЕКТ КАК НЕНАЙДЕННЫЙ
+                            (async function() {
+                                try {
+                                    const historyData = [{
+                                        searchType: 'mass',
+                                        address: address || '—',
+                                        paramName: param.label,
+                                        paramValue: value,
+                                        cadNumber: 'Не определено',
+                                        objectView: '—',
+                                        found: 0
+                                    }];
+                                    console.log(`💾 Сохраняем объект с ошибкой (массовый): ${address}`);
+                                    await saveSearchResult(historyData);
+                                } catch (e) {
+                                    console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                                }
+                            })();
                         }
                     }
                     
@@ -1493,77 +1601,6 @@ async function saveSearchResult(historyData) {
                     
                     const searchParamLabel = rows.length > 0 ? SEARCH_PARAMS[rows[0].param]?.label || '—' : '—';
                     displayMassResults(allResults, notFoundItems, container, searchParamLabel);
-
-(async function() {
-    try {
-        const historyData = [];
-        
-        // ✅ ВСЕГДА СОХРАНЯЕМ — И НАЙДЕННЫЕ, И НЕНАЙДЕННЫЕ
-        if (candidates.length > 0) {
-            // ✅ ФИЛЬТРУЕМ: площадь совпадает И адрес совпадает
-            const exactMatches = candidates.filter(item => {
-                const paramValue = param.getValue(item.rawData.opts || {});
-                const areaMatch = Math.abs(paramValue - value) <= AREA_TOLERANCE;
-                
-                const itemAddress = normalizeString(item.address || '');
-                const searchAddress = normalizeString(address || '');
-                const addressMatch = itemAddress === searchAddress || 
-                                    itemAddress.includes(searchAddress) || 
-                                    searchAddress.includes(itemAddress);
-                
-                return areaMatch && addressMatch;
-            });
-            
-            const sortedMatches = exactMatches.sort((a, b) => {
-                const valA = param.getValue(a.rawData.opts || {});
-                const valB = param.getValue(b.rawData.opts || {});
-                return Math.abs(valA - value) - Math.abs(valB - value);
-            });
-            
-            const item = sortedMatches.length > 0 ? sortedMatches[0] : candidates[0];
-            
-            if (item) {
-                const fields = extractAllFields(item);
-                const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
-                historyData.push({
-                    searchType: 'mass',
-                    address: objAddress,
-                    paramName: searchParamLabel || '—',
-                    paramValue: row.value || 0,
-                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                    objectView: fields['Вид объекта'] || '—',
-                    found: 1
-                });
-            } else {
-                // ✅ ВАЖНО: СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
-                historyData.push({
-                    searchType: 'mass',
-                    address: address || '—',
-                    paramName: searchParamLabel || '—',
-                    paramValue: row.value || 0,
-                    cadNumber: 'Не определено',
-                    objectView: '—',
-                    found: 0
-                });
-            }
-        } else {
-            // ✅ СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
-            historyData.push({
-                searchType: 'mass',
-                address: address || '—',
-                paramName: searchParamLabel || '—',
-                paramValue: row.value || 0,
-                cadNumber: 'Не определено',
-                objectView: '—',
-                found: 0
-            });
-        }
-        
-        await saveSearchResult(historyData);
-    } catch (e) {
-        console.debug('⚠️ Не удалось сохранить историю:', e.message);
-    }
-})();
                 })();
             }
             
@@ -2130,6 +2167,25 @@ async function saveSearchResult(historyData) {
                             <br><span class="text-xs text-slate-500 mt-2 block">💡 Попробуйте уточнить адрес или значение</span>
                         </div>
                     `;
+                    
+                    // ✅ ДОБАВЛЯЕМ СОХРАНЕНИЕ НЕНАЙДЕННОГО ОБЪЕКТА
+                    try {
+                        const historyData = [{
+                            searchType: 'single',
+                            address: address || 'Не определено',
+                            paramName: param.label,
+                            paramValue: value,
+                            cadNumber: 'Не определено',
+                            objectView: '—',
+                            found: 0
+                        }];
+                        console.log('💾 Сохраняем НЕНАЙДЕННЫЙ объект (одиночный поиск):', historyData);
+                        await saveSearchResult(historyData);
+                        console.log('✅ Ненайденный объект сохранён в кеш');
+                    } catch (e) {
+                        console.error('❌ Ошибка сохранения ненайденного объекта:', e);
+                    }
+                    
                     return;
                 }
 
@@ -2224,76 +2280,75 @@ async function saveSearchResult(historyData) {
 
                 displayMassResults(candidates, [], resultsContainer, param.label);
                 
-(async function() {
-    try {
-        const historyData = [];
-        
-        // ✅ ВСЕГДА СОХРАНЯЕМ — И НАЙДЕННЫЕ, И НЕНАЙДЕННЫЕ
-        if (candidates.length > 0) {
-            // ✅ ФИЛЬТРУЕМ: площадь совпадает И адрес совпадает
-            const exactMatches = candidates.filter(item => {
-                const paramValue = param.getValue(item.rawData.opts || {});
-                const areaMatch = Math.abs(paramValue - value) <= AREA_TOLERANCE;
-                
-                const itemAddress = normalizeString(item.address || '');
-                const searchAddress = normalizeString(address || '');
-                const addressMatch = itemAddress === searchAddress || 
-                                    itemAddress.includes(searchAddress) || 
-                                    searchAddress.includes(itemAddress);
-                
-                return areaMatch && addressMatch;
-            });
-            
-            const sortedMatches = exactMatches.sort((a, b) => {
-                const valA = param.getValue(a.rawData.opts || {});
-                const valB = param.getValue(b.rawData.opts || {});
-                return Math.abs(valA - value) - Math.abs(valB - value);
-            });
-            
-            const item = sortedMatches.length > 0 ? sortedMatches[0] : candidates[0];
-            
-            if (item) {
-                const fields = extractAllFields(item);
-                const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
-                historyData.push({
-                    searchType: 'mass',
-                    address: objAddress,
-                    paramName: param.label,  // ✅ ИСПОЛЬЗУЕМ ТЕКУЩИЙ ПАРАМЕТР!
-                    paramValue: value,
-                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
-                    objectView: fields['Вид объекта'] || '—',
-                    found: 1
-                });
-            } else {
-                // ✅ СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
-                historyData.push({
-                    searchType: 'mass',
-                    address: address || '—',
-                    paramName: param.label,  // ✅ ИСПОЛЬЗУЕМ ТЕКУЩИЙ ПАРАМЕТР!
-                    paramValue: value,
-                    cadNumber: 'Не определено',
-                    objectView: '—',
-                    found: 0
-                });
-            }
-        } else {
-            // ✅ СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
-            historyData.push({
-                searchType: 'mass',
-                address: address || '—',
-                paramName: param.label,  // ✅ ИСПОЛЬЗУЕМ ТЕКУЩИЙ ПАРАМЕТР!
-                paramValue: value,
-                cadNumber: 'Не определено',
-                objectView: '—',
-                found: 0
-            });
-        }
-        
-        await saveSearchResult(historyData);
-    } catch (e) {
-        console.debug('⚠️ Не удалось сохранить историю:', e.message);
-    }
-})();
+                // ✅ СОХРАНЯЕМ РЕЗУЛЬТАТЫ ОДИНОЧНОГО ПОИСКА
+                (async function() {
+                    try {
+                        const historyData = [];
+                        
+                        if (candidates.length > 0) {
+                            const exactMatches = candidates.filter(item => {
+                                const paramValue = param.getValue(item.rawData.opts || {});
+                                const areaMatch = Math.abs(paramValue - value) <= AREA_TOLERANCE;
+                                
+                                const itemAddress = normalizeString(item.address || '');
+                                const searchAddress = normalizeString(address || '');
+                                const addressMatch = itemAddress === searchAddress || 
+                                                    itemAddress.includes(searchAddress) || 
+                                                    searchAddress.includes(itemAddress);
+                                
+                                return areaMatch && addressMatch;
+                            });
+                            
+                            const sortedMatches = exactMatches.sort((a, b) => {
+                                const valA = param.getValue(a.rawData.opts || {});
+                                const valB = param.getValue(b.rawData.opts || {});
+                                return Math.abs(valA - value) - Math.abs(valB - value);
+                            });
+                            
+                            const item = sortedMatches.length > 0 ? sortedMatches[0] : candidates[0];
+                            
+                            if (item) {
+                                const fields = extractAllFields(item);
+                                const objAddress = fields['Адрес'] || item.address || address || 'Не определено';
+                                historyData.push({
+                                    searchType: 'single',
+                                    address: objAddress,
+                                    paramName: param.label,
+                                    paramValue: value,
+                                    cadNumber: fields['Кадастровый номер'] || 'Не определено',
+                                    objectView: fields['Вид объекта'] || '—',
+                                    found: 1
+                                });
+                            } else {
+                                historyData.push({
+                                    searchType: 'single',
+                                    address: address || '—',
+                                    paramName: param.label,
+                                    paramValue: value,
+                                    cadNumber: 'Не определено',
+                                    objectView: '—',
+                                    found: 0
+                                });
+                            }
+                        } else {
+                            historyData.push({
+                                searchType: 'single',
+                                address: address || '—',
+                                paramName: param.label,
+                                paramValue: value,
+                                cadNumber: 'Не определено',
+                                objectView: '—',
+                                found: 0
+                            });
+                        }
+                        
+                        console.log(`💾 Сохраняем результат одиночного поиска для адреса: ${address}, найден: ${historyData[0]?.found || 0}`);
+                        await saveSearchResult(historyData);
+                    } catch (e) {
+                        console.debug('⚠️ Не удалось сохранить историю:', e.message);
+                    }
+                })();
+
                 
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
