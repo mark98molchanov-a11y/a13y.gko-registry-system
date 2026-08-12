@@ -2336,6 +2336,10 @@ async function saveSearchResult(historyData) {
 
         console.log('✅ Интерфейс поиска НСПД успешно загружен.');
     };
-
+window.saveSearchResult = saveSearchResult;
+window.uploadData = uploadData;
+window.performSearch = performSearch;
+window.syncLocalToGist = syncLocalToGist;
+window.getGistHistory = getGistHistory;
     console.log('✅ Модуль поиска НСПД загружен (Gist-only режим).');
 })();
