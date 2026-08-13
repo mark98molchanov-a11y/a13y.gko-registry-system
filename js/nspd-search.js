@@ -530,6 +530,9 @@ async function saveSearchResult(historyData) {
     }
     
     try {
+        // ============================================================
+        // ШАГ 1: ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША
+        // ============================================================
         let cached = [];
         const cachedStr = localStorage.getItem('nspd_gist_cache');
         if (cachedStr) {
@@ -543,17 +546,48 @@ async function saveSearchResult(historyData) {
         }
         
         // ============================================================
-        // 🔧 ФУНКЦИЯ ДЛЯ НОРМАЛИЗАЦИИ КЛЮЧА
+        // ШАГ 2: ЗАГРУЖАЕМ ДАННЫЕ ИЗ GIST (ЕСЛИ ЕСТЬ ТОКЕН)
         // ============================================================
-        function normalizeKey(key) {
-            if (!key) return '';
-            // Убираем лишние пробелы, приводим к нижнему регистру
-            return key.toLowerCase().replace(/\s+/g, ' ').trim();
+        let gistData = [];
+        const savedToken = localStorage.getItem('nspd_github_token');
+        
+        if (savedToken && GIST_CONFIG && GIST_CONFIG.gistId) {
+            try {
+                console.log('🔍 Проверяем Gist на наличие дубликатов...');
+                const response = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
+                    headers: {
+                        'Authorization': `token ${savedToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = data.files?.[GIST_CONFIG.filename]?.content || '';
+                    gistData = parseSQLToArray(content);
+                    console.log(`📥 Загружено ${gistData.length} записей из Gist для проверки дубликатов`);
+                } else {
+                    console.warn('⚠️ Не удалось загрузить Gist для проверки:', response.status);
+                }
+            } catch (e) {
+                console.warn('⚠️ Ошибка загрузки Gist:', e.message);
+            }
         }
         
         // ============================================================
-        // 🔧 ФУНКЦИЯ ДЛЯ СОЗДАНИЯ КЛЮЧА ИЗ ОБЪЕКТА
+        // ШАГ 3: ОБЪЕДИНЯЕМ ВСЕ СУЩЕСТВУЮЩИЕ ЗАПИСИ (КЕШ + GIST)
         // ============================================================
+        const allExisting = [...cached, ...gistData];
+        console.log(`📊 Всего существующих записей (кеш: ${cached.length} + gist: ${gistData.length} = ${allExisting.length})`);
+        
+        // ============================================================
+        // ШАГ 4: ФУНКЦИИ ДЛЯ НОРМАЛИЗАЦИИ И СРАВНЕНИЯ
+        // ============================================================
+        function normalizeKey(key) {
+            if (!key) return '';
+            return key.toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+        
         function getRowKey(row) {
             let key;
             if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
@@ -565,117 +599,66 @@ async function saveSearchResult(historyData) {
         }
         
         // ============================================================
-        // 🔧 ФУНКЦИЯ ДЛЯ ПОИСКА ПОХОЖИХ ЗАПИСЕЙ (НЕ ТОЛЬКО ТОЧНОЕ СОВПАДЕНИЕ)
+        // ШАГ 5: ПРОВЕРКА НА ДУБЛИКАТЫ (С УЧЁТОМ GIST)
         // ============================================================
-        function isDuplicate(row, existingRows) {
-            // 1. Проверяем точное совпадение ключа
-            const newKey = getRowKey(row);
-            for (const existing of existingRows) {
-                const existingKey = getRowKey(existing);
-                if (newKey === existingKey) {
-                    return true; // Точный дубликат
-                }
-            }
-            
-            // 2. Если у нас НЕНАЙДЕННЫЙ объект (cadNumber = 'Не определено')
-            //    проверяем, есть ли в кеше ПОХОЖИЙ объект с таким же адресом и параметром
-            if (row.cadNumber === 'Не определено' || row.cadNumber === '—') {
-                const normalizedAddress = normalizeKey(row.address);
-                const normalizedParam = normalizeKey(row.paramName);
-                
-                for (const existing of existingRows) {
-                    // Если у существующей записи есть кадастровый номер (она найдена)
-                    if (existing.cadNumber && existing.cadNumber !== 'Не определено' && existing.cadNumber !== '—') {
-                        const existingAddress = normalizeKey(existing.address);
-                        const existingParam = normalizeKey(existing.paramName);
-                        
-                        // Проверяем, что адрес и параметр совпадают
-                        // И значение параметра совпадает (с допуском 0.2)
-                        const valueMatch = Math.abs(existing.paramValue - row.paramValue) <= 0.2;
-                        
-                        if (existingAddress === normalizedAddress && 
-                            existingParam === normalizedParam && 
-                            valueMatch) {
-                            console.log(`⏭️ Найден похожий объект в кеше (с кад.номером): "${existing.cadNumber}"`);
-                            console.log(`   Адрес: "${existing.address}"`);
-                            console.log(`   Параметр: ${existing.paramName} = ${existing.paramValue}`);
-                            return true; // Это дубликат!
-                        }
-                    }
-                }
-            }
-            
-            // 3. Если у нас НАЙДЕННЫЙ объект (есть кадастровый номер)
-            //    проверяем, есть ли в кеше НЕНАЙДЕННЫЙ объект с таким же адресом и параметром
-            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
-                const normalizedAddress = normalizeKey(row.address);
-                const normalizedParam = normalizeKey(row.paramName);
-                
-                for (const existing of existingRows) {
-                    // Если у существующей записи НЕТ кадастрового номера (она не найдена)
-                    if (!existing.cadNumber || existing.cadNumber === 'Не определено' || existing.cadNumber === '—') {
-                        const existingAddress = normalizeKey(existing.address);
-                        const existingParam = normalizeKey(existing.paramName);
-                        
-                        // Проверяем, что адрес и параметр совпадают
-                        const valueMatch = Math.abs(existing.paramValue - row.paramValue) <= 0.2;
-                        
-                        if (existingAddress === normalizedAddress && 
-                            existingParam === normalizedParam && 
-                            valueMatch) {
-                            console.log(`⏭️ Найден похожий объект в кеше (без кад.номера):`);
-                            console.log(`   Адрес: "${existing.address}"`);
-                            console.log(`   Параметр: ${existing.paramName} = ${existing.paramValue}`);
-                            return true; // Это дубликат!
-                        }
-                    }
-                }
-            }
-            
-            return false; // Не дубликат
-        }
+        const existingKeys = new Set();
+        allExisting.forEach(row => {
+            existingKeys.add(getRowKey(row));
+        });
         
-        // ============================================================
-        // ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ
-        // ============================================================
         const newData = [];
         let duplicateCount = 0;
-        let similarCount = 0;
+        let gistDuplicateCount = 0;
         
         for (const row of historyData) {
-            // Проверяем, есть ли дубликат
-            const isDup = isDuplicate(row, cached);
+            const key = getRowKey(row);
             
-            if (isDup) {
+            // Проверяем, есть ли такой ключ в кеше или Gist
+            if (existingKeys.has(key)) {
                 duplicateCount++;
-                // Определяем тип дубликата для логирования
-                const rowKey = getRowKey(row);
+                
+                // Определяем, где найден дубликат
                 let foundInCache = false;
+                let foundInGist = false;
+                
                 for (const existing of cached) {
-                    const existingKey = getRowKey(existing);
-                    if (rowKey === existingKey) {
+                    if (getRowKey(existing) === key) {
                         foundInCache = true;
                         break;
                     }
                 }
+                
+                for (const existing of gistData) {
+                    if (getRowKey(existing) === key) {
+                        foundInGist = true;
+                        break;
+                    }
+                }
+                
                 if (foundInCache) {
-                    console.log(`⏭️ Точный дубликат: "${rowKey}"`);
+                    console.log(`⏭️ Точный дубликат в КЕШЕ: "${key}"`);
+                } else if (foundInGist) {
+                    console.log(`⏭️ Точный дубликат в GIST: "${key}"`);
+                    gistDuplicateCount++;
                 } else {
-                    console.log(`⏭️ Похожий объект уже есть в кеше: "${row.address}" | ${row.paramName} = ${row.paramValue}`);
-                    similarCount++;
+                    console.log(`⏭️ Похожий объект уже существует: "${key}"`);
                 }
             } else {
                 newData.push(row);
+                // Добавляем ключ в множество, чтобы не было дубликатов внутри этой партии
+                existingKeys.add(key);
             }
         }
         
         if (newData.length === 0) {
-            console.log(`ℹ️ Нет новых записей для добавления в кеш (все уже есть)`);
-            console.log(`   Точных дубликатов: ${duplicateCount - similarCount}, похожих: ${similarCount}`);
+            console.log(`ℹ️ Нет новых записей для добавления (все уже есть в кеше или Gist)`);
+            console.log(`   Пропущено дубликатов: ${duplicateCount} (из них в Gist: ${gistDuplicateCount})`);
             return;
         }
         
-        // Добавляем только новые записи
+        // ============================================================
+        // ШАГ 6: СОХРАНЯЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ В КЕШ
+        // ============================================================
         cached = [...cached, ...newData];
         
         // Ограничиваем размер (последние 1000 записей)
@@ -689,7 +672,7 @@ async function saveSearchResult(historyData) {
         }));
         
         console.log(`📦 Кеш обновлен: +${newData.length} записей, всего: ${cached.length}`);
-        console.log(`   Пропущено дубликатов: ${duplicateCount} (${similarCount} похожих)`);
+        console.log(`   Пропущено дубликатов: ${duplicateCount} (из них в Gist: ${gistDuplicateCount})`);
         
     } catch (e) {
         console.error('❌ Ошибка сохранения кеша:', e);
