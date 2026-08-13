@@ -542,33 +542,140 @@ async function saveSearchResult(historyData) {
             }
         }
         
-        // ✅ ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (проверка на дубликаты)
-        const existingKeys = new Set();
-        cached.forEach(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            existingKeys.add(key);
-        });
+        // ============================================================
+        // 🔧 ФУНКЦИЯ ДЛЯ НОРМАЛИЗАЦИИ КЛЮЧА
+        // ============================================================
+        function normalizeKey(key) {
+            if (!key) return '';
+            // Убираем лишние пробелы, приводим к нижнему регистру
+            return key.toLowerCase().replace(/\s+/g, ' ').trim();
+        }
         
-        const newData = historyData.filter(row => {
+        // ============================================================
+        // 🔧 ФУНКЦИЯ ДЛЯ СОЗДАНИЯ КЛЮЧА ИЗ ОБЪЕКТА
+        // ============================================================
+        function getRowKey(row) {
             let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
+            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
                 key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
             } else {
                 key = row.address + '|' + row.paramName + '|' + row.paramValue;
             }
-            return !existingKeys.has(key);
-        });
+            return normalizeKey(key);
+        }
+        
+        // ============================================================
+        // 🔧 ФУНКЦИЯ ДЛЯ ПОИСКА ПОХОЖИХ ЗАПИСЕЙ (НЕ ТОЛЬКО ТОЧНОЕ СОВПАДЕНИЕ)
+        // ============================================================
+        function isDuplicate(row, existingRows) {
+            // 1. Проверяем точное совпадение ключа
+            const newKey = getRowKey(row);
+            for (const existing of existingRows) {
+                const existingKey = getRowKey(existing);
+                if (newKey === existingKey) {
+                    return true; // Точный дубликат
+                }
+            }
+            
+            // 2. Если у нас НЕНАЙДЕННЫЙ объект (cadNumber = 'Не определено')
+            //    проверяем, есть ли в кеше ПОХОЖИЙ объект с таким же адресом и параметром
+            if (row.cadNumber === 'Не определено' || row.cadNumber === '—') {
+                const normalizedAddress = normalizeKey(row.address);
+                const normalizedParam = normalizeKey(row.paramName);
+                
+                for (const existing of existingRows) {
+                    // Если у существующей записи есть кадастровый номер (она найдена)
+                    if (existing.cadNumber && existing.cadNumber !== 'Не определено' && existing.cadNumber !== '—') {
+                        const existingAddress = normalizeKey(existing.address);
+                        const existingParam = normalizeKey(existing.paramName);
+                        
+                        // Проверяем, что адрес и параметр совпадают
+                        // И значение параметра совпадает (с допуском 0.2)
+                        const valueMatch = Math.abs(existing.paramValue - row.paramValue) <= 0.2;
+                        
+                        if (existingAddress === normalizedAddress && 
+                            existingParam === normalizedParam && 
+                            valueMatch) {
+                            console.log(`⏭️ Найден похожий объект в кеше (с кад.номером): "${existing.cadNumber}"`);
+                            console.log(`   Адрес: "${existing.address}"`);
+                            console.log(`   Параметр: ${existing.paramName} = ${existing.paramValue}`);
+                            return true; // Это дубликат!
+                        }
+                    }
+                }
+            }
+            
+            // 3. Если у нас НАЙДЕННЫЙ объект (есть кадастровый номер)
+            //    проверяем, есть ли в кеше НЕНАЙДЕННЫЙ объект с таким же адресом и параметром
+            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
+                const normalizedAddress = normalizeKey(row.address);
+                const normalizedParam = normalizeKey(row.paramName);
+                
+                for (const existing of existingRows) {
+                    // Если у существующей записи НЕТ кадастрового номера (она не найдена)
+                    if (!existing.cadNumber || existing.cadNumber === 'Не определено' || existing.cadNumber === '—') {
+                        const existingAddress = normalizeKey(existing.address);
+                        const existingParam = normalizeKey(existing.paramName);
+                        
+                        // Проверяем, что адрес и параметр совпадают
+                        const valueMatch = Math.abs(existing.paramValue - row.paramValue) <= 0.2;
+                        
+                        if (existingAddress === normalizedAddress && 
+                            existingParam === normalizedParam && 
+                            valueMatch) {
+                            console.log(`⏭️ Найден похожий объект в кеше (без кад.номера):`);
+                            console.log(`   Адрес: "${existing.address}"`);
+                            console.log(`   Параметр: ${existing.paramName} = ${existing.paramValue}`);
+                            return true; // Это дубликат!
+                        }
+                    }
+                }
+            }
+            
+            return false; // Не дубликат
+        }
+        
+        // ============================================================
+        // ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ
+        // ============================================================
+        const newData = [];
+        let duplicateCount = 0;
+        let similarCount = 0;
+        
+        for (const row of historyData) {
+            // Проверяем, есть ли дубликат
+            const isDup = isDuplicate(row, cached);
+            
+            if (isDup) {
+                duplicateCount++;
+                // Определяем тип дубликата для логирования
+                const rowKey = getRowKey(row);
+                let foundInCache = false;
+                for (const existing of cached) {
+                    const existingKey = getRowKey(existing);
+                    if (rowKey === existingKey) {
+                        foundInCache = true;
+                        break;
+                    }
+                }
+                if (foundInCache) {
+                    console.log(`⏭️ Точный дубликат: "${rowKey}"`);
+                } else {
+                    console.log(`⏭️ Похожий объект уже есть в кеше: "${row.address}" | ${row.paramName} = ${row.paramValue}`);
+                    similarCount++;
+                }
+            } else {
+                newData.push(row);
+            }
+        }
         
         if (newData.length === 0) {
-            console.log('ℹ️ Нет новых записей для добавления в кеш (все уже есть)');
+            console.log(`ℹ️ Нет новых записей для добавления в кеш (все уже есть)`);
+            console.log(`   Точных дубликатов: ${duplicateCount - similarCount}, похожих: ${similarCount}`);
             return;
         }
         
+        // Добавляем только новые записи
         cached = [...cached, ...newData];
         
         // Ограничиваем размер (последние 1000 записей)
@@ -580,7 +687,9 @@ async function saveSearchResult(historyData) {
             _timestamp: Date.now(),
             data: cached
         }));
+        
         console.log(`📦 Кеш обновлен: +${newData.length} записей, всего: ${cached.length}`);
+        console.log(`   Пропущено дубликатов: ${duplicateCount} (${similarCount} похожих)`);
         
     } catch (e) {
         console.error('❌ Ошибка сохранения кеша:', e);
