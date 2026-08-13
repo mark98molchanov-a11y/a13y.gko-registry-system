@@ -531,6 +531,13 @@ async function saveSearchResult(historyData) {
     
     try {
         // ============================================================
+        // ШАГ 0: ПРОВЕРЯЕМ, ЧТО GIST_CONFIG СУЩЕСТВУЕТ
+        // ============================================================
+        if (typeof GIST_CONFIG === 'undefined') {
+            console.warn('⚠️ GIST_CONFIG не определён, пропускаем проверку Gist');
+        }
+        
+        // ============================================================
         // ШАГ 1: ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША
         // ============================================================
         let cached = [];
@@ -551,9 +558,13 @@ async function saveSearchResult(historyData) {
         let gistData = [];
         const savedToken = localStorage.getItem('nspd_github_token');
         
-        if (savedToken && GIST_CONFIG && GIST_CONFIG.gistId) {
+        console.log(`🔍 Токен в localStorage: ${savedToken ? '✅ ЕСТЬ' : '❌ НЕТ'}`);
+        console.log(`🔍 GIST_CONFIG: ${typeof GIST_CONFIG !== 'undefined' ? '✅ ОПРЕДЕЛЁН' : '❌ НЕ ОПРЕДЕЛЁН'}`);
+        console.log(`🔍 GIST_CONFIG.gistId: ${(typeof GIST_CONFIG !== 'undefined' && GIST_CONFIG.gistId) ? GIST_CONFIG.gistId : '❌ НЕТ'}`);
+        
+        if (savedToken && typeof GIST_CONFIG !== 'undefined' && GIST_CONFIG.gistId) {
             try {
-                console.log('🔍 Проверяем Gist на наличие дубликатов...');
+                console.log('🔍 Загружаем Gist для проверки дубликатов...');
                 const response = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
                     headers: {
                         'Authorization': `token ${savedToken}`,
@@ -566,12 +577,16 @@ async function saveSearchResult(historyData) {
                     const content = data.files?.[GIST_CONFIG.filename]?.content || '';
                     gistData = parseSQLToArray(content);
                     console.log(`📥 Загружено ${gistData.length} записей из Gist для проверки дубликатов`);
+                } else if (response.status === 404) {
+                    console.log('ℹ️ Gist не найден (404)');
                 } else {
-                    console.warn('⚠️ Не удалось загрузить Gist для проверки:', response.status);
+                    console.warn(`⚠️ Ошибка загрузки Gist: HTTP ${response.status}`);
                 }
             } catch (e) {
                 console.warn('⚠️ Ошибка загрузки Gist:', e.message);
             }
+        } else {
+            console.log('ℹ️ Нет токена или Gist ID, пропускаем проверку Gist');
         }
         
         // ============================================================
@@ -606,9 +621,12 @@ async function saveSearchResult(historyData) {
             existingKeys.add(getRowKey(row));
         });
         
+        console.log(`🔑 Уникальных ключей: ${existingKeys.size}`);
+        
         const newData = [];
         let duplicateCount = 0;
         let gistDuplicateCount = 0;
+        let cacheDuplicateCount = 0;
         
         for (const row of historyData) {
             const key = getRowKey(row);
@@ -624,6 +642,7 @@ async function saveSearchResult(historyData) {
                 for (const existing of cached) {
                     if (getRowKey(existing) === key) {
                         foundInCache = true;
+                        cacheDuplicateCount++;
                         break;
                     }
                 }
@@ -631,15 +650,15 @@ async function saveSearchResult(historyData) {
                 for (const existing of gistData) {
                     if (getRowKey(existing) === key) {
                         foundInGist = true;
+                        gistDuplicateCount++;
                         break;
                     }
                 }
                 
                 if (foundInCache) {
-                    console.log(`⏭️ Точный дубликат в КЕШЕ: "${key}"`);
+                    console.log(`⏭️ ДУБЛИКАТ в КЕШЕ: "${key}"`);
                 } else if (foundInGist) {
-                    console.log(`⏭️ Точный дубликат в GIST: "${key}"`);
-                    gistDuplicateCount++;
+                    console.log(`⏭️ ДУБЛИКАТ в GIST: "${key}"`);
                 } else {
                     console.log(`⏭️ Похожий объект уже существует: "${key}"`);
                 }
@@ -652,7 +671,7 @@ async function saveSearchResult(historyData) {
         
         if (newData.length === 0) {
             console.log(`ℹ️ Нет новых записей для добавления (все уже есть в кеше или Gist)`);
-            console.log(`   Пропущено дубликатов: ${duplicateCount} (из них в Gist: ${gistDuplicateCount})`);
+            console.log(`   Пропущено дубликатов: ${duplicateCount} (в кеше: ${cacheDuplicateCount}, в Gist: ${gistDuplicateCount})`);
             return;
         }
         
@@ -672,7 +691,7 @@ async function saveSearchResult(historyData) {
         }));
         
         console.log(`📦 Кеш обновлен: +${newData.length} записей, всего: ${cached.length}`);
-        console.log(`   Пропущено дубликатов: ${duplicateCount} (из них в Gist: ${gistDuplicateCount})`);
+        console.log(`   Пропущено дубликатов: ${duplicateCount} (в кеше: ${cacheDuplicateCount}, в Gist: ${gistDuplicateCount})`);
         
     } catch (e) {
         console.error('❌ Ошибка сохранения кеша:', e);
