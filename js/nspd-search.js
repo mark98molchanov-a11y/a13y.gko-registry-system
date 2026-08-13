@@ -425,8 +425,8 @@ async function syncLocalToGist() {
         const isValid = await validateToken(token);
         if (!isValid) {
             alert('❌ Неверный токен. Проверьте права (нужно gist).');
-            // ✅ УДАЛЯЕМ НЕВАЛИДНЫЙ ТОКЕН
-            localStorage.removeItem('nspd_github_token');
+            // ❌ НЕ УДАЛЯЕМ ТОКЕН! Просто сообщаем об ошибке
+            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
             return;
         }
         
@@ -460,7 +460,7 @@ async function syncLocalToGist() {
             
             alert(`🔄 Кеш восстановлен из Gist! Загружено ${gistHistory.length} записей.`);
             
-            // ✅ ТОКЕН НЕ УДАЛЯЕМ, ТАК КАК ОН МОЖЕТ ПОНАДОБИТЬСЯ ДЛЯ saveSearchResult()
+            // ✅ ТОКЕН НЕ УДАЛЯЕМ, ОН НУЖЕН ДЛЯ saveSearchResult()
             return;
         }
         
@@ -499,9 +499,9 @@ async function syncLocalToGist() {
             localStorage.removeItem('nspd_gist_cache');
             console.log('🧹 Кеш очищен (все данные уже в Gist)');
             
-            // ✅ УДАЛЯЕМ ТОКЕН ПОСЛЕ УСПЕШНОЙ СИНХРОНИЗАЦИИ
-            localStorage.removeItem('nspd_github_token');
-            console.log('🔑 Токен удалён из localStorage');
+            // ❌ НЕ УДАЛЯЕМ ТОКЕН! Он нужен для проверки дубликатов при поиске
+            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
+            // console.log('🔑 Токен удалён из localStorage');  ← ЗАКОММЕНТИРОВАТЬ!
             
             return;
         }
@@ -518,9 +518,9 @@ async function syncLocalToGist() {
             localStorage.removeItem('nspd_gist_cache');
             console.log(`🧹 Кеш очищен! Все ${result.total} записей теперь в Gist`);
             
-            // ✅ УДАЛЯЕМ ТОКЕН ПОСЛЕ УСПЕШНОЙ СИНХРОНИЗАЦИИ
-            localStorage.removeItem('nspd_github_token');
-            console.log('🔑 Токен удалён из localStorage');
+            // ❌ НЕ УДАЛЯЕМ ТОКЕН! Он нужен для проверки дубликатов при поиске
+            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
+            // console.log('🔑 Токен удалён из localStorage');  ← ЗАКОММЕНТИРОВАТЬ!
             
         } else if (result && result.added === 0 && result.total > 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${result.total} записей`);
@@ -529,22 +529,22 @@ async function syncLocalToGist() {
             localStorage.removeItem('nspd_gist_cache');
             console.log('🧹 Кеш очищен (все данные уже в Gist)');
             
-            // ✅ УДАЛЯЕМ ТОКЕН
-            localStorage.removeItem('nspd_github_token');
-            console.log('🔑 Токен удалён из localStorage');
+            // ❌ НЕ УДАЛЯЕМ ТОКЕН!
+            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
+            // console.log('🔑 Токен удалён из localStorage');  ← ЗАКОММЕНТИРОВАТЬ!
             
         } else if (result && result.error) {
             alert(`❌ Ошибка: ${result.error}`);
-            // ⚠️ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ (может понадобиться для повторной попытки)
+            // ✅ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ (может понадобиться для повторной попытки)
         } else {
             alert('❌ Ошибка синхронизации');
-            // ⚠️ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
+            // ✅ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
         }
         
     } catch (error) {
         console.error('❌ Ошибка синхронизации:', error);
         alert('❌ Ошибка: ' + error.message);
-        // ⚠️ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
+        // ✅ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
     } finally {
         if (syncBtn) {
             syncBtn.innerHTML = originalText;
