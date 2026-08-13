@@ -10,12 +10,25 @@ const GIST_CONFIG = {
     filename: 'nspd_search_history.sql'
 };
 function getToken() {
+    // ✅ СНАЧАЛА ПРОВЕРЯЕМ, ЕСТЬ ЛИ ТОКЕН В localStorage
+    const savedToken = localStorage.getItem('nspd_github_token');
+    if (savedToken) {
+        console.log('🔑 Используем сохранённый токен');
+        return savedToken;
+    }
+    
+    // ✅ ЕСЛИ ТОКЕНА НЕТ - ЗАПРАШИВАЕМ
     const token = prompt('🔑 Введите GitHub токен (права на Gist):');
     if (!token) {
         console.warn('⚠️ Токен не введен');
         return null;
     }
-    return token.trim();
+    const trimmedToken = token.trim();
+    
+    // ✅ СОХРАНЯЕМ ТОКЕН В localStorage
+    localStorage.setItem('nspd_github_token', trimmedToken);
+    console.log('✅ Токен сохранён в localStorage');
+    return trimmedToken;
 }
 
 // 🔥 ПРОВЕРКА ТОКЕНА
@@ -401,7 +414,7 @@ async function syncLocalToGist() {
             syncBtn.disabled = true;
         }
         
-        // ✅ ТОЛЬКО ЗДЕСЬ ЗАПРАШИВАЕМ ТОКЕН!
+        // ✅ ПОЛУЧАЕМ ТОКЕН (из localStorage или запрос)
         const token = getToken();
         if (!token) {
             alert('❌ Токен не введен. Синхронизация отменена.');
@@ -412,6 +425,8 @@ async function syncLocalToGist() {
         const isValid = await validateToken(token);
         if (!isValid) {
             alert('❌ Неверный токен. Проверьте права (нужно gist).');
+            // ✅ УДАЛЯЕМ НЕВАЛИДНЫЙ ТОКЕН
+            localStorage.removeItem('nspd_github_token');
             return;
         }
         
@@ -444,11 +459,14 @@ async function syncLocalToGist() {
             }));
             
             alert(`🔄 Кеш восстановлен из Gist! Загружено ${gistHistory.length} записей.`);
+            
+            // ✅ ТОКЕН НЕ УДАЛЯЕМ, ТАК КАК ОН МОЖЕТ ПОНАДОБИТЬСЯ ДЛЯ saveSearchResult()
             return;
         }
         
         if (localData.length === 0) {
             alert('📭 Нет данных для синхронизации. Сделайте поиск сначала.');
+            // ✅ ТОКЕН НЕ УДАЛЯЕМ, ОН НУЖЕН ДЛЯ saveSearchResult()
             return;
         }
         
@@ -477,9 +495,13 @@ async function syncLocalToGist() {
         if (newData.length === 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${gistHistory.length} записей`);
             
-            // ✅ ОЧИЩАЕМ КЕШ, ТАК КАК ВСЕ ДАННЫЕ УЖЕ В GIST
+            // ✅ ОЧИЩАЕМ КЕШ
             localStorage.removeItem('nspd_gist_cache');
             console.log('🧹 Кеш очищен (все данные уже в Gist)');
+            
+            // ✅ УДАЛЯЕМ ТОКЕН ПОСЛЕ УСПЕШНОЙ СИНХРОНИЗАЦИИ
+            localStorage.removeItem('nspd_github_token');
+            console.log('🔑 Токен удалён из localStorage');
             
             return;
         }
@@ -496,6 +518,10 @@ async function syncLocalToGist() {
             localStorage.removeItem('nspd_gist_cache');
             console.log(`🧹 Кеш очищен! Все ${result.total} записей теперь в Gist`);
             
+            // ✅ УДАЛЯЕМ ТОКЕН ПОСЛЕ УСПЕШНОЙ СИНХРОНИЗАЦИИ
+            localStorage.removeItem('nspd_github_token');
+            console.log('🔑 Токен удалён из localStorage');
+            
         } else if (result && result.added === 0 && result.total > 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${result.total} записей`);
             
@@ -503,15 +529,22 @@ async function syncLocalToGist() {
             localStorage.removeItem('nspd_gist_cache');
             console.log('🧹 Кеш очищен (все данные уже в Gist)');
             
+            // ✅ УДАЛЯЕМ ТОКЕН
+            localStorage.removeItem('nspd_github_token');
+            console.log('🔑 Токен удалён из localStorage');
+            
         } else if (result && result.error) {
             alert(`❌ Ошибка: ${result.error}`);
+            // ⚠️ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ (может понадобиться для повторной попытки)
         } else {
             alert('❌ Ошибка синхронизации');
+            // ⚠️ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
         }
         
     } catch (error) {
         console.error('❌ Ошибка синхронизации:', error);
         alert('❌ Ошибка: ' + error.message);
+        // ⚠️ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
     } finally {
         if (syncBtn) {
             syncBtn.innerHTML = originalText;
