@@ -564,10 +564,24 @@ async function saveSearchResult(historyData) {
     
     try {
         // ============================================================
-        // ШАГ 0: ПРОВЕРЯЕМ, ЧТО GIST_CONFIG СУЩЕСТВУЕТ
+        // ШАГ 0: ПРОВЕРЯЕМ И ЗАПРАШИВАЕМ ТОКЕН, ЕСЛИ НЕТ
         // ============================================================
         if (typeof GIST_CONFIG === 'undefined') {
             console.warn('⚠️ GIST_CONFIG не определён, пропускаем проверку Gist');
+        }
+        
+        // ✅ ПРОВЕРЯЕМ ТОКЕН И ЗАПРАШИВАЕМ, ЕСЛИ НЕТ
+        let savedToken = localStorage.getItem('nspd_github_token');
+        if (!savedToken) {
+            console.log('🔑 Токен не найден в localStorage, запрашиваем...');
+            savedToken = getToken();  // ← ВЫЗЫВАЕМ getToken() ДЛЯ ЗАПРОСА
+            if (!savedToken) {
+                console.warn('⚠️ Токен не введен, пропускаем проверку Gist');
+            } else {
+                console.log('✅ Токен получен и сохранён в localStorage');
+            }
+        } else {
+            console.log('🔑 Используем сохранённый токен');
         }
         
         // ============================================================
@@ -589,7 +603,6 @@ async function saveSearchResult(historyData) {
         // ШАГ 2: ЗАГРУЖАЕМ ДАННЫЕ ИЗ GIST (ЕСЛИ ЕСТЬ ТОКЕН)
         // ============================================================
         let gistData = [];
-        const savedToken = localStorage.getItem('nspd_github_token');
         
         console.log(`🔍 Токен в localStorage: ${savedToken ? '✅ ЕСТЬ' : '❌ НЕТ'}`);
         console.log(`🔍 GIST_CONFIG: ${typeof GIST_CONFIG !== 'undefined' ? '✅ ОПРЕДЕЛЁН' : '❌ НЕ ОПРЕДЕЛЁН'}`);
