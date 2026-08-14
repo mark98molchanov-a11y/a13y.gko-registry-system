@@ -177,6 +177,24 @@ async function saveToGist(data, token) {
         const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
         
         // ============================================================
+        // ШАГ 0: ФУНКЦИИ ДЛЯ НОРМАЛИЗАЦИИ КЛЮЧЕЙ (НОВЫЕ!)
+        // ============================================================
+        function normalizeKey(key) {
+            if (!key) return '';
+            return key.toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+        
+        function getRowKey(row) {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+            } else {
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            }
+            return normalizeKey(key);
+        }
+        
+        // ============================================================
         // ШАГ 1: ЗАГРУЖАЕМ СУЩЕСТВУЮЩИЕ ДАННЫЕ ИЗ GIST
         // ============================================================
         let existingContent = '';
@@ -214,30 +232,25 @@ async function saveToGist(data, token) {
         }
         
         // ============================================================
-        // ШАГ 2: ФОРМИРУЕМ МНОЖЕСТВО СУЩЕСТВУЮЩИХ КЛЮЧЕЙ
+        // ШАГ 2: ФОРМИРУЕМ МНОЖЕСТВО СУЩЕСТВУЮЩИХ КЛЮЧЕЙ (С НОРМАЛИЗАЦИЕЙ!)
         // ============================================================
         const existingKeys = new Set();
         existingHistory.forEach(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            existingKeys.add(key);
+            existingKeys.add(getRowKey(row));  // ← ИСПОЛЬЗУЕМ getRowKey()!
         });
         
+        console.log(`🔑 Существующих ключей: ${existingKeys.size}`);
+        
         // ============================================================
-        // ШАГ 3: ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ
+        // ШАГ 3: ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (С НОРМАЛИЗАЦИЕЙ!)
         // ============================================================
         const newData = data.filter(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            const key = getRowKey(row);  // ← ИСПОЛЬЗУЕМ getRowKey()!
+            const isNew = !existingKeys.has(key);
+            if (!isNew) {
+                console.log(`⏭️ ДУБЛИКАТ (уже есть в Gist): "${key}"`);
             }
-            return !existingKeys.has(key);
+            return isNew;
         });
         
         if (newData.length === 0) {
@@ -250,70 +263,56 @@ async function saveToGist(data, token) {
         // ============================================================
         // ШАГ 4: ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
         // ============================================================
-       // ============================================================
-// ШАГ 4: ФОРМИРУЕМ SQL ДЛЯ НОВЫХ ЗАПИСЕЙ
-// ============================================================
-let sql = '';
-
-// Если нет существующего содержимого или создаем новый
-if (!existingContent || !gistExists) {
-    sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
-    sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
-    sql += `    search_date TEXT NOT NULL,\n`;
-    sql += `    search_type TEXT NOT NULL,\n`;
-    sql += `    address TEXT NOT NULL,\n`;
-    sql += `    param_name TEXT,\n`;
-    sql += `    param_value REAL,\n`;
-    sql += `    cad_number TEXT,\n`;
-    sql += `    object_type TEXT,\n`;
-    sql += `    found INTEGER DEFAULT 0,\n`;
-    sql += `    raw_data TEXT,\n`;
-    sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
-    sql += `);\n\n`;
-}
-
-// Добавляем новые записи
-for (const row of newData) {
-    const found = row.cadNumber && row.cadNumber !== 'Не определено' ? 1 : 0;
-    const cadNumber = row.cadNumber || 'Не определено';
-    const objectType = row.objectView || '—';
-    const rawData = JSON.stringify(row).replace(/'/g, "''");
-    
-    sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
-    sql += `    search_date, search_type, address, param_name, param_value,\n`;
-    sql += `    cad_number, object_type, found, raw_data\n`;
-    sql += `) VALUES (\n`;
-    sql += `    '${timestamp}',\n`;
-    sql += `    '${row.searchType || 'single'}',\n`;
-    sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
-    sql += `    '${row.paramName || ''}',\n`;
-    sql += `    ${row.paramValue || 0},\n`;
-    sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
-    sql += `    '${objectType.replace(/'/g, "''")}',\n`;
-    sql += `    ${found},\n`;
-    sql += `    '${rawData}'\n`;
-    sql += `);\n\n`;
-}
+        let sql = '';
+        if (!existingContent || !gistExists) {
+            sql += `CREATE TABLE IF NOT EXISTS nspd_search_history (\n`;
+            sql += `    id INTEGER PRIMARY KEY AUTOINCREMENT,\n`;
+            sql += `    search_date TEXT NOT NULL,\n`;
+            sql += `    search_type TEXT NOT NULL,\n`;
+            sql += `    address TEXT NOT NULL,\n`;
+            sql += `    param_name TEXT,\n`;
+            sql += `    param_value REAL,\n`;
+            sql += `    cad_number TEXT,\n`;
+            sql += `    object_type TEXT,\n`;
+            sql += `    found INTEGER DEFAULT 0,\n`;
+            sql += `    raw_data TEXT,\n`;
+            sql += `    UNIQUE(cad_number, address, param_name, param_value)\n`;
+            sql += `);\n\n`;
+        }
+        
+        for (const row of newData) {
+            const found = row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—' ? 1 : 0;
+            const cadNumber = row.cadNumber || 'Не определено';
+            const objectType = row.objectView || '—';
+            const rawData = JSON.stringify(row).replace(/'/g, "''");
+            
+            sql += `INSERT OR IGNORE INTO nspd_search_history (\n`;
+            sql += `    search_date, search_type, address, param_name, param_value,\n`;
+            sql += `    cad_number, object_type, found, raw_data\n`;
+            sql += `) VALUES (\n`;
+            sql += `    '${timestamp}',\n`;
+            sql += `    '${row.searchType || 'single'}',\n`;
+            sql += `    '${(row.address || '').replace(/'/g, "''")}',\n`;
+            sql += `    '${row.paramName || ''}',\n`;
+            sql += `    ${row.paramValue || 0},\n`;
+            sql += `    '${cadNumber.replace(/'/g, "''")}',\n`;
+            sql += `    '${objectType.replace(/'/g, "''")}',\n`;
+            sql += `    ${found},\n`;
+            sql += `    '${rawData}'\n`;
+            sql += `);\n\n`;
+        }
         
         // ============================================================
         // ШАГ 5: ОБЪЕДИНЯЕМ С СУЩЕСТВУЮЩИМ СОДЕРЖИМЫМ
         // ============================================================
         let finalContent = '';
-        
         if (!existingContent || !gistExists) {
-            // ✅ СОЗДАЕМ НОВЫЙ ФАЙЛ
             finalContent = sql;
         } else {
-            // ✅ ЕСТЬ СУЩЕСТВУЮЩЕЕ СОДЕРЖИМОЕ — ПРОСТО ДОБАВЛЯЕМ В КОНЕЦ
-            // НЕ УДАЛЯЕМ СТАРЫЕ INSERT-ы!
             finalContent = existingContent;
-            
-            // ✅ ПРОВЕРЯЕМ, ЧТО ПОСЛЕДНЯЯ СТРОКА НЕ ПУСТАЯ
             if (!finalContent.endsWith('\n')) {
                 finalContent += '\n';
             }
-            
-            // ✅ ДОБАВЛЯЕМ НОВЫЕ ЗАПИСИ В КОНЕЦ (БЕЗ УДАЛЕНИЯ СТАРЫХ)
             finalContent += '\n' + sql;
         }
         
@@ -321,7 +320,6 @@ for (const row of newData) {
         // ШАГ 6: ОТПРАВЛЯЕМ В GIST
         // ============================================================
         let url, method, body;
-        
         if (!gistExists) {
             url = 'https://api.github.com/gists';
             method = 'POST';
