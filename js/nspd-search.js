@@ -6,7 +6,7 @@
     // 🔥 КОНФИГУРАЦИЯ GIST (ЕДИНСТВЕННОЕ ХРАНИЛИЩЕ)
 const GIST_CONFIG = {
     token: '',  // ✅ Всегда пустой, запрашивается при каждой операции
-    gistId: '4c242ae6c497bcea75d7c48eb428dcb0',
+    gistId: '',
     filename: 'nspd_search_history.sql'
 };
     function normalizeForCompare(text) {
