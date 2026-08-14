@@ -1703,17 +1703,33 @@ async function saveSearchResult(historyData) {
                                 // ✅ СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
                                 (async function() {
                                     try {
-                                        const historyData = [{
-                                            searchType: 'mass',
-                                            address: address || '—',
-                                            paramName: param.label,
-                                            paramValue: value,
-                                            cadNumber: 'Не определено',
-                                            objectView: '—',
-                                            found: 0
-                                        }];
-                                        console.log(`💾 Сохраняем НЕНАЙДЕННЫЙ объект (массовый): ${address}`);
-                                        await saveSearchResult(historyData);
+                                  let similarRecord = null;
+if (typeof gistData !== 'undefined' && gistData && gistData.length > 0) {
+    // Извлекаем район из адреса
+    const districtMatch = address.match(/([А-Яа-яё\-]+)\s*район/i);
+    const district = districtMatch ? districtMatch[1] : null;
+    
+    if (district) {
+        for (const record of gistData) {
+            if (record.address && record.address.includes(district)) {
+                similarRecord = record;
+                break;
+            }
+        }
+    }
+}
+
+const historyData = [{
+    searchType: 'mass',
+    address: similarRecord ? similarRecord.address : address || '—',
+    paramName: similarRecord ? similarRecord.paramName : param.label,
+    paramValue: similarRecord ? similarRecord.paramValue : value,
+    cadNumber: similarRecord ? similarRecord.cadNumber : 'Не определено',
+    objectView: '—',
+    found: 0
+}];
+console.log(`💾 Сохраняем НЕНАЙДЕННЫЙ объект (массовый): ${address}`);
+await saveSearchResult(historyData);
                                     } catch (e) {
                                         console.debug('⚠️ Не удалось сохранить историю:', e.message);
                                     }
@@ -2322,22 +2338,35 @@ async function saveSearchResult(historyData) {
                     `;
                     
                     // ✅ ДОБАВЛЯЕМ СОХРАНЕНИЕ НЕНАЙДЕННОГО ОБЪЕКТА
-                    try {
-                        const historyData = [{
-                            searchType: 'single',
-                            address: address || 'Не определено',
-                            paramName: param.label,
-                            paramValue: value,
-                            cadNumber: 'Не определено',
-                            objectView: '—',
-                            found: 0
-                        }];
-                        console.log('💾 Сохраняем НЕНАЙДЕННЫЙ объект (одиночный поиск):', historyData);
-                        await saveSearchResult(historyData);
-                        console.log('✅ Ненайденный объект сохранён в кеш');
-                    } catch (e) {
-                        console.error('❌ Ошибка сохранения ненайденного объекта:', e);
-                    }
+           try {
+    // 🔍 Ищем похожую запись в GistData
+    let similarRecord = null;
+    if (typeof gistData !== 'undefined' && gistData && gistData.length > 0) {
+        // Ищем запись, которая содержит "Тазовский" в адресе
+        for (const record of gistData) {
+            if (record.address && (record.address.includes('Тазовский') || record.address.includes('Тазовский район'))) {
+                similarRecord = record;
+                break;
+            }
+        }
+    }
+    
+    // ✅ Используем параметры из похожей записи, если нашли
+    const historyData = [{
+        searchType: 'single',
+        address: similarRecord ? similarRecord.address : address || 'Не определено',
+        paramName: similarRecord ? similarRecord.paramName : param.label,
+        paramValue: similarRecord ? similarRecord.paramValue : value,
+        cadNumber: similarRecord ? similarRecord.cadNumber : 'Не определено',
+        objectView: '—',
+        found: 0
+    }];
+    console.log('💾 Сохраняем НЕНАЙДЕННЫЙ объект (одиночный поиск):', historyData);
+    await saveSearchResult(historyData);
+    console.log('✅ Ненайденный объект сохранён в кеш');
+} catch (e) {
+    console.error('❌ Ошибка сохранения ненайденного объекта:', e);
+}
                     
                     return;
                 }
