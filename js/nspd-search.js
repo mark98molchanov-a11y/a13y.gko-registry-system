@@ -9,6 +9,29 @@ const GIST_CONFIG = {
     gistId: '4c242ae6c497bcea75d7c48eb428dcb0',
     filename: 'nspd_search_history.sql'
 };
+    function normalizeForCompare(text) {
+    if (!text) return '';
+    return text
+        .toLowerCase()
+        .replace(/[",.]/g, '')          // Удаляем запятые, точки, кавычки
+        .replace(/\s+/g, ' ')           // Схлопываем пробелы
+        .replace(/[а-яё]+\s*район/g, '') // Удаляем "район"
+        .replace(/г\.?\s*/g, '')         // Удаляем "г", "г."
+        .replace(/ул\.?\s*/g, '')        // Удаляем "ул", "ул."
+        .replace(/д\.?\s*/g, '')         // Удаляем "д", "д."
+        .trim();
+}
+
+function getUniversalKey(row) {
+    // 1. Нормализуем адрес
+    let address = normalizeForCompare(row.address || '');
+    // 2. Нормализуем название параметра
+    let paramName = (row.paramName || '').toLowerCase().trim();
+    // 3. Берём значение
+    let paramValue = row.paramValue ?? 0;
+    // 4. Формируем ключ
+    return `${address}|${paramName}|${paramValue}`;
+}
 function getToken() {
     // ✅ СНАЧАЛА ПРОВЕРЯЕМ, ЕСТЬ ЛИ ТОКЕН В localStorage
     const savedToken = localStorage.getItem('nspd_github_token');
@@ -176,27 +199,6 @@ async function saveToGist(data, token) {
         const dateStr = new Date().toISOString().split('T')[0];
         const timeStr = new Date().toISOString().split('T')[1].split('.')[0];
         
-        // ============================================================
-        // ШАГ 0: ФУНКЦИИ ДЛЯ НОРМАЛИЗАЦИИ КЛЮЧЕЙ (НОВЫЕ!)
-        // ============================================================
-        function normalizeKey(key) {
-            if (!key) return '';
-            return key.toLowerCase().replace(/\s+/g, ' ').trim();
-        }
-        
-        function getRowKey(row) {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            return normalizeKey(key);
-        }
-        
-        // ============================================================
-        // ШАГ 1: ЗАГРУЖАЕМ СУЩЕСТВУЮЩИЕ ДАННЫЕ ИЗ GIST
-        // ============================================================
         let existingContent = '';
         let existingHistory = [];
         let fileSha = null;
@@ -554,7 +556,7 @@ async function saveSearchResult(historyData) {
         let savedToken = localStorage.getItem('nspd_github_token');
         if (!savedToken) {
             console.log('🔑 Токен не найден в localStorage, запрашиваем...');
-            savedToken = getToken();  // ← ВЫЗЫВАЕМ getToken() ДЛЯ ЗАПРОСА
+            savedToken = getToken();
             if (!savedToken) {
                 console.warn('⚠️ Токен не введен, пропускаем проверку Gist');
             } else {
@@ -622,29 +624,34 @@ async function saveSearchResult(historyData) {
         console.log(`📊 Всего существующих записей (кеш: ${cached.length} + gist: ${gistData.length} = ${allExisting.length})`);
         
         // ============================================================
-        // ШАГ 4: ФУНКЦИИ ДЛЯ НОРМАЛИЗАЦИИ И СРАВНЕНИЯ
+        // ШАГ 4: УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ДУБЛИКАТОВ
         // ============================================================
-        function normalizeKey(key) {
-            if (!key) return '';
-            return key.toLowerCase().replace(/\s+/g, ' ').trim();
+        function normalizeForCompare(text) {
+            if (!text) return '';
+            return text
+                .toLowerCase()
+                .replace(/[",.]/g, '')
+                .replace(/\s+/g, ' ')
+                .replace(/[а-яё]+\s*район/g, '')
+                .replace(/г\.?\s*/g, '')
+                .replace(/ул\.?\s*/g, '')
+                .replace(/д\.?\s*/g, '')
+                .trim();
         }
         
-        function getRowKey(row) {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            return normalizeKey(key);
+        function getUniversalKey(row) {
+            let address = normalizeForCompare(row.address || '');
+            let paramName = (row.paramName || '').toLowerCase().trim();
+            let paramValue = row.paramValue ?? 0;
+            return `${address}|${paramName}|${paramValue}`;
         }
         
         // ============================================================
-        // ШАГ 5: ПРОВЕРКА НА ДУБЛИКАТЫ (С УЧЁТОМ GIST)
+        // ШАГ 5: ПРОВЕРКА НА ДУБЛИКАТЫ (УНИВЕРСАЛЬНАЯ)
         // ============================================================
         const existingKeys = new Set();
         allExisting.forEach(row => {
-            existingKeys.add(getRowKey(row));
+            existingKeys.add(getUniversalKey(row));
         });
         
         console.log(`🔑 Уникальных ключей: ${existingKeys.size}`);
@@ -655,7 +662,7 @@ async function saveSearchResult(historyData) {
         let cacheDuplicateCount = 0;
         
         for (const row of historyData) {
-            const key = getRowKey(row);
+            const key = getUniversalKey(row);
             
             // Проверяем, есть ли такой ключ в кеше или Gist
             if (existingKeys.has(key)) {
@@ -666,7 +673,7 @@ async function saveSearchResult(historyData) {
                 let foundInGist = false;
                 
                 for (const existing of cached) {
-                    if (getRowKey(existing) === key) {
+                    if (getUniversalKey(existing) === key) {
                         foundInCache = true;
                         cacheDuplicateCount++;
                         break;
@@ -674,7 +681,7 @@ async function saveSearchResult(historyData) {
                 }
                 
                 for (const existing of gistData) {
-                    if (getRowKey(existing) === key) {
+                    if (getUniversalKey(existing) === key) {
                         foundInGist = true;
                         gistDuplicateCount++;
                         break;
