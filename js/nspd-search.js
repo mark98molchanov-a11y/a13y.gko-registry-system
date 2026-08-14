@@ -425,7 +425,7 @@ async function syncLocalToGist() {
         }
         
         // ============================================================
-        // ✅ ДОБАВЛЯЕМ ФУНКЦИИ НОРМАЛИЗАЦИИ
+        // ✅ ФУНКЦИИ НОРМАЛИЗАЦИИ
         // ============================================================
         function normalizeKey(key) {
             if (!key) return '';
@@ -485,11 +485,11 @@ async function syncLocalToGist() {
         // ============================================================
         const existingKeys = new Set();
         gistHistory.forEach(row => {
-            existingKeys.add(getRowKey(row));  // ← С НОРМАЛИЗАЦИЕЙ!
+            existingKeys.add(getRowKey(row));
         });
         
         const newData = localData.filter(row => {
-            const key = getRowKey(row);  // ← С НОРМАЛИЗАЦИЕЙ!
+            const key = getRowKey(row);
             const isNew = !existingKeys.has(key);
             if (!isNew) {
                 console.log(`⏭️ ДУБЛИКАТ (уже есть в Gist): "${key}"`);
