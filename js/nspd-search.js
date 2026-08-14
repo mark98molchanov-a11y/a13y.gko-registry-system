@@ -412,23 +412,39 @@ async function syncLocalToGist() {
             syncBtn.disabled = true;
         }
         
-        // ✅ ПОЛУЧАЕМ ТОКЕН (из localStorage или запрос)
         const token = getToken();
         if (!token) {
             alert('❌ Токен не введен. Синхронизация отменена.');
             return;
         }
 
-        // ✅ Проверяем токен
         const isValid = await validateToken(token);
         if (!isValid) {
             alert('❌ Неверный токен. Проверьте права (нужно gist).');
-            // ❌ НЕ УДАЛЯЕМ ТОКЕН! Просто сообщаем об ошибке
-            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
             return;
         }
         
-        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША (localStorage)
+        // ============================================================
+        // ✅ ДОБАВЛЯЕМ ФУНКЦИИ НОРМАЛИЗАЦИИ
+        // ============================================================
+        function normalizeKey(key) {
+            if (!key) return '';
+            return key.toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+        
+        function getRowKey(row) {
+            let key;
+            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
+                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
+            } else {
+                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            }
+            return normalizeKey(key);
+        }
+        
+        // ============================================================
+        // ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША
+        // ============================================================
         let localData = [];
         try {
             const cached = localStorage.getItem('nspd_gist_cache');
@@ -443,106 +459,72 @@ async function syncLocalToGist() {
             console.warn('⚠️ Ошибка чтения кеша:', e);
         }
         
-        // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ Gist С ТОКЕНОМ
+        // ============================================================
+        // ЗАГРУЖАЕМ ДАННЫЕ ИЗ Gist
+        // ============================================================
         const gistHistory = await getGistHistory(true, token);
         console.log(`📊 В Gist: ${gistHistory.length} записей`);
         
-        // ✅ ЕСЛИ КЕШ ПУСТ, НО Gist НЕ ПУСТ — ВОССТАНАВЛИВАЕМ КЕШ ИЗ Gist
         if (localData.length === 0 && gistHistory.length > 0) {
             console.log(`🔄 Кеш пуст, но в Gist есть ${gistHistory.length} записей. Восстанавливаем кеш...`);
-            
             localStorage.setItem('nspd_gist_cache', JSON.stringify({
                 _timestamp: Date.now(),
                 data: gistHistory
             }));
-            
             alert(`🔄 Кеш восстановлен из Gist! Загружено ${gistHistory.length} записей.`);
-            
-            // ✅ ТОКЕН НЕ УДАЛЯЕМ, ОН НУЖЕН ДЛЯ saveSearchResult()
             return;
         }
         
         if (localData.length === 0) {
             alert('📭 Нет данных для синхронизации. Сделайте поиск сначала.');
-            // ✅ ТОКЕН НЕ УДАЛЯЕМ, ОН НУЖЕН ДЛЯ saveSearchResult()
             return;
         }
         
-        // ✅ Фильтруем только новые записи (сравниваем с Gist)
+        // ============================================================
+        // ✅ ФИЛЬТРУЕМ НОВЫЕ ЗАПИСИ (С НОРМАЛИЗАЦИЕЙ!)
+        // ============================================================
         const existingKeys = new Set();
         gistHistory.forEach(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            existingKeys.add(key);
+            existingKeys.add(getRowKey(row));  // ← С НОРМАЛИЗАЦИЕЙ!
         });
         
         const newData = localData.filter(row => {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
+            const key = getRowKey(row);  // ← С НОРМАЛИЗАЦИЕЙ!
+            const isNew = !existingKeys.has(key);
+            if (!isNew) {
+                console.log(`⏭️ ДУБЛИКАТ (уже есть в Gist): "${key}"`);
             }
-            return !existingKeys.has(key);
+            return isNew;
         });
         
         if (newData.length === 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${gistHistory.length} записей`);
-            
-            // ✅ ОЧИЩАЕМ КЕШ
             localStorage.removeItem('nspd_gist_cache');
             console.log('🧹 Кеш очищен (все данные уже в Gist)');
-            
-            // ❌ НЕ УДАЛЯЕМ ТОКЕН! Он нужен для проверки дубликатов при поиске
-            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
-            // console.log('🔑 Токен удалён из localStorage');  ← ЗАКОММЕНТИРОВАТЬ!
-            
             return;
         }
         
         console.log(`📤 Будет добавлено ${newData.length} новых записей`);
         
-        // ✅ Сохраняем только новые записи
         const result = await saveToGist(newData, token);
         
         if (result && result.added > 0) {
             alert(`✅ Синхронизация завершена!\nДобавлено: ${result.added} записей\nВсего в Gist: ${result.total}`);
-            
-            // ✅ ПОСЛЕ УСПЕШНОЙ СИНХРОНИЗАЦИИ — ОЧИЩАЕМ КЕШ
             localStorage.removeItem('nspd_gist_cache');
             console.log(`🧹 Кеш очищен! Все ${result.total} записей теперь в Gist`);
-            
-            // ❌ НЕ УДАЛЯЕМ ТОКЕН! Он нужен для проверки дубликатов при поиске
-            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
-            // console.log('🔑 Токен удалён из localStorage');  ← ЗАКОММЕНТИРОВАТЬ!
-            
         } else if (result && result.added === 0 && result.total > 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${result.total} записей`);
-            
-            // ✅ ОЧИЩАЕМ КЕШ
             localStorage.removeItem('nspd_gist_cache');
             console.log('🧹 Кеш очищен (все данные уже в Gist)');
-            
-            // ❌ НЕ УДАЛЯЕМ ТОКЕН!
-            // localStorage.removeItem('nspd_github_token');  ← ЗАКОММЕНТИРОВАТЬ!
-            // console.log('🔑 Токен удалён из localStorage');  ← ЗАКОММЕНТИРОВАТЬ!
-            
         } else if (result && result.error) {
             alert(`❌ Ошибка: ${result.error}`);
-            // ✅ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ (может понадобиться для повторной попытки)
         } else {
             alert('❌ Ошибка синхронизации');
-            // ✅ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
         }
         
     } catch (error) {
         console.error('❌ Ошибка синхронизации:', error);
         alert('❌ Ошибка: ' + error.message);
-        // ✅ ПРИ ОШИБКЕ ТОКЕН НЕ УДАЛЯЕМ
     } finally {
         if (syncBtn) {
             syncBtn.innerHTML = originalText;
