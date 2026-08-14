@@ -460,22 +460,28 @@ async function syncLocalToGist() {
             return;
         }
         
-        // ============================================================
-        // ✅ ФИЛЬТРУЕМ НОВЫЕ ЗАПИСИ (УНИВЕРСАЛЬНЫЙ КЛЮЧ!)
-        // ============================================================
-        const existingKeys = new Set();
-        gistHistory.forEach(row => {
-            existingKeys.add(getUniversalKey(row));  // ← ИСПОЛЬЗУЕМ getUniversalKey()!
-        });
-        
-        const newData = localData.filter(row => {
-            const key = getUniversalKey(row);  // ← ИСПОЛЬЗУЕМ getUniversalKey()!
-            const isNew = !existingKeys.has(key);
-            if (!isNew) {
-                console.log(`⏭️ ДУБЛИКАТ (уже есть в Gist): "${key}"`);
-            }
-            return isNew;
-        });
+const existingKeys = new Set();
+
+// ✅ Добавляем ключи ИЗ GIST
+gistHistory.forEach(row => {
+    existingKeys.add(getUniversalKey(row));
+});
+
+// ✅ Добавляем ключи ИЗ КЕША (чтобы не добавлять дубликаты из кеша)
+localData.forEach(row => {
+    existingKeys.add(getUniversalKey(row));
+});
+
+console.log(`🔑 Существующих ключей (Gist + кеш): ${existingKeys.size}`);
+
+const newData = localData.filter(row => {
+    const key = getUniversalKey(row);
+    const isNew = !existingKeys.has(key);
+    if (!isNew) {
+        console.log(`⏭️ ДУБЛИКАТ (уже есть в кеше или Gist): "${key}"`);
+    }
+    return isNew;
+});
         
         if (newData.length === 0) {
             alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${gistHistory.length} записей`);
