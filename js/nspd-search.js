@@ -234,20 +234,20 @@ async function saveToGist(data, token) {
         }
         
         // ============================================================
-        // ШАГ 2: ФОРМИРУЕМ МНОЖЕСТВО СУЩЕСТВУЮЩИХ КЛЮЧЕЙ (С НОРМАЛИЗАЦИЕЙ!)
+        // ШАГ 2: ФОРМИРУЕМ МНОЖЕСТВО СУЩЕСТВУЮЩИХ КЛЮЧЕЙ (УНИВЕРСАЛЬНЫЙ!)
         // ============================================================
         const existingKeys = new Set();
         existingHistory.forEach(row => {
-            existingKeys.add(getRowKey(row));  // ← ИСПОЛЬЗУЕМ getRowKey()!
+            existingKeys.add(getUniversalKey(row));  // ← ИСПОЛЬЗУЕМ getUniversalKey()!
         });
         
         console.log(`🔑 Существующих ключей: ${existingKeys.size}`);
         
         // ============================================================
-        // ШАГ 3: ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (С НОРМАЛИЗАЦИЕЙ!)
+        // ШАГ 3: ФИЛЬТРУЕМ ТОЛЬКО НОВЫЕ ЗАПИСИ (УНИВЕРСАЛЬНЫЙ!)
         // ============================================================
         const newData = data.filter(row => {
-            const key = getRowKey(row);  // ← ИСПОЛЬЗУЕМ getRowKey()!
+            const key = getUniversalKey(row);  // ← ИСПОЛЬЗУЕМ getUniversalKey()!
             const isNew = !existingKeys.has(key);
             if (!isNew) {
                 console.log(`⏭️ ДУБЛИКАТ (уже есть в Gist): "${key}"`);
@@ -400,10 +400,6 @@ async function saveToGist(data, token) {
     }
 }
 
-    // ============================================================
-    // 🔥 ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
-    // ============================================================
-
 async function syncLocalToGist() {
     const syncBtn = document.getElementById('nspd-sync-gist');
     const originalText = syncBtn?.innerHTML || 'Обновить SQL в Gist';
@@ -424,24 +420,6 @@ async function syncLocalToGist() {
         if (!isValid) {
             alert('❌ Неверный токен. Проверьте права (нужно gist).');
             return;
-        }
-        
-        // ============================================================
-        // ✅ ФУНКЦИИ НОРМАЛИЗАЦИИ
-        // ============================================================
-        function normalizeKey(key) {
-            if (!key) return '';
-            return key.toLowerCase().replace(/\s+/g, ' ').trim();
-        }
-        
-        function getRowKey(row) {
-            let key;
-            if (row.cadNumber && row.cadNumber !== 'Не определено' && row.cadNumber !== '—') {
-                key = row.cadNumber + '|' + row.address + '|' + row.paramName + '|' + row.paramValue;
-            } else {
-                key = row.address + '|' + row.paramName + '|' + row.paramValue;
-            }
-            return normalizeKey(key);
         }
         
         // ============================================================
@@ -483,15 +461,15 @@ async function syncLocalToGist() {
         }
         
         // ============================================================
-        // ✅ ФИЛЬТРУЕМ НОВЫЕ ЗАПИСИ (С НОРМАЛИЗАЦИЕЙ!)
+        // ✅ ФИЛЬТРУЕМ НОВЫЕ ЗАПИСИ (УНИВЕРСАЛЬНЫЙ КЛЮЧ!)
         // ============================================================
         const existingKeys = new Set();
         gistHistory.forEach(row => {
-            existingKeys.add(getRowKey(row));
+            existingKeys.add(getUniversalKey(row));  // ← ИСПОЛЬЗУЕМ getUniversalKey()!
         });
         
         const newData = localData.filter(row => {
-            const key = getRowKey(row);
+            const key = getUniversalKey(row);  // ← ИСПОЛЬЗУЕМ getUniversalKey()!
             const isNew = !existingKeys.has(key);
             if (!isNew) {
                 console.log(`⏭️ ДУБЛИКАТ (уже есть в Gist): "${key}"`);
