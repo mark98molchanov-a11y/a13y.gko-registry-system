@@ -9,6 +9,8 @@ const GIST_CONFIG = {
     gistId: '7fdf561b58539a51d0a5ee03b5c6fff5',
     filename: 'nspd_search_history.sql'
 };
+        localStorage.removeItem('nspd_github_token');
+    console.log('🧹 Токен удалён при загрузке страницы');
     function normalizeForCompare(text) {
     if (!text) return '';
     return text
@@ -33,24 +35,14 @@ function getUniversalKey(row) {
     return `${address}|${paramName}|${paramValue}`;
 }
 function getToken() {
-    // ✅ СНАЧАЛА ПРОВЕРЯЕМ, ЕСТЬ ЛИ ТОКЕН В localStorage
-    const savedToken = localStorage.getItem('nspd_github_token');
-    if (savedToken) {
-        console.log('🔑 Используем сохранённый токен');
-        return savedToken;
-    }
-    
-    // ✅ ЕСЛИ ТОКЕНА НЕТ - ЗАПРАШИВАЕМ
+    // ✅ ВСЕГДА ЗАПРАШИВАЕМ ТОКЕН ЗАНОВО (НЕ СОХРАНЯЕМ!)
     const token = prompt('🔑 Введите GitHub токен (права на Gist):');
     if (!token) {
         console.warn('⚠️ Токен не введен');
         return null;
     }
     const trimmedToken = token.trim();
-    
-    // ✅ СОХРАНЯЕМ ТОКЕН В localStorage
-    localStorage.setItem('nspd_github_token', trimmedToken);
-    console.log('✅ Токен сохранён в localStorage');
+    console.log('✅ Токен получен (НЕ сохранён в localStorage)');
     return trimmedToken;
 }
 
@@ -460,37 +452,11 @@ async function syncLocalToGist() {
             return;
         }
         
-const existingKeys = new Set();
-
-// ✅ Добавляем ключи ИЗ GIST
-gistHistory.forEach(row => {
-    existingKeys.add(getUniversalKey(row));
-});
-
-// ✅ Добавляем ключи ИЗ КЕША (чтобы не добавлять дубликаты из кеша)
-localData.forEach(row => {
-    existingKeys.add(getUniversalKey(row));
-});
-
-console.log(`🔑 Существующих ключей (Gist + кеш): ${existingKeys.size}`);
-
-const newData = localData.filter(row => {
-    const key = getUniversalKey(row);
-    const isNew = !existingKeys.has(key);
-    if (!isNew) {
-        console.log(`⏭️ ДУБЛИКАТ (уже есть в кеше или Gist): "${key}"`);
-    }
-    return isNew;
-});
-        
-        if (newData.length === 0) {
-            alert(`✅ Все данные уже синхронизированы!\nВсего в Gist: ${gistHistory.length} записей`);
-            localStorage.removeItem('nspd_gist_cache');
-            console.log('🧹 Кеш очищен (все данные уже в Gist)');
-            return;
-        }
-        
-        console.log(`📤 Будет добавлено ${newData.length} новых записей`);
+        // ============================================================
+        // ✅ БЕЗ ПРОВЕРКИ ДУБЛИКАТОВ — ЗАПИСЫВАЕМ ВСЁ!
+        // ============================================================
+        const newData = localData;  // ← ПРОСТО БЕРЁМ ВСЕ ДАННЫЕ ИЗ КЕША
+        console.log(`📤 Будет добавлено ${newData.length} записей`);
         
         const result = await saveToGist(newData, token);
         
@@ -532,17 +498,7 @@ async function saveSearchResult(historyData) {
         // ============================================================
         // ШАГ 0: ПРОВЕРЯЕМ ТОКЕН, НО НЕ ЗАПРАШИВАЕМ!
         // ============================================================
-        if (typeof GIST_CONFIG === 'undefined') {
-            console.warn('⚠️ GIST_CONFIG не определён, пропускаем проверку Gist');
-        }
-        
-        // ✅ ПРОВЕРЯЕМ ТОКЕН, НО НЕ ЗАПРАШИВАЕМ (токен запрашивается ТОЛЬКО при синхронизации)
-        let savedToken = localStorage.getItem('nspd_github_token');
-        if (savedToken) {
-            console.log('🔑 Используем сохранённый токен');
-        } else {
-            console.log('ℹ️ Токен не найден, проверка Gist будет пропущена (токен нужен только для синхронизации)');
-        }
+           console.log('ℹ️ Проверка Gist при поиске ОТКЛЮЧЕНА (токен запрашивается только при синхронизации)');
         
         // ============================================================
         // ШАГ 1: ЗАГРУЖАЕМ ДАННЫЕ ИЗ КЕША
@@ -560,40 +516,10 @@ async function saveSearchResult(historyData) {
         }
         
         // ============================================================
-        // ШАГ 2: ЗАГРУЖАЕМ ДАННЫЕ ИЗ GIST (ЕСЛИ ЕСТЬ ТОКЕН)
+        // ШАГ 2: Gist НЕ ЗАГРУЖАЕТСЯ (токен только при синхронизации)
         // ============================================================
-        let gistData = [];
-        
-        console.log(`🔍 Токен в localStorage: ${savedToken ? '✅ ЕСТЬ' : '❌ НЕТ'}`);
-        console.log(`🔍 GIST_CONFIG: ${typeof GIST_CONFIG !== 'undefined' ? '✅ ОПРЕДЕЛЁН' : '❌ НЕ ОПРЕДЕЛЁН'}`);
-        console.log(`🔍 GIST_CONFIG.gistId: ${(typeof GIST_CONFIG !== 'undefined' && GIST_CONFIG.gistId) ? GIST_CONFIG.gistId : '❌ НЕТ'}`);
-        
-        if (savedToken && typeof GIST_CONFIG !== 'undefined' && GIST_CONFIG.gistId) {
-            try {
-                console.log('🔍 Загружаем Gist для проверки дубликатов...');
-                const response = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
-                    headers: {
-                        'Authorization': `token ${savedToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const content = data.files?.[GIST_CONFIG.filename]?.content || '';
-                    gistData = parseSQLToArray(content);
-                    console.log(`📥 Загружено ${gistData.length} записей из Gist для проверки дубликатов`);
-                } else if (response.status === 404) {
-                    console.log('ℹ️ Gist не найден (404)');
-                } else {
-                    console.warn(`⚠️ Ошибка загрузки Gist: HTTP ${response.status}`);
-                }
-            } catch (e) {
-                console.warn('⚠️ Ошибка загрузки Gist:', e.message);
-            }
-        } else {
-            console.log('ℹ️ Нет токена или Gist ID, пропускаем проверку Gist');
-        }
+        let gistData = [];  // ← ВСЕГДА ПУСТОЙ МАССИВ
+        console.log('ℹ️ Загрузка Gist при поиске ОТКЛЮЧЕНА');
         
         // ============================================================
         // ШАГ 3: ОБЪЕДИНЯЕМ ВСЕ СУЩЕСТВУЮЩИЕ ЗАПИСИ (КЕШ + GIST)
@@ -1688,20 +1614,27 @@ async function saveSearchResult(historyData) {
                                 // ✅ СОХРАНЯЕМ НЕНАЙДЕННЫЙ ОБЪЕКТ
                                 (async function() {
                                     try {
-                                  let similarRecord = null;
-if (typeof gistData !== 'undefined' && gistData && gistData.length > 0) {
-    // Извлекаем район из адреса
-    const districtMatch = address.match(/([А-Яа-яё\-]+)\s*район/i);
-    const district = districtMatch ? districtMatch[1] : null;
-    
-    if (district) {
-        for (const record of gistData) {
-            if (record.address && record.address.includes(district)) {
-                similarRecord = record;
-                break;
+let similarRecord = null;
+// ⚠️ ПОИСК ПОХОЖЕЙ ЗАПИСИ ОТКЛЮЧЕН (gistData больше не загружается)
+// Если нужно искать в кеше - используйте cached
+try {
+    const cachedStr = localStorage.getItem('nspd_gist_cache');
+    if (cachedStr) {
+        const parsed = JSON.parse(cachedStr);
+        const cachedData = parsed.data || [];
+        const districtMatch = address.match(/([А-Яа-яё\-]+)\s*район/i);
+        const district = districtMatch ? districtMatch[1] : null;
+        if (district) {
+            for (const record of cachedData) {
+                if (record.address && record.address.includes(district)) {
+                    similarRecord = record;
+                    break;
+                }
             }
         }
     }
+} catch (e) {
+    console.debug('⚠️ Ошибка поиска в кеше:', e.message);
 }
 
 const historyData = [{
@@ -2323,17 +2256,24 @@ await saveSearchResult(historyData);
                     `;
                     
                     // ✅ ДОБАВЛЯЕМ СОХРАНЕНИЕ НЕНАЙДЕННОГО ОБЪЕКТА
-           try {
-    // 🔍 Ищем похожую запись в GistData
+        try {
+    // 🔍 Ищем похожую запись в КЕШЕ
     let similarRecord = null;
-    if (typeof gistData !== 'undefined' && gistData && gistData.length > 0) {
-        // Ищем запись, которая содержит "Тазовский" в адресе
-        for (const record of gistData) {
-            if (record.address && (record.address.includes('Тазовский') || record.address.includes('Тазовский район'))) {
-                similarRecord = record;
-                break;
+    try {
+        const cachedStr = localStorage.getItem('nspd_gist_cache');
+        if (cachedStr) {
+            const parsed = JSON.parse(cachedStr);
+            const cachedData = parsed.data || [];
+            // Ищем запись, которая содержит "Тазовский" в адресе
+            for (const record of cachedData) {
+                if (record.address && (record.address.includes('Тазовский') || record.address.includes('Тазовский район'))) {
+                    similarRecord = record;
+                    break;
+                }
             }
         }
+    } catch (e) {
+        console.debug('⚠️ Ошибка поиска в кеше:', e.message);
     }
     
     // ✅ Используем параметры из похожей записи, если нашли
