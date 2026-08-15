@@ -55,6 +55,10 @@
       "dest": "/images/$1"
     },
     {
+      "src": "/api/nspd/(.*)",
+      "dest": "http://168.222.143.251:3000/nspd-search/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
