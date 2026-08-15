@@ -5,7 +5,7 @@ class NSPDIntegration {
         this.allResults = [];
         this.isLoading = false;
         this.initialized = false;
-        this.baseUrl = 'https://summit-hardware-leading-marble.trycloudflare.com/nspd-search';
+        this.baseUrl = 'https://tractor-increase-rid-computation.trycloudflare.com/nspd-search';
         this._initAttempts = 0;
         this._maxInitAttempts = 20;
         console.log('NSPDIntegration: конструктор вызван');
