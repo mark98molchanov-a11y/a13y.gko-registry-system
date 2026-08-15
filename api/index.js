@@ -1,4 +1,4 @@
-// api/index.js - CORS Proxy для GitHub API (Vercel Serverless)
+// api/index.js - CORS Proxy для GitHub API + НСПД (Vercel Serverless)
 
 export default async function handler(req, res) {
     // ✅ РАЗРЕШАЕМ CORS
@@ -9,6 +9,36 @@ export default async function handler(req, res) {
     // ✅ ОТВЕТ НА PREFLIGHT
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
+    }
+
+    // ============================================================
+    // 🆕 ПРОКСИ ДЛЯ НСПД: /api/nspd
+    // ============================================================
+    if (req.method === 'GET' && req.url?.startsWith('/api/nspd')) {
+        try {
+            const query = req.url.split('?')[1] || '';
+            const targetUrl = `http://168.222.143.251:3000/nspd-search?${query}`;
+            
+            console.log(`🔍 Проксируем к НСПД: ${targetUrl}`);
+            
+            const response = await fetch(targetUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            
+            const data = await response.text();
+            
+            console.log(`✅ Ответ НСПД: ${response.status}`);
+            
+            res.status(response.status).send(data);
+            return;
+        } catch (error) {
+            console.error('❌ Ошибка прокси НСПД:', error);
+            res.status(500).json({ error: error.message });
+            return;
+        }
     }
     
     // ✅ ИЗВЛЕЧЕНИЕ ТОКЕНА
@@ -92,10 +122,7 @@ export default async function handler(req, res) {
             const parts = req.url.replace('/api/upload/', '').split('/');
             const [owner, repo, releaseId] = parts;
             
-            // Извлекаем имя файла из query
             const fileName = req.query?.name || 'deals_clean.csv';
-            
-            // Получаем тело запроса (это бинарные данные!)
             const content = req.body;
             
             console.log(`📤 Прокси загрузки: ${fileName}, размер: ${content?.length || 0} байт`);
@@ -105,7 +132,6 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'Empty content' });
             }
             
-            // ✅ ПРОКСИРУЕМ ЗАПРОС К GITHUB UPLOADS
             const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseId}/assets?name=${encodeURIComponent(fileName)}`;
             
             console.log(`📤 Проксируем к: ${uploadUrl}`);
@@ -120,7 +146,6 @@ export default async function handler(req, res) {
                 body: content
             });
             
-            // Получаем ответ от GitHub
             const responseText = await response.text();
             let responseData;
             try {
