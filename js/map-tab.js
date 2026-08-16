@@ -1911,6 +1911,7 @@ function toggleAllDealTypes(types) {
     } else {
         currentDealTypeFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
 
@@ -1921,9 +1922,9 @@ function toggleAllCities(cities) {
     } else {
         currentCityFilter = [...cities];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
-
 function toggleAllObjectTypes(types) {
     const allSelected = types.every(type => currentObjectTypeFilter.includes(type));
     if (allSelected) {
@@ -1931,6 +1932,7 @@ function toggleAllObjectTypes(types) {
     } else {
         currentObjectTypeFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
 
@@ -1941,6 +1943,7 @@ function toggleAllWallMaterials(types) {
     } else {
         currentWallMaterialFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
 
@@ -1951,6 +1954,7 @@ function toggleAllQuarters(types) {
     } else {
         currentQuarterFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
 
@@ -1961,9 +1965,9 @@ function toggleAllYearBuilds(types) {
     } else {
         currentYearBuildFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
-
 function toggleAllPurposes(types) {
     const allSelected = types.every(type => currentPurposeFilter.includes(type));
     if (allSelected) {
@@ -1971,6 +1975,7 @@ function toggleAllPurposes(types) {
     } else {
         currentPurposeFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
 
@@ -1981,6 +1986,7 @@ function toggleAllVri(types) {
     } else {
         currentVriFilter = [...types];
     }
+    recalcAllFilters();
     applyFiltersAndUpdate();
 }
 function applyFiltersAndUpdate() {
@@ -2014,10 +2020,7 @@ function applyFiltersAndUpdate() {
     updateMapStatsFromDeals(level, parentId);
     updatePopupsAndTooltips(level);
     updateQuartersListWithFilteredObjects(null);
-    
-    // ✅ Обновляем легенду (учитывает режим Heatmap)
     addMapLegend();
-    
     updateActiveFiltersDisplay();
     renderDealsTable();
     
@@ -2029,7 +2032,10 @@ function applyFiltersAndUpdate() {
         });
     }
     
-    // ✅ ДОБАВЬТЕ ЭТОТ БЛОК - ОБНОВЛЕНИЕ ГРАФИКА
+    // ✅ ДОБАВЬТЕ ЭТУ СТРОКУ:
+    recalcAllFilters();
+    
+    // ✅ ДОБАВЬТЕ ЭТУ СТРОКУ ДЛЯ ГРАФИКА:
     setTimeout(function() {
         if (typeof renderPriceChart === 'function') {
             console.log('📊 Обновление графика из applyFiltersAndUpdate');
@@ -2063,8 +2069,8 @@ function applyDealTypeFilter(kind) {
         console.log('⏳ Поиск из НСПД, сохраняем выбранный квартал:', window.selectedQuarterCadNumber);
     }
     
-    // ✅ ПЕРЕРИСОВЫВАЕМ ФИЛЬТРЫ
-    renderDealTypeFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2129,7 +2135,8 @@ function applyCityFilter(city) {
         console.log('⏳ Поиск из НСПД, сохраняем выбранный квартал:', window.selectedQuarterCadNumber);
     }
     
-    renderCityFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2184,7 +2191,8 @@ function applyObjectTypeFilter(type) {
         console.log('⏳ Поиск из НСПД, сохраняем выбранный квартал:', window.selectedQuarterCadNumber);
     }
     
-    renderObjectTypeFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2217,7 +2225,6 @@ function applyObjectTypeFilter(type) {
         });
     }
 }
-
 function applyWallMaterialFilter(type) {
     const index = currentWallMaterialFilter.indexOf(type);
     if (index === -1) {
@@ -2235,7 +2242,8 @@ function applyWallMaterialFilter(type) {
         }
     }
     
-    renderWallMaterialFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2285,7 +2293,8 @@ function applyQuarterFilter(type) {
         }
     }
     
-    renderQuarterFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2335,7 +2344,8 @@ function applyYearBuildFilter(type) {
         }
     }
     
-    renderYearBuildFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2385,7 +2395,8 @@ function applyPurposeFilter(type) {
         }
     }
     
-    renderPurposeFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2435,7 +2446,8 @@ function applyVriFilter(type) {
         }
     }
     
-    renderVriFilters();
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
+    recalcAllFilters();
     
     const level = currentLevel;
     const parentId = currentParentId;
@@ -2468,7 +2480,128 @@ function applyVriFilter(type) {
         });
     }
 }
-
+function recalcAllFilters() {
+    console.log('🔄 Пересчет всех фильтров...');
+    
+    // ✅ 1. Получаем ВСЕ сделки с учетом ВСЕХ активных фильтров (КРОМЕ текущего фильтра)
+    function getFilteredDeals(excludeFilterType = null) {
+        return allDealsFlat.filter(deal => {
+            // Исключаем проверку для фильтра, который сейчас пересчитываем
+            if (excludeFilterType !== 'deal_kind') {
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.deal_kind_text)) return false;
+            }
+            if (excludeFilterType !== 'city') {
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+            }
+            if (excludeFilterType !== 'obj_kind') {
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind_text)) return false;
+            }
+            if (excludeFilterType !== 'wall_material') {
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material_name)) return false;
+            }
+            if (excludeFilterType !== 'quarter') {
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+            }
+            if (excludeFilterType !== 'year_build') {
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+            }
+            if (excludeFilterType !== 'purpose') {
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+            }
+            if (excludeFilterType !== 'vri') {
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            }
+            return true;
+        });
+    }
+    
+    // ✅ 2. Пересчитываем КАЖДЫЙ фильтр отдельно
+    // Типы сделок
+    const dealTypesNew = {};
+    const filteredDealsForDealTypes = getFilteredDeals('deal_kind');
+    filteredDealsForDealTypes.forEach(deal => {
+        const key = deal.deal_kind_text || 'nan';
+        dealTypesNew[key] = (dealTypesNew[key] || 0) + 1;
+    });
+    
+    // Города
+    const citiesNew = {};
+    const filteredDealsForCities = getFilteredDeals('city');
+    filteredDealsForCities.forEach(deal => {
+        const key = deal.city || 'nan';
+        citiesNew[key] = (citiesNew[key] || 0) + 1;
+    });
+    
+    // Типы объектов
+    const objTypesNew = {};
+    const filteredDealsForObjTypes = getFilteredDeals('obj_kind');
+    filteredDealsForObjTypes.forEach(deal => {
+        const key = deal.obj_kind_text || 'nan';
+        objTypesNew[key] = (objTypesNew[key] || 0) + 1;
+    });
+    
+    // Материал стен
+    const wallMaterialsNew = {};
+    const filteredDealsForWall = getFilteredDeals('wall_material');
+    filteredDealsForWall.forEach(deal => {
+        const key = deal.wall_material_name || 'nan';
+        wallMaterialsNew[key] = (wallMaterialsNew[key] || 0) + 1;
+    });
+    
+    // Кварталы
+    const quartersNew = {};
+    const filteredDealsForQuarter = getFilteredDeals('quarter');
+    filteredDealsForQuarter.forEach(deal => {
+        const key = deal.quarter || 'nan';
+        quartersNew[key] = (quartersNew[key] || 0) + 1;
+    });
+    
+    // Годы постройки
+    const yearBuildsNew = {};
+    const filteredDealsForYear = getFilteredDeals('year_build');
+    filteredDealsForYear.forEach(deal => {
+        const key = deal.year_build || 'nan';
+        yearBuildsNew[key] = (yearBuildsNew[key] || 0) + 1;
+    });
+    
+    // Назначение
+    const purposesNew = {};
+    const filteredDealsForPurpose = getFilteredDeals('purpose');
+    filteredDealsForPurpose.forEach(deal => {
+        const key = deal.purpose_text || 'nan';
+        purposesNew[key] = (purposesNew[key] || 0) + 1;
+    });
+    
+    // ВРИ
+    const vrisNew = {};
+    const filteredDealsForVri = getFilteredDeals('vri');
+    filteredDealsForVri.forEach(deal => {
+        const key = deal.vri || 'nan';
+        vrisNew[key] = (vrisNew[key] || 0) + 1;
+    });
+    
+    // ✅ 3. Обновляем глобальные переменные
+    dealTypes = dealTypesNew;
+    cityTypes = citiesNew;
+    objectTypes = objTypesNew;
+    wallMaterialTypes = wallMaterialsNew;
+    quarterTypes = quartersNew;
+    yearBuildTypes = yearBuildsNew;
+    purposeCount = purposesNew;
+    vriCount = vrisNew;
+    
+    // ✅ 4. Перерисовываем ВСЕ фильтры
+    renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderPurposeFilters();
+    renderVriFilters();
+    
+    console.log('✅ Все фильтры пересчитаны');
+}
 function updateDistrictTooltip(layer, props) {
     // ✅ ПРОСТО ПЕРЕСОЗДАЕМ ТУЛТИП ЧЕРЕЗ buildDistrictTooltipContent
     const tooltipContent = buildDistrictTooltipContent(layer);
@@ -4877,7 +5010,6 @@ function resetAllFiltersMap() {
     console.log('🔄 Сброс всех фильтров карты');
     window.selectedQuarterCadNumber = null;
     
-    // ✅ ПРАВИЛЬНО: сбрасываем в пустые массивы
     currentDealTypeFilter = [];
     currentCityFilter = [];
     currentObjectTypeFilter = [];
@@ -4887,21 +5019,21 @@ function resetAllFiltersMap() {
     currentPurposeFilter = [];   
     currentVriFilter = [];   
     
-    renderDealTypeFilters();
-    renderCityFilters();
-    renderObjectTypeFilters();
-    renderWallMaterialFilters();
-    renderQuarterFilters(); 
-    renderYearBuildFilters();
-    renderPurposeFilters();     
-    renderVriFilters();      
+-   renderDealTypeFilters();
+-   renderCityFilters();
+-   renderObjectTypeFilters();
+-   renderWallMaterialFilters();
+-   renderQuarterFilters(); 
+-   renderYearBuildFilters();
+-   renderPurposeFilters();     
+-   renderVriFilters();      
++   recalcAllFilters();
     
     renderMapLevel(currentLevel, currentParentId);
     addMapLegend();
     updateActiveFiltersDisplay();
     renderDealsTable();
     
-    // ✅ ДОБАВЬТЕ ЭТОТ БЛОК:
     setTimeout(function() {
         if (typeof renderPriceChart === 'function') {
             console.log('📊 Обновление графика после сброса фильтров');
