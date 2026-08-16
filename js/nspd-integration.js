@@ -5,7 +5,7 @@ class NSPDIntegration {
         this.allResults = [];
         this.isLoading = false;
         this.initialized = false;
-        this.baseUrl = '/api/nspd';
+        this.baseUrl = 'https://nspd.gov.ru/api/geoportal/v2/search/geoportal';
         this._initAttempts = 0;
         this._maxInitAttempts = 20;
         console.log('NSPDIntegration: конструктор вызван');
