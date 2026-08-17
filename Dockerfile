@@ -2,10 +2,14 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+# 🔥 КОПИРУЕМ ВСЁ НУЖНОЕ
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# 🔥🔥🔥 ЯВНО КОПИРУЕМ ВСЕ .pkl ФАЙЛЫ
+COPY *.pkl ./
+COPY *.py ./
+COPY *.json ./
 
 EXPOSE 8080
 
