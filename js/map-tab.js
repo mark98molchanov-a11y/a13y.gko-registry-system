@@ -1078,8 +1078,8 @@ function calculatePriceThresholds() {
         const uprsPrices = group.uprsPrices.sort((a, b) => a - b);
         const upksPrices = group.upksPrices.sort((a, b) => a - b);
         
-        const lowerPercent = 0.05;
-        const upperPercent = 0.95;
+        const lowerPercent = 0.10;
+const upperPercent = 0.90;
         
         // УПРС
         let uprsMin = 0, uprsMax = Infinity;
