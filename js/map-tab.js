@@ -26,8 +26,6 @@ let currentPurposeFilter = [];
 let currentVriFilter = [];    
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
-let isCadCostFilterEnabled = false;
-let originalAllDealsFlatForCad = [];
 window._isNSPDSearch = false;
 window._isPopupOpening = false;
 window._popupOpenCadNum = null; 
@@ -5119,6 +5117,8 @@ function resetAllFiltersMap() {
     
     console.log('✅ Все фильтры сброшены');
 }
+
+
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-list');
     if (!container) return;
