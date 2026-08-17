@@ -1763,7 +1763,7 @@ function renderQuarterFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Квартал</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Квартал_год_сделки</span>
             <button onclick="toggleAllQuarters(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
