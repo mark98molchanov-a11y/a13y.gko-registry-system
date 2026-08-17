@@ -14,9 +14,13 @@ load_models()
 
 @app.route('/api/index', methods=['POST'])
 def api_handler():
-    data = request.get_json()
-    result = handler(data)
-    return jsonify(result)
+    try:
+        # 🔥 ПРАВИЛЬНО: передаём словарь с ключом 'json'
+        data = request.get_json()
+        result = handler({"json": data})  # ← ОБЕРТЫВАЕМ В {"json": ...}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health():
