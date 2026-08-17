@@ -2670,6 +2670,7 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
     if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
     let allDeals = [];
+    let allDealsForStats = [];
     
     console.log(`updateMapStatsWithDealFilter: level=${level}, parentId=${parentId}, targetObjects=${targetObjects.length}`);
     
@@ -2681,89 +2682,73 @@ function updateMapStatsWithDealFilter(targetObjects, level, parentId) {
             const cadNum = f.properties.cadastral_number;
             if (!cadNum) return;
             
-          const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
-});
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                return true;
+            });
             
             if (filteredDeals.length > 0) {
+                // ✅ КОЛИЧЕСТВО СДЕЛОК - ВСЕГДА ВСЕ СДЕЛКИ
                 allDeals = allDeals.concat(filteredDeals);
+                
+                // ✅ ДЛЯ СТАТИСТИКИ: ЕСЛИ ТЕПЛОВАЯ КАРТА ВКЛ - ТОЛЬКО СДЕЛКИ С КС И РС
+                let dealsForStats = filteredDeals;
+                if (isHeatmapEnabled) {
+                    dealsForStats = filteredDeals.filter(deal => {
+                        const hasCadCost = deal.cad_cost > 0;
+                        const hasPrice = deal.price > 0;
+                        return hasCadCost && hasPrice;
+                    });
+                }
+                allDealsForStats = allDealsForStats.concat(dealsForStats);
+                
                 objectsWithFilteredDeals.push(f);
             }
         });
-        console.log(`Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}`);
+        console.log(`Кварталы с фильтром в районе: ${objectsWithFilteredDeals.length}, сделок: ${allDeals.length}, сделок для статистики: ${allDealsForStats.length}`);
     } else {
         Object.keys(dealsData).forEach(cadNum => {
-     const deals = dealsData[cadNum] || [];
-const filteredDeals = deals.filter(deal => {
-    // ✅ ФИЛЬТР ПО ТИПУ СДЕЛКИ
-    if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОРОДУ
-    if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ТИПУ ОБЪЕКТА
-    if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО МАТЕРИАЛУ СТЕН
-    if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО КВАРТАЛУ СДЕЛКИ
-    if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) {
-        return false;
-    }
-    // ✅ ФИЛЬТР ПО ГОДУ ПОСТРОЙКИ
-    if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) {
-        return false;
-    }
-    if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) {
-        return false;
-    }
-    if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
-        return false;
-        }
-    return true;
-});
-            allDeals = allDeals.concat(filteredDeals);
+            const deals = dealsData[cadNum] || [];
+            const filteredDeals = deals.filter(deal => {
+                if (currentDealTypeFilter.length > 0 && !currentDealTypeFilter.includes(deal.kind)) return false;
+                if (currentCityFilter.length > 0 && !currentCityFilter.includes(deal.city)) return false;
+                if (currentObjectTypeFilter.length > 0 && !currentObjectTypeFilter.includes(deal.obj_kind)) return false;
+                if (currentWallMaterialFilter.length > 0 && !currentWallMaterialFilter.includes(deal.wall_material)) return false;
+                if (currentQuarterFilter.length > 0 && !currentQuarterFilter.includes(deal.quarter)) return false;
+                if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
+                if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
+                if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                return true;
+            });
+            
+            if (filteredDeals.length > 0) {
+                allDeals = allDeals.concat(filteredDeals);
+                
+                // ✅ ДЛЯ СТАТИСТИКИ: ЕСЛИ ТЕПЛОВАЯ КАРТА ВКЛ - ТОЛЬКО СДЕЛКИ С КС И РС
+                let dealsForStats = filteredDeals;
+                if (isHeatmapEnabled) {
+                    dealsForStats = filteredDeals.filter(deal => {
+                        const hasCadCost = deal.cad_cost > 0;
+                        const hasPrice = deal.price > 0;
+                        return hasCadCost && hasPrice;
+                    });
+                }
+                allDealsForStats = allDealsForStats.concat(dealsForStats);
+            }
         });
         objectsWithFilteredDeals = targetObjects;
-        console.log(`Все сделки с фильтром: ${allDeals.length}`);
+        console.log(`Все сделки с фильтром: ${allDeals.length}, сделок для статистики: ${allDealsForStats.length}`);
     }
     
+    // ✅ ИСПОЛЬЗУЕМ allDealsForStats ДЛЯ СТАТИСТИКИ, allDeals ДЛЯ КОЛИЧЕСТВА
     if (allDeals.length === 0) {
         statMedian.textContent = '—';
         statMinMax.textContent = '—';
@@ -2771,21 +2756,18 @@ const filteredDeals = deals.filter(deal => {
         statTotalDeals.textContent = '0';
         if (statObjects) statObjects.textContent = targetObjects.length;
         if (statWithDeals) statWithDeals.textContent = '0';
-        // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
         updateQuartersListWithFilteredObjects(null);
         return;
     }
     
-    // ✅ ВЫЧИСЛЯЕМ СТАТИСТИКУ
-const prices = allDeals.map(d => d.price).filter(p => p > 0).sort((a, b) => a - b);
-const uprsValues = allDeals.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a - b);
-
-
-// ✅ ПРОВЕРЯЕМ, ЧТО МАССИВ НЕ ПУСТОЙ
-const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
-const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-const medianUprs = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
+    // ✅ ВЫЧИСЛЯЕМ СТАТИСТИКУ ПО allDealsForStats
+    const prices = allDealsForStats.map(d => d.price).filter(p => p > 0).sort((a, b) => a - b);
+    const uprsValues = allDealsForStats.map(d => d.uprs).filter(u => u > 0).sort((a, b) => a - b);
+    
+    const medianPrice = prices.length > 0 ? getMedianSync(prices) : 0;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const medianUprs = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
     
     const formatPrice = (num) => {
         if (num === 0 || isNaN(num)) return '—';
@@ -2802,17 +2784,19 @@ const medianUprs = uprsValues.length > 0 ? getMedianSync(uprsValues) : 0;
         return num.toFixed(2) + ' ₽/м²';
     };
     
+    // ✅ КОЛИЧЕСТВО СДЕЛОК - ИЗ allDeals (ВСЕ СДЕЛКИ)
+    statTotalDeals.textContent = allDeals.length.toLocaleString();
+    
+    // ✅ СТАТИСТИКА - ИЗ allDealsForStats (ТОЛЬКО С КС И РС, ЕСЛИ ВКЛЮЧЕНА ТЕПЛОВАЯ КАРТА)
     statMedian.textContent = formatPrice(medianPrice);
     statMinMax.textContent = (minPrice > 0 && maxPrice > 0) 
         ? `${formatNumber(minPrice)} / ${formatNumber(maxPrice)} ₽` 
         : '—';
     statUprs.textContent = formatUprs(medianUprs);
-    statTotalDeals.textContent = allDeals.length.toLocaleString();
     
     if (statObjects) statObjects.textContent = targetObjects.length;
     if (statWithDeals) statWithDeals.textContent = objectsWithFilteredDeals.length;
     
-    // ✅ ПЕРЕДАЕМ null, ЧТОБЫ ФУНКЦИЯ САМА СОБРАЛА ВСЕ КВАРТАЛЫ
     updateQuartersListWithFilteredObjects(null);
 }
 
@@ -2828,22 +2812,17 @@ function updateMapStatsFromDeals(level, parentId) {
     
     if (!statMedian || !statMinMax || !statUprs || !statTotalDeals) return;
     
-    // ✅ ПОКАЗЫВАЕМ ЗАГРУЗКУ
     statMedian.textContent = '⏳';
     statMinMax.textContent = '⏳';
     statUprs.textContent = '⏳';
     if (statUpks) statUpks.textContent = '⏳';
     if (statCadCost) statCadCost.textContent = '⏳';
     
-    // ✅ СОБИРАЕМ ВСЕ КВАРТАЛЫ ДЛЯ ТЕКУЩЕГО УРОВНЯ
     const allObjects = mapData.features.filter(f => f.properties.level === 2);
     let allQuarters = [];
     
     if (level === 0 || level === 1) {
-        // Для округа и района — все кварталы
         allQuarters = [...allObjects];
-        
-        // Добавляем обертки из dealsData
         const allCadNumbers = Object.keys(dealsData);
         const wrapperQuarters = allCadNumbers.filter(cad => {
             return cad.endsWith('000000') || cad.match(/^\d{2}:\d{2}:000000$/);
@@ -2859,10 +2838,8 @@ function updateMapStatsFromDeals(level, parentId) {
             }
         });
     } else if (level === 2 && parentId) {
-        // Для конкретного района — только его кварталы
         const prefix = String(parentId).substring(0, 5);
         const allCadNumbers = Object.keys(dealsData);
-        
         const allQuartersFromDeals = allCadNumbers
             .filter(cad => cad.startsWith(prefix))
             .map(cad => ({
@@ -2890,7 +2867,6 @@ function updateMapStatsFromDeals(level, parentId) {
     
     console.log(`Уровень ${level}, всего кварталов: ${allQuarters.length}`);
     
-    // ✅ СОБИРАЕМ ВСЕ ЦЕНЫ ИЗ ВСЕХ СДЕЛОК (НЕ ПО КВАРТАЛАМ!)
     let allPrices = [];
     let allUprs = [];
     let allUpks = [];
@@ -2918,17 +2894,28 @@ function updateMapStatsFromDeals(level, parentId) {
         });
         
         if (filteredDeals.length > 0) {
+            // ✅ КОЛИЧЕСТВО СДЕЛОК - ВСЕГДА ВСЕ СДЕЛКИ
             totalDealsCount += filteredDeals.length;
             quartersWithDealsCount++;
             
-            filteredDeals.forEach(d => {
+            // ✅ ДЛЯ СТАТИСТИКИ: ЕСЛИ ТЕПЛОВАЯ КАРТА ВКЛ - ТОЛЬКО СДЕЛКИ С КС И РС
+            let dealsForStats = filteredDeals;
+            if (isHeatmapEnabled) {
+                dealsForStats = filteredDeals.filter(deal => {
+                    const hasCadCost = deal.cad_cost > 0;
+                    const hasPrice = deal.price > 0;
+                    return hasCadCost && hasPrice;
+                });
+            }
+            
+            dealsForStats.forEach(d => {
                 if (d.price > 0) allPrices.push(d.price);
                 if (d.uprs > 0) allUprs.push(d.uprs);
                 if (d.upks > 0) allUpks.push(d.upks);
                 if (d.cad_cost > 0) allCadCosts.push(d.cad_cost);
             });
             
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
+            const prices = dealsForStats.map(d => d.price).filter(p => p > 0);
             if (prices.length > 0) {
                 allMinPrices.push(Math.min(...prices));
                 allMaxPrices.push(Math.max(...prices));
@@ -2938,13 +2925,11 @@ function updateMapStatsFromDeals(level, parentId) {
     
     console.log(`Всего сделок: ${totalDealsCount}, цен: ${allPrices.length}`);
     
-    // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ АСИНХРОННО
     function calculateAndUpdateStats() {
         console.log('calculateAndUpdateStats начат');
         console.log('allPrices.length:', allPrices.length);
         console.log('allUprs.length:', allUprs.length);
         
-        // Вычисляем медианы
         const medianPrice = getMedianSync(allPrices);
         const medianUprs = getMedianSync(allUprs);
         const medianUpks = getMedianSync(allUpks);
@@ -2958,7 +2943,6 @@ function updateMapStatsFromDeals(level, parentId) {
         console.log('✅ medianUpks:', medianUpks);
         console.log('✅ medianCadCost:', medianCadCost);
         
-        // ✅ ОБНОВЛЯЕМ UI
         const formatPrice = (num) => {
             if (num === 0 || isNaN(num)) return '—';
             return num.toLocaleString('ru-RU') + ' ₽';
@@ -2986,12 +2970,10 @@ function updateMapStatsFromDeals(level, parentId) {
         
         console.log('✅ UI обновлен');
         
-        // ✅ ОБНОВЛЯЕМ ОСТАЛЬНЫЕ UI
         updateQuartersListWithFilteredObjects(null);
         updatePopupsAndTooltips(level);
     }
     
-    // ✅ ЗАПУСКАЕМ В ФОНЕ
     if (window.requestIdleCallback) {
         console.log('⏳ Запуск requestIdleCallback');
         requestIdleCallback(calculateAndUpdateStats, { timeout: 4000 });
@@ -3175,33 +3157,42 @@ function buildDistrictTooltipContent(layer) {
             return true;
         });
         
-        if (filteredDeals.length > 0) {
-            totalDeals += filteredDeals.length;
+        // ✅ КОЛИЧЕСТВО СДЕЛОК - ВСЕГДА ВСЕ СДЕЛКИ
+        totalDeals += filteredDeals.length;
+        
+        // ✅ ДЛЯ СТАТИСТИКИ: ЕСЛИ ТЕПЛОВАЯ КАРТА ВКЛ - ТОЛЬКО СДЕЛКИ С КС И РС
+        let dealsForStats = filteredDeals;
+        if (isHeatmapEnabled) {
+            dealsForStats = filteredDeals.filter(deal => {
+                const hasCadCost = deal.cad_cost > 0;
+                const hasPrice = deal.price > 0;
+                return hasCadCost && hasPrice;
+            });
+        }
+        
+        const prices = dealsForStats.map(d => d.price).filter(p => p > 0);
+        const uprs = dealsForStats.map(d => d.uprs).filter(u => u > 0);
+        const upks = dealsForStats.map(d => d.upks).filter(u => u > 0);
+        const cadCosts = dealsForStats.map(d => d.cad_cost).filter(c => c > 0);
+        
+        if (prices.length > 0) {
+            const medianPrice = getMedianSync(prices);
+            const medianUprs = getMedianSync(uprs);
+            const medianUpks = getMedianSync(upks);
+            const medianCadCost = getMedianSync(cadCosts);
             
-            const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-            const uprs = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-            const upks = filteredDeals.map(d => d.upks).filter(u => u > 0);
-            const cadCosts = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+            quarterStats.push({
+                count: filteredDeals.length,
+                medianPrice: medianPrice,
+                medianUprs: medianUprs,
+                medianUpks: medianUpks,
+                medianCadCost: medianCadCost,
+                min: Math.min(...prices),
+                max: Math.max(...prices)
+            });
             
-            if (prices.length > 0) {
-                const medianPrice = getMedianSync(prices);
-                const medianUprs = getMedianSync(uprs);
-                const medianUpks = getMedianSync(upks);
-                const medianCadCost = getMedianSync(cadCosts);
-                
-                quarterStats.push({
-                    count: filteredDeals.length,
-                    medianPrice: medianPrice,
-                    medianUprs: medianUprs,
-                    medianUpks: medianUpks,
-                    medianCadCost: medianCadCost,
-                    min: Math.min(...prices),
-                    max: Math.max(...prices)
-                });
-                
-                allMins.push(Math.min(...prices));
-                allMaxs.push(Math.max(...prices));
-            }
+            allMins.push(Math.min(...prices));
+            allMaxs.push(Math.max(...prices));
         }
     });
     
@@ -3218,7 +3209,6 @@ function buildDistrictTooltipContent(layer) {
         const upksValues = quarterStats.map(q => q.medianUpks).filter(u => u > 0);
         const cadCostValues = quarterStats.map(q => q.medianCadCost).filter(c => c > 0);
         
-        // ✅ ВЫЧИСЛЯЕМ МЕДИАНЫ СИНХРОННО (здесь мало данных, быстро)
         if (priceValues.length > 0) {
             const sorted = priceValues.slice().sort((a, b) => a - b);
             const mid = Math.floor(sorted.length / 2);
@@ -4824,11 +4814,23 @@ if (levelName === 'quarter') {
         return true;
     });
     
+    // ✅ КОЛИЧЕСТВО СДЕЛОК - ВСЕГДА ВСЕ СДЕЛКИ
     const dealsCount = filteredDeals.length;
-    const prices = filteredDeals.map(d => d.price).filter(p => p > 0);
-    const uprsValues = filteredDeals.map(d => d.uprs).filter(u => u > 0);
-    const upksValues = filteredDeals.map(d => d.upks).filter(u => u > 0);
-    const cadCostValues = filteredDeals.map(d => d.cad_cost).filter(c => c > 0);
+    
+    // ✅ ДЛЯ СТАТИСТИКИ: ЕСЛИ ТЕПЛОВАЯ КАРТА ВКЛ - ТОЛЬКО СДЕЛКИ С КС И РС
+    let dealsForStats = filteredDeals;
+    if (isHeatmapEnabled) {
+        dealsForStats = filteredDeals.filter(deal => {
+            const hasCadCost = deal.cad_cost > 0;
+            const hasPrice = deal.price > 0;
+            return hasCadCost && hasPrice;
+        });
+    }
+    
+    const prices = dealsForStats.map(d => d.price).filter(p => p > 0);
+    const uprsValues = dealsForStats.map(d => d.uprs).filter(u => u > 0);
+    const upksValues = dealsForStats.map(d => d.upks).filter(u => u > 0);
+    const cadCostValues = dealsForStats.map(d => d.cad_cost).filter(c => c > 0);
     
     const medianPrice = getMedianSync(prices);
     const uprsMedian = getMedianSync(uprsValues);
