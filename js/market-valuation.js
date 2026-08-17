@@ -180,7 +180,7 @@ class MarketValuationApp {
         };
     }
     
-    async handleFileImport(event) {
+  async handleFileImport(event) {
         const file = event.target.files[0]; if (!file) return;
         this.showNotification(`Загружен: ${file.name}`,'info');
         const reader = new FileReader();
@@ -204,7 +204,7 @@ class MarketValuationApp {
                     // 🔥 args: [area, year, type, permitted_use, address, cadastral_price, wall_material, object_name, purpose]
                     const args=[row.area, row.build_year, row.object_type, row.permitted_use, row.address, row.kadastr_price, row.wall_material, row.object_name, row.purpose];
                     try {
-                        const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
+                        const resp=await fetch('https://a13y-gko-registry-system.relaxdev.ru/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
                         if (resp.ok) {
                             const result=await resp.json();
                             
