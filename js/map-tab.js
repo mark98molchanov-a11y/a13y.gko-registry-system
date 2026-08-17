@@ -1042,44 +1042,45 @@ window.priceThresholds = priceThresholds;
     }
 }
 function calculatePriceThresholds() {
-    console.log('Расчет пороговых цен по типам сделок и муниципалитетам (10% низких и 10% высоких)...');
+    console.log('Расчет пороговых цен по кадастровым кварталам и типам сделок (5% низких и 5% высоких)...');
     
     const thresholds = {};
     
-    // Группируем сделки по типу и муниципалитету (городу)
-    const dealsByTypeAndCity = {};
+    // ✅ ГРУППИРУЕМ ПО КАДАСТРОВОМУ КВАРТАЛУ + ТИП СДЕЛКИ
+    const dealsByGroup = {};
     allDealsFlat.forEach(deal => {
+        const quarter = deal.cad_number || 'unknown';
         const kind = deal.deal_kind_text || 'unknown';
-        const city = deal.city || 'unknown';
-        const key = `${kind}|${city}`;
+        const key = `${quarter}|${kind}`;  // ← КЛЮЧ: квартал + тип сделки
         
-        if (!dealsByTypeAndCity[key]) {
-            dealsByTypeAndCity[key] = {
+        if (!dealsByGroup[key]) {
+            dealsByGroup[key] = {
+                quarter: quarter,
                 kind: kind,
-                city: city,
                 uprsPrices: [],
                 upksPrices: []
             };
         }
         if (deal.uprs_rub > 0) {
-            dealsByTypeAndCity[key].uprsPrices.push(deal.uprs_rub);
+            dealsByGroup[key].uprsPrices.push(deal.uprs_rub);
         }
         if (deal.upks > 0) {
-            dealsByTypeAndCity[key].upksPrices.push(deal.upks);
+            dealsByGroup[key].upksPrices.push(deal.upks);
         }
     });
     
-    // Для каждой группы (тип + муниципалитет) вычисляем пороги для УПРС и УПКС
-    Object.keys(dealsByTypeAndCity).forEach(key => {
-        const group = dealsByTypeAndCity[key];
+    // ✅ ДЛЯ КАЖДОЙ ГРУППЫ (квартал + тип сделки) ВЫЧИСЛЯЕМ ПОРОГИ (5%)
+    Object.keys(dealsByGroup).forEach(key => {
+        const group = dealsByGroup[key];
         
-        // ✅ Пороги для УПРС
+        // Пороги для УПРС
         const uprsPrices = group.uprsPrices.sort((a, b) => a - b);
-        // ✅ Пороги для УПКС
+        // Пороги для УПКС
         const upksPrices = group.upksPrices.sort((a, b) => a - b);
         
-        const lowerPercent = 0.10;
-        const upperPercent = 0.90;
+        // ✅ 5% вместо 10%
+        const lowerPercent = 0.05;
+        const upperPercent = 0.95;
         
         // УПРС
         let uprsMin = 0, uprsMax = Infinity;
@@ -1104,15 +1105,15 @@ function calculatePriceThresholds() {
             uprsMax: uprsMax,
             upksMin: upksMin,
             upksMax: upksMax,
+            quarter: group.quarter,
             kind: group.kind,
-            city: group.city,
             count: uprsPrices.length
         };
         
-        console.log(`   ${group.kind} | ${group.city}: ${uprsPrices.length} сделок, УПРС = ${uprsMin.toFixed(2)} - ${uprsMax.toFixed(2)} ₽/м², УПКС = ${upksMin.toFixed(2)} - ${upksMax.toFixed(2)} ₽/м²`);
+        console.log(`   ${group.quarter} | ${group.kind}: ${uprsPrices.length} сделок, УПРС = ${uprsMin.toFixed(2)} - ${uprsMax.toFixed(2)} ₽/м², УПКС = ${upksMin.toFixed(2)} - ${upksMax.toFixed(2)} ₽/м²`);
     });
     
-    console.log('✅ Пороговые цены рассчитаны (по типам сделок и муниципалитетам)');
+    console.log(`✅ Рассчитано ${Object.keys(thresholds).length} групп (квартал + тип сделки), 5%`);
     return thresholds;
 }
 function filterDealsByPriceThreshold(thresholds) {
@@ -1122,9 +1123,10 @@ function filterDealsByPriceThreshold(thresholds) {
     }
     
     return allDealsFlat.filter(deal => {
+        // ✅ ГРУППИРУЕМ ПО КАДАСТРОВОМУ КВАРТАЛУ + ТИП СДЕЛКИ
+        const quarter = deal.cad_number || 'unknown';
         const kind = deal.deal_kind_text || 'unknown';
-        const city = deal.city || 'unknown';
-        const key = `${kind}|${city}`;
+        const key = `${quarter}|${kind}`;
         const threshold = thresholds[key];
         
         if (!threshold) return true;
@@ -1132,7 +1134,7 @@ function filterDealsByPriceThreshold(thresholds) {
         const uprs = deal.uprs_rub;
         const upks = deal.upks;
         
-        // ✅ Проверяем и УПРС, и УПКС
+        // Проверяем и УПРС, и УПКС
         const uprsOk = uprs >= threshold.uprsMin && uprs <= threshold.uprsMax;
         const upksOk = upks >= threshold.upksMin && upks <= threshold.upksMax;
         
