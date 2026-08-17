@@ -26,6 +26,7 @@ let currentPurposeFilter = [];
 let currentVriFilter = [];    
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
+let isCadCostFilterEnabled = false;
 window._isNSPDSearch = false;
 window._isPopupOpening = false;
 window._popupOpenCadNum = null; 
