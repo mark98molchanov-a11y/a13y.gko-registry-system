@@ -6,7 +6,7 @@ let currentDistrictFilter = null;
 let isUpdatingFromSearch = false;
 let docxLoaded = false;
 
-const MAP_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/yanao_hierarchical_web.geojson';
+const MAP_URL = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/data/yanao_hierarchical_web.geojson';
 let dealsData = {};
 let dealTypes = {};
 let cityTypes = {};
@@ -778,7 +778,7 @@ function formatPriceShort(num) {
     if (num >= 1000) return (num / 1000).toFixed(0) + 'K ₽';
     return num.toFixed(0) + ' ₽';
 }
-const DEALS_CSV_URL = 'https://mark98molchanov-a11y.github.io/a13y.gko-registry-system/data/deals_clean.csv';
+const DEALS_CSV_URL = 'https://raw.githubusercontent.com/mark98molchanov-a11y/a13y.gko-registry-system/main/data/deals_clean.csv';
 async function loadDealsCSV() {
     try {
         console.log('📥 Загрузка CSV с данными о сделках...');
