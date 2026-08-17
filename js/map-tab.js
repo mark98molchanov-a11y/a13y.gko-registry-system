@@ -1277,13 +1277,16 @@ function toggleCadCostFilter() {
     
     const btn = document.getElementById('cadCostFilterToggle');
     if (btn) {
+        // ✅ ОЧИЩАЕМ ОТ ВСЕХ ЭМОДЗИ
+        const cleanText = btn.textContent.replace(/[✅❌✔️✓]/g, '').trim() || 'Только с КС';
+        
         if (isCadCostFilterEnabled) {
-            btn.innerHTML = '✅ Только с КС'; 
+            btn.textContent = '✅ ' + cleanText;  // ← textContent, галочка СЛЕВА
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            btn.innerHTML = 'Только с КС';
+            btn.textContent = cleanText;          // ← textContent, без галочки
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
             btn.style.borderColor = '#bae6fd';
@@ -5082,11 +5085,13 @@ function resetAllFiltersMap() {
     currentYearBuildFilter = []; 
     currentPurposeFilter = [];   
     currentVriFilter = [];   
-        if (isCadCostFilterEnabled) {
+    
+    if (isCadCostFilterEnabled) {
         isCadCostFilterEnabled = false;
         const btn = document.getElementById('cadCostFilterToggle');
         if (btn) {
-            btn.innerHTML = 'Только с КС';
+            // ⚠️ ГЛАВНОЕ ИЗМЕНЕНИЕ: btn.textContent ВМЕСТО btn.innerHTML
+            btn.textContent = 'Только с КС';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
             btn.style.borderColor = '#bae6fd';
@@ -5097,15 +5102,8 @@ function resetAllFiltersMap() {
         rebuildDealsData(allDealsFlat);
     }
     
--   renderDealTypeFilters();
--   renderCityFilters();
--   renderObjectTypeFilters();
--   renderWallMaterialFilters();
--   renderQuarterFilters(); 
--   renderYearBuildFilters();
--   renderPurposeFilters();     
--   renderVriFilters();      
-+   recalcAllFilters();
+    // ✅ ВЫЗЫВАЕМ ОДНУ ФУНКЦИЮ ДЛЯ ПЕРЕСЧЁТА ВСЕХ ФИЛЬТРОВ
+    recalcAllFilters();
     
     renderMapLevel(currentLevel, currentParentId);
     addMapLegend();
@@ -5121,8 +5119,6 @@ function resetAllFiltersMap() {
     
     console.log('✅ Все фильтры сброшены');
 }
-
-
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-list');
     if (!container) return;
