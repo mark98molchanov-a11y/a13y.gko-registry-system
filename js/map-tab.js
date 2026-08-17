@@ -97,17 +97,14 @@ function extractStreetFromAddress(address) {
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
-    // ✅ НАХОДИМ КНОПКУ В ХЕДЕРЕ
     const btn = document.getElementById('heatmap-toggle-btn-header');
     if (btn) {
         if (isHeatmapEnabled) {
-            // ✅ ВКЛЮЧЕНА — зеленый фон (ТОЧНО КАК У ЦЕНОВОГО ФИЛЬТРА)
-            btn.innerHTML = 'Тепловая карта';
+            btn.innerHTML = '✅ Тепловая карта';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            // ✅ ВЫКЛЮЧЕНА — синий фон (ТОЧНО КАК У ЦЕНОВОГО ФИЛЬТРА)
             btn.innerHTML = 'Тепловая карта';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
@@ -119,17 +116,17 @@ function toggleHeatmapMode() {
     const btnOld = document.getElementById('heatmap-toggle-btn');
     if (btnOld) {
         if (isHeatmapEnabled) {
-            btnOld.innerHTML = '🌡️ Тепловая карта';
+            btnOld.innerHTML = '✅ Тепловая карта';
             btnOld.style.background = '#dcfce7';
             btnOld.style.color = '#166534';
         } else {
-            btnOld.innerHTML = '🌡️ Тепловая карта';
+            btnOld.innerHTML = 'Тепловая карта';
             btnOld.style.background = '#e0f2fe';
             btnOld.style.color = '#0284c7';
         }
     }
     
-    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ С НОВЫМ РЕЖИМОМ
+    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ
     renderMapLevel(currentLevel, currentParentId);
     
     console.log(`🌡️ Тепловая карта ${isHeatmapEnabled ? 'ВКЛЮЧЕНА' : 'ВЫКЛЮЧЕНА'}`);
@@ -1212,7 +1209,7 @@ function togglePriceFilter() {
     const btn = document.getElementById('priceFilterToggle');
     if (btn) {
         if (isPriceFilterEnabled) {
-            btn.innerHTML = 'Ценовой фильтр';
+            btn.innerHTML = '✅ Ценовой фильтр';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
