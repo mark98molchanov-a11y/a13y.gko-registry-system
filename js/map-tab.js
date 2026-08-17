@@ -26,6 +26,8 @@ let currentPurposeFilter = [];
 let currentVriFilter = [];    
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
+let isCadCostFilterEnabled = false;
+let originalAllDealsFlatForCad = [];
 window._isNSPDSearch = false;
 window._isPopupOpening = false;
 window._popupOpenCadNum = null; 
@@ -95,17 +97,14 @@ function extractStreetFromAddress(address) {
 function toggleHeatmapMode() {
     isHeatmapEnabled = !isHeatmapEnabled;
     
-    // ✅ НАХОДИМ КНОПКУ В ХЕДЕРЕ
     const btn = document.getElementById('heatmap-toggle-btn-header');
     if (btn) {
         if (isHeatmapEnabled) {
-            // ✅ ВКЛЮЧЕНА — зеленый фон (ТОЧНО КАК У ЦЕНОВОГО ФИЛЬТРА)
-            btn.innerHTML = 'Тепловая карта';
+            btn.innerHTML = '✅ Тепловая карта';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
         } else {
-            // ✅ ВЫКЛЮЧЕНА — синий фон (ТОЧНО КАК У ЦЕНОВОГО ФИЛЬТРА)
             btn.innerHTML = 'Тепловая карта';
             btn.style.background = '#e0f2fe';
             btn.style.color = '#0284c7';
@@ -117,17 +116,17 @@ function toggleHeatmapMode() {
     const btnOld = document.getElementById('heatmap-toggle-btn');
     if (btnOld) {
         if (isHeatmapEnabled) {
-            btnOld.innerHTML = '🌡️ Тепловая карта';
+            btnOld.innerHTML = '✅ Тепловая карта';
             btnOld.style.background = '#dcfce7';
             btnOld.style.color = '#166534';
         } else {
-            btnOld.innerHTML = '🌡️ Тепловая карта';
+            btnOld.innerHTML = 'Тепловая карта';
             btnOld.style.background = '#e0f2fe';
             btnOld.style.color = '#0284c7';
         }
     }
     
-    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ С НОВЫМ РЕЖИМОМ
+    // ✅ ПЕРЕРИСОВЫВАЕМ КАРТУ
     renderMapLevel(currentLevel, currentParentId);
     
     console.log(`🌡️ Тепловая карта ${isHeatmapEnabled ? 'ВКЛЮЧЕНА' : 'ВЫКЛЮЧЕНА'}`);
@@ -1008,6 +1007,7 @@ window.allDealsFlat = allDealsFlat;
 // ✅ СОХРАНЯЕМ ОРИГИНАЛЬНЫЕ ДАННЫЕ
 originalAllDealsFlat = [...allDealsFlat];
 window.originalAllDealsFlat = originalAllDealsFlat;
+        originalAllDealsFlatForCad = [...allDealsFlat];
 
 // ✅ РАССЧИТЫВАЕМ ПОРОГИ
 priceThresholds = calculatePriceThresholds();
@@ -1209,7 +1209,7 @@ function togglePriceFilter() {
     const btn = document.getElementById('priceFilterToggle');
     if (btn) {
         if (isPriceFilterEnabled) {
-            btn.innerHTML = 'Ценовой фильтр';
+            btn.innerHTML = '✅ Ценовой фильтр';
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
@@ -1271,6 +1271,73 @@ function togglePriceFilter() {
             renderPriceChart();
         }
     }, 400);
+}
+function toggleCadCostFilter() {
+    isCadCostFilterEnabled = !isCadCostFilterEnabled;
+    
+    const btn = document.getElementById('cadCostFilterToggle');
+    if (btn) {
+        // ✅ ОЧИЩАЕМ ОТ ВСЕХ ЭМОДЗИ
+        const cleanText = btn.textContent.replace(/[✅❌✔️✓]/g, '').trim() || 'Только с КС';
+        
+        if (isCadCostFilterEnabled) {
+            btn.textContent = '✅ ' + cleanText;  // ← textContent, галочка СЛЕВА
+            btn.style.background = '#dcfce7';
+            btn.style.color = '#166534';
+            btn.style.borderColor = '#86efac';
+        } else {
+            btn.textContent = cleanText;          // ← textContent, без галочки
+            btn.style.background = '#e0f2fe';
+            btn.style.color = '#0284c7';
+            btn.style.borderColor = '#bae6fd';
+        }
+    }
+    
+    console.log(`🔄 Фильтр по кадастровой стоимости ${isCadCostFilterEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`);
+    
+    if (originalAllDealsFlatForCad.length === 0 && allDealsFlat.length > 0) {
+        console.log('📦 Сохраняем исходные данные для фильтра КС');
+        originalAllDealsFlatForCad = [...allDealsFlat];
+    }
+    
+    if (!isCadCostFilterEnabled) {
+        if (originalAllDealsFlatForCad.length > 0) {
+            allDealsFlat = [...originalAllDealsFlatForCad];
+        } else {
+            allDealsFlat = [...window.allDealsFlat];
+            originalAllDealsFlatForCad = [...allDealsFlat];
+        }
+    } else {
+        allDealsFlat = allDealsFlat.filter(deal => {
+            const hasCadCost = deal.cad_cost > 0;
+            return hasCadCost;
+        });
+    }
+    
+    rebuildDealsData(allDealsFlat);
+    
+    renderDealTypeFilters();
+    renderCityFilters();
+    renderObjectTypeFilters();
+    renderWallMaterialFilters();
+    renderQuarterFilters();
+    renderYearBuildFilters();
+    renderPurposeFilters();
+    renderVriFilters();
+    renderDealsTable();
+    
+    if (mapData) {
+        renderMapLevel(currentLevel, currentParentId);
+    }
+    
+    setTimeout(function() {
+        if (typeof renderPriceChart === 'function') {
+            console.log('📊 Обновление графика после фильтра КС');
+            renderPriceChart();
+        }
+    }, 400);
+    
+    console.log(`✅ Фильтр КС ${isCadCostFilterEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}, сделок: ${allDealsFlat.length}`);
 }
 function renderDealTypeFilters() {
     const container = document.getElementById('deal-type-filters');
@@ -5019,15 +5086,24 @@ function resetAllFiltersMap() {
     currentPurposeFilter = [];   
     currentVriFilter = [];   
     
--   renderDealTypeFilters();
--   renderCityFilters();
--   renderObjectTypeFilters();
--   renderWallMaterialFilters();
--   renderQuarterFilters(); 
--   renderYearBuildFilters();
--   renderPurposeFilters();     
--   renderVriFilters();      
-+   recalcAllFilters();
+    if (isCadCostFilterEnabled) {
+        isCadCostFilterEnabled = false;
+        const btn = document.getElementById('cadCostFilterToggle');
+        if (btn) {
+            // ⚠️ ГЛАВНОЕ ИЗМЕНЕНИЕ: btn.textContent ВМЕСТО btn.innerHTML
+            btn.textContent = 'Только с КС';
+            btn.style.background = '#e0f2fe';
+            btn.style.color = '#0284c7';
+            btn.style.borderColor = '#bae6fd';
+        }
+        if (originalAllDealsFlatForCad.length > 0) {
+            allDealsFlat = [...originalAllDealsFlatForCad];
+        }
+        rebuildDealsData(allDealsFlat);
+    }
+    
+    // ✅ ВЫЗЫВАЕМ ОДНУ ФУНКЦИЮ ДЛЯ ПЕРЕСЧЁТА ВСЕХ ФИЛЬТРОВ
+    recalcAllFilters();
     
     renderMapLevel(currentLevel, currentParentId);
     addMapLegend();
@@ -5043,8 +5119,6 @@ function resetAllFiltersMap() {
     
     console.log('✅ Все фильтры сброшены');
 }
-
-
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-list');
     if (!container) return;
@@ -5994,6 +6068,8 @@ window.onPopupClose = onPopupClose;
 window.closeWrapperTooltip = closeWrapperTooltip; 
 window.toggleHeatmapMode = toggleHeatmapMode;  // ✅ ДОБАВЬТЕ ЭТО
 window.togglePriceFilter = togglePriceFilter; 
+window.toggleCadCostFilter = toggleCadCostFilter;
+window.isCadCostFilterEnabled = isCadCostFilterEnabled;
 function addHeatmapLegend() {
     // Удаляем старую легенду если есть
     const oldLegend = document.querySelector('.heatmap-legend');
