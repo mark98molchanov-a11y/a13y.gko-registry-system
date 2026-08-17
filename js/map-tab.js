@@ -1042,21 +1042,23 @@ window.priceThresholds = priceThresholds;
     }
 }
 function calculatePriceThresholds() {
-    console.log('Расчет пороговых цен по кадастровым кварталам и типам сделок (5% низких и 5% высоких)...');
+    console.log('Расчет пороговых цен по: квартал + тип сделки + тип объекта (5% низких и 5% высоких)...');
     
     const thresholds = {};
     
-    // ✅ ГРУППИРУЕМ ПО КАДАСТРОВОМУ КВАРТАЛУ + ТИП СДЕЛКИ
+    // ✅ ГРУППИРУЕМ ПО: квартал + тип сделки + тип объекта
     const dealsByGroup = {};
     allDealsFlat.forEach(deal => {
         const quarter = deal.cad_number || 'unknown';
         const kind = deal.deal_kind_text || 'unknown';
-        const key = `${quarter}|${kind}`;  // ← КЛЮЧ: квартал + тип сделки
+        const objKind = deal.obj_kind_text || 'unknown';
+        const key = `${quarter}|${kind}|${objKind}`;  // ← ТРОЙНОЙ КЛЮЧ
         
         if (!dealsByGroup[key]) {
             dealsByGroup[key] = {
                 quarter: quarter,
                 kind: kind,
+                objKind: objKind,
                 uprsPrices: [],
                 upksPrices: []
             };
@@ -1069,16 +1071,13 @@ function calculatePriceThresholds() {
         }
     });
     
-    // ✅ ДЛЯ КАЖДОЙ ГРУППЫ (квартал + тип сделки) ВЫЧИСЛЯЕМ ПОРОГИ (5%)
+    // ✅ ДЛЯ КАЖДОЙ ГРУППЫ ВЫЧИСЛЯЕМ ПОРОГИ (5%)
     Object.keys(dealsByGroup).forEach(key => {
         const group = dealsByGroup[key];
         
-        // Пороги для УПРС
         const uprsPrices = group.uprsPrices.sort((a, b) => a - b);
-        // Пороги для УПКС
         const upksPrices = group.upksPrices.sort((a, b) => a - b);
         
-        // ✅ 5% вместо 10%
         const lowerPercent = 0.05;
         const upperPercent = 0.95;
         
@@ -1107,15 +1106,17 @@ function calculatePriceThresholds() {
             upksMax: upksMax,
             quarter: group.quarter,
             kind: group.kind,
+            objKind: group.objKind,
             count: uprsPrices.length
         };
         
-        console.log(`   ${group.quarter} | ${group.kind}: ${uprsPrices.length} сделок, УПРС = ${uprsMin.toFixed(2)} - ${uprsMax.toFixed(2)} ₽/м², УПКС = ${upksMin.toFixed(2)} - ${upksMax.toFixed(2)} ₽/м²`);
+        console.log(`   ${group.quarter} | ${group.kind} | ${group.objKind}: ${uprsPrices.length} сделок, УПРС = ${uprsMin.toFixed(2)} - ${uprsMax.toFixed(2)} ₽/м², УПКС = ${upksMin.toFixed(2)} - ${upksMax.toFixed(2)} ₽/м²`);
     });
     
-    console.log(`✅ Рассчитано ${Object.keys(thresholds).length} групп (квартал + тип сделки), 5%`);
+    console.log(`✅ Рассчитано ${Object.keys(thresholds).length} групп (квартал + тип сделки + тип объекта), 5%`);
     return thresholds;
 }
+
 function filterDealsByPriceThreshold(thresholds) {
     if (!thresholds || Object.keys(thresholds).length === 0) {
         console.warn('⚠️ Пороговые цены не рассчитаны');
@@ -1123,10 +1124,11 @@ function filterDealsByPriceThreshold(thresholds) {
     }
     
     return allDealsFlat.filter(deal => {
-        // ✅ ГРУППИРУЕМ ПО КАДАСТРОВОМУ КВАРТАЛУ + ТИП СДЕЛКИ
+        // ✅ ТРОЙНАЯ ГРУППИРОВКА: квартал + тип сделки + тип объекта
         const quarter = deal.cad_number || 'unknown';
         const kind = deal.deal_kind_text || 'unknown';
-        const key = `${quarter}|${kind}`;
+        const objKind = deal.obj_kind_text || 'unknown';
+        const key = `${quarter}|${kind}|${objKind}`;
         const threshold = thresholds[key];
         
         if (!threshold) return true;
@@ -1134,11 +1136,9 @@ function filterDealsByPriceThreshold(thresholds) {
         const uprs = deal.uprs_rub;
         const upks = deal.upks;
         
-        // Проверяем и УПРС, и УПКС
         const uprsOk = uprs >= threshold.uprsMin && uprs <= threshold.uprsMax;
         const upksOk = upks >= threshold.upksMin && upks <= threshold.upksMax;
         
-        // Сделка проходит, если И УПРС, И УПКС в допустимом диапазоне
         return uprsOk && upksOk;
     });
 }
