@@ -1278,7 +1278,7 @@ function toggleCadCostFilter() {
     const btn = document.getElementById('cadCostFilterToggle');
     if (btn) {
         if (isCadCostFilterEnabled) {
-            btn.innerHTML = 'Только с КС ✅';
+            btn.innerHTML = '✅ Только с КС'; 
             btn.style.background = '#dcfce7';
             btn.style.color = '#166534';
             btn.style.borderColor = '#86efac';
