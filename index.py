@@ -213,6 +213,54 @@ def get_cascade_price(city, object_type_code, area, build_year, name_category,
     return None
 
 # ============================================================
+# 🔥 НОВАЯ ФУНКЦИЯ: ПОИСК АНАЛОГОВ (ТОЛЬКО ЭТО ИЗМЕНЕНИЕ)
+# ============================================================
+def get_analogs(cascade, city, keys, limit=3):
+    """Возвращает до 3 аналогов из каскада с кадастровыми номерами (пока заглушка)"""
+    analogs = []
+    seen = set()
+    
+    # 1. Сначала ищем по точным ключам
+    for key in keys:
+        if key in cascade and cascade[key] > 100 and key not in seen:
+            analogs.append({
+                "key": key,
+                "price_per_sqm": cascade[key],
+                "cadastral_number": None  # пока заглушка
+            })
+            seen.add(key)
+            if len(analogs) >= limit:
+                break
+    
+    # 2. Если не хватило — ищем по городу
+    if len(analogs) < limit:
+        for key, val in cascade.items():
+            if key.startswith(city + '|') and val > 100 and key not in seen:
+                analogs.append({
+                    "key": key,
+                    "price_per_sqm": val,
+                    "cadastral_number": None
+                })
+                seen.add(key)
+                if len(analogs) >= limit:
+                    break
+    
+    # 3. Если всё ещё не хватило — берём любые значения
+    if len(analogs) < limit:
+        for key, val in cascade.items():
+            if val > 100 and key not in seen:
+                analogs.append({
+                    "key": key,
+                    "price_per_sqm": val,
+                    "cadastral_number": None
+                })
+                seen.add(key)
+                if len(analogs) >= limit:
+                    break
+    
+    return analogs
+
+# ============================================================
 # ПРИЗНАКИ ДЛЯ МОДЕЛИ
 # ============================================================
 def build_features(area, build_year, ks_per_sqm, city, object_type_code,
@@ -311,6 +359,9 @@ def handler(request):
         elif tc == 6:
             model = MODELS.get('ons')
 
+        # 🔥 Переменная для аналогов
+        analogs = []
+
         if ks_provided:
             if model is None:
                 ps = median_price
@@ -330,6 +381,27 @@ def handler(request):
         else:
             cascade_price = get_cascade_price(city, tc, a, y, nc, pc, wc, lu, lc_val)
             ml_price = None
+
+            # 🔥 НОВОЕ: собираем аналоги, если каскад сработал
+            if cascade_price is not None and cascade_price > median_price * 0.2:
+                # Получаем cascade для данного типа объекта
+                cascade_map = {1: 'land_cascade', 2: 'buildings_cascade', 3: 'rooms_cascade',
+                               4: 'structures_cascade', 5: 'machines_cascade', 6: 'ons_cascade'}
+                cascade = CORRECTION_MEDIANS.get(cascade_map.get(tc, ''), {})
+                
+                # Формируем ключи для поиска аналогов (те же, что и в get_cascade_price)
+                if tc == 1:
+                    keys = [f"{lu}|{lc_val}|{city}|{area_group}", f"{lu}|{lc_val}|{city}", f"{city}|{area_group}", city]
+                elif tc in [2, 3]:
+                    keys = [f"{city}|{wc}|{year_group}|{area_group}|{nc}|{pc}",
+                            f"{city}|{wc}|{year_group}|{area_group}|{nc}",
+                            f"{city}|{wc}|{nc}", f"{city}|{nc}", city]
+                elif tc == 4:
+                    keys = [f"{pc}|{city}|{area_group}", f"{pc}|{city}", city]
+                else:
+                    keys = [f"{city}|{area_group}", city]
+                
+                analogs = get_analogs(cascade, city, keys)
 
             if model is not None:
                 try:
@@ -361,6 +433,7 @@ def handler(request):
             else:
                 ps = median_price
                 method = "Медиана по городу (каскад не дал результат)"
+                analogs = []  # если каскад не дал результат — аналогов нет
 
         pt = ps * a
 
@@ -425,7 +498,8 @@ def handler(request):
                 "method": method,
                 "ratio_to_ks": round(ps / ks, 2) if ks > 0 else None,
                 "percent_diff": percent_diff,
-                "calc_desc": calc_desc
+                "calc_desc": calc_desc,
+                "analogs": analogs  # 🔥 НОВОЕ ПОЛЕ — АНАЛОГИ
             }
         }
 
