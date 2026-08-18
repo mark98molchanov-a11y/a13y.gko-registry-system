@@ -1,0 +1,68 @@
+{
+  "2": {
+    "name": "Здания",
+    "total": 73702,
+    "real": 342,
+    "pseudo": 73360,
+    "test_mape": 267.8,
+    "ks_mape": 34.4,
+    "test_rmse": 95912,
+    "within_20": 15.9,
+    "status": "✅ Тянет к КС"
+  },
+  "3": {
+    "name": "Помещения",
+    "total": 274515,
+    "real": 1849,
+    "pseudo": 272666,
+    "test_mape": 50.5,
+    "ks_mape": 32.1,
+    "test_rmse": 43457,
+    "within_20": 37.8,
+    "status": "✅ Тянет к КС"
+  },
+  "1": {
+    "name": "Земля",
+    "total": 397842,
+    "real": 0,
+    "pseudo": 397842,
+    "test_mape": null,
+    "ks_mape": 1097.6,
+    "test_rmse": null,
+    "within_20": null,
+    "status": "❌ Плохо"
+  },
+  "4": {
+    "name": "Сооружения",
+    "total": 16076,
+    "real": 0,
+    "pseudo": 16076,
+    "test_mape": null,
+    "ks_mape": 3.6,
+    "test_rmse": null,
+    "within_20": null,
+    "status": "✅ Идеально"
+  },
+  "5": {
+    "name": "Машино-места",
+    "total": 810,
+    "real": 0,
+    "pseudo": 810,
+    "test_mape": null,
+    "ks_mape": 0.1,
+    "test_rmse": null,
+    "within_20": null,
+    "status": "✅ Идеально"
+  },
+  "6": {
+    "name": "ОНС",
+    "total": 553,
+    "real": 0,
+    "pseudo": 553,
+    "test_mape": null,
+    "ks_mape": 2.2,
+    "test_rmse": null,
+    "within_20": null,
+    "status": "✅ Идеально"
+  }
+}
