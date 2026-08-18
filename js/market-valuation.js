@@ -179,7 +179,16 @@ class MarketValuationApp {
             purpose: row['Назначение']||row['purpose']||''
         };
     }
-    
+    formatAnalogString(analogs) {
+    if (!analogs || analogs.length === 0) return "—";
+    const lines = analogs.map((a, idx) => {
+        let parts = [`Аналог ${idx+1}`];
+        if (a.price_per_sqm) parts.push(`${a.price_per_sqm} ₽/м²`);
+        if (a.cadastral_number) parts.push(`КН: ${a.cadastral_number}`);
+        return parts.join(' | ');
+    });
+    return lines.join('\n');
+}
   async handleFileImport(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -229,29 +238,30 @@ class MarketValuationApp {
                         const ksUsed = result.details?.ks_per_sqm || '—';
                         const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
 
-                        results.push({
-                            '№': i + 1,
-                            'Тип объекта': row.object_type,
-                            'Площадь (м²)': row.area,
-                            'Город (МО)': row.address,
-                            'Материал стен': row.wall_material,
-                            'Наименование': row.object_name,
-                            'Назначение': row.purpose,
-                            'Год постройки': row.build_year,
-                            'ВРИ': row.permitted_use,
-                            'Категория земель': row.land_category,
-                            'Кадастровый номер': row.kadastr,
-                            'КС введена (полная, ₽)': row.kadastr_price || '—',
-                            'КС использована (₽/м²)': ksUsed,
-                            'КС введена?': ksProvided,
-                            'Метод расчёта': result.details?.method || '—',
-                            'Цена за м² (₽)': result.predicted.price_per_sqm,
-                            'Стоимость всего (₽)': result.predicted.price_total,
-                            'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
-                            'Как считали': result.calculation || '',
-                            'Расшифровка расчёта': result.details?.calc_desc || '',
-                            'Статус': '✅ Успешно'
-                        });
+                  results.push({
+    '№': i + 1,
+    'Тип объекта': row.object_type,
+    'Площадь (м²)': row.area,
+    'Город (МО)': row.address,
+    'Материал стен': row.wall_material,
+    'Наименование': row.object_name,
+    'Назначение': row.purpose,
+    'Год постройки': row.build_year,
+    'ВРИ': row.permitted_use,
+    'Категория земель': row.land_category,
+    'Кадастровый номер': row.kadastr,
+    'КС введена (полная, ₽)': row.kadastr_price || '—',
+    'КС использована (₽/м²)': ksUsed,
+    'КС введена?': ksProvided,
+    'Метод расчёта': result.details?.method || '—',
+    'Цена за м² (₽)': result.predicted.price_per_sqm,
+    'Стоимость всего (₽)': result.predicted.price_total,
+    'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
+    'Как считали': result.calculation || '',
+    'Расшифровка расчёта': result.details?.calc_desc || '',
+    'Найденные аналоги': this.formatAnalogString(result.details?.analogs),   // ← ДОБАВЬ ЭТО
+    'Статус': '✅ Успешно'
+});
                         success++;
                     } else {
                         results.push({ ...data[i], 'Статус': '❌ Ошибка' });
@@ -338,27 +348,28 @@ class MarketValuationApp {
         const ksUsed = result.details?.ks_per_sqm || '—';
         const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
 
-        this.singleResult = {
-            'Тип объекта': objectType,
-            'Площадь (м²)': area,
-            'Город (МО)': city,
-            'Кадастровый номер': cadastralNumber,
-            'КС введена (полная, ₽)': cadastralPrice || '—',
-            'КС использована (₽/м²)': ksUsed,
-            'КС введена?': ksProvided,
-            'Метод расчёта': result.details?.method || '—',
-            'Материал стен': wall_material,
-            'Наименование': name,
-            'Назначение': purpose || '(авто)',
-            'Год постройки': build_year,
-            'ВРИ': permitted_use,
-            'Категория земель': land_category,
-            'Цена за м² (₽)': result.predicted.price_per_sqm,
-            'Стоимость всего (₽)': result.predicted.price_total,
-            'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
-            'Как считали': result.calculation || '',
-            'Расшифровка расчёта': result.details?.calc_desc || ''
-        };
+   this.singleResult = {
+    'Тип объекта': objectType,
+    'Площадь (м²)': area,
+    'Город (МО)': city,
+    'Кадастровый номер': cadastralNumber,
+    'КС введена (полная, ₽)': cadastralPrice || '—',
+    'КС использована (₽/м²)': ksUsed,
+    'КС введена?': ksProvided,
+    'Метод расчёта': result.details?.method || '—',
+    'Материал стен': wall_material,
+    'Наименование': name,
+    'Назначение': purpose || '(авто)',
+    'Год постройки': build_year,
+    'ВРИ': permitted_use,
+    'Категория земель': land_category,
+    'Цена за м² (₽)': result.predicted.price_per_sqm,
+    'Стоимость всего (₽)': result.predicted.price_total,
+    'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
+    'Как считали': result.calculation || '',
+    'Расшифровка расчёта': result.details?.calc_desc || '',
+    'Найденные аналоги': this.formatAnalogString(result.details?.analogs)   // ← ДОБАВЬ ЭТО
+};
 
         this.displayResult(result);
         this.showNotification('✅ Оценка выполнена', 'success');
