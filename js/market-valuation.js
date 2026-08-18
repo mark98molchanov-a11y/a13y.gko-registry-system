@@ -181,148 +181,195 @@ class MarketValuationApp {
     }
     
   async handleFileImport(event) {
-        const file = event.target.files[0]; if (!file) return;
-        this.showNotification(`Загружен: ${file.name}`,'info');
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const XLSX = await this.loadSheetJS();
-                const workbook = XLSX.read(e.target.result,{type:'array'});
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const data = XLSX.utils.sheet_to_json(sheet);
-                if (data.length===0){this.showNotification('Файл пуст','error');return;}
-                if (data.length>100){this.showNotification('Максимум 100 объектов','error');return;}
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    this.showNotification(`Загружен: ${file.name}`, 'info');
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+        try {
+            const XLSX = await this.loadSheetJS();
+            const workbook = XLSX.read(e.target.result, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(sheet);
+            
+            if (data.length === 0) {
+                this.showNotification('Файл пуст', 'error');
+                return;
+            }
+            if (data.length > 100) {
+                this.showNotification('Максимум 100 объектов', 'error');
+                return;
+            }
+
+            document.getElementById('resultPlaceholder').style.display = 'none';
+            document.getElementById('resultLoading').style.display = 'flex';
+            document.getElementById('loadingText').textContent = `Оценка ${data.length} объектов...`;
+
+            const results = [];
+            let success = 0, errors = 0;
+
+            for (let i = 0; i < data.length; i++) {
+                const row = this.mapColumns(data[i]);
+                const args = [row.area, row.build_year, row.object_type, row.permitted_use, row.address, row.kadastr_price, row.wall_material, row.object_name, row.purpose];
                 
-                document.getElementById('resultPlaceholder').style.display='none';
-                document.getElementById('resultLoading').style.display='flex';
-                document.getElementById('loadingText').textContent=`Оценка ${data.length} объектов...`;
-                
-                const results=[]; let success=0, errors=0;
-                
-                for (let i=0; i<data.length; i++) {
-                    const row=this.mapColumns(data[i]);
-                    // 🔥 args: [area, year, type, permitted_use, address, cadastral_price, wall_material, object_name, purpose]
-                    const args=[row.area, row.build_year, row.object_type, row.permitted_use, row.address, row.kadastr_price, row.wall_material, row.object_name, row.purpose];
-                    try {
-                        const resp=await fetch('https://a13y-gko-registry-system.relaxdev.ru/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
-                        if (resp.ok) {
-                            const result=await resp.json();
-                            
-                            const ksUsed = result.details?.ks_per_sqm || '—';
-                            const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
-                            
-                            results.push({
-                                '№':i+1,
-                                'Тип объекта':row.object_type,
-                                'Площадь (м²)':row.area,
-                                'Город (МО)':row.address,
-                                'Материал стен':row.wall_material,
-                                'Наименование':row.object_name,
-                                'Назначение':row.purpose,
-                                'Год постройки':row.build_year,
-                                'ВРИ':row.permitted_use,
-                                'Категория земель':row.land_category,
-                                'Кадастровый номер':row.kadastr,
-                                'КС введена (полная, ₽)': row.kadastr_price || '—',
-                                'КС использована (₽/м²)':ksUsed,
-                                'КС введена?':ksProvided,
-                                'Метод расчёта':result.details?.method || '—',
-                                'Цена за м² (₽)':result.predicted.price_per_sqm,
-                                'Стоимость всего (₽)':result.predicted.price_total,
-                                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
-                                'Как считали': result.calculation || '',
-                                'Расшифровка расчёта': result.details?.calc_desc || '',
-                                'Статус':'✅ Успешно'
-                            });
-                            success++;
-                        } else { results.push({...data[i],'Статус':'❌ Ошибка'}); errors++; }
-                    } catch (err) { results.push({...data[i],'Статус':'❌ Ошибка'}); errors++; }
-                    document.getElementById('loadingText').textContent=`Оценка ${i+1}/${data.length} (✅${success} ❌${errors})`;
+                try {
+                    const resp = await fetch('https://a13y-gko-registry-system.relaxdev.ru/api/index', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ args })
+                    });
+                    
+                    if (resp.ok) {
+                        // 🔥 ГЛАВНОЕ ИСПРАВЛЕНИЕ:
+                        const response = await resp.json();
+                        const result = JSON.parse(response.body);  // ← РАСПАРСИЛИ!
+
+                        const ksUsed = result.details?.ks_per_sqm || '—';
+                        const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
+
+                        results.push({
+                            '№': i + 1,
+                            'Тип объекта': row.object_type,
+                            'Площадь (м²)': row.area,
+                            'Город (МО)': row.address,
+                            'Материал стен': row.wall_material,
+                            'Наименование': row.object_name,
+                            'Назначение': row.purpose,
+                            'Год постройки': row.build_year,
+                            'ВРИ': row.permitted_use,
+                            'Категория земель': row.land_category,
+                            'Кадастровый номер': row.kadastr,
+                            'КС введена (полная, ₽)': row.kadastr_price || '—',
+                            'КС использована (₽/м²)': ksUsed,
+                            'КС введена?': ksProvided,
+                            'Метод расчёта': result.details?.method || '—',
+                            'Цена за м² (₽)': result.predicted.price_per_sqm,
+                            'Стоимость всего (₽)': result.predicted.price_total,
+                            'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
+                            'Как считали': result.calculation || '',
+                            'Расшифровка расчёта': result.details?.calc_desc || '',
+                            'Статус': '✅ Успешно'
+                        });
+                        success++;
+                    } else {
+                        results.push({ ...data[i], 'Статус': '❌ Ошибка' });
+                        errors++;
+                    }
+                } catch (err) {
+                    results.push({ ...data[i], 'Статус': '❌ Ошибка' });
+                    errors++;
                 }
                 
-                this.massResults=results;
-                document.getElementById('resultLoading').style.display='none';
-                document.getElementById('resultContent').style.display='block';
-                document.getElementById('resultContent').innerHTML=`
-                    <div class="p-5 text-center">
-                        <div class="text-2xl font-bold text-green-600 mb-2">✅ Оценка завершена!</div>
-                        <p class="text-slate-600">✅ ${success} успешно | ❌ ${errors} с ошибками | Всего: ${data.length}</p>
-                        <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Скачать Excel</button>
-                        <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">Новая оценка</button>
-                    </div>`;
-            } catch (err) { this.showNotification('Ошибка чтения файла','error'); }
-        };
-        reader.readAsArrayBuffer(file);
-    }
-    
-    async submitForm() {
-        if (this.isLoading) return;
-        const objectType=document.getElementById('objectType')?.value||'Помещение';
-        const isLand=objectType==='Земельный участок';
-        const isStructure=objectType==='Сооружение';
-        const isMachine=objectType==='Машино-место';
-        const isOns=objectType==='Объект незавершённого строительства';
-        const area=parseFloat(document.getElementById('area')?.value||0);
-        const city=document.getElementById('city')?.value||'';
-        const cadastralNumber = document.getElementById('cadastralNumber')?.value?.trim() || '';
-        // 🔥 ЧИТАЕМ КАДАСТРОВУЮ СТОИМОСТЬ
-        const cadastralPrice = document.getElementById('cadastralPrice')?.value?.trim() || '';
-        
-        if (!area||area<=0){this.showNotification('Введите площадь','error');return;}
-        if (!city){this.showNotification('Выберите город','error');return;}
-        
-        let build_year=2015, name='', wall_material='', permitted_use='', purpose='', land_category='';
-        if (isLand){permitted_use=document.getElementById('permittedUseInput')?.value||''; land_category=document.getElementById('landCategoryInput')?.value||''; build_year=2024;}
-        else if (isMachine||isOns){
-            build_year=2024;
-            name=isMachine?'Машино-место':'Объект незавершённого строительства';
-            purpose=name;  
+                document.getElementById('loadingText').textContent = `Оценка ${i + 1}/${data.length} (✅${success} ❌${errors})`;
+            }
+
+            this.massResults = results;
+            document.getElementById('resultLoading').style.display = 'none';
+            document.getElementById('resultContent').style.display = 'block';
+            document.getElementById('resultContent').innerHTML = `
+                <div class="p-5 text-center">
+                    <div class="text-2xl font-bold text-green-600 mb-2">✅ Оценка завершена!</div>
+                    <p class="text-slate-600">✅ ${success} успешно | ❌ ${errors} с ошибками | Всего: ${data.length}</p>
+                    <button onclick="window.marketValuationApp.downloadExcel()" class="mt-4 w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Скачать Excel</button>
+                    <button onclick="window.marketValuationApp.resetResult()" class="mt-2 w-full py-2 border border-slate-300 rounded-lg text-sm">Новая оценка</button>
+                </div>
+            `;
+        } catch (err) {
+            console.error('Ошибка:', err);
+            this.showNotification('Ошибка чтения файла', 'error');
         }
-        else if (isStructure){build_year=parseInt(document.getElementById('structureBuildYear')?.value||2015);name=document.getElementById('structureName')?.value||'Сооружение';wall_material=document.getElementById('structureMaterial')?.value||'';}
-        else {build_year=parseInt(document.getElementById('buildYear')?.value||2015);name=document.getElementById('objectName')?.value||objectType;wall_material=document.getElementById('wallMaterial')?.value||'';purpose=document.getElementById('purposeInput')?.value||'';}
-        
-        // 🔥 args: [area, year, type, permitted_use, address, cadastral_price, wall_material, object_name, purpose]
-        //      cadastral_price — это args[5] (индекс 5)
-        const args=[area, build_year, objectType, permitted_use, city, cadastralPrice, wall_material, name, purpose];
-        this.setLoading(true);
-        try {
-            const resp=await fetch('https://a13y-gko-registry-system.relaxdev.ru/api/index', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({args})
-});
-            if (!resp.ok) throw new Error(`Ошибка ${resp.status}`);
-            const result=await resp.json();
-            
-            const ksUsed = result.details?.ks_per_sqm || '—';
-            const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
-            
-            this.singleResult={
-                'Тип объекта':objectType,
-                'Площадь (м²)':area,
-                'Город (МО)':city,
-                'Кадастровый номер':cadastralNumber,
-                'КС введена (полная, ₽)': cadastralPrice || '—',
-                'КС использована (₽/м²)':ksUsed,
-                'КС введена?':ksProvided,
-                'Метод расчёта':result.details?.method || '—',
-                'Материал стен':wall_material,
-                'Наименование':name,
-                'Назначение':purpose||'(авто)',
-                'Год постройки':build_year,
-                'ВРИ':permitted_use,
-                'Категория земель':land_category,
-                'Цена за м² (₽)':result.predicted.price_per_sqm,
-                'Стоимость всего (₽)':result.predicted.price_total,
-                'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
-                'Как считали': result.calculation || '',
-                'Расшифровка расчёта': result.details?.calc_desc || ''
-            };
-            this.displayResult(result);
-            this.showNotification('✅ Оценка выполнена','success');
-        } catch (error) { this.showNotification('Ошибка сервера','error'); }
-        finally { this.setLoading(false); }
+    };
+    reader.readAsArrayBuffer(file);
+}
+    
+ async submitForm() {
+    if (this.isLoading) return;
+    const objectType = document.getElementById('objectType')?.value || 'Помещение';
+    const isLand = objectType === 'Земельный участок';
+    const isStructure = objectType === 'Сооружение';
+    const isMachine = objectType === 'Машино-место';
+    const isOns = objectType === 'Объект незавершённого строительства';
+    const area = parseFloat(document.getElementById('area')?.value || 0);
+    const city = document.getElementById('city')?.value || '';
+    const cadastralNumber = document.getElementById('cadastralNumber')?.value?.trim() || '';
+    const cadastralPrice = document.getElementById('cadastralPrice')?.value?.trim() || '';
+
+    if (!area || area <= 0) { this.showNotification('Введите площадь', 'error'); return; }
+    if (!city) { this.showNotification('Выберите город', 'error'); return; }
+
+    let build_year = 2015, name = '', wall_material = '', permitted_use = '', purpose = '', land_category = '';
+    if (isLand) {
+        permitted_use = document.getElementById('permittedUseInput')?.value || '';
+        land_category = document.getElementById('landCategoryInput')?.value || '';
+        build_year = 2024;
+    } else if (isMachine || isOns) {
+        build_year = 2024;
+        name = isMachine ? 'Машино-место' : 'Объект незавершённого строительства';
+        purpose = name;
+    } else if (isStructure) {
+        build_year = parseInt(document.getElementById('structureBuildYear')?.value || 2015);
+        name = document.getElementById('structureName')?.value || 'Сооружение';
+        wall_material = document.getElementById('structureMaterial')?.value || '';
+    } else {
+        build_year = parseInt(document.getElementById('buildYear')?.value || 2015);
+        name = document.getElementById('objectName')?.value || objectType;
+        wall_material = document.getElementById('wallMaterial')?.value || '';
+        purpose = document.getElementById('purposeInput')?.value || '';
     }
+
+    const args = [area, build_year, objectType, permitted_use, city, cadastralPrice, wall_material, name, purpose];
+    this.setLoading(true);
+
+    try {
+        const resp = await fetch('https://a13y-gko-registry-system.relaxdev.ru/api/index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ args })
+        });
+
+        if (!resp.ok) throw new Error(`Ошибка ${resp.status}`);
+
+        // 🔥 ГЛАВНОЕ ИСПРАВЛЕНИЕ:
+        const response = await resp.json();
+        const result = JSON.parse(response.body);  // ← РАСПАРСИЛИ!
+
+        const ksUsed = result.details?.ks_per_sqm || '—';
+        const ksProvided = result.details?.ks_provided ? 'Да' : 'Нет (медиана)';
+
+        this.singleResult = {
+            'Тип объекта': objectType,
+            'Площадь (м²)': area,
+            'Город (МО)': city,
+            'Кадастровый номер': cadastralNumber,
+            'КС введена (полная, ₽)': cadastralPrice || '—',
+            'КС использована (₽/м²)': ksUsed,
+            'КС введена?': ksProvided,
+            'Метод расчёта': result.details?.method || '—',
+            'Материал стен': wall_material,
+            'Наименование': name,
+            'Назначение': purpose || '(авто)',
+            'Год постройки': build_year,
+            'ВРИ': permitted_use,
+            'Категория земель': land_category,
+            'Цена за м² (₽)': result.predicted.price_per_sqm,
+            'Стоимость всего (₽)': result.predicted.price_total,
+            'Разница с КС (%)': result.details?.percent_diff !== null && result.details?.percent_diff !== undefined ? (result.details.percent_diff >= 0 ? '+' : '') + result.details.percent_diff + '%' : 'КС не введена',
+            'Как считали': result.calculation || '',
+            'Расшифровка расчёта': result.details?.calc_desc || ''
+        };
+
+        this.displayResult(result);
+        this.showNotification('✅ Оценка выполнена', 'success');
+    } catch (error) {
+        console.error('Ошибка:', error);
+        this.showNotification('Ошибка сервера', 'error');
+    } finally {
+        this.setLoading(false);
+    }
+}
+
     
     displayResult(data) {
         document.getElementById('resultPlaceholder').style.display='none';
