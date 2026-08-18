@@ -115,15 +115,15 @@ MEDIAN_KS = {
 
 def load_models():
     global MODELS
-   files = {
-    'buildings': 'models/model_buildings.pkl',
-    'rooms': 'models/model_rooms.pkl',
-    'land': 'models/model_land.pkl',
-    'machines': 'models/model_machines.pkl',
-    'ons': 'models/model_ons.pkl',
-    'structures': 'models/model_structures.pkl',
-    'city_encoder': 'models/city_encoder.pkl'
-}
+    files = {
+        'buildings': 'models/model_buildings.pkl',
+        'rooms': 'models/model_rooms.pkl',
+        'land': 'models/model_land.pkl',
+        'machines': 'models/model_machines.pkl',
+        'ons': 'models/model_ons.pkl',
+        'structures': 'models/model_structures.pkl',
+        'city_encoder': 'models/city_encoder.pkl'
+    }
     for n, p in files.items():
         try:
             with open(p, 'rb') as f:
