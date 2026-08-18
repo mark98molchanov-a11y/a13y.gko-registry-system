@@ -62,3 +62,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# 🔥 НОВАЯ ФУНКЦИЯ: безопасное сохранение запроса
+def save_request(data):
+    """Сохраняет запрос в БД и возвращает ID"""
+    db = SessionLocal()
+    try:
+        valuation = ValuationRequest(**data)
+        db.add(valuation)
+        db.commit()
+        db.refresh(valuation)  # 🔥 Обновляем объект, чтобы получить ID
+        request_id = valuation.id
+        return request_id
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️ Ошибка сохранения в БД: {e}")
+        return None
+    finally:
+        db.close()
