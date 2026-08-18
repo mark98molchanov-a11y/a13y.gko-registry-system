@@ -115,15 +115,15 @@ MEDIAN_KS = {
 
 def load_models():
     global MODELS
-    files = {
-        'buildings': 'model_buildings.pkl',
-        'rooms': 'model_rooms.pkl',
-        'land': 'model_land.pkl',
-        'machines': 'model_machines.pkl',
-        'ons': 'model_ons.pkl',
-        'structures': 'model_structures.pkl',
-        'city_encoder': 'city_encoder.pkl'
-    }
+   files = {
+    'buildings': 'models/model_buildings.pkl',
+    'rooms': 'models/model_rooms.pkl',
+    'land': 'models/model_land.pkl',
+    'machines': 'models/model_machines.pkl',
+    'ons': 'models/model_ons.pkl',
+    'structures': 'models/model_structures.pkl',
+    'city_encoder': 'models/city_encoder.pkl'
+}
     for n, p in files.items():
         try:
             with open(p, 'rb') as f:
@@ -136,7 +136,7 @@ def load_models():
 def load_cascade():
     global CORRECTION_MEDIANS
     try:
-        with open('correction_medians.pkl', 'rb') as f:
+        with open('models/correction_medians.pkl', 'rb') as f:
             CORRECTION_MEDIANS = pickle.load(f)
         print(f"✅ Каскад загружен ({len(CORRECTION_MEDIANS)} разделов)")
     except Exception as e:
