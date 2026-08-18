@@ -286,7 +286,11 @@ class MarketValuationApp {
         const args=[area, build_year, objectType, permitted_use, city, cadastralPrice, wall_material, name, purpose];
         this.setLoading(true);
         try {
-            const resp=await fetch('https://markmolchanov98.pythonanywhere.com/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
+            const resp=await fetch('https://a13y-gko-registry-system.relaxdev.ru/api/index', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({args})
+});
             if (!resp.ok) throw new Error(`Ошибка ${resp.status}`);
             const result=await resp.json();
             
