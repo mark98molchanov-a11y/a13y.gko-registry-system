@@ -15,7 +15,7 @@ print("✅ Flask импортирован", flush=True)
 sys.stdout.flush()
 
 # 🔥 ДОБАВЛЕНО: ИМПОРТЫ ДЛЯ БАЗЫ ДАННЫХ
-from db import SessionLocal, ValuationRequest, init_db
+from db import SessionLocal, ValuationRequest, init_db, save_request
 import json
 from datetime import datetime
 
@@ -69,8 +69,6 @@ def api_handler():
         
         # 🔥🔥🔥 СОХРАНЯЕМ В БД
         try:
-            db = SessionLocal()
-            
             # Парсим аргументы
             area = float(args[0]) if len(args) > 0 and args[0] else None
             build_year = int(args[1]) if len(args) > 1 and args[1] else None
@@ -91,33 +89,39 @@ def api_handler():
             price_per_sqm = predicted.get('predicted', {}).get('price_per_sqm')
             price_total = predicted.get('predicted', {}).get('price_total')
             
-            # Сохраняем
-            valuation = ValuationRequest(
-                ip=request.remote_addr,
-                area=area,
-                build_year=build_year,
-                object_type=object_type,
-                city=city,
-                cadastral_price=cadastral_price,
-                wall_material=wall_material,
-                object_name=object_name,
-                purpose=purpose,
-                permitted_use=permitted_use,
-                result_price_per_sqm=price_per_sqm,
-                result_price_total=price_total,
-                method=details.get('method'),
-                analogs=json.dumps(details.get('analogs', [])),
-                percent_diff=details.get('percent_diff'),
-                ratio_to_ks=details.get('ratio_to_ks'),
-                ks_used=details.get('ks_per_sqm'),
-                ks_provided='Да' if details.get('ks_provided') else 'Нет'
-            )
-            db.add(valuation)
-            db.commit()
-            db.close()
-            print(f"✅ Запрос сохранён в БД (ID: {valuation.id})", flush=True)
+            # 🔥 Подготовка данных для сохранения
+            request_data = {
+                'ip': request.remote_addr,
+                'area': area,
+                'build_year': build_year,
+                'object_type': object_type,
+                'city': city,
+                'cadastral_price': cadastral_price,
+                'wall_material': wall_material,
+                'object_name': object_name,
+                'purpose': purpose,
+                'permitted_use': permitted_use,
+                'result_price_per_sqm': price_per_sqm,
+                'result_price_total': price_total,
+                'method': details.get('method'),
+                'analogs': json.dumps(details.get('analogs', [])),
+                'percent_diff': details.get('percent_diff'),
+                'ratio_to_ks': details.get('ratio_to_ks'),
+                'ks_used': details.get('ks_per_sqm'),
+                'ks_provided': 'Да' if details.get('ks_provided') else 'Нет'
+            }
+            
+            # 🔥 Сохраняем через безопасную функцию
+            request_id = save_request(request_data)
+            if request_id:
+                print(f"✅ Запрос сохранён в БД (ID: {request_id})", flush=True)
+            else:
+                print("⚠️ Не удалось сохранить запрос в БД", flush=True)
+                
         except Exception as e:
             print(f"⚠️ Ошибка сохранения в БД: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
         
         return jsonify(result)
     except Exception as e:
