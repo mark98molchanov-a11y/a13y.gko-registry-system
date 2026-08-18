@@ -213,7 +213,7 @@ def get_cascade_price(city, object_type_code, area, build_year, name_category,
     return None
 
 # ============================================================
-# 🔥 НОВАЯ ФУНКЦИЯ: ПОИСК АНАЛОГОВ (ТОЛЬКО ЭТО ИЗМЕНЕНИЕ)
+# 🔥 НОВАЯ ФУНКЦИЯ: ПОИСК АНАЛОГОВ
 # ============================================================
 def get_analogs(cascade, city, keys, limit=3):
     """Возвращает до 3 аналогов из каскада с кадастровыми номерами (пока заглушка)"""
@@ -381,6 +381,25 @@ def handler(request):
         else:
             cascade_price = get_cascade_price(city, tc, a, y, nc, pc, wc, lu, lc_val)
             ml_price = None
+
+            # 🔥 ВЫЧИСЛЯЕМ ГРУППЫ (ОБЯЗАТЕЛЬНО!)
+            if a <= 30:
+                area_group = '0'
+            elif a <= 50:
+                area_group = '1'
+            elif a <= 100:
+                area_group = '2'
+            elif a <= 500:
+                area_group = '3'
+            else:
+                area_group = '4'
+
+            if y < 2000:
+                year_group = 'old'
+            elif y >= 2020:
+                year_group = 'new'
+            else:
+                year_group = 'normal'
 
             # 🔥 НОВОЕ: собираем аналоги, если каскад сработал
             if cascade_price is not None and cascade_price > median_price * 0.2:
