@@ -1157,16 +1157,28 @@ async function saveSearchResult(historyData) {
         };
     }
 
-    function displayMassResults(candidates, notFoundItems, container, searchParamLabel) {
+   function displayMassResults(candidates, notFoundItems, container, searchParamLabel) {
+        // 🔥 ОГРАНИЧЕНИЕ ДЛЯ ОТОБРАЖЕНИЯ ДО 300 ОБЪЕКТОВ
+        const MAX_DISPLAY = 300;
+        let displayCandidates = candidates;
+        let displayNotFound = notFoundItems;
+        let trimmedCount = 0;
+        
+        if (candidates.length > MAX_DISPLAY) {
+            displayCandidates = candidates.slice(0, MAX_DISPLAY);
+            trimmedCount = candidates.length - MAX_DISPLAY;
+            console.log(`⚠️ Показано только ${MAX_DISPLAY} из ${candidates.length} объектов (обрезано ${trimmedCount})`);
+        }
+        
         let tableData = [];
         
-        candidates.forEach(item => {
+        displayCandidates.forEach(item => {
             const fields = extractAllFields(item);
             fields['Параметр поиска'] = searchParamLabel || '—';
             tableData.push(fields);
         });
         
-        notFoundItems.forEach(item => {
+        displayNotFound.forEach(item => {
             const paramDisplay = item.paramLabel + (item.paramUnit ? ` (${item.paramUnit})` : '');
             const valueDisplay = item.paramValue > 0 ? item.paramValue : '—';
             
@@ -1217,18 +1229,31 @@ async function saveSearchResult(historyData) {
         ];
 
         let html = '';
-        const notFoundCount = notFoundItems.length;
+        const notFoundCount = displayNotFound.length;
+        
+        // 🔥 ПРЕДУПРЕЖДЕНИЕ ОБ ОБРЕЗАНИИ
+        if (trimmedCount > 0) {
+            html += `
+                <div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-sm mb-3">
+                    ⚠️ Показано только <strong>${MAX_DISPLAY}</strong> из <strong>${candidates.length}</strong> найденных объектов.
+                    <span class="text-xs text-amber-600">(обрезано ${trimmedCount} объектов)</span>
+                </div>
+            `;
+        }
+        
         if (notFoundCount > 0) {
             html += `
                 <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-sm mb-3">
-                    ✅ Найдено: <strong>${candidates.length}</strong> объектов | 
+                    ✅ Найдено: <strong>${displayCandidates.length}</strong> объектов | 
                     ❌ Не найдено: <strong>${notFoundCount}</strong>
+                    ${candidates.length > MAX_DISPLAY ? `| ⚠️ Обрезано: ${trimmedCount}` : ''}
                 </div>
             `;
         } else {
             html += `
                 <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm mb-3">
-                    ✅ Найдено: <strong>${candidates.length}</strong> объектов
+                    ✅ Найдено: <strong>${displayCandidates.length}</strong> объектов
+                    ${candidates.length > MAX_DISPLAY ? `| ⚠️ Обрезано: ${trimmedCount}` : ''}
                 </div>
             `;
         }
@@ -1288,7 +1313,7 @@ async function saveSearchResult(historyData) {
                 </div>
             </div>
             <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; padding: 0 4px; flex-wrap: wrap; gap: 8px;">
-                <span>Всего объектов: <strong>${tableData.length}</strong> (найдено: ${candidates.length}, не найдено: ${notFoundCount})</span>
+                <span>Всего объектов: <strong>${tableData.length}</strong> (найдено: ${displayCandidates.length}, не найдено: ${notFoundCount})${trimmedCount > 0 ? `, обрезано: ${trimmedCount}` : ''}</span>
                 <div style="display: flex; gap: 8px;">
                     <button onclick="document.getElementById('nspd-search-results').innerHTML = ''; location.reload();" 
                             style="padding: 4px 16px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 11px;">
@@ -1301,11 +1326,10 @@ async function saveSearchResult(historyData) {
         container.innerHTML = html;
         
         const exportBtn = document.getElementById('nspd-export-results');
-        if (exportBtn && candidates.length > 0) {
+        if (exportBtn && displayCandidates.length > 0) {
             exportBtn.style.display = 'inline-flex';
         }
     }
-
     function exportResults() {
         const table = document.querySelector('#nspd-search-results table');
         if (!table) {
@@ -1433,14 +1457,27 @@ async function saveSearchResult(historyData) {
                 return null;
             }
             
-            function processRows(rows) {
-                const container = document.getElementById('nspd-search-results');
-                if (!container) {
-                    console.error('❌ container не найден');
-                    return;
-                }
-                
-                if (rows.length === 0) {
+          function processRows(rows) {
+    const container = document.getElementById('nspd-search-results');
+    if (!container) {
+        console.error('❌ container не найден');
+        return;
+    }
+    
+    // 🔥 ОГРАНИЧЕНИЕ ДО 300 ОБЪЕКТОВ
+    const MAX_OBJECTS = 300;
+    if (rows.length > MAX_OBJECTS) {
+        container.innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                ⚠️ Слишком много объектов (${rows.length}). 
+                Максимум: <strong>${MAX_OBJECTS}</strong> объектов за один запрос.
+                <br><span class="text-xs">Пожалуйста, разбейте файл на части.</span>
+            </div>
+        `;
+        return;
+    }
+    
+    if (rows.length === 0) {
                     container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">❌ Нет данных для обработки. Проверьте названия параметров.</div>`;
                     return;
                 }
@@ -1699,6 +1736,22 @@ await saveSearchResult(historyData);
             const nonEmptyRows = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''));
             const headerRow = nonEmptyRows[0] || [];
             const dataRows = nonEmptyRows.slice(1);
+
+// 🔥 ОГРАНИЧЕНИЕ ДО 300 СТРОК
+const MAX_ROWS = 300;
+if (dataRows.length > MAX_ROWS) {
+    const container = document.getElementById('nspd-search-results');
+    if (container) {
+        container.innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                ⚠️ Файл содержит <strong>${dataRows.length}</strong> строк.
+                Максимальное количество: <strong>${MAX_ROWS}</strong>.
+                <br><span class="text-xs">Пожалуйста, разделите файл на части (по ${MAX_ROWS} строк каждая).</span>
+            </div>
+        `;
+    }
+    return;
+}
             
             const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
             
@@ -1779,11 +1832,17 @@ await saveSearchResult(historyData);
             paramOptions += `<option value="${key}">${param.label} (${param.unit})</option>`;
         }
 
-        const html = `
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h2 class="text-xl font-bold text-slate-800 mb-6">Поиск объектов в НСПД</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+       const html = `
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-bold text-slate-800 mb-6">Поиск объектов в НСПД</h2>
+        
+        <!-- 🔥 ПРЕДУПРЕЖДЕНИЕ О ЛИМИТЕ -->
+        <div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-sm mb-4">
+            ⚠️ Максимум <strong>300</strong> объектов за один массовый запрос.
+            <span class="text-xs text-amber-600">(при загрузке файла)</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
                         <div class="flex items-center gap-1.5 mb-1">
                             <svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2083,7 +2142,7 @@ await saveSearchResult(historyData);
         // 🔥 ОСНОВНАЯ ФУНКЦИЯ ПОИСКА
         // ============================================================
 
-        async function performSearch(container) {
+async function performSearch(container) {
             const address = addressInput.value.trim();
             const paramKey = paramSelect.value;
             const value = parseFloat(valueInput.value) || 0;
@@ -2242,6 +2301,19 @@ await saveSearchResult(historyData);
                             }
                         }
                     }
+                }
+
+                // 🔥 ОГРАНИЧЕНИЕ ДО 300 ОБЪЕКТОВ ДЛЯ ОДИНОЧНОГО ПОИСКА
+                const MAX_OBJECTS = 300;
+                if (candidates.length > MAX_OBJECTS) {
+                    resultsContainer.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                            ⚠️ Найдено <strong>${candidates.length}</strong> объектов. 
+                            Максимум: <strong>${MAX_OBJECTS}</strong>.
+                            <br><span class="text-xs">Пожалуйста, уточните условия поиска (например, добавьте номер дома).</span>
+                        </div>
+                    `;
+                    return;
                 }
 
                 if (candidates.length === 0) {
