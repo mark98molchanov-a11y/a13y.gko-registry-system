@@ -3570,7 +3570,7 @@ const filtered = deals.filter(d => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
     if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
     if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
-    if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+    if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(d.number)) return false;
     return true;
 });
     return filtered.length > 0;
