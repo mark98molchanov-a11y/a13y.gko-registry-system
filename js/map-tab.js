@@ -8032,6 +8032,8 @@ window.applyYearBuildFilter = applyYearBuildFilter;
 window.applyPurposeFilter = applyPurposeFilter;
 window.applyVriFilter = applyVriFilter;
 window.applyFiltersAndUpdate = applyFiltersAndUpdate;
+window.applyNumberFilter = applyNumberFilter; 
+
 
 // ✅ ФУНКЦИИ "ВЫДЕЛИТЬ ВСЕ" / "СБРОСИТЬ":
 window.toggleAllDealTypes = toggleAllDealTypes;
@@ -8042,6 +8044,7 @@ window.toggleAllQuarters = toggleAllQuarters;
 window.toggleAllYearBuilds = toggleAllYearBuilds;
 window.toggleAllPurposes = toggleAllPurposes;
 window.toggleAllVri = toggleAllVri;
+window.toggleAllNumbers = toggleAllNumbers; 
 window.setChartGroupBy = setChartGroupBy; 
 window.refreshPriceChart = refreshPriceChart;
 window.getMedianSync = getMedianSync;
