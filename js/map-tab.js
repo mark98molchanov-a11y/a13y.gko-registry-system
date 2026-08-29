@@ -982,7 +982,8 @@ async function loadDealsCSV() {
                 floor: floor,
                 location: location,
                 street: street,
-                cad_nspd: cadNspd
+                cad_nspd: cadNspd, 
+                number: numberValue 
             });
             
             // ... счетчики
@@ -1032,6 +1033,7 @@ window.priceThresholds = priceThresholds;
         renderYearBuildFilters();
         renderPurposeFilters();
         renderVriFilters();
+        renderNumberFilters();
         
         if (typeof updateTableFull === 'function') {
             updateTableFull();
