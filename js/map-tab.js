@@ -188,6 +188,7 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return;
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return;
+        if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return;
         
         // ✅ ПОЛУЧАЕМ ЗНАЧЕНИЕ ДЛЯ ГРУППИРОВКИ
         let groupValue;
@@ -2655,6 +2656,7 @@ function applyNumberFilter(num) {
         currentNumberFilter.splice(index, 1);
     }
     
+    // ✅ ПЕРЕСЧИТЫВАЕМ ВСЕ ФИЛЬТРЫ
     recalcAllFilters();
     
     const level = currentLevel;
@@ -2672,13 +2674,22 @@ function applyNumberFilter(num) {
         });
     }
     
+    // ✅ ОБНОВЛЯЕМ ВСЁ
     updateQuartersStyle(targetObjects);
     updateMapStatsFromDeals(level, parentId);
     updatePopupsAndTooltips(level);
-    updateQuartersListWithFilteredObjects(null);
+    updateQuartersListWithFilteredObjects(null);  // ← ЭТО ОБНОВЛЯЕТ КВАРТАЛЫ СО СДЕЛКАМИ
     addMapLegend();
     updateActiveFiltersDisplay();
-    renderDealsTable();
+    renderDealsTable();  // ← ЭТО ОБНОВЛЯЕТ ТАБЛИЦУ СДЕЛОК
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
 }
 function recalcAllFilters() {
     console.log('🔄 Пересчет всех фильтров...');
