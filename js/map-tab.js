@@ -2711,6 +2711,9 @@ function recalcAllFilters() {
             if (excludeFilterType !== 'vri') {
                 if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             }
+                    if (excludeFilterType !== 'number') {
+            if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+        }
             return true;
         });
     }
@@ -5231,6 +5234,7 @@ function resetAllFiltersMap() {
     window.selectedQuarterCadNumber = null;
     
     currentDealTypeFilter = [];
+    currentNumberFilter = [];
     currentCityFilter = [];
     currentObjectTypeFilter = [];
     currentWallMaterialFilter = [];
