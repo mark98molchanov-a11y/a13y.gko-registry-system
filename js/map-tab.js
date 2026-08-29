@@ -1270,6 +1270,7 @@ function togglePriceFilter() {
     renderDealsTable();
     renderPurposeFilters();   
     renderVriFilters();  
+    renderNumberFilters();
     
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
@@ -1335,6 +1336,7 @@ function toggleCadCostFilter() {
     renderPurposeFilters();
     renderVriFilters();
     renderDealsTable();
+    renderNumberFilters();
     
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
