@@ -16,6 +16,7 @@ let quarterTypes = {};
 let yearBuildTypes = {};
 let purposeCount = {};   
 let vriCount = {};   
+let numberCount = {};
 let currentDealTypeFilter = [];  
 let currentCityFilter = [];  
 let currentObjectTypeFilter = [];
@@ -23,7 +24,8 @@ let currentWallMaterialFilter = [];
 let currentQuarterFilter = [];
 let currentYearBuildFilter = [];
 let currentPurposeFilter = [];   
-let currentVriFilter = [];    
+let currentVriFilter = [];
+let currentNumberFilter = [];
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
 let isCadCostFilterEnabled = false;
@@ -876,6 +878,7 @@ async function loadDealsCSV() {
         const yearBuildIndex = headers.indexOf('year_build'); 
         const purposeIndex = headers.indexOf('purpose_text'); 
         const vriIndex = headers.indexOf('vri');  
+        const numberIndex = headers.indexOf('number'); 
         const cadCostIndex = headers.indexOf('cad_cost'); 
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
@@ -897,6 +900,7 @@ async function loadDealsCSV() {
         const yearBuildTypesLocal = {};
         const purposeCountLocal = {};   
         const vriCountLocal = {};
+        const numberCountLocal = {};
         
         // ✅ ОЧИЩАЕМ ГЛОБАЛЬНЫЕ МАССИВЫ
         allDealsFlat = [];
@@ -917,7 +921,8 @@ async function loadDealsCSV() {
             const quarter = values[quarterIndex] || 'nan'; 
             const yearBuild = values[yearBuildIndex] || 'nan';  
             const purposeText = values[purposeIndex] || 'nan';
-            const vri = values[vriIndex] || 'nan';  
+            const vri = values[vriIndex] || 'nan'; 
+            const numberValue = values[numberIndex] || deal.cad_number || 'nan';
             const floor = values[floorIndex] || 'nan';
             const location = values[locationIndex] || 'nan';
             const street = values[streetIndex] || 'nan';
@@ -954,7 +959,8 @@ async function loadDealsCSV() {
                 floor: floor,
                 location: location,
                 street: street,
-                cad_nspd: cadNspd
+                cad_nspd: cadNspd, 
+                number: numberValue 
             });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
@@ -988,6 +994,7 @@ async function loadDealsCSV() {
             yearBuildTypesLocal[yearBuild] = (yearBuildTypesLocal[yearBuild] || 0) + 1; 
             purposeCountLocal[purposeText] = (purposeCountLocal[purposeText] || 0) + 1;
             vriCountLocal[vri] = (vriCountLocal[vri] || 0) + 1;
+            numberCountLocal[numberValue] = (numberCountLocal[numberValue] || 0) + 1;
         }
         
         // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -1000,6 +1007,7 @@ async function loadDealsCSV() {
         yearBuildTypes = yearBuildTypesLocal;
         purposeCount = purposeCountLocal;
         vriCount = vriCountLocal;
+        numberCount = numberCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
 window.allDealsFlat = allDealsFlat;
@@ -1896,7 +1904,82 @@ function renderVriFilters() {
     
     container.innerHTML = html;
 }
+function renderNumberFilters() {
+    const container = document.getElementById('number-filters');
+    if (!container) return;
+    
+    const numbers = Object.keys(numberCount)
+        .sort((a, b) => {
+            if (a === 'nan' || a === 'NaN' || a === '') return 1;
+            if (b === 'nan' || b === 'NaN' || b === '') return -1;
+            return numberCount[b] - numberCount[a];
+        });
+    
+    if (numbers.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
+        return;
+    }
 
+    const allSelected = numbers.every(num => currentNumberFilter.includes(num));
+    
+    let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Количество объектов</span>
+            <button onclick="toggleAllNumbers(${JSON.stringify(numbers).replace(/"/g, '&quot;')})"
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <tbody>
+    `;
+    
+    numbers.forEach(num => {
+        const count = numberCount[num];
+        const isActive = currentNumberFilter.includes(num);
+        const shortName = num.length > 15 ? num.substring(0, 14) + '…' : num;
+        const isNan = num === 'nan' || num === 'NaN' || num === '';
+        
+        html += `
+            <tr onclick="applyNumberFilter('${num.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${num}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
     if (!container) return;
@@ -2058,6 +2141,16 @@ function toggleAllVri(types) {
     recalcAllFilters();
     applyFiltersAndUpdate();
 }
+function toggleAllNumbers(numbers) {
+    const allSelected = numbers.every(num => currentNumberFilter.includes(num));
+    if (allSelected) {
+        currentNumberFilter = [];
+    } else {
+        currentNumberFilter = [...numbers];
+    }
+    recalcAllFilters();
+    applyFiltersAndUpdate();
+}
 function applyFiltersAndUpdate() {
     // Перерисовываем все фильтры
     renderDealTypeFilters();
@@ -2068,6 +2161,7 @@ function applyFiltersAndUpdate() {
     renderYearBuildFilters();
     renderPurposeFilters();
     renderVriFilters();
+    renderNumberFilters();
     
     // Обновляем карту и таблицу
     const level = currentLevel;
@@ -2549,6 +2643,39 @@ function applyVriFilter(type) {
         });
     }
 }
+function applyNumberFilter(num) {
+    const index = currentNumberFilter.indexOf(num);
+    if (index === -1) {
+        currentNumberFilter.push(num);
+    } else {
+        currentNumberFilter.splice(index, 1);
+    }
+    
+    recalcAllFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+}
 function recalcAllFilters() {
     console.log('🔄 Пересчет всех фильтров...');
     
@@ -2648,7 +2775,12 @@ function recalcAllFilters() {
         const key = deal.vri || 'nan';
         vrisNew[key] = (vrisNew[key] || 0) + 1;
     });
-    
+        const numbersNew = {};
+    const filteredDealsForNumber = getFilteredDeals('number');
+    filteredDealsForNumber.forEach(deal => {
+        const key = deal.number || 'nan';
+        numbersNew[key] = (numbersNew[key] || 0) + 1;
+    });
     // ✅ 3. Обновляем глобальные переменные
     dealTypes = dealTypesNew;
     cityTypes = citiesNew;
@@ -2658,6 +2790,7 @@ function recalcAllFilters() {
     yearBuildTypes = yearBuildsNew;
     purposeCount = purposesNew;
     vriCount = vrisNew;
+     numberCount = numbersNew;
     
     // ✅ 4. Перерисовываем ВСЕ фильтры
     renderDealTypeFilters();
@@ -2668,6 +2801,7 @@ function recalcAllFilters() {
     renderYearBuildFilters();
     renderPurposeFilters();
     renderVriFilters();
+    renderNumberFilters();
     
     console.log('✅ Все фильтры пересчитаны');
 }
@@ -2723,6 +2857,9 @@ const filteredDeals = deals.filter(deal => {
     if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
         return false;
         }
+    if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) {
+        return false;
+         }
     return true;
 });
     
@@ -2780,6 +2917,9 @@ const filteredDeals = deals.filter(deal => {
         return false;
     }
     if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
+        return false;
+        }
+    if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) {
         return false;
         }
     return true;
@@ -2983,6 +3123,7 @@ function updateMapStatsFromDeals(level, parentId) {
             if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
             return true;
         });
         
@@ -3241,6 +3382,7 @@ function buildDistrictTooltipContent(layer) {
             if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
             return true;
         });
         
@@ -3410,6 +3552,7 @@ const filtered = deals.filter(d => {
     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(d.year_build)) return false;
     if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
     if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
+    if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
     return true;
 });
     return filtered.length > 0;
@@ -3475,6 +3618,7 @@ function updateQuartersStyle(targetObjects) {
                 if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
                 if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                 if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
                 return true;
             });
             
@@ -3778,6 +3922,7 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
                         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                        if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
                         return true;
                     });
                     
@@ -3888,6 +4033,7 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                     if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
                     if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                     if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                    if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
                     return true;
                 });
                 const filteredCount = filteredDeals.length;
@@ -4769,6 +4915,7 @@ if (levelName === 'district') {
             if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
             return true;
         });
         
@@ -5160,7 +5307,10 @@ function updateActiveFiltersDisplay() {
         const values = currentVriFilter.join(', ');
         activeFilters.push(`ВРИ: ${values}`);
     }
-    
+    if (currentNumberFilter.length > 0) {
+    const values = currentNumberFilter.join(', ');
+    activeFilters.push(`Количество объектов: ${values}`);
+}
     if (activeFilters.length === 0) {
         container.textContent = '—';
         container.style.color = '#94a3b8';
@@ -5220,6 +5370,7 @@ function sortDealsTable(field) {
         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
         return true;
     });
     
@@ -5261,7 +5412,7 @@ function sortDealsTable(field) {
         }
         
         // Для числовых полей
-        const numericFields = ['area', 'cad_cost', 'upks', 'deal_price_rub', 'uprs_rub', 'year_build'];
+        const numericFields = ['area', 'cad_cost', 'upks', 'deal_price_rub', 'uprs_rub', 'year_build', 'number'];
         if (numericFields.includes(field)) {
             valA = a[field] || 0;
             valB = b[field] || 0;
@@ -5938,6 +6089,7 @@ function exportDealsTableToExcel() {
         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
         return true;
     });
     
@@ -7013,12 +7165,12 @@ function refreshCSVFromGist() {
     });
 }
 async function createCSVFromData() {
-    const headers = [
-        'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
-        'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
-        'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
-        'floor', 'location', 'street', 'cad_nspd'
-    ];
+const headers = [
+    'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
+    'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
+    'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
+    'floor', 'location', 'street', 'cad_nspd', 'number'
+];
     
     const rows = [headers.join(',')];
     for (const deal of allDealsFlat) {
@@ -7729,6 +7881,7 @@ function renderDealsTable() {
         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+        if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
         return true;
     });
     
