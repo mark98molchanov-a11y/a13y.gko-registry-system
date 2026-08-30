@@ -2983,6 +2983,9 @@ const filteredDeals = deals.filter(deal => {
     if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) {
         return false;
         }
+        if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) {
+        return false;
+        }
     return true;
 });
             allDeals = allDeals.concat(filteredDeals);
@@ -5055,6 +5058,7 @@ if (levelName === 'quarter') {
         if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
         return true;
     });
     
