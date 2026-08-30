@@ -17,6 +17,7 @@ let yearBuildTypes = {};
 let purposeCount = {};   
 let vriCount = {};   
 let numberCount = {};
+let ratioCategoryCount = {};
 let currentDealTypeFilter = [];  
 let currentCityFilter = [];  
 let currentObjectTypeFilter = [];
@@ -26,6 +27,7 @@ let currentYearBuildFilter = [];
 let currentPurposeFilter = [];   
 let currentVriFilter = [];
 let currentNumberFilter = [];
+let currentRatioCategoryFilter = []; 
 let allDealsFlat = [];
 let isHeatmapEnabled = false;
 let isCadCostFilterEnabled = false;
@@ -700,6 +702,8 @@ if (statsDiv) {
             if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+            if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;  
+             if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
             return true;
         });
     }
@@ -880,6 +884,7 @@ async function loadDealsCSV() {
         const purposeIndex = headers.indexOf('purpose_text'); 
         const vriIndex = headers.indexOf('vri');  
         const numberIndex = headers.indexOf('number'); 
+        const ratioCategoryIndex = headers.indexOf('ratio_category'); 
         const cadCostIndex = headers.indexOf('cad_cost'); 
         const floorIndex = headers.indexOf('floor');
         const locationIndex = headers.indexOf('location');
@@ -902,6 +907,7 @@ async function loadDealsCSV() {
         const purposeCountLocal = {};   
         const vriCountLocal = {};
         const numberCountLocal = {};
+        const ratioCategoryCountLocal = {};
         
         // ✅ ОЧИЩАЕМ ГЛОБАЛЬНЫЕ МАССИВЫ
         allDealsFlat = [];
@@ -924,6 +930,7 @@ async function loadDealsCSV() {
             const purposeText = values[purposeIndex] || 'nan';
             const vri = values[vriIndex] || 'nan'; 
             const numberValue = values[numberIndex] || deal.cad_number || 'nan';
+            const ratioCategory = values[ratioCategoryIndex] || 'nan'; 
             const floor = values[floorIndex] || 'nan';
             const location = values[locationIndex] || 'nan';
             const street = values[streetIndex] || 'nan';
@@ -961,7 +968,8 @@ async function loadDealsCSV() {
                 location: location,
                 street: street,
                 cad_nspd: cadNspd, 
-                number: numberValue 
+                number: numberValue, 
+                ratio_category: ratioCategory 
             });
             
             if (!dealsByCad[cadNum]) dealsByCad[cadNum] = [];
@@ -984,10 +992,10 @@ async function loadDealsCSV() {
                 location: location,
                 street: street,
                 cad_nspd: cadNspd, 
-                number: numberValue 
+                number: numberValue,
+                ratio_category: ratioCategory
             });
             
-            // ... счетчики
             typesCount[kind] = (typesCount[kind] || 0) + 1;
             citiesCount[city] = (citiesCount[city] || 0) + 1;
             objectTypesCount[objKind] = (objectTypesCount[objKind] || 0) + 1;
@@ -997,6 +1005,7 @@ async function loadDealsCSV() {
             purposeCountLocal[purposeText] = (purposeCountLocal[purposeText] || 0) + 1;
             vriCountLocal[vri] = (vriCountLocal[vri] || 0) + 1;
             numberCountLocal[numberValue] = (numberCountLocal[numberValue] || 0) + 1;
+            ratioCategoryCountLocal[ratioCategory] = (ratioCategoryCountLocal[ratioCategory] || 0) + 1; 
         }
         
         // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -1010,6 +1019,7 @@ async function loadDealsCSV() {
         purposeCount = purposeCountLocal;
         vriCount = vriCountLocal;
         numberCount = numberCountLocal;
+        ratioCategoryCount = ratioCategoryCountLocal;
         
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
 window.allDealsFlat = allDealsFlat;
@@ -1035,6 +1045,7 @@ window.priceThresholds = priceThresholds;
         renderPurposeFilters();
         renderVriFilters();
         renderNumberFilters();
+        renderRatioCategoryFilters(); 
         
         if (typeof updateTableFull === 'function') {
             updateTableFull();
@@ -1165,6 +1176,8 @@ function rebuildDealsData(filteredDeals) {
     const newYearBuildTypes = {};
     const newPurposeCount = {};
     const newVriCount = {};
+    const newNumberCount = {};   
+    const newRatioCategoryCount = {}; 
     
     // Заполняем новыми данными
     filteredDeals.forEach(deal => {
@@ -1188,7 +1201,9 @@ function rebuildDealsData(filteredDeals) {
             vri: deal.vri,
             floor: deal.floor,
             location: deal.location,
-            street: deal.street
+            street: deal.street,
+            number: deal.number,  
+            ratio_category: deal.ratio_category 
         });
         
         // Обновляем счетчики для фильтров
@@ -1200,6 +1215,8 @@ function rebuildDealsData(filteredDeals) {
         newYearBuildTypes[deal.year_build] = (newYearBuildTypes[deal.year_build] || 0) + 1;
         newPurposeCount[deal.purpose_text] = (newPurposeCount[deal.purpose_text] || 0) + 1;
         newVriCount[deal.vri] = (newVriCount[deal.vri] || 0) + 1;
+        newNumberCount[deal.number] = (newNumberCount[deal.number] || 0) + 1; 
+        newRatioCategoryCount[deal.ratio_category] = (newRatioCategoryCount[deal.ratio_category] || 0) + 1;
     });
     
     // ✅ ПЕРЕЗАПИСЫВАЕМ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (а не очищаем)
@@ -1212,6 +1229,8 @@ function rebuildDealsData(filteredDeals) {
     yearBuildTypes = newYearBuildTypes;
     purposeCount = newPurposeCount;
     vriCount = newVriCount;
+    numberCount = newNumberCount; 
+    ratioCategoryCount = newRatioCategoryCount; 
     
     console.log('✅ Данные перестроены после фильтрации по ценам');
     console.log(`📊 Сделок: ${filteredDeals.length}, кварталов: ${Object.keys(newDealsData).length}`);
@@ -1274,6 +1293,7 @@ function togglePriceFilter() {
     renderPurposeFilters();   
     renderVriFilters();  
     renderNumberFilters();
+    renderRatioCategoryFilters(); 
     
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
@@ -1340,6 +1360,7 @@ function toggleCadCostFilter() {
     renderVriFilters();
     renderDealsTable();
     renderNumberFilters();
+    renderRatioCategoryFilters(); 
     
     if (mapData) {
         renderMapLevel(currentLevel, currentParentId);
@@ -1985,6 +2006,82 @@ function renderNumberFilters() {
     
     container.innerHTML = html;
 }
+function renderRatioCategoryFilters() {
+    const container = document.getElementById('ratio-category-filters');
+    if (!container) return;
+    
+    const categories = Object.keys(ratioCategoryCount)
+        .sort((a, b) => {
+            if (a === 'nan' || a === 'NaN' || a === '') return 1;
+            if (b === 'nan' || b === 'NaN' || b === '') return -1;
+            return ratioCategoryCount[b] - ratioCategoryCount[a];
+        });
+    
+    if (categories.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; font-size: 10px; text-align: center; padding: 8px 0;">Нет данных</div>';
+        return;
+    }
+
+    const allSelected = categories.every(cat => currentRatioCategoryFilter.includes(cat));
+    
+    let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
+            <button onclick="toggleAllRatioCategories(${JSON.stringify(categories).replace(/"/g, '&quot;')})"
+                    style="
+                        font-size: 8px; 
+                        padding: 1px 8px; 
+                        border-radius: 4px; 
+                        border: 1px solid ${allSelected ? '#fecaca' : '#bae6fd'};
+                        background: ${allSelected ? '#fef2f2' : '#e0f2fe'};
+                        color: ${allSelected ? '#dc2626' : '#0284c7'};
+                        cursor: pointer; 
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        font-family: 'Inter', sans-serif;
+                        white-space: nowrap;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                ${allSelected ? 'Сбросить' : 'Выделить все'}
+            </button>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <tbody>
+    `;
+    
+    categories.forEach(cat => {
+        const count = ratioCategoryCount[cat];
+        const isActive = currentRatioCategoryFilter.includes(cat);
+        const shortName = cat.length > 15 ? cat.substring(0, 14) + '…' : cat;
+        const isNan = cat === 'nan' || cat === 'NaN' || cat === '';
+        
+        html += `
+            <tr onclick="applyRatioCategoryFilter('${cat.replace(/'/g, "\\'")}')" 
+                style="
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: ${isActive ? '#e0f2fe' : 'transparent'};
+                    border-left: ${isActive ? '2px solid #0ea5e9' : '2px solid transparent'};
+                    font-weight: ${isActive ? '600' : '400'};
+                    color: ${isActive ? '#0284c7' : '#1e293b'};
+                    ${isNan ? 'opacity: 0.5;' : ''}
+                "
+                onmouseover="this.style.background='${isActive ? '#e0f2fe' : '#f1f5f9'}'"
+                onmouseout="this.style.background='${isActive ? '#e0f2fe' : 'transparent'}'">
+                <td style="padding: 2px 4px; border-bottom: 1px solid #f1f5f9; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;" title="${cat}">${shortName}</td>
+                <td style="padding: 2px 4px; text-align: right; border-bottom: 1px solid #f1f5f9; font-weight: 500; font-size: 9px;">${count.toLocaleString('ru-RU')}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
     if (!container) return;
@@ -2156,6 +2253,16 @@ function toggleAllNumbers(numbers) {
     recalcAllFilters();
     applyFiltersAndUpdate();
 }
+function toggleAllRatioCategories(categories) {
+    const allSelected = categories.every(cat => currentRatioCategoryFilter.includes(cat));
+    if (allSelected) {
+        currentRatioCategoryFilter = [];
+    } else {
+        currentRatioCategoryFilter = [...categories];
+    }
+    recalcAllFilters();
+    applyFiltersAndUpdate();
+}
 function applyFiltersAndUpdate() {
     // Перерисовываем все фильтры
     renderDealTypeFilters();
@@ -2167,6 +2274,7 @@ function applyFiltersAndUpdate() {
     renderPurposeFilters();
     renderVriFilters();
     renderNumberFilters();
+    renderRatioCategoryFilters(); 
     
     // Обновляем карту и таблицу
     const level = currentLevel;
@@ -2691,6 +2799,47 @@ function applyNumberFilter(num) {
         });
     }
 }
+function applyRatioCategoryFilter(cat) {
+    const index = currentRatioCategoryFilter.indexOf(cat);
+    if (index === -1) {
+        currentRatioCategoryFilter.push(cat);
+    } else {
+        currentRatioCategoryFilter.splice(index, 1);
+    }
+    
+    recalcAllFilters();
+    
+    const level = currentLevel;
+    const parentId = currentParentId;
+    
+    const allObjects = mapData.features.filter(f => f.properties.level === 2);
+    let targetObjects = [];
+    
+    if (level === 0 || level === 1) {
+        targetObjects = allObjects;
+    } else if (level === 2) {
+        targetObjects = allObjects.filter(f => {
+            const fParentId = f.properties.parent_id || f.properties.district_id;
+            return String(fParentId) === String(parentId);
+        });
+    }
+    
+    updateQuartersStyle(targetObjects);
+    updateMapStatsFromDeals(level, parentId);
+    updatePopupsAndTooltips(level);
+    updateQuartersListWithFilteredObjects(null);
+    addMapLegend();
+    updateActiveFiltersDisplay();
+    renderDealsTable();
+    
+    if (window.wrapperLayer) {
+        window.wrapperLayer.eachLayer(function(layer) {
+            if (layer._updateTooltip) {
+                layer._updateTooltip();
+            }
+        });
+    }
+}
 function recalcAllFilters() {
     console.log('🔄 Пересчет всех фильтров...');
     
@@ -2722,9 +2871,12 @@ function recalcAllFilters() {
             if (excludeFilterType !== 'vri') {
                 if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             }
-                    if (excludeFilterType !== 'number') {
+            if (excludeFilterType !== 'number') {
             if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
         }
+            if (excludeFilterType !== 'ratio_category') { 
+    if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false;
+}
             return true;
         });
     }
@@ -2799,6 +2951,12 @@ function recalcAllFilters() {
         const key = deal.number || 'nan';
         numbersNew[key] = (numbersNew[key] || 0) + 1;
     });
+    const ratioCategoriesNew = {};
+const filteredDealsForRatio = getFilteredDeals('ratio_category');
+filteredDealsForRatio.forEach(deal => {
+    const key = deal.ratio_category || 'nan';
+    ratioCategoriesNew[key] = (ratioCategoriesNew[key] || 0) + 1;
+});
     // ✅ 3. Обновляем глобальные переменные
     dealTypes = dealTypesNew;
     cityTypes = citiesNew;
@@ -2809,6 +2967,7 @@ function recalcAllFilters() {
     purposeCount = purposesNew;
     vriCount = vrisNew;
      numberCount = numbersNew;
+    ratioCategoryCount = ratioCategoriesNew; 
     
     // ✅ 4. Перерисовываем ВСЕ фильтры
     renderDealTypeFilters();
@@ -2820,6 +2979,7 @@ function recalcAllFilters() {
     renderPurposeFilters();
     renderVriFilters();
     renderNumberFilters();
+    renderRatioCategoryFilters();
     
     console.log('✅ Все фильтры пересчитаны');
 }
@@ -2876,6 +3036,9 @@ const filteredDeals = deals.filter(deal => {
         return false;
         }
     if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) {
+        return false;
+         }
+        if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) {
         return false;
          }
     return true;
@@ -2940,6 +3103,9 @@ const filteredDeals = deals.filter(deal => {
     if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) {
         return false;
         }
+   if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) {
+        return false;
+         }
     return true;
 });
             
@@ -2986,6 +3152,9 @@ const filteredDeals = deals.filter(deal => {
         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) {
         return false;
         }
+     if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) { 
+         return false;
+     }
     return true;
 });
             allDeals = allDeals.concat(filteredDeals);
@@ -3145,6 +3314,7 @@ function updateMapStatsFromDeals(level, parentId) {
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+            if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
             return true;
         });
         
@@ -3404,6 +3574,7 @@ function buildDistrictTooltipContent(layer) {
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+            if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false;
             return true;
         });
         
@@ -3574,6 +3745,7 @@ const filtered = deals.filter(d => {
     if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(d.purpose_text)) return false;
     if (currentVriFilter.length > 0 && !currentVriFilter.includes(d.vri)) return false;
     if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(d.number)) return false;
+    if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(d.ratio_category)) return false; 
     return true;
 });
     return filtered.length > 0;
@@ -3640,6 +3812,7 @@ function updateQuartersStyle(targetObjects) {
                 if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                 if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
                 if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+                if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
                 return true;
             });
             
@@ -3944,6 +4117,7 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
                         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+                        if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
                         return true;
                     });
                     
@@ -4055,6 +4229,7 @@ function renderMapLevel(level, parentId = null, skipAutoCenter = false) {
                     if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                     if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
                     if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+                    if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
                     return true;
                 });
                 const filteredCount = filteredDeals.length;
@@ -4759,6 +4934,7 @@ function onMapFeatureClick(feature, layer) {
                 if (currentYearBuildFilter.length > 0 && !currentYearBuildFilter.includes(deal.year_build)) return false;
                 if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
                 if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
+                if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
                 return true;
             });
             
@@ -4937,6 +5113,7 @@ if (levelName === 'district') {
             if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
             if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
             if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+            if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false;
             return true;
         });
         
@@ -5059,6 +5236,7 @@ if (levelName === 'quarter') {
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
          if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+        if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
         return true;
     });
     
@@ -5334,6 +5512,10 @@ function updateActiveFiltersDisplay() {
     const values = currentNumberFilter.join(', ');
     activeFilters.push(`Количество объектов: ${values}`);
 }
+if (currentRatioCategoryFilter.length > 0) {  //
+    const values = currentRatioCategoryFilter.join(', ');
+    activeFilters.push(`Категория: ${values}`);
+}
     if (activeFilters.length === 0) {
         container.textContent = '—';
         container.style.color = '#94a3b8';
@@ -5359,7 +5541,6 @@ let dealsSortField = 'diff_abs';
 let dealsSortAsc = true;
 
 function sortDealsTable(field) {
-    // Если кликнули по тому же полю — меняем направление сортировки
     if (dealsSortField === field) {
         dealsSortAsc = !dealsSortAsc;
     } else {
@@ -5394,6 +5575,7 @@ function sortDealsTable(field) {
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+      if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
         return true;
     });
     
@@ -7905,6 +8087,7 @@ function renderDealsTable() {
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
+        if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
         return true;
     });
     
@@ -8054,6 +8237,7 @@ window.applyPurposeFilter = applyPurposeFilter;
 window.applyVriFilter = applyVriFilter;
 window.applyFiltersAndUpdate = applyFiltersAndUpdate;
 window.applyNumberFilter = applyNumberFilter; 
+window.applyRatioCategoryFilter = applyRatioCategoryFilter; 
 
 
 // ✅ ФУНКЦИИ "ВЫДЕЛИТЬ ВСЕ" / "СБРОСИТЬ":
@@ -8066,6 +8250,7 @@ window.toggleAllYearBuilds = toggleAllYearBuilds;
 window.toggleAllPurposes = toggleAllPurposes;
 window.toggleAllVri = toggleAllVri;
 window.toggleAllNumbers = toggleAllNumbers; 
+window.toggleAllRatioCategories = toggleAllRatioCategories; 
 window.setChartGroupBy = setChartGroupBy; 
 window.refreshPriceChart = refreshPriceChart;
 window.getMedianSync = getMedianSync;
