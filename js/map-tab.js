@@ -2085,7 +2085,8 @@ function renderRatioCategoryFilters() {
     `;
     
     container.innerHTML = html;
-
+    
+    // ❌ НЕТ ВЫЗОВА initRatioTooltip() — УДАЛИ ЕГО!
 }
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
