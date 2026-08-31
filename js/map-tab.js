@@ -8269,6 +8269,98 @@ window.convertCoordinates = convertCoordinates;
 window.showNSPDObjectByNspd = showNSPDObjectByNspd;
 console.log('✅ Функции синхронизации с НСПД загружены');
 console.log('✅ map-tab.js загружен');
+function initRatioTooltip() {
+    // Находим контейнер с фильтром
+    const container = document.getElementById('ratio-category-filters');
+    if (!container) return;
+    
+    // Находим существующий тултип или создаем
+    let tooltip = document.getElementById('ratio-tooltip-container');
+    
+    if (!tooltip) {
+        // Создаем тултип
+        tooltip = document.createElement('div');
+        tooltip.id = 'ratio-tooltip-container';
+        tooltip.style.cssText = `
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 10px;
+            width: 240px;
+            z-index: 1000;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            text-align: left;
+            font-weight: 400;
+            line-height: 1.5;
+            font-family: 'Inter', sans-serif;
+            pointer-events: none;
+        `;
+        
+        tooltip.innerHTML = `
+            <div style="font-weight:600; color:#60a5fa; margin-bottom:4px; font-size:11px;">
+                💡 Что такое категория?
+            </div>
+            <div style="margin-bottom:4px;">
+                Отношение <strong>цены сделки</strong> к <strong>кадастровой стоимости</strong>
+            </div>
+            <div style="background:#334155; padding:4px 8px; border-radius:4px; font-family:monospace; font-size:10px; color:#e2e8f0; margin-top:4px;">
+                ratio = deal_price_rub / cad_cost
+            </div>
+            <div style="font-size:9px; color:#94a3b8; margin-top:4px;">
+                Показывает, во сколько раз цена сделки выше или ниже кадастровой стоимости
+            </div>
+            <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #1e293b; transform: translateX(-50%) rotate(45deg);"></div>
+        `;
+        
+        container.style.position = 'relative';
+        container.appendChild(tooltip);
+    }
+    
+    // Находим иконку вопроса
+    const header = container.querySelector('[style*="display: flex; align-items: center; gap: 4px;"]');
+    if (header) {
+        const questionIcon = header.querySelector('[style*="cursor: help;"]') || 
+                            header.querySelector('span[style*="border: 1px solid"]');
+        if (questionIcon) {
+            // Удаляем старые обработчики
+            questionIcon.removeEventListener('mouseenter', showTooltip);
+            questionIcon.removeEventListener('mouseleave', hideTooltip);
+            
+            // Добавляем новые
+            questionIcon.addEventListener('mouseenter', showTooltip);
+            questionIcon.addEventListener('mouseleave', hideTooltip);
+        }
+    }
+    
+    function showTooltip() {
+        const t = document.getElementById('ratio-tooltip-container');
+        if (t) t.style.display = 'block';
+    }
+    
+    function hideTooltip() {
+        const t = document.getElementById('ratio-tooltip-container');
+        if (t) t.style.display = 'none';
+    }
+}
+
+// Вызываем после рендера фильтров
+setTimeout(initRatioTooltip, 100);
+
+// Также вызываем при обновлении фильтров
+const originalRender = window.renderRatioCategoryFilters || renderRatioCategoryFilters;
+window.renderRatioCategoryFilters = function() {
+    if (typeof originalRender === 'function') originalRender();
+    setTimeout(initRatioTooltip, 50);
+};
+
+console.log('✅ Тултип для категории зарегистрирован');
 function autoCenterOnLoad() {
     if (typeof window.mapInstance !== 'undefined' && window.mapInstance) {
         console.log('🔄 Автоматическое центрирование при загрузке');
