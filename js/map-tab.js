@@ -2048,24 +2048,24 @@ function renderRatioCategoryFilters() {
                     user-select: none;
                     transition: all 0.2s;
                 "
-                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9'; document.getElementById('ratioTooltip').style.display='block';"
-                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; document.getElementById('ratioTooltip').style.display='none';"
+                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9'; const t=document.getElementById('ratioTooltip'); if(t){t.style.display='block'; t.style.top='auto'; t.style.bottom='calc(100% + 8px)';}"
+                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; const t=document.getElementById('ratioTooltip'); if(t)t.style.display='none';"
                 >?</span>
                 
-                <!-- ТУЛТИП -->
+                <!-- ТУЛТИП - теперь показывается ВПРАВО от иконки -->
                 <div id="ratioTooltip" style="
                     display: none;
                     position: absolute;
-                    bottom: calc(100% + 10px);
-                    left: 50%;
-                    transform: translateX(-50%);
+                    top: 50%;
+                    left: calc(100% + 10px);
+                    transform: translateY(-50%);
                     background: #1e293b;
                     color: white;
                     padding: 8px 12px;
                     border-radius: 8px;
                     font-size: 10px;
                     width: 220px;
-                    z-index: 9999;
+                    z-index: 99999;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                     text-align: left;
                     font-weight: 400;
@@ -2075,7 +2075,7 @@ function renderRatioCategoryFilters() {
                 ">
                     Отношение цены сделки (deal_price_rub) к кадастровой стоимости (cad_cost)
                     <div style="font-weight: 600; margin-top: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
-                    <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: #1e293b;"></div>
+                    <div style="position: absolute; left: -6px; top: 50%; transform: translateY(-50%) rotate(45deg); width: 12px; height: 12px; background: #1e293b;"></div>
                 </div>
                 
             </div>
