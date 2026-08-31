@@ -1046,6 +1046,7 @@ window.priceThresholds = priceThresholds;
         renderVriFilters();
         renderNumberFilters();
         renderRatioCategoryFilters(); 
+        setTimeout(initRatioTooltip, 100);
         
         if (typeof updateTableFull === 'function') {
             updateTableFull();
@@ -2086,7 +2087,7 @@ function renderRatioCategoryFilters() {
     
     container.innerHTML = html;
     
-    // ❌ НЕТ ВЫЗОВА initRatioTooltip() — УДАЛИ ЕГО!
+    setTimeout(initRatioTooltip, 50);
 }
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
@@ -8274,6 +8275,35 @@ window.convertEPSG3857toWGS84 = convertEPSG3857toWGS84;
 window.convertCoordinates = convertCoordinates;
 window.showNSPDObjectByNspd = showNSPDObjectByNspd;
 console.log('✅ Функции синхронизации с НСПД загружены');
+function initRatioTooltip() {
+    const icon = document.getElementById('ratio-question-icon');
+    const tooltip = document.getElementById('ratioTooltip');
+    
+    if (!icon || !tooltip) {
+        console.warn('⚠️ Тултип не найден');
+        return;
+    }
+    
+    console.log('✅ Тултип инициализирован');
+    
+    const newIcon = icon.cloneNode(true);
+    icon.parentNode.replaceChild(newIcon, icon);
+    
+    const newTooltip = tooltip.cloneNode(true);
+    tooltip.parentNode.replaceChild(newTooltip, tooltip);
+    
+    newIcon.addEventListener('mouseenter', function() {
+        newTooltip.style.display = 'block';
+        console.log('👆 Тултип показан');
+    });
+    
+    newIcon.addEventListener('mouseleave', function() {
+        newTooltip.style.display = 'none';
+        console.log('👆 Тултип скрыт');
+    });
+}
+
+console.log('✅ initRatioTooltip зарегистрирована');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
     if (typeof window.mapInstance !== 'undefined' && window.mapInstance) {
