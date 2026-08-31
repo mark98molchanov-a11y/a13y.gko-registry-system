@@ -191,6 +191,7 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return;
         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return;
+        if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return;
         
         // ✅ ПОЛУЧАЕМ ЗНАЧЕНИЕ ДЛЯ ГРУППИРОВКИ
          let groupValue;
