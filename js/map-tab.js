@@ -1958,7 +1958,7 @@ function renderNumberFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Количество_объектов_в_сделке</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Кол-во_объектов</span>
             <button onclick="toggleAllNumbers(${JSON.stringify(numbers).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -2035,7 +2035,7 @@ function renderRatioCategoryFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 4px;">
-                <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Степень_отклонения</span>
+                <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Ratio</span>
                 <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
                 
                 <span id="ratio-question-icon" style="
