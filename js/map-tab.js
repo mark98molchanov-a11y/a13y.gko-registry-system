@@ -2030,33 +2030,33 @@ function renderRatioCategoryFilters() {
                 <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
                 <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
                 
-                <!-- ✅ ТЕПЕРЬ ИКОНКА "?" ЗДЕСЬ -->
-                <div style="position: relative; display: inline-block; cursor: help;"
-                     onmouseenter="document.getElementById('ratioTooltip').style.display='block'"
-                     onmouseleave="document.getElementById('ratioTooltip').style.display='none'">
-                    <span id="ratio-question-icon" style="
-                        color: #94a3b8;
-                        font-size: 10px;
-                        border: 1px solid #cbd5e1;
-                        border-radius: 50%;
-                        width: 16px;
-                        height: 16px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-weight: 700;
-                        font-family: 'Inter', sans-serif;
-                        background: #f8fafc;
-                        user-select: none;
-                        transition: all 0.2s;
-                    "
-                    onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9';"
-                    onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';">?</span>
-                    
-                    <div id="ratioTooltip" style="
+                <!-- ✅ ТОЛЬКО ИКОНКА, ВСЯ МАГИЯ ВНУТРИ -->
+                <span id="ratio-question-icon" style="
+                    color: #94a3b8;
+                    font-size: 10px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 50%;
+                    width: 16px;
+                    height: 16px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    cursor: pointer;
+                    font-family: 'Inter', sans-serif;
+                    background: #f8fafc;
+                    user-select: none;
+                    transition: all 0.2s;
+                    position: relative;
+                "
+                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9'; this.nextElementSibling.style.display='block';"
+                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; this.nextElementSibling.style.display='none';"
+                >?
+                    <!-- ТУЛТИП — СРАЗУ ПОСЛЕ ИКОНКИ -->
+                    <div style="
                         display: none;
                         position: absolute;
-                        bottom: 100%;
+                        bottom: calc(100% + 8px);
                         left: 50%;
                         transform: translateX(-50%);
                         background: #1e293b;
@@ -2065,18 +2065,18 @@ function renderRatioCategoryFilters() {
                         border-radius: 8px;
                         font-size: 10px;
                         width: 220px;
-                        z-index: 1000;
-                        margin-bottom: 6px;
+                        z-index: 9999;
                         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                         text-align: left;
                         font-weight: 400;
                         line-height: 1.4;
+                        pointer-events: none;
                     ">
                         Отношение цены сделки (deal_price_rub) к кадастровой стоимости (cad_cost)
                         <div style="font-weight: 600; margin-top: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
-                        <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #1e293b; transform: translateX(-50%) rotate(45deg);"></div>
+                        <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: #1e293b;"></div>
                     </div>
-                </div>
+                </span>
                 <!-- ✅ КОНЕЦ ИКОНКИ -->
                 
             </div>
@@ -2135,8 +2135,6 @@ function renderRatioCategoryFilters() {
     
     container.innerHTML = html;
     
-    // ✅ ВЫЗЫВАЕМ initRatioTooltip
-    setTimeout(initRatioTooltip, 50);
 }
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
@@ -8324,35 +8322,6 @@ window.convertEPSG3857toWGS84 = convertEPSG3857toWGS84;
 window.convertCoordinates = convertCoordinates;
 window.showNSPDObjectByNspd = showNSPDObjectByNspd;
 console.log('✅ Функции синхронизации с НСПД загружены');
-function initRatioTooltip() {
-    const icon = document.getElementById('ratio-question-icon');
-    const tooltip = document.getElementById('ratioTooltip');
-    
-    if (!icon || !tooltip) {
-        console.warn('⚠️ Тултип не найден');
-        return;
-    }
-    
-    console.log('✅ Тултип инициализирован');
-    
-    const newIcon = icon.cloneNode(true);
-    icon.parentNode.replaceChild(newIcon, icon);
-    
-    const newTooltip = tooltip.cloneNode(true);
-    tooltip.parentNode.replaceChild(newTooltip, tooltip);
-    
-    newIcon.addEventListener('mouseenter', function() {
-        newTooltip.style.display = 'block';
-        console.log('👆 Тултип показан');
-    });
-    
-    newIcon.addEventListener('mouseleave', function() {
-        newTooltip.style.display = 'none';
-        console.log('👆 Тултип скрыт');
-    });
-}
-
-console.log('✅ initRatioTooltip зарегистрирована');
 console.log('✅ map-tab.js загружен');
 function autoCenterOnLoad() {
     if (typeof window.mapInstance !== 'undefined' && window.mapInstance) {
