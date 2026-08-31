@@ -2030,7 +2030,7 @@ function renderRatioCategoryFilters() {
                 <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
                 <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
                 
-                <!-- ✅ ТОЛЬКО ИКОНКА, ВСЯ МАГИЯ ВНУТРИ -->
+                <!-- ✅ ИКОНКА С ТУЛТИПОМ (используем ID) -->
                 <span id="ratio-question-icon" style="
                     color: #94a3b8;
                     font-size: 10px;
@@ -2049,35 +2049,35 @@ function renderRatioCategoryFilters() {
                     transition: all 0.2s;
                     position: relative;
                 "
-                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9'; this.nextElementSibling.style.display='block';"
-                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; this.nextElementSibling.style.display='none';"
-                >?
-                    <!-- ТУЛТИП — СРАЗУ ПОСЛЕ ИКОНКИ -->
-                    <div style="
-                        display: none;
-                        position: absolute;
-                        bottom: calc(100% + 8px);
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: #1e293b;
-                        color: white;
-                        padding: 8px 12px;
-                        border-radius: 8px;
-                        font-size: 10px;
-                        width: 220px;
-                        z-index: 9999;
-                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                        text-align: left;
-                        font-weight: 400;
-                        line-height: 1.4;
-                        pointer-events: none;
-                    ">
-                        Отношение цены сделки (deal_price_rub) к кадастровой стоимости (cad_cost)
-                        <div style="font-weight: 600; margin-top: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
-                        <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: #1e293b;"></div>
-                    </div>
-                </span>
-                <!-- ✅ КОНЕЦ ИКОНКИ -->
+                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9'; document.getElementById('ratioTooltip').style.display='block';"
+                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; document.getElementById('ratioTooltip').style.display='none';"
+                >?</span>
+                
+                <!-- ТУЛТИП ОТДЕЛЬНО -->
+                <div id="ratioTooltip" style="
+                    display: none;
+                    position: absolute;
+                    bottom: calc(100% + 8px);
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #1e293b;
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                    font-size: 10px;
+                    width: 220px;
+                    z-index: 9999;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    text-align: left;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    pointer-events: none;
+                ">
+                    Отношение цены сделки (deal_price_rub) к кадастровой стоимости (cad_cost)
+                    <div style="font-weight: 600; margin-top: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
+                    <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: #1e293b;"></div>
+                </div>
+                <!-- ✅ КОНЕЦ ТУЛТИПА -->
                 
             </div>
             <button onclick="toggleAllRatioCategories(${JSON.stringify(categories).replace(/"/g, '&quot;')})"
