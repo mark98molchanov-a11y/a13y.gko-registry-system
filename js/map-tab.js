@@ -2026,11 +2026,10 @@ function renderRatioCategoryFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+            <div style="display: flex; align-items: center; gap: 4px;">
                 <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
                 <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
                 
-                <!-- ИКОНКА -->
                 <span id="ratio-question-icon" style="
                     color: #94a3b8;
                     font-size: 10px;
@@ -2047,37 +2046,7 @@ function renderRatioCategoryFilters() {
                     background: #f8fafc;
                     user-select: none;
                     transition: all 0.2s;
-                "
-                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9'; const t=document.getElementById('ratioTooltip'); if(t){t.style.display='block'; t.style.top='auto'; t.style.bottom='calc(100% + 8px)';}"
-                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; const t=document.getElementById('ratioTooltip'); if(t)t.style.display='none';"
-                >?</span>
-                
-                <!-- ТУЛТИП - теперь показывается ВПРАВО от иконки -->
-                <div id="ratioTooltip" style="
-                    display: none;
-                    position: absolute;
-                    top: 50%;
-                    left: calc(100% + 10px);
-                    transform: translateY(-50%);
-                    background: #1e293b;
-                    color: white;
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    font-size: 10px;
-                    width: 220px;
-                    z-index: 99999;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                    text-align: left;
-                    font-weight: 400;
-                    line-height: 1.4;
-                    pointer-events: none;
-                    white-space: normal;
-                ">
-                    Отношение цены сделки (deal_price_rub) к кадастровой стоимости (cad_cost)
-                    <div style="font-weight: 600; margin-top: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
-                    <div style="position: absolute; left: -6px; top: 50%; transform: translateY(-50%) rotate(45deg); width: 12px; height: 12px; background: #1e293b;"></div>
-                </div>
-                
+                ">?</span>
             </div>
             <button onclick="toggleAllRatioCategories(${JSON.stringify(categories).replace(/"/g, '&quot;')})"
                     style="
@@ -2133,6 +2102,68 @@ function renderRatioCategoryFilters() {
     `;
     
     container.innerHTML = html;
+    
+    // ✅ СОЗДАЕМ ТУЛТИП ПОСЛЕ ОТРИСОВКИ
+    setTimeout(() => {
+        // Удаляем старый тултип если есть
+        const oldTooltip = document.getElementById('ratioTooltip');
+        if (oldTooltip) oldTooltip.remove();
+        
+        // Находим иконку
+        const icon = document.getElementById('ratio-question-icon');
+        if (!icon) return;
+        
+        // Создаем тултип
+        const tooltip = document.createElement('div');
+        tooltip.id = 'ratioTooltip';
+        tooltip.style.cssText = `
+            display: none;
+            position: fixed;
+            z-index: 999999;
+            pointer-events: none;
+            background: #1e293b;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            max-width: 220px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #334155;
+        `;
+        tooltip.innerHTML = `
+            <div style="font-weight: 600; margin-bottom: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
+            <div style="font-size: 10px; opacity: 0.9; line-height: 1.4;">Отношение цены сделки к кадастровой стоимости</div>
+            <div style="position: absolute; top: 50%; left: -6px; transform: translateY(-50%) rotate(45deg); width: 10px; height: 10px; background: #1e293b; border-left: 1px solid #334155; border-bottom: 1px solid #334155;"></div>
+        `;
+        document.body.appendChild(tooltip);
+        
+        // Добавляем события
+        icon.addEventListener('mouseenter', function(e) {
+            const rect = icon.getBoundingClientRect();
+            const tooltipWidth = 220;
+            let left = rect.right + 10;
+            
+            // Если тултип выходит за правый край экрана - показываем слева
+            if (left + tooltipWidth > window.innerWidth - 10) {
+                left = rect.left - tooltipWidth - 10;
+            }
+            
+            tooltip.style.display = 'block';
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = (rect.top - 10) + 'px';
+            icon.style.background = '#e0f2fe';
+            icon.style.borderColor = '#0ea5e9';
+        });
+        
+        icon.addEventListener('mouseleave', function() {
+            tooltip.style.display = 'none';
+            icon.style.background = '#f8fafc';
+            icon.style.borderColor = '#cbd5e1';
+        });
+        
+        console.log('✅ Тултип создан!');
+    }, 100);
 }
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
