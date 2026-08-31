@@ -2024,9 +2024,34 @@ function renderRatioCategoryFilters() {
 
     const allSelected = categories.every(cat => currentRatioCategoryFilter.includes(cat));
     
+    // ✅ ДОБАВЛЯЕМ ИКОНКУ ВОПРОСА С ТУЛТИПОМ
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
+                <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
+                <!-- ✅ ИКОНКА ВОПРОСА -->
+                <span id="ratio-question-icon" style="
+                    color: #94a3b8;
+                    font-size: 10px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 50%;
+                    width: 16px;
+                    height: 16px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    cursor: help;
+                    font-family: 'Inter', sans-serif;
+                    background: #f8fafc;
+                    user-select: none;
+                    transition: all 0.2s;
+                "
+                onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9';"
+                onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';"
+                >?</span>
+            </div>
             <button onclick="toggleAllRatioCategories(${JSON.stringify(categories).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -2081,6 +2106,9 @@ function renderRatioCategoryFilters() {
     `;
     
     container.innerHTML = html;
+    
+    // ✅ ТЕПЕРЬ ИНИЦИАЛИЗИРУЕМ ТУЛТИП (он найдет иконку)
+    setTimeout(initRatioTooltip, 50);
 }
 function renderPurposeFilters() {
     const container = document.getElementById('purpose-filters');
@@ -8272,13 +8300,22 @@ console.log('✅ map-tab.js загружен');
 function initRatioTooltip() {
     // Находим контейнер с фильтром
     const container = document.getElementById('ratio-category-filters');
-    if (!container) return;
+    if (!container) {
+        console.warn('⚠️ Контейнер ratio-category-filters не найден');
+        return;
+    }
     
-    // Находим существующий тултип или создаем
+    // Находим иконку вопроса по ID
+    const questionIcon = document.getElementById('ratio-question-icon');
+    if (!questionIcon) {
+        console.warn('⚠️ Иконка вопроса (ratio-question-icon) не найдена');
+        return;
+    }
+    
+    // Создаем тултип
     let tooltip = document.getElementById('ratio-tooltip-container');
     
     if (!tooltip) {
-        // Создаем тултип
         tooltip = document.createElement('div');
         tooltip.id = 'ratio-tooltip-container';
         tooltip.style.cssText = `
@@ -8321,32 +8358,33 @@ function initRatioTooltip() {
         
         container.style.position = 'relative';
         container.appendChild(tooltip);
+        console.log('✅ Тултип создан');
     }
     
-    // Находим иконку вопроса
-    const header = container.querySelector('[style*="display: flex; align-items: center; gap: 4px;"]');
-    if (header) {
-        const questionIcon = header.querySelector('[style*="cursor: help;"]') || 
-                            header.querySelector('span[style*="border: 1px solid"]');
-        if (questionIcon) {
-            // Удаляем старые обработчики
-            questionIcon.removeEventListener('mouseenter', showTooltip);
-            questionIcon.removeEventListener('mouseleave', hideTooltip);
-            
-            // Добавляем новые
-            questionIcon.addEventListener('mouseenter', showTooltip);
-            questionIcon.addEventListener('mouseleave', hideTooltip);
-        }
-    }
+    // Удаляем старые обработчики (чтобы не дублировались)
+    questionIcon.removeEventListener('mouseenter', showTooltip);
+    questionIcon.removeEventListener('mouseleave', hideTooltip);
+    
+    // Добавляем новые обработчики
+    questionIcon.addEventListener('mouseenter', showTooltip);
+    questionIcon.addEventListener('mouseleave', hideTooltip);
+    
+    console.log('✅ Обработчики тултипа добавлены');
     
     function showTooltip() {
         const t = document.getElementById('ratio-tooltip-container');
-        if (t) t.style.display = 'block';
+        if (t) {
+            t.style.display = 'block';
+            console.log('👆 Тултип показан');
+        }
     }
     
     function hideTooltip() {
         const t = document.getElementById('ratio-tooltip-container');
-        if (t) t.style.display = 'none';
+        if (t) {
+            t.style.display = 'none';
+            console.log('👆 Тултип скрыт');
+        }
     }
 }
 
