@@ -2006,7 +2006,7 @@ function renderNumberFilters() {
     
     container.innerHTML = html;
 }
-function renderRatioCategoryFilters() {
+unction renderRatioCategoryFilters() {
     const container = document.getElementById('ratio-category-filters');
     if (!container) return;
     
@@ -2113,7 +2113,7 @@ function renderRatioCategoryFilters() {
         const icon = document.getElementById('ratio-question-icon');
         if (!icon) return;
         
-        // Создаем тултип
+        // Создаем тултип с НОВЫМ НЕЙТРАЛЬНЫМ ДИЗАЙНОМ
         const tooltip = document.createElement('div');
         tooltip.id = 'ratioTooltip';
         tooltip.style.cssText = `
@@ -2121,20 +2121,20 @@ function renderRatioCategoryFilters() {
             position: fixed;
             z-index: 999999;
             pointer-events: none;
-            background: #1e293b;
-            color: white;
+            background: #ffffff;
+            color: #1e293b;
             padding: 10px 14px;
             border-radius: 8px;
             font-size: 11px;
             max-width: 220px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
             font-family: 'Inter', sans-serif;
-            border: 1px solid #334155;
+            border: 1px solid #e2e8f0;
         `;
         tooltip.innerHTML = `
-            <div style="font-weight: 600; margin-bottom: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
-            <div style="font-size: 10px; opacity: 0.9; line-height: 1.4;">Отношение цены сделки к кадастровой стоимости</div>
-            <div style="position: absolute; top: 50%; left: -6px; transform: translateY(-50%) rotate(45deg); width: 10px; height: 10px; background: #1e293b; border-left: 1px solid #334155; border-bottom: 1px solid #334155;"></div>
+            <div style="font-weight: 600; margin-bottom: 4px; color: #0ea5e9;">ratio = deal_price_rub / cad_cost</div>
+            <div style="font-size: 10px; opacity: 0.8; line-height: 1.4; color: #475569;">Отношение цены сделки к кадастровой стоимости</div>
+            <div style="position: absolute; top: 50%; left: -6px; transform: translateY(-50%) rotate(45deg); width: 10px; height: 10px; background: #ffffff; border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;"></div>
         `;
         document.body.appendChild(tooltip);
         
