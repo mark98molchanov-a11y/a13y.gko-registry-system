@@ -193,7 +193,7 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return;
         
         // ✅ ПОЛУЧАЕМ ЗНАЧЕНИЕ ДЛЯ ГРУППИРОВКИ
-        let groupValue;
+         let groupValue;
         try {
             switch(currentChartGroupBy) {
                 case 'city': groupValue = String(deal.city || 'unknown'); break;
@@ -203,7 +203,9 @@ console.log(`📊 Глубина рекурсии: ${window._calcDepth}`);
                 case 'quarter': groupValue = String(deal.quarter || 'unknown'); break;
                 case 'wall_material': groupValue = String(deal.wall_material_name || 'unknown'); break;
                 case 'vri': groupValue = String(deal.vri || 'unknown'); break;
-                    case 'year_build': groupValue = String(deal.year_build || 'unknown'); break;
+                case 'year_build': groupValue = String(deal.year_build || 'unknown'); break;
+                case 'number': groupValue = String(deal.number || 'unknown'); break;
+                case 'ratio_category': groupValue = String(deal.ratio_category || 'unknown'); break;
                 default: groupValue = String(deal.city || 'unknown');
             }
         } catch(e) {
@@ -467,17 +469,20 @@ if (typeof window._uprsVisible === 'undefined') {
 // ✅ СОРТИРОВКА: для кварталов и годов — сохраняем хронологический порядок
 let sortedData;
 if (currentChartGroupBy === 'quarter' || currentChartGroupBy === 'year_build') {
-    // Для кварталов и годов — НЕ СОРТИРУЕМ по УПРС/УПКС
-    // Используем порядок из calculateCityPrices (уже отсортирован от старого к новому)
     sortedData = chartData.data;
     console.log(`📅 Хронологический порядок для ${currentChartGroupBy}:`, sortedData.map(d => d.group));
+} else if (currentChartGroupBy === 'number' || currentChartGroupBy === 'ratio_category') {
+    if (window._uprsVisible) {
+        sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
+    } else {
+        sortedData = [...chartData.data].sort((a, b) => a.upksMedian - b.upksMedian);
+    }
 } else if (window._uprsVisible) {
-    // Для всех остальных — сортируем по УПРС
     sortedData = [...chartData.data].sort((a, b) => a.uprsMedian - b.uprsMedian);
 } else {
-    // Для всех остальных — сортируем по УПКС
     sortedData = [...chartData.data].sort((a, b) => a.upksMedian - b.upksMedian);
 }
+
 
 const groups = sortedData.map(d => d.group);
 const uprsData = sortedData.map(d => d.uprsMedian);
@@ -742,7 +747,9 @@ function getGroupValue(deal, groupBy) {
         case 'quarter': return deal.quarter || 'unknown';
         case 'wall_material': return deal.wall_material_name || 'unknown';
         case 'vri': return deal.vri || 'unknown';
-             case 'year_build': return deal.year_build || 'unknown'; 
+        case 'year_build': return deal.year_build || 'unknown';
+        case 'number': return deal.number || 'unknown';
+        case 'ratio_category': return deal.ratio_category || 'unknown';
         default: return deal.city || 'unknown';
     }
 }
