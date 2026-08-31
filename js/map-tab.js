@@ -5526,6 +5526,7 @@ function resetAllFiltersMap() {
     currentYearBuildFilter = []; 
     currentPurposeFilter = [];   
     currentVriFilter = [];   
+    currentRatioCategoryFilter = []; 
     
     if (isCadCostFilterEnabled) {
         isCadCostFilterEnabled = false;
