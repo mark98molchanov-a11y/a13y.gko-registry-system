@@ -1046,7 +1046,6 @@ window.priceThresholds = priceThresholds;
         renderVriFilters();
         renderNumberFilters();
         renderRatioCategoryFilters(); 
-        setTimeout(initRatioTooltip, 100);
         
         if (typeof updateTableFull === 'function') {
             updateTableFull();
@@ -2025,12 +2024,61 @@ function renderRatioCategoryFilters() {
 
     const allSelected = categories.every(cat => currentRatioCategoryFilter.includes(cat));
     
-    // ✅ ТУТ ТОЛЬКО СПИСОК КАТЕГОРИЙ, БЕЗ ИКОНКИ (иконка уже в HTML)
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 4px;">
                 <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
                 <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
+                
+                <!-- ✅ ТЕПЕРЬ ИКОНКА "?" ЗДЕСЬ -->
+                <div style="position: relative; display: inline-block; cursor: help;"
+                     onmouseenter="document.getElementById('ratioTooltip').style.display='block'"
+                     onmouseleave="document.getElementById('ratioTooltip').style.display='none'">
+                    <span id="ratio-question-icon" style="
+                        color: #94a3b8;
+                        font-size: 10px;
+                        border: 1px solid #cbd5e1;
+                        border-radius: 50%;
+                        width: 16px;
+                        height: 16px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: 700;
+                        font-family: 'Inter', sans-serif;
+                        background: #f8fafc;
+                        user-select: none;
+                        transition: all 0.2s;
+                    "
+                    onmouseenter="this.style.background='#e0f2fe'; this.style.borderColor='#0ea5e9';"
+                    onmouseleave="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';">?</span>
+                    
+                    <div id="ratioTooltip" style="
+                        display: none;
+                        position: absolute;
+                        bottom: 100%;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: #1e293b;
+                        color: white;
+                        padding: 8px 12px;
+                        border-radius: 8px;
+                        font-size: 10px;
+                        width: 220px;
+                        z-index: 1000;
+                        margin-bottom: 6px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                        text-align: left;
+                        font-weight: 400;
+                        line-height: 1.4;
+                    ">
+                        Отношение цены сделки (deal_price_rub) к кадастровой стоимости (cad_cost)
+                        <div style="font-weight: 600; margin-top: 4px; color: #60a5fa;">ratio = deal_price_rub / cad_cost</div>
+                        <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #1e293b; transform: translateX(-50%) rotate(45deg);"></div>
+                    </div>
+                </div>
+                <!-- ✅ КОНЕЦ ИКОНКИ -->
+                
             </div>
             <button onclick="toggleAllRatioCategories(${JSON.stringify(categories).replace(/"/g, '&quot;')})"
                     style="
@@ -2087,6 +2135,7 @@ function renderRatioCategoryFilters() {
     
     container.innerHTML = html;
     
+    // ✅ ВЫЗЫВАЕМ initRatioTooltip
     setTimeout(initRatioTooltip, 50);
 }
 function renderPurposeFilters() {
