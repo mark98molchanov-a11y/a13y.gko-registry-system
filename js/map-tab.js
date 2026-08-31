@@ -1406,7 +1406,7 @@ function renderDealTypeFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы сделок</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы_сделок</span>
             <button onclick="toggleAllDealTypes(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -1559,7 +1559,7 @@ function renderObjectTypeFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы объектов</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Типы_объектов</span>
             <button onclick="toggleAllObjectTypes(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -1635,7 +1635,7 @@ function renderWallMaterialFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Материал стен</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Материал_стен</span>
             <button onclick="toggleAllWallMaterials(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -1715,7 +1715,7 @@ function renderYearBuildFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Год постройки</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Год_постройки</span>
             <button onclick="toggleAllYearBuilds(${JSON.stringify(types).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -1958,7 +1958,7 @@ function renderNumberFilters() {
     
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
-            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Количество объектов</span>
+            <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Количество_объектов_в_сделке</span>
             <button onclick="toggleAllNumbers(${JSON.stringify(numbers).replace(/"/g, '&quot;')})"
                     style="
                         font-size: 8px; 
@@ -2035,7 +2035,7 @@ function renderRatioCategoryFilters() {
     let html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 4px;">
-                <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Категория</span>
+                <span style="font-size: 8px; color: #94a3b8; font-weight: 500; text-transform: uppercase;">Степень_отклонения</span>
                 <span style="color: #ef4444; font-size: 11px; line-height: 1;">*</span>
                 
                 <span id="ratio-question-icon" style="
@@ -5567,7 +5567,6 @@ function updateActiveFiltersDisplay() {
     
     const activeFilters = [];
     
-    // ✅ Собираем ВСЕ выбранные значения с их категориями
     if (currentCityFilter.length > 0) {
         const values = currentCityFilter.join(', ');
         activeFilters.push(`Районы: ${values}`);
@@ -5667,7 +5666,7 @@ function sortDealsTable(field) {
         if (currentPurposeFilter.length > 0 && !currentPurposeFilter.includes(deal.purpose_text)) return false;
         if (currentVriFilter.length > 0 && !currentVriFilter.includes(deal.vri)) return false;
         if (currentNumberFilter.length > 0 && !currentNumberFilter.includes(deal.number)) return false;
-      if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
+        if (currentRatioCategoryFilter.length > 0 && !currentRatioCategoryFilter.includes(deal.ratio_category)) return false; 
         return true;
     });
     
