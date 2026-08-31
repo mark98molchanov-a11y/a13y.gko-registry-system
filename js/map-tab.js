@@ -2006,7 +2006,7 @@ function renderNumberFilters() {
     
     container.innerHTML = html;
 }
-unction renderRatioCategoryFilters() {
+function renderRatioCategoryFilters() {
     const container = document.getElementById('ratio-category-filters');
     if (!container) return;
     
