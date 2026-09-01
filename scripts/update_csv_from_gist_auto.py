@@ -8,7 +8,6 @@
 
 import csv
 import json
-import os
 from pathlib import Path
 
 CSV_PATH = Path('data/deals_clean.csv')
@@ -38,7 +37,6 @@ def update_csv(nspd_map):
     rows = []
     headers = []
     updated_count = 0
-    skipped_count = 0
     
     with open(CSV_PATH, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
@@ -50,15 +48,8 @@ def update_csv(nspd_map):
             print("➕ Добавлен столбец cadastrovy_nomer")
         
         cadastrovy_idx = headers.index('cadastrovy_nomer')
+        row_id_idx = headers.index('#') if '#' in headers else -1
         
-        # Находим индексы
-        try:
-            row_id_idx = headers.index('#')
-        except ValueError:
-            print("❌ Колонка '#' (row_id) не найдена!")
-            return False
-        
-        # Также пробуем найти row_id без #
         if row_id_idx == -1:
             try:
                 row_id_idx = headers.index('row_id')
