@@ -7772,18 +7772,18 @@ if (true) {
     }
     
     // ✅ ПОТОМ ОБНОВЛЯЕМ/ДОБАВЛЯЕМ НОВЫЕ (перезаписываем старые, если есть)
-let allPairsCount = 0;
-for (const deal of allDealsFlat) {
-    if (deal.cad_nspd && deal.row_id) {
-        // ✅ ДАЖЕ ЕСЛИ УЖЕ ЕСТЬ В uniquePairs - ПЕРЕЗАПИСЫВАЕМ
-        uniquePairs[deal.row_id] = {
-            row_id: deal.row_id,
-            cad_nspd: deal.cad_nspd
-        };
-        allPairsCount++;
+    let allPairsCount = 0;
+    for (const deal of allDealsFlat) {
+        if (deal.cad_nspd && deal.row_id) {
+            // ✅ ДАЖЕ ЕСЛИ УЖЕ ЕСТЬ В uniquePairs - ПЕРЕЗАПИСЫВАЕМ
+            uniquePairs[deal.row_id] = {
+                row_id: deal.row_id,
+                cad_nspd: deal.cad_nspd
+            };
+            allPairsCount++;
+        }
     }
-}
-console.log(`📊 Добавлено ${allPairsCount} связей из allDealsFlat (включая "не определено")`);
+    console.log(`📊 Добавлено ${allPairsCount} связей из allDealsFlat (включая "не определено")`);
     
     // ✅ CSV с 2 полями: row_id и cad_nspd
     let csv = 'row_id,cad_nspd\n';
@@ -7818,8 +7818,6 @@ console.log(`📊 Добавлено ${allPairsCount} связей из allDeals
             console.log(`✅ Токен валидный, пользователь: ${userData.login}`);
             
             // ✅ 2. ИСПОЛЬЗУЕМ ЖЕСТКО ЗАКОДИРОВАННЫЙ GIST ID
-            // HARDCODED_GIST_ID уже объявлен выше
-            
             let gistData;
             
             if (HARDCODED_GIST_ID) {
@@ -7966,6 +7964,44 @@ console.log(`📊 Добавлено ${allPairsCount} связей из allDeals
 
             showNotification(`✅ Связи row_id → cad_nspd сохранены в Gist! (${exportedCount} связей, ${(csv.length / 1024).toFixed(2)} КБ)`, 'success');
 
+            // ✅ ============================================================
+            // ✅ ОТПРАВЛЯЕМ ВЕБХУК В GITHUB ПОСЛЕ УСПЕШНОГО СОХРАНЕНИЯ
+            // ✅ ============================================================
+            if (gistData && gistData.id) {
+                console.log('📤 Отправка webhook в GitHub...');
+                
+                try {
+                    const webhookResponse = await fetch('https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/dispatches', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/vnd.github+json',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            event_type: 'nspd_sync_completed',
+                            client_payload: {
+                                gist_id: gistData.id,
+                                timestamp: new Date().toISOString()
+                            }
+                        })
+                    });
+                    
+                    if (webhookResponse.ok) {
+                        console.log('✅ Webhook отправлен в GitHub!');
+                        showNotification('✅ GitHub Action запущен для обновления CSV', 'success');
+                    } else {
+                        console.warn('⚠️ Ошибка отправки webhook:', webhookResponse.status);
+                        const errorText = await webhookResponse.text();
+                        console.warn('   Ответ:', errorText);
+                        showNotification(`⚠️ Ошибка webhook: ${webhookResponse.status}`, 'warning');
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Ошибка webhook:', e.message);
+                    showNotification(`⚠️ Ошибка webhook: ${e.message}`, 'warning');
+                }
+            }
+
         } catch (error) {
             console.error('❌ Ошибка:', error);
             showNotification(`❌ Ошибка: ${error.message}`, 'error');
@@ -7976,16 +8012,16 @@ console.log(`📊 Добавлено ${allPairsCount} связей из allDeals
     showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
 }
 
-    // Восстанавливаем кнопку
-    if (btn) {
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.style.background = '#2563eb';
-    }
+// Восстанавливаем кнопку
+if (btn) {
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.style.background = '#2563eb';
+}
 
-    isSyncRunning = false;
+isSyncRunning = false;
 }
 
 async function updateGitHubCSVWithNSPD(token) {
