@@ -1,20 +1,22 @@
 name: 🔄 Автообновление cadastrovy_nomer из Gist
 
 on:
-  # ✅ Запуск вручную из интерфейса GitHub
+  # ✅ ТРИГГЕР ОТ ВЕБХУКА (с сайта после синхронизации) - ЭТО ГЛАВНОЕ!
+  repository_dispatch:
+    types:
+      - nspd_sync_completed
+  
+  # ✅ Запасной вариант - ручной запуск
   workflow_dispatch:
+    inputs:
+      gist_id:
+        description: 'ID Gist с номерами НСПД'
+        required: false
+        default: '9f6e65a18e94b61a6b7a96389e9109c5'
   
-  # ✅ Запуск по расписанию (каждые 30 минут)
+  # ✅ Запасной вариант - по расписанию (раз в час, если вдруг webhook не сработал)
   schedule:
-    - cron: '*/30 * * * *'
-  
-  # ✅ Запуск при push в основную ветку (если меняется deals_clean.csv)
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - 'data/deals_clean.csv'
+    - cron: '0 * * * *'
 
 jobs:
   update-cadastrovy-nomer:
@@ -23,8 +25,15 @@ jobs:
     permissions:
       contents: write
       actions: write
+      metadata: read
     
     steps:
+      - name: 📝 Информация о запуске
+        run: |
+          echo "🔄 Запуск обновления cadastrovy_nomer"
+          echo "📌 Тип события: ${{ github.event_name }}"
+          echo "📌 Gist ID: ${{ github.event.client_payload.gist_id || github.event.inputs.gist_id || '9f6e65a18e94b61a6b7a96389e9109c5' }}"
+      
       - name: 📥 Checkout репозитория
         uses: actions/checkout@v4
         with:
@@ -45,25 +54,23 @@ jobs:
         run: |
           python scripts/load_from_gist.py
         env:
-          GIST_ID: ${{ secrets.NSPD_GIST_ID }}
+          GIST_ID: ${{ github.event.client_payload.gist_id || github.event.inputs.gist_id || '9f6e65a18e94b61a6b7a96389e9109c5' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: 📊 Обновление CSV
         id: update_csv
         run: |
           python scripts/update_csv_from_gist_auto.py
-        env:
-          GIST_ID: ${{ secrets.NSPD_GIST_ID }}
       
-      - name: 📤 Проверка изменений и Commit
-        id: commit
+      - name: 📤 Проверка изменений
+        id: check_changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add data/deals_clean.csv
           git diff --staged --quiet || echo "CHANGED=true" >> $GITHUB_ENV
       
-      - name: 📤 Push изменений
+      - name: 📤 Commit и Push
         if: env.CHANGED == 'true'
         run: |
           git commit -m "🔄 Автообновление cadastrovy_nomer из Gist [skip ci]"
@@ -72,10 +79,15 @@ jobs:
       - name: 📊 Статистика обновления
         if: env.CHANGED == 'true'
         run: |
-          echo "### 📊 Статистика обновления" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Обновление выполнено!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Показатель | Значение |" >> $GITHUB_STEP_SUMMARY
           echo "|------------|----------|" >> $GITHUB_STEP_SUMMARY
           echo "| Дата обновления | $(date '+%Y-%m-%d %H:%M:%S') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Источник | Gist: ${{ secrets.NSPD_GIST_ID }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Источник | Gist: ${{ github.event.client_payload.gist_id || github.event.inputs.gist_id || '9f6e65a18e94b61a6b7a96389e9109c5' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Файл | data/deals_clean.csv |" >> $GITHUB_STEP_SUMMARY
+      
+      - name: ⚠️ Нет изменений
+        if: env.CHANGED != 'true'
+        run: |
+          echo "ℹ️ Нет изменений для коммита (cadastrovy_nomer уже актуален)" >> $GITHUB_STEP_SUMMARY
