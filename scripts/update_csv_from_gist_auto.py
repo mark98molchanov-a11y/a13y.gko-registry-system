@@ -71,9 +71,9 @@ def update_csv(nspd_map):
             current_value = row[cadastrovy_idx].strip() if cadastrovy_idx < len(row) else ''
             
             # Если значение пустое или 'не определено' - обновляем
-            if not current_value or current_value == 'не определено':
-                if row_id in nspd_map:
-                    row[cadastrovy_idx] = nspd_map[row_id]
+            if not current_value:  # ← ТОЛЬКО ЕСЛИ ПУСТО
+    if row_id in nspd_map:
+        row[cadastrovy_idx] = nspd_map[row_id]
                     updated_count += 1
                 # Если нет в мапе - оставляем 'не определено'
             
