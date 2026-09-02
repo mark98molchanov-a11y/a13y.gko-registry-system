@@ -53,8 +53,8 @@ def load_nspd_from_gist():
             if len(values) > max(row_id_idx, nspd_idx):
                 row_id = values[row_id_idx].strip()
                 nspd = values[nspd_idx].strip()
-                if row_id and nspd and nspd != 'не определено':
-                    nspd_map[row_id] = nspd
+                if row_id and nspd:
+                nspd_map[row_id] = nspd
         
         print(f"✅ Загружено {len(nspd_map)} связей")
         
