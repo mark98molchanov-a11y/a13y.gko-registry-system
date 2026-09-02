@@ -856,8 +856,9 @@ async function loadDealsCSV() {
         const locationIndex = headers.indexOf('location');
         const streetIndex = headers.indexOf('street');
         const rowIdIndex = headers.indexOf('#');  // row_id
-        // ✅ НОВЫЙ СТОЛБЕЦ - cadastrovy_nomer
         const cadastrovyNomerIndex = headers.indexOf('cadastrovy_nomer');
+        const cadastralValueIndex = headers.indexOf('cadastral_value');
+        
         
         if (cadIndex === -1 || kindIndex === -1) {
             console.warn('⚠️ Не найдены колонки cad_number или deal_kind_text');
@@ -914,7 +915,13 @@ if (cadastrovyNomerIndex !== -1 && values[cadastrovyNomerIndex]) {
         cadNspd = val;  
     }
 }
-            
+    let cadastralValue = null;
+if (cadastralValueIndex !== -1 && values[cadastralValueIndex]) {
+    const val = values[cadastralValueIndex].trim();
+    if (val && val !== 'nan' && val !== '') {
+        cadastralValue = parseFloat(val) || 0;
+    }
+}        
             const price = parseFloat(values[priceIndex]) || 0;
             const uprs = parseFloat(values[uprsIndex]) || 0;
             const upks = parseFloat(values[upksIndex]) || 0;  
@@ -924,6 +931,7 @@ if (cadastrovyNomerIndex !== -1 && values[cadastrovyNomerIndex]) {
             allDealsFlat.push({
                 row_id: rowId,
                 cad_number: cadNum,
+                cadastral_value: cadastralValue, 
                 area: area,
                 purpose_text: purposeText,
                 cad_cost: cadCost,
@@ -966,6 +974,7 @@ if (cadastrovyNomerIndex !== -1 && values[cadastrovyNomerIndex]) {
                 location: location,
                 street: street,
                 cad_nspd: cadNspd, 
+                cadastral_value: cadastralValue,
                 number: numberValue,
                 ratio_category: ratioCategory
             });
@@ -5670,7 +5679,7 @@ function sortDealsTable(field) {
         }
         
         // Для числовых полей
-        const numericFields = ['area', 'cad_cost', 'upks', 'deal_price_rub', 'uprs_rub', 'year_build', 'number'];
+        const numericFields = ['area', 'cad_cost', 'upks', 'deal_price_rub', 'uprs_rub', 'year_build', 'number', 'cadastral_value'];
         if (numericFields.includes(field)) {
             valA = a[field] || 0;
             valB = b[field] || 0;
@@ -5699,6 +5708,7 @@ function sortDealsTable(field) {
                 <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 10;">
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_number')">Кад. квартал ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cad_nspd')">Кад. номер НСПД ↕</th>
+                    <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 8%; cursor: pointer;" onclick="sortDealsTable('cadastral_value')">Кад. стоимость (НСПД) ↕</th>
                      <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('number')">Кол-во объектов ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 5%; cursor: pointer;" onclick="sortDealsTable('area')">Площадь ↕</th>
                     <th style="text-align: center; padding: 6px 6px; font-weight: 600; color: #475569; white-space: nowrap; font-size: 10px; width: 6%; cursor: pointer;" onclick="sortDealsTable('purpose_text')">Назначение ↕</th>
@@ -5726,7 +5736,7 @@ function sortDealsTable(field) {
     if (filteredDeals.length === 0) {
         html += `
                 <tr>
-                   <td colspan="21" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
+                   <td colspan="22" style="text-align: center; padding: 30px 0; color: #94a3b8; font-size: 14px;">
                         Нет данных для отображения
                     </td>
                 </tr>
@@ -5768,6 +5778,7 @@ function sortDealsTable(field) {
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
                     <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400;">${deal.cad_nspd || 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: ${deal.cadastral_value ? '#0284c7' : '#94a3b8'}; font-weight: ${deal.cadastral_value ? '600' : '400'}; font-size: 10px; font-family: monospace;">${deal.cadastral_value ? deal.cadastral_value.toLocaleString('ru-RU') : 'nan'}</td>
                  <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.number || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
@@ -6387,6 +6398,7 @@ function exportDealsTableToExcel() {
        return {
     'Кад. квартал': deal.cad_number || 'nan',
      'Кад. номер НСПД': deal.cad_nspd || 'nan', 
+    'Кад. стоимость (НСПД)': deal.cadastral_value ? deal.cadastral_value.toLocaleString('ru-RU') : 'nan',
     'Количество объектов': deal.number || 'nan',
     'Площадь': deal.area ? deal.area.toFixed(1) : 'nan',
     'Назначение': deal.purpose_text || 'nan',
@@ -7104,7 +7116,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 const text = `${name} ${address}`.toLowerCase();
                 locMatch = text.includes(dealCity.toLowerCase());
             }
-            
+            const cadastralValue = parseFloat(opts.cadastral_value) || parseFloat(opts.cad_cost) || parseFloat(opts.cost) || 0;
             allObjects.push({
                 cad: cad,
                 type: objType,
@@ -7118,7 +7130,8 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 typeMatch: typeMatch,
                 areaMatch: areaMatch,
                 locMatch: locMatch,
-                streetMatch: streetMatch
+                streetMatch: streetMatch,
+                cadastralValue: cadastralValue
             });
         }
         
@@ -7153,7 +7166,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`\n✅ 1️⃣ (квартал+тип+площадь+улица): ${best.cad} (${best.area} м², разница ${best.areaDiff.toFixed(2)})`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-            return best.cad;
+            return {
+    cad_number: best.cad,
+    cadastral_value: best.cadastralValue || 0
+};
         }
         
         // ============================================================
@@ -7175,7 +7191,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 console.log(`   Улица НСПД: "${best.nspdStreet}"`);
                 console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
                 console.log(`   ⚠️ ВНИМАНИЕ: Поиск без проверки типа!`);
-                return best.cad;
+                return {
+    cad_number: best.cad,
+    cadastral_value: best.cadastralValue || 0
+};
             }
             
             console.log(`❌ Объект НЕ НАЙДЕН — пропускаем (не подменяем улицу!)`);
@@ -7197,7 +7216,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
-            return best.cad;
+            return {
+    cad_number: best.cad,
+    cadastral_value: best.cadastralValue || 0
+};
         }
         
         // 3️⃣ квартал + тип + площадь
@@ -7212,7 +7234,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки локации!`);
-            return best.cad;
+            return {
+    cad_number: best.cad,
+    cadastral_value: best.cadastralValue || 0
+};
         }
         
         // 4️⃣ квартал + площадь
@@ -7225,7 +7250,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки типа и локации!`);
-            return best.cad;
+            return {
+    cad_number: best.cad,
+    cadastral_value: best.cadastralValue || 0
+};
         }
         
         // 5️⃣ поиск по номеру дома
@@ -7243,7 +7271,10 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 console.log(`   Улица НСПД: "${best.nspdStreet}"`);
                 console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
                 console.log(`   ⚠️ ВНИМАНИЕ: Поиск по номеру дома (без проверки улицы)!`);
-                return best.cad;
+                return {
+    cad_number: best.cad,
+    cadastral_value: best.cadastralValue || 0
+};
             }
         }
         
@@ -7264,7 +7295,8 @@ const headers = [
     'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
     'city', 'deal_kind_text', 'obj_kind_text', 'vri', 'quarter',
     'year_build', 'wall_material_name', 'deal_price_rub', 'uprs_rub',
-    'floor', 'location', 'street', 'cad_nspd', 'number'
+    'floor', 'location', 'street', 'cad_nspd', 'number',
+    'cadastral_value'  
 ];
     
     const rows = [headers.join(',')];
@@ -7504,13 +7536,15 @@ const promises = chunk.map(async (obj) => {
     let saved = false;
     for (const deal of allDealsFlat) {
         if (deal.row_id === obj.row_id) {
-            if (cadNspd) {
-                deal.cad_nspd = cadNspd;
-                console.log(`✅ Сохранен номер ${cadNspd} для row_id ${obj.row_id}`);
-            } else {
-                deal.cad_nspd = 'не определено';
-                console.log(`❌ Номер НСПД НЕ НАЙДЕН для row_id ${obj.row_id} → помечено как "не определено"`);
-            }
+       if (cadNspd) {
+    deal.cad_nspd = cadNspd.cad_number;
+    deal.cadastral_value = cadNspd.cadastral_value;
+    console.log(`✅ Сохранен номер ${cadNspd.cad_number} с кад. стоимостью ${cadNspd.cadastral_value} для row_id ${obj.row_id}`);
+} else {
+    deal.cad_nspd = 'не определено';
+    deal.cadastral_value = 'не определено';
+    console.log(`❌ Номер НСПД НЕ НАЙДЕН для row_id ${obj.row_id} → помечено как "не определено"`);
+}
             saved = true;
             return { success: !!cadNspd, row_id: obj.row_id };
         }
