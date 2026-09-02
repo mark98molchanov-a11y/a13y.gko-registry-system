@@ -1,4 +1,4 @@
-name: 🔄 Автообновление НСПД данных из Gist
+name: 🔄 Автообновление cadastrovy_nomer из Gist
 
 on:
   repository_dispatch:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       gist_id:
-        description: 'ID Gist с данными НСПД (cadastrovy_nomer + cadastral_value)'
+        description: 'ID Gist с номерами НСПД'
         required: false
         default: '9f6e65a18e94b61a6b7a96389e9109c5'
   
@@ -16,7 +16,7 @@ on:
     - cron: '0 * * * *'
 
 jobs:
-  update-nspd-data:
+  update-cadastrovy-nomer:
     runs-on: ubuntu-latest
     
     permissions:
@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: 📝 Информация о запуске
         run: |
-          echo "🔄 Запуск обновления НСПД данных"
+          echo "🔄 Запуск обновления cadastrovy_nomer"
           echo "📌 Тип события: ${{ github.event_name }}"
           echo "📌 Gist ID: ${{ github.event.client_payload.gist_id || github.event.inputs.gist_id || '9f6e65a18e94b61a6b7a96389e9109c5' }}"
       
@@ -45,15 +45,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pandas openpyxl
       
-      - name: 🔄 Загрузка связей из Gist (row_id → cadastrovy_nomer + cadastral_value)
+      - name: 🔄 Загрузка связей из Gist
         id: load_gist
         run: |
           python scripts/load_from_gist.py
         env:
           GIST_ID: ${{ github.event.client_payload.gist_id || github.event.inputs.gist_id || '9f6e65a18e94b61a6b7a96389e9109c5' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: 📊 Обновление CSV (обе колонки: cadastrovy_nomer и cadastral_value)
+
+      - name: 📊 Обновление CSV
         id: update_csv
         run: |
           python scripts/update_csv_from_gist_auto.py
@@ -69,7 +69,7 @@ jobs:
       - name: 📤 Commit и Push
         if: env.CHANGED == 'true'
         run: |
-          git commit -m "🔄 Автообновление НСПД данных (cadastrovy_nomer + cadastral_value) [skip ci]"
+          git commit -m "🔄 Автообновление cadastrovy_nomer из Gist [skip ci]"
           git push
       
       - name: 📊 Статистика обновления
@@ -81,10 +81,9 @@ jobs:
           echo "|------------|----------|" >> $GITHUB_STEP_SUMMARY
           echo "| Дата обновления | $(date '+%Y-%m-%d %H:%M:%S') |" >> $GITHUB_STEP_SUMMARY
           echo "| Источник | Gist: ${{ github.event.client_payload.gist_id || github.event.inputs.gist_id || '9f6e65a18e94b61a6b7a96389e9109c5' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Обновленные колонки | cadastrovy_nomer, cadastral_value |" >> $GITHUB_STEP_SUMMARY
           echo "| Файл | data/deals_clean.csv |" >> $GITHUB_STEP_SUMMARY
       
       - name: ⚠️ Нет изменений
         if: env.CHANGED != 'true'
         run: |
-          echo "ℹ️ Нет изменений для коммита (НСПД данные уже актуальны)" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ Нет изменений для коммита (cadastrovy_nomer уже актуален)" >> $GITHUB_STEP_SUMMARY
