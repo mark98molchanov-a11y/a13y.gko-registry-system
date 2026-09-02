@@ -3718,7 +3718,7 @@ function buildDistrictTooltipContent(layer) {
         ${totalDeals > 0 ? `
         <div class="popup-row"><span class="popup-label">Сделок</span><span class="popup-value">${formatNum(totalDeals)}</span></div>
         <div class="popup-row"><span class="popup-label">Медианная цена</span><span class="popup-value">${formatPrice(weightedMedianPrice)}</span></div>
-        <div class="popup-row"><span class="popup-label">Кад. стоимость (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
+        <div class="popup-row"><span class="popup-label">Кад. стоимость (сделка) (медиана)</span><span class="popup-value">${formatPrice(weightedMedianCadCost)}</span></div>
         <div class="popup-row"><span class="popup-label">УПРС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUprs)}</span></div>
         <div class="popup-row"><span class="popup-label">УПКС (медиана)</span><span class="popup-value">${formatUprs(weightedMedianUpks)}</span></div>
         <div class="popup-row"><span class="popup-label">Мин / Макс</span><span class="popup-value">${formatNum(minPrice)} / ${formatNum(maxPrice)} ₽</span></div>
