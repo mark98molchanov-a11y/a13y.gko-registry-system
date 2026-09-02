@@ -7116,7 +7116,7 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 const text = `${name} ${address}`.toLowerCase();
                 locMatch = text.includes(dealCity.toLowerCase());
             }
-            const cadastralValue = parseFloat(opts.cadastral_value) || parseFloat(opts.cad_cost) || parseFloat(opts.cost) || 0;
+            const cadastralValue = parseFloat(opts.cost_value) || parseFloat(opts.cadastral_value) || parseFloat(opts.cad_cost) || parseFloat(opts.cost) || 0;
             allObjects.push({
                 cad: cad,
                 type: objType,
@@ -7166,9 +7166,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`\n✅ 1️⃣ (квартал+тип+площадь+улица): ${best.cad} (${best.area} м², разница ${best.areaDiff.toFixed(2)})`);
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
-            return {
+        return {
     cad_number: best.cad,
-    cadastral_value: best.cadastralValue || 0
+    cadastral_value: best.cadastralValue || null
 };
         }
         
@@ -7191,9 +7191,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 console.log(`   Улица НСПД: "${best.nspdStreet}"`);
                 console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
                 console.log(`   ⚠️ ВНИМАНИЕ: Поиск без проверки типа!`);
-                return {
+              return {
     cad_number: best.cad,
-    cadastral_value: best.cadastralValue || 0
+    cadastral_value: best.cadastralValue || null
 };
             }
             
@@ -7216,9 +7216,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ℹ️ Улица в сделке была пустая, ищем по городу`);
-            return {
+       return {
     cad_number: best.cad,
-    cadastral_value: best.cadastralValue || 0
+    cadastral_value: best.cadastralValue || null
 };
         }
         
@@ -7234,9 +7234,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки локации!`);
-            return {
+         return {
     cad_number: best.cad,
-    cadastral_value: best.cadastralValue || 0
+    cadastral_value: best.cadastralValue || null
 };
         }
         
@@ -7250,9 +7250,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
             console.log(`   Улица НСПД: "${best.nspdStreet}"`);
             console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
             console.log(`   ⚠️ ВНИМАНИЕ: Без проверки типа и локации!`);
-            return {
+           return {
     cad_number: best.cad,
-    cadastral_value: best.cadastralValue || 0
+    cadastral_value: best.cadastralValue || null
 };
         }
         
@@ -7271,9 +7271,9 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
                 console.log(`   Улица НСПД: "${best.nspdStreet}"`);
                 console.log(`   Адрес: ${best.address.slice(0, 60)}...`);
                 console.log(`   ⚠️ ВНИМАНИЕ: Поиск по номеру дома (без проверки улицы)!`);
-                return {
+              return {
     cad_number: best.cad,
-    cadastral_value: best.cadastralValue || 0
+    cadastral_value: best.cadastralValue || null
 };
             }
         }
@@ -7536,13 +7536,16 @@ const promises = chunk.map(async (obj) => {
     let saved = false;
     for (const deal of allDealsFlat) {
         if (deal.row_id === obj.row_id) {
-       if (cadNspd) {
+     if (cadNspd) {
     deal.cad_nspd = cadNspd.cad_number;
-    deal.cadastral_value = cadNspd.cadastral_value;
-    console.log(`✅ Сохранен номер ${cadNspd.cad_number} с кад. стоимостью ${cadNspd.cadastral_value} для row_id ${obj.row_id}`);
+    // Если cadastral_value = null или 0 - оставляем null
+    deal.cadastral_value = (cadNspd.cadastral_value && cadNspd.cadastral_value !== 0) 
+        ? cadNspd.cadastral_value 
+        : null;
+    console.log(`✅ Сохранен номер ${cadNspd.cad_number} с кад. стоимостью ${deal.cadastral_value || 'не определена'} для row_id ${obj.row_id}`);
 } else {
     deal.cad_nspd = 'не определено';
-    deal.cadastral_value = 'не определено';
+    deal.cadastral_value = null;  // ← null, а не 'не определено'
     console.log(`❌ Номер НСПД НЕ НАЙДЕН для row_id ${obj.row_id} → помечено как "не определено"`);
 }
             saved = true;
@@ -7626,9 +7629,16 @@ if (true) {
                             if (values.length > Math.max(rowIdIdx, nspdIdx)) {
                                 const rowId = values[rowIdIdx]?.trim() || '';
                                 const nspd = values[nspdIdx]?.trim() || '';
-                                const cadastralValue = (cadastralIdx !== -1 && values[cadastralIdx]) 
-                                    ? parseFloat(values[cadastralIdx].trim()) || 0 
-                                    : 0;
+                                let cadastralValue = null;
+if (cadastralIdx !== -1 && values[cadastralIdx]) {
+    const val = values[cadastralIdx].trim();
+    if (val && val !== '' && val !== '0' && val !== 'null' && val !== 'undefined') {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed !== 0) {
+            cadastralValue = parsed;
+        }
+    }
+}
                                 if (rowId && nspd) {
                                     existingNspdMap[rowId] = {
                                         cad_nspd: nspd,
@@ -7674,15 +7684,23 @@ if (true) {
     console.log(`📊 Добавлено ${allPairsCount} связей из allDealsFlat (включая "не определено")`);
     
     // ✅ CSV С 3 ПОЛЯМИ: row_id, cad_nspd, cadastral_value
-    let csv = 'row_id,cad_nspd,cadastral_value\n';
-    let exportedCount = 0;
-    
-    for (const [rowId, obj] of Object.entries(uniquePairs)) {
-        const nspd = obj.cad_nspd.includes('"') ? `"${obj.cad_nspd.replace(/"/g, '""')}"` : obj.cad_nspd;
-        const cadastralValue = obj.cadastral_value || 0;
-        csv += `${rowId},${nspd},${cadastralValue}\n`;
-        exportedCount++;
+   let csv = 'row_id,cad_nspd,cadastral_value\n';
+let exportedCount = 0;
+
+for (const [rowId, obj] of Object.entries(uniquePairs)) {
+    const nspd = obj.cad_nspd.includes('"') ? `"${obj.cad_nspd.replace(/"/g, '""')}"` : obj.cad_nspd;
+    // ✅ ЕСЛИ cadastral_value = null, undefined, 0, или 'не определено' → пустая строка
+    let cadastralValueStr = '';
+    if (obj.cadastral_value && 
+        obj.cadastral_value !== 0 && 
+        obj.cadastral_value !== 'не определено' &&
+        obj.cadastral_value !== 'undefined' &&
+        obj.cadastral_value !== 'null') {
+        cadastralValueStr = obj.cadastral_value;
     }
+    csv += `${rowId},${nspd},${cadastralValueStr}\n`;
+    exportedCount++;
+}
     
     console.log(`📊 Экспортировано ${exportedCount} уникальных связей row_id → cad_nspd + cadastral_value (${Object.keys(existingNspdMap).length} старых + ${foundCount} новых)`);
     console.log(`📏 Размер CSV: ${(csv.length / 1024).toFixed(2)} КБ`);
