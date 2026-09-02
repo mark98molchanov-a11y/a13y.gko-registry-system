@@ -8013,10 +8013,45 @@ if (true) {
                     console.error('❌ Ошибка отправки webhook:', e.message);
                     showNotification(`⚠️ Ошибка webhook: ${e.message}`, 'warning');
                 }
+
+                // ✅ ============================================================
+                // ✅ ЗАПУСК WORKFLOW НАПРЯМУЮ (запасной вариант)
+                // ✅ ============================================================
+                console.log('📤 Запуск workflow напрямую...');
+                try {
+                    const workflowResponse = await fetch('https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/actions/workflows/update_cadastrovy_nomer.yml/dispatches', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/vnd.github+json',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            ref: 'main',
+                            inputs: {
+                                gist_id: gistData.id
+                            }
+                        })
+                    });
+                    
+                    console.log(`📊 HTTP статус запуска workflow: ${workflowResponse.status}`);
+                    
+                    if (workflowResponse.ok) {
+                        console.log('✅ Workflow запущен напрямую!');
+                        showNotification('✅ Workflow запущен для обновления CSV', 'success');
+                    } else {
+                        const errorText = await workflowResponse.text();
+                        console.warn(`⚠️ Ошибка запуска workflow: ${workflowResponse.status} - ${errorText}`);
+                        showNotification(`⚠️ Ошибка запуска workflow: ${workflowResponse.status}`, 'warning');
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Ошибка запуска workflow:', e.message);
+                    showNotification(`⚠️ Ошибка запуска workflow: ${e.message}`, 'warning');
+                }
             }
 
         } catch (error) {
-            console.error('❌ Ошибка:', error);
+            console.error('❌ Ошибка сохранения в Gist:', error);
             showNotification(`❌ Ошибка: ${error.message}`, 'error');
         }
     }
