@@ -7598,12 +7598,12 @@ const promises = chunk.map(async (obj) => {
 // 🔥 ИЗМЕНЕННАЯ ЧАСТЬ: СОХРАНЯЕМ ТОЛЬКО row_id И cad_nspd
 // ════════════════════════════════════════════════════════════════
 if (true) {
-    console.log('📊 Формирование CSV с номерами НСПД...');
+    console.log('📊 Формирование CSV с номерами НСПД и кадастровой стоимостью...');
     
     // ✅ ОБЪЯВЛЯЕМ GIST ID ПЕРЕД ИСПОЛЬЗОВАНИЕМ
     const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
     
-    // ✅ Используем row_id как уникальный ключ
+    // ✅ Загружаем старые данные из Gist (ВКЛЮЧАЯ cadastral_value)
     let existingNspdMap = {};
     try {
         const gistCheck = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
@@ -7618,14 +7618,22 @@ if (true) {
                     const headers = lines[0].split(',');
                     const rowIdIdx = headers.indexOf('row_id');
                     const nspdIdx = headers.indexOf('cad_nspd');
+                    const cadastralIdx = headers.indexOf('cadastral_value');
+                    
                     if (rowIdIdx !== -1 && nspdIdx !== -1) {
                         for (let i = 1; i < lines.length; i++) {
                             const values = lines[i].split(',');
                             if (values.length > Math.max(rowIdIdx, nspdIdx)) {
                                 const rowId = values[rowIdIdx]?.trim() || '';
                                 const nspd = values[nspdIdx]?.trim() || '';
+                                const cadastralValue = (cadastralIdx !== -1 && values[cadastralIdx]) 
+                                    ? parseFloat(values[cadastralIdx].trim()) || 0 
+                                    : 0;
                                 if (rowId && nspd) {
-                                    existingNspdMap[rowId] = nspd;
+                                    existingNspdMap[rowId] = {
+                                        cad_nspd: nspd,
+                                        cadastral_value: cadastralValue
+                                    };
                                 }
                             }
                         }
@@ -7638,14 +7646,15 @@ if (true) {
     }
     console.log(`📊 Загружено ${Object.keys(existingNspdMap).length} старых связей из Gist`);
     
-    // ✅ Используем row_id как уникальный ключ
+    // ✅ ХРАНИМ ВСЕ ДАННЫЕ (row_id + cad_nspd + cadastral_value)
     const uniquePairs = {};
     
     // ✅ СНАЧАЛА ДОБАВЛЯЕМ ВСЕ СТАРЫЕ СВЯЗИ
-    for (const [rowId, nspd] of Object.entries(existingNspdMap)) {
+    for (const [rowId, data] of Object.entries(existingNspdMap)) {
         uniquePairs[rowId] = {
             row_id: rowId,
-            cad_nspd: nspd
+            cad_nspd: data.cad_nspd,
+            cadastral_value: data.cadastral_value || 0
         };
     }
     
@@ -7656,26 +7665,28 @@ if (true) {
             // ✅ ДАЖЕ ЕСЛИ УЖЕ ЕСТЬ В uniquePairs - ПЕРЕЗАПИСЫВАЕМ
             uniquePairs[deal.row_id] = {
                 row_id: deal.row_id,
-                cad_nspd: deal.cad_nspd
+                cad_nspd: deal.cad_nspd,
+                cadastral_value: deal.cadastral_value || 0
             };
             allPairsCount++;
         }
     }
     console.log(`📊 Добавлено ${allPairsCount} связей из allDealsFlat (включая "не определено")`);
     
-    // ✅ CSV с 2 полями: row_id и cad_nspd
-    let csv = 'row_id,cad_nspd\n';
+    // ✅ CSV С 3 ПОЛЯМИ: row_id, cad_nspd, cadastral_value
+    let csv = 'row_id,cad_nspd,cadastral_value\n';
     let exportedCount = 0;
     
     for (const [rowId, obj] of Object.entries(uniquePairs)) {
         const nspd = obj.cad_nspd.includes('"') ? `"${obj.cad_nspd.replace(/"/g, '""')}"` : obj.cad_nspd;
-        csv += `${rowId},${nspd}\n`;
+        const cadastralValue = obj.cadastral_value || 0;
+        csv += `${rowId},${nspd},${cadastralValue}\n`;
         exportedCount++;
     }
     
-    console.log(`📊 Экспортировано ${exportedCount} уникальных связей row_id → cad_nspd (${Object.keys(existingNspdMap).length} старых + ${foundCount} новых)`);
+    console.log(`📊 Экспортировано ${exportedCount} уникальных связей row_id → cad_nspd + cadastral_value (${Object.keys(existingNspdMap).length} старых + ${foundCount} новых)`);
     console.log(`📏 Размер CSV: ${(csv.length / 1024).toFixed(2)} КБ`);
-    console.log(`📋 Поля: row_id, cad_nspd`);
+    console.log(`📋 Поля: row_id, cad_nspd, cadastral_value`);
     
     const token = prompt('Введите GitHub Token для обновления CSV (нужны права gist):');
     if (!token || !token.trim()) {
