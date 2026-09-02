@@ -7967,53 +7967,59 @@ if (true) {
             // ✅ ============================================================
             // ✅ ОТПРАВЛЯЕМ ВЕБХУК В GITHUB ПОСЛЕ УСПЕШНОГО СОХРАНЕНИЯ
             // ✅ ============================================================
-           if (gistData && gistData.id) {
-    console.log('📤 Отправка webhook в GitHub...');
-    console.log(`📌 Gist ID: ${gistData.id}`);
-    console.log(`📌 Токен: ${token ? '✅ есть' : '❌ нет'}`);
-    
-    try {
-        const webhookResponse = await fetch('https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/dispatches', {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/vnd.github+json',
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'NSPD-Sync/1.0'
-            },
-            body: JSON.stringify({
-                event_type: 'nspd_sync_completed',
-                client_payload: {
-                    gist_id: gistData.id,
-                    timestamp: new Date().toISOString()
+            if (gistData && gistData.id) {
+                console.log('📤 Отправка webhook в GitHub...');
+                console.log(`📌 Gist ID: ${gistData.id}`);
+                console.log(`📌 Токен: ${token ? '✅ есть' : '❌ нет'}`);
+                
+                try {
+                    const webhookResponse = await fetch('https://api.github.com/repos/mark98molchanov-a11y/a13y.gko-registry-system/dispatches', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/vnd.github+json',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'NSPD-Sync/1.0'
+                        },
+                        body: JSON.stringify({
+                            event_type: 'nspd_sync_completed',
+                            client_payload: {
+                                gist_id: gistData.id,
+                                timestamp: new Date().toISOString()
+                            }
+                        })
+                    });
+                    
+                    // ✅ ПОДРОБНЫЙ АНАЛИЗ ОТВЕТА
+                    const responseText = await webhookResponse.text();
+                    console.log(`📊 HTTP статус: ${webhookResponse.status}`);
+                    console.log(`📊 Ответ: ${responseText || '(пусто)'}`);
+                    
+                    if (webhookResponse.ok) {
+                        console.log('✅ Webhook успешно отправлен!');
+                        console.log('🔄 Workflow должен запуститься в течение 1-2 минут');
+                        showNotification('✅ GitHub Action запущен для обновления CSV', 'success');
+                    } else if (webhookResponse.status === 404) {
+                        console.warn('⚠️ Workflow не найден. Проверьте имя файла.');
+                        showNotification('⚠️ Workflow не найден в репозитории', 'warning');
+                    } else if (webhookResponse.status === 401 || webhookResponse.status === 403) {
+                        console.warn('⚠️ Ошибка авторизации. Проверьте права токена.');
+                        showNotification('⚠️ Недостаточно прав у токена (нужны repo + workflow)', 'warning');
+                    } else {
+                        console.warn(`⚠️ Ошибка: ${webhookResponse.status}`);
+                        showNotification(`⚠️ Ошибка webhook: ${webhookResponse.status}`, 'warning');
+                    }
+                } catch (e) {
+                    console.error('❌ Ошибка отправки webhook:', e.message);
+                    showNotification(`⚠️ Ошибка webhook: ${e.message}`, 'warning');
                 }
-            })
-        });
-        
-        // ✅ ПОДРОБНЫЙ АНАЛИЗ ОТВЕТА
-        const responseText = await webhookResponse.text();
-        console.log(`📊 HTTP статус: ${webhookResponse.status}`);
-        console.log(`📊 Ответ: ${responseText || '(пусто)'}`);
-        
-        if (webhookResponse.ok) {
-            console.log('✅ Webhook успешно отправлен!');
-            console.log('🔄 Workflow должен запуститься в течение 1-2 минут');
-            showNotification('✅ GitHub Action запущен для обновления CSV', 'success');
-        } else if (webhookResponse.status === 404) {
-            console.warn('⚠️ Workflow не найден. Проверьте имя файла.');
-            showNotification('⚠️ Workflow не найден в репозитории', 'warning');
-        } else if (webhookResponse.status === 401 || webhookResponse.status === 403) {
-            console.warn('⚠️ Ошибка авторизации. Проверьте права токена.');
-            showNotification('⚠️ Недостаточно прав у токена (нужны repo + workflow)', 'warning');
-        } else {
-            console.warn(`⚠️ Ошибка: ${webhookResponse.status}`);
-            showNotification(`⚠️ Ошибка webhook: ${webhookResponse.status}`, 'warning');
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка:', error);
+            showNotification(`❌ Ошибка: ${error.message}`, 'error');
         }
-    } catch (e) {
-        console.error('❌ Ошибка отправки webhook:', e.message);
-        showNotification(`⚠️ Ошибка webhook: ${e.message}`, 'warning');
     }
-}
 } else {
     console.log('ℹ️ Нет новых номеров для обновления CSV');
     showNotification('ℹ️ Новых номеров НСПД не найдено', 'info');
