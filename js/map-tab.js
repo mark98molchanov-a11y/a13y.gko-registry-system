@@ -7261,160 +7261,6 @@ async function searchNSPD(quarter, targetArea, targetType, locationKeywords = []
         return null;
     }
 }
-async function loadDealsFromRelease() {
-    const HARDCODED_GIST_ID = '9f6e65a18e94b61a6b7a96389e9109c5';
-    
-    console.log(`📥 Загрузка CSV из Gist: ${HARDCODED_GIST_ID}`);
-    try {
-        const response = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
-            headers: { 'Accept': 'application/json' }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            const file = data.files?.['deals_clean.csv'];
-            if (file && file.content) {
-                localStorage.setItem('deals_csv_gist_url', file.raw_url);
-                localStorage.setItem('deals_csv_gist_id', HARDCODED_GIST_ID);
-                console.log(`✅ CSV загружен из Gist: ${HARDCODED_GIST_ID}`);
-                return file.content;
-            }
-        } else if (response.status === 404) {
-            console.warn(`⚠️ Gist ${HARDCODED_GIST_ID} не найден (404)`);
-        }
-    } catch(e) {
-        console.warn('⚠️ Ошибка загрузки Gist:', e.message);
-    }
-    
-    return null;
-}
-function refreshCSVFromGist() {
-    const token = prompt('Введите GitHub Token для обновления CSV из Gist:');
-    if (!token || !token.trim()) {
-        showNotification('⚠️ Токен не введен', 'warning');
-        return;
-    }
-    
-    const gistId = localStorage.getItem('deals_csv_gist_id');
-    if (!gistId) {
-        showNotification('⚠️ Нет сохраненного Gist ID', 'warning');
-        return;
-    }
-    
-    showNotification('🔄 Загрузка номеров НСПД из Gist...', 'info');
-    
-    fetch(`https://api.github.com/gists/${gistId}`, {
-        headers: {
-            'Authorization': `token ${token}`,
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        const file = data.files?.['deals_clean.csv'];
-        if (file && file.content) {
-            console.log('📥 Загрузка номеров НСПД из Gist...');
-            
-            function parseCSVLine(line) {
-                const result = [];
-                let current = '';
-                let inQuotes = false;
-                
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i];
-                    
-                    if (char === '"') {
-                        if (inQuotes && line[i + 1] === '"') {
-                            current += '"';
-                            i++;
-                        } else {
-                            inQuotes = !inQuotes;
-                        }
-                    } else if (char === ',' && !inQuotes) {
-                        result.push(current.trim());
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                result.push(current.trim());
-                return result;
-            }
-            
-            const csvContent = file.content;
-            const lines = csvContent.split('\n').filter(line => line.trim());
-            
-            if (lines.length < 2) {
-                showNotification('❌ CSV пустой', 'error');
-                return;
-            }
-            
-            const headers = parseCSVLine(lines[0]);
-            // ✅ Ищем row_id вместо cad_number
-            const rowIdIndex = headers.indexOf('row_id');
-            const nspdIndex = headers.indexOf('cad_nspd');
-            
-            if (rowIdIndex === -1 || nspdIndex === -1) {
-                showNotification('❌ В CSV нет столбцов row_id или cad_nspd', 'error');
-                return;
-            }
-            
-            // ✅ Собираем номера НСПД по row_id
-            const nspdMap = {};
-            let foundCount = 0;
-            
-            for (let i = 1; i < lines.length; i++) {
-                const values = parseCSVLine(lines[i]);
-                if (values.length < Math.max(rowIdIndex, nspdIndex) + 1) continue;
-                
-                const rowId = values[rowIdIndex] || '';
-                const cadNspd = values[nspdIndex] && values[nspdIndex].trim() !== '' 
-                    ? values[nspdIndex].trim() 
-                    : null;
-                
-                if (rowId && cadNspd) {
-                    nspdMap[rowId] = cadNspd;
-                    foundCount++;
-                }
-            }
-            
-            console.log(`📊 Найдено ${foundCount} связей row_id → cad_nspd в Gist`);
-            
-            // ✅ Обновляем ТОЛЬКО cad_nspd по row_id
-            let updatedCount = 0;
-            for (const deal of allDealsFlat) {
-                if (deal.row_id && nspdMap[deal.row_id]) {
-                    deal.cad_nspd = nspdMap[deal.row_id];
-                    updatedCount++;
-                }
-            }
-            
-            console.log(`✅ Обновлено ${updatedCount} сделок номерами НСПД из Gist`);
-            console.log(`✅ Все остальные данные (quarter, prices, etc.) остались без изменений`);
-            
-            // ✅ Обновляем таблицу
-            if (typeof renderDealsTable === 'function') {
-                renderDealsTable();
-            }
-            
-            if (typeof updateTableFull === 'function') {
-                updateTableFull();
-            }
-            
-            showNotification(`✅ Загружено ${foundCount} связей, обновлено ${updatedCount} сделок`, 'success');
-            
-        } else {
-            showNotification('❌ Файл не найден в Gist', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Ошибка:', error);
-        showNotification(`❌ Ошибка: ${error.message}`, 'error');
-    });
-}
 async function createCSVFromData() {
 const headers = [
     'cad_number', 'area', 'purpose_text', 'cad_cost', 'upks', 'uprs',
@@ -8340,14 +8186,11 @@ function renderDealsTable() {
     
     container.innerHTML = html;
 }
-
 window.renderDealsTable = renderDealsTable;
 window.syncWithNSPD = syncWithNSPD;
 window.abortSyncWithNSPD = abortSyncWithNSPD;
 window.updateGitHubCSVWithNSPD = updateGitHubCSVWithNSPD;
 window.searchNSPD = searchNSPD;
-window.loadDealsFromRelease = loadDealsFromRelease;
-window.refreshCSVFromGist = refreshCSVFromGist;
 window.createCSVFromData = createCSVFromData;
 window.generateReport = generateReport;
 window.loadScript = loadScript;
