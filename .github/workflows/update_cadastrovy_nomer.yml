@@ -1,12 +1,10 @@
 name: 🔄 Автообновление cadastrovy_nomer из Gist
 
 on:
-  # ✅ ТРИГГЕР ОТ ВЕБХУКА (с сайта после синхронизации) - ЭТО ГЛАВНОЕ!
   repository_dispatch:
     types:
       - nspd_sync_completed
   
-  # ✅ Запасной вариант - ручной запуск
   workflow_dispatch:
     inputs:
       gist_id:
@@ -14,7 +12,6 @@ on:
         required: false
         default: '9f6e65a18e94b61a6b7a96389e9109c5'
   
-  # ✅ Запасной вариант - по расписанию (раз в час, если вдруг webhook не сработал)
   schedule:
     - cron: '0 * * * *'
 
@@ -25,7 +22,7 @@ jobs:
     permissions:
       contents: write
       actions: write
-      metadata: read
+      # ❌ УДАЛИТЕ СТРОКУ: metadata: read
     
     steps:
       - name: 📝 Информация о запуске
