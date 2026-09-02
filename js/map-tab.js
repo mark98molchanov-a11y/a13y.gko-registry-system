@@ -906,14 +906,14 @@ async function loadDealsCSV() {
             
             if (!cadNum) continue;
             
-            // ✅ БЕРЕМ cad_nspd ИЗ СТОЛБЦА cadastrovy_nomer (ЕСЛИ ЕСТЬ)
-            let cadNspd = null;
-            if (cadastrovyNomerIndex !== -1 && values[cadastrovyNomerIndex]) {
-                const val = values[cadastrovyNomerIndex].trim();
-                if (val && val !== 'не определено') {
-                    cadNspd = val;
-                }
-            }
+            
+       let cadNspd = null;
+if (cadastrovyNomerIndex !== -1 && values[cadastrovyNomerIndex]) {
+    const val = values[cadastrovyNomerIndex].trim();
+    if (val) {  
+        cadNspd = val;  
+    }
+}
             
             const price = parseFloat(values[priceIndex]) || 0;
             const uprs = parseFloat(values[uprsIndex]) || 0;
