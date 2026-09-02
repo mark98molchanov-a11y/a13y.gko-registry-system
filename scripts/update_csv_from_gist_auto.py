@@ -3,7 +3,9 @@
 
 """
 Автоматическое обновление deals_clean.csv из Gist
-Добавляет/обновляет столбец cadastrovy_nomer
+Добавляет/обновляет столбцы:
+- cadastrovy_nomer
+- cadastral_value
 """
 
 import csv
@@ -27,7 +29,7 @@ def load_nspd_from_cache():
         return {}
 
 def update_csv(nspd_map):
-    """Обновляет столбец cadastrovy_nomer в CSV"""
+    """Обновляет столбцы cadastrovy_nomer и cadastral_value в CSV"""
     print(f"📊 Обновление CSV: {CSV_PATH}")
     
     if not CSV_PATH.exists():
@@ -36,7 +38,8 @@ def update_csv(nspd_map):
     
     rows = []
     headers = []
-    updated_count = 0
+    updated_nspd_count = 0
+    updated_value_count = 0
     
     with open(CSV_PATH, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
@@ -47,7 +50,13 @@ def update_csv(nspd_map):
             headers.append('cadastrovy_nomer')
             print("➕ Добавлен столбец cadastrovy_nomer")
         
+        # Проверяем, есть ли столбец cadastral_value
+        if 'cadastral_value' not in headers:
+            headers.append('cadastral_value')
+            print("➕ Добавлен столбец cadastral_value")
+        
         cadastrovy_idx = headers.index('cadastrovy_nomer')
+        cadastral_value_idx = headers.index('cadastral_value')
         row_id_idx = headers.index('#') if '#' in headers else -1
         
         if row_id_idx == -1:
@@ -59,6 +68,7 @@ def update_csv(nspd_map):
         
         print(f"📌 row_id в колонке: {headers[row_id_idx]}")
         print(f"📌 cadastrovy_nomer в колонке: {headers[cadastrovy_idx]}")
+        print(f"📌 cadastral_value в колонке: {headers[cadastral_value_idx]}")
         
         for row in reader:
             # Дополняем недостающими колонками
@@ -67,15 +77,21 @@ def update_csv(nspd_map):
             
             row_id = row[row_id_idx].strip() if row_id_idx < len(row) else ''
             
-            # Получаем текущее значение
-            current_value = row[cadastrovy_idx].strip() if cadastrovy_idx < len(row) else ''
-            
-            # Если значение пустое или 'не определено' - обновляем
-            if not current_value:  # ← ТОЛЬКО ЕСЛИ ПУСТО
-    if row_id in nspd_map:
-        row[cadastrovy_idx] = nspd_map[row_id]
-                    updated_count += 1
-                # Если нет в мапе - оставляем 'не определено'
+            # Проверяем, есть ли связь для этого row_id
+            if row_id in nspd_map:
+                nspd_data = nspd_map[row_id]
+                
+                # ✅ Обновляем cadastrovy_nomer (только если пусто)
+                current_nspd = row[cadastrovy_idx].strip() if cadastrovy_idx < len(row) else ''
+                if not current_nspd:
+                    row[cadastrovy_idx] = nspd_data.get('cadastrovy_nomer', 'не определено')
+                    updated_nspd_count += 1
+                
+                # ✅ Обновляем cadastral_value (только если пусто)
+                current_value = row[cadastral_value_idx].strip() if cadastral_value_idx < len(row) else ''
+                if not current_value:
+                    row[cadastral_value_idx] = nspd_data.get('cadastral_value', 'не определено')
+                    updated_value_count += 1
             
             rows.append(row)
     
@@ -85,8 +101,15 @@ def update_csv(nspd_map):
         writer.writerow(headers)
         writer.writerows(rows)
     
-    print(f"✅ Обновлено {updated_count} записей в cadastrovy_nomer")
-    print(f"ℹ️ Пропущено (уже заполнены): {len(rows) - updated_count} записей")
+    print(f"✅ Обновлено cadastrovy_nomer: {updated_nspd_count} записей")
+    print(f"✅ Обновлено cadastral_value: {updated_value_count} записей")
+    print(f"ℹ️ Всего строк: {len(rows)}")
+    
+    if updated_nspd_count == 0 and updated_value_count == 0:
+        print("ℹ️ Нет новых данных для обновления")
+    else:
+        print(f"📊 Итого обновлено: {max(updated_nspd_count, updated_value_count)} записей")
+    
     return True
 
 def main():
