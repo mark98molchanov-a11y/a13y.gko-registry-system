@@ -8222,7 +8222,7 @@ function renderDealsTable() {
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${bgColor};">
                     <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.cad_number || 'nan'}">${deal.cad_number || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; font-family: monospace; font-size: 10px; color: #1e293b; font-weight: 400;">${deal.cad_nspd || 'nan'}</td>
-                     <td style="text-align: center; padding: 6px 6px; color: ${deal.cadastral_value ? '#0284c7' : '#94a3b8'}; font-weight: ${deal.cadastral_value ? '600' : '400'}; font-size: 10px; font-family: monospace;">${deal.cadastral_value ? deal.cadastral_value.toLocaleString('ru-RU') : 'nan'}</td>
+                    <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; font-family: monospace;">${deal.cadastral_value ? deal.cadastral_value.toLocaleString('ru-RU') : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.number || 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px;">${deal.area ? deal.area.toFixed(1) : 'nan'}</td>
                     <td style="text-align: center; padding: 6px 6px; color: #1e293b; font-weight: 400; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${deal.purpose_text || 'nan'}">${deal.purpose_text || 'nan'}</td>
