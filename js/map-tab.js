@@ -7615,8 +7615,30 @@ if (true) {
         if (gistCheck.ok) {
             const gistData = await gistCheck.json();
             const file = gistData.files?.['deals_clean.csv'];
-            if (file && file.content) {
-                const lines = file.content.split('\n').filter(line => line.trim());
+            
+            if (file) {
+                let content;
+                
+                // ✅ ЕСЛИ ФАЙЛ БОЛЬШОЙ ИЛИ ОБРЕЗАН — ЧИТАЕМ ЧЕРЕЗ raw_url
+                if (file.truncated || file.size > 500000) {
+                    console.log(`📥 Файл большой (${file.size} байт, truncated=${file.truncated}), читаем через raw_url...`);
+                    
+                    const separator = file.raw_url.includes('?') ? '&' : '?';
+                    const rawUrl = file.raw_url + separator + 't=' + Date.now();
+                    const rawResp = await fetch(rawUrl);
+                    
+                    if (!rawResp.ok) {
+                        throw new Error(`raw_url: HTTP ${rawResp.status}`);
+                    }
+                    
+                    content = await rawResp.text();
+                    console.log(`✅ Получено через raw_url: ${content.length} символов`);
+                } else {
+                    content = file.content;
+                    console.log(`✅ Получено через API: ${content.length} символов`);
+                }
+                
+                const lines = content.split('\n').filter(line => line.trim());
                 if (lines.length > 1) {
                     const headers = lines[0].split(',');
                     const rowIdIdx = headers.indexOf('row_id');
@@ -7630,15 +7652,15 @@ if (true) {
                                 const rowId = values[rowIdIdx]?.trim() || '';
                                 const nspd = values[nspdIdx]?.trim() || '';
                                 let cadastralValue = null;
-if (cadastralIdx !== -1 && values[cadastralIdx]) {
-    const val = values[cadastralIdx].trim();
-    if (val && val !== '' && val !== '0' && val !== 'null' && val !== 'undefined') {
-        const parsed = parseFloat(val);
-        if (!isNaN(parsed) && parsed !== 0) {
-            cadastralValue = parsed;
-        }
-    }
-}
+                                if (cadastralIdx !== -1 && values[cadastralIdx]) {
+                                    const val = values[cadastralIdx].trim();
+                                    if (val && val !== '' && val !== '0' && val !== 'null' && val !== 'undefined') {
+                                        const parsed = parseFloat(val);
+                                        if (!isNaN(parsed) && parsed !== 0) {
+                                            cadastralValue = parsed;
+                                        }
+                                    }
+                                }
                                 if (rowId && nspd) {
                                     existingNspdMap[rowId] = {
                                         cad_nspd: nspd,
@@ -7703,6 +7725,34 @@ for (const [rowId, obj] of Object.entries(uniquePairs)) {
 }
     
     console.log(`📊 Экспортировано ${exportedCount} уникальных связей row_id → cad_nspd + cadastral_value (${Object.keys(existingNspdMap).length} старых + ${foundCount} новых)`);
+            const oldCount = Object.keys(existingNspdMap).length;
+    const newCount = Object.keys(uniquePairs).length;
+    
+    console.log(`📊 Было связей: ${oldCount}, стало: ${newCount}`);
+    
+    if (newCount < oldCount) {
+        const lost = oldCount - newCount;
+        console.error(`❌ ПОТЕРЯ ДАННЫХ: ${lost} записей!`);
+        
+        if (!confirm(`⚠️ ВНИМАНИЕ! Файл уменьшится на ${lost} записей.\n\n` +
+                     `Было: ${oldCount}\n` +
+                     `Стало: ${newCount}\n` +
+                     `Потеряно: ${lost}\n\n` +
+                     `Возможная причина: файл в Gist превысил лимит API.\n` +
+                     `Продолжить запись?`)) {
+            console.warn('⛔ Запись отменена пользователем');
+            if (btn) {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+                btn.style.background = '#2563eb';
+            }
+            if (abortBtn) abortBtn.remove();
+            isSyncRunning = false;
+            return;
+        }
+    }
     console.log(`📏 Размер CSV: ${(csv.length / 1024).toFixed(2)} КБ`);
     console.log(`📋 Поля: row_id, cad_nspd, cadastral_value`);
     
