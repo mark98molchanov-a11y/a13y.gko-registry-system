@@ -8,6 +8,7 @@
 
 import os
 import json
+import time
 import requests
 from pathlib import Path
 
@@ -28,11 +29,41 @@ def load_nspd_from_gist():
         data = response.json()
         file = data.get('files', {}).get('deals_clean.csv')
         
-        if not file or not file.get('content'):
+        if not file:
             print("⚠️ Файл не найден в Gist")
             return {}
         
-        content = file['content']
+        # ✅ ЧИТАЕМ ЧЕРЕЗ raw_url, ЕСЛИ ФАЙЛ ОБРЕЗАН ИЛИ БОЛЬШОЙ
+        file_size = file.get('size', 0)
+        is_truncated = file.get('truncated', False)
+        
+        if is_truncated or file_size > 500000:
+            print(f"📥 Файл большой ({file_size} байт, truncated={is_truncated}), читаем через raw_url...")
+            
+            raw_url = file.get('raw_url')
+            if not raw_url:
+                print("❌ raw_url отсутствует, используем content (может быть обрезан)")
+                content = file.get('content', '')
+            else:
+                # ✅ ?t= для обхода кэша CDN GitHub
+                separator = '&' if '?' in raw_url else '?'
+                raw_url_cache = f"{raw_url}{separator}t={int(time.time())}"
+                
+                raw_response = requests.get(raw_url_cache, headers={'Accept': 'text/plain'})
+                if raw_response.status_code != 200:
+                    print(f"❌ Ошибка raw_url: {raw_response.status_code}, используем content")
+                    content = file.get('content', '')
+                else:
+                    content = raw_response.text
+                    print(f"✅ Получено через raw_url: {len(content)} символов")
+        else:
+            content = file.get('content', '')
+            print(f"✅ Получено через API: {len(content)} символов")
+        
+        if not content:
+            print("⚠️ Содержимое файла пустое")
+            return {}
+        
         lines = content.split('\n')
         
         if len(lines) < 2:
@@ -73,7 +104,8 @@ def load_nspd_from_gist():
                         'cadastrovy_nomer': nspd,
                         'cadastral_value': cadastral_value
                     }
-                    print(f"   Загружено: row_id={row_id}, cad_nspd={nspd}, cadastral_value={cadastral_value}")
+                    # ⚠️ Закомментировано, чтобы не засорять логи
+                    # print(f"   Загружено: row_id={row_id}, cad_nspd={nspd}, cadastral_value={cadastral_value}")
         
         print(f"✅ Загружено {len(nspd_map)} связей")
         
