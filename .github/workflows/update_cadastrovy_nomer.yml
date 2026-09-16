@@ -70,6 +70,7 @@ jobs:
         if: env.CHANGED == 'true'
         run: |
           git commit -m "🔄 Автообновление cadastrovy_nomer из Gist [skip ci]"
+          git pull --rebase origin main
           git push
       
       - name: 📊 Статистика обновления
