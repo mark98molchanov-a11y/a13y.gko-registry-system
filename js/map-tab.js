@@ -6725,7 +6725,14 @@ function findComparableDeals(nspdData, deal) {
             return tier.filter(d);
         });
 
-        if (candidates.length >= tier.minCount) {
+           if (candidates.length >= tier.minCount) {
+            // ✅ ПРАВКА D: НЕ ИСПОЛЬЗУЕМ СЛИШКОМ ШИРОКИЕ TIER'Ы
+            // Если аналогов больше 500 — это fallback, который не помогает
+            if (candidates.length > 500 && tier.name === 'регион+тип') {
+                console.warn(`⚠️ Tier [${tier.name}] нашёл ${candidates.length} аналогов — слишком широко, пропускаем`);
+                continue;  // пробуем следующий tier (но следующего нет — вернём null)
+            }
+            
             console.log(`✅ Аналоги [${tier.name}]: ${candidates.length}`);
             return { candidates, tier: tier.name, target };
         }
