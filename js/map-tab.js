@@ -8897,7 +8897,7 @@ function buildNSPDPopupContent(nspdData, deal) {
 
     return `
         <div class="popup-title" style="color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:6px;">
-            🏠 ${name}
+            ${name}
         </div>
         <div class="popup-row"><span class="popup-label">Кад. номер НСПД</span><span class="popup-value" style="font-family:monospace;">${cadNspd}</span></div>
         <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">${type}</span></div>
