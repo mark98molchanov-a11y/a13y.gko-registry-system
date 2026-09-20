@@ -6600,7 +6600,25 @@ function findComparableDeals(nspdData, deal) {
     };
 
     // ─── 2. КАСКАД: от строгого к мягкому ───
+    const isYearClose = (d, tolerance = 10) => {
+        if (!target.yearBuild || target.yearBuild === 0) return true;
+        const dYear = parseInt(d.year_build) || 0;
+        if (!dYear || dYear === 0) return false;
+        return Math.abs(dYear - target.yearBuild) <= tolerance;
+    };
+
     const tiers = [
+        {
+            name: 'точный+год',
+            filter: d =>
+                getQuarter(d.cad_number) === target.quarter &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind &&
+                d.purpose_text === target.purpose &&
+                d.wall_material_name === target.wall &&
+                isYearClose(d, 5),
+            minCount: 3
+        },
         {
             name: 'точный',
             filter: d =>
@@ -6610,6 +6628,16 @@ function findComparableDeals(nspdData, deal) {
                 d.purpose_text === target.purpose &&
                 d.wall_material_name === target.wall,
             minCount: 5
+        },
+        {
+            name: 'квартал+тип+назначение+год',
+            filter: d =>
+                getQuarter(d.cad_number) === target.quarter &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind &&
+                d.purpose_text === target.purpose &&
+                isYearClose(d, 10),
+            minCount: 3
         },
         {
             name: 'квартал+тип+назначение',
@@ -6687,18 +6715,54 @@ function calculateNSPDPriceRange(nspdData, deal) {
     const area = target.area;
     if (area <= 0) return null;
 
-    // ─── 1. СУЖАЕМ ПО ПЛОЩАДИ (±30%) ───
     let narrowByArea = candidates.filter(d => {
         const dArea = parseFloat(d.area) || 0;
-        return dArea > 0 && Math.abs(dArea - area) / area <= 0.30;
+        return dArea > 0 && Math.abs(dArea - area) / area <= 0.15;
     });
-    if (narrowByArea.length < 3) narrowByArea = candidates;
+    
+    if (narrowByArea.length < 5) {
+        narrowByArea = candidates.filter(d => {
+            const dArea = parseFloat(d.area) || 0;
+            return dArea > 0 && Math.abs(dArea - area) / area <= 0.25;
+        });
+        console.log(`   📐 Площадь ±15%: мало, расширили до ±25% → ${narrowByArea.length}`);
+    } else {
+        console.log(`   📐 Площадь ±15%: ${narrowByArea.length} аналогов`);
+    }
+    
+    if (narrowByArea.length < 3) {
+        narrowByArea = candidates.filter(d => {
+            const dArea = parseFloat(d.area) || 0;
+            return dArea > 0 && Math.abs(dArea - area) / area <= 0.40;
+        });
+        console.log(`   📐 Площадь ±25%: мало, расширили до ±40% → ${narrowByArea.length}`);
+    }
+    
+    if (narrowByArea.length < 3) {
+        narrowByArea = candidates;
+        console.log(`   📐 Площадь: fallback, берем все ${candidates.length}`);
+    }
 
     // ─── 2. ОТСЕКАЕМ ВЫБРОСЫ (IQR) ───
+      const AREA_EXPONENT = 0.15;
+    
     let uprsValues = narrowByArea
-        .map(d => d.uprs_rub)
-        .filter(v => v > 0)
+        .map(d => {
+            const dArea = parseFloat(d.area) || 0;
+            const uprs = d.uprs_rub;
+            if (!(uprs > 0)) return null;
+            
+            // Если площадь аналога известна — нормализуем к целевой
+            if (dArea > 0 && area > 0 && dArea !== area) {
+                const factor = Math.pow(dArea / area, AREA_EXPONENT);
+                return uprs * factor;
+            }
+            return uprs;
+        })
+        .filter(v => v !== null && v > 0)
         .sort((a, b) => a - b);
+    
+    console.log(`   🔧 Нормализация по площади (коэф. ${AREA_EXPONENT}): ${uprsValues.length} значений`);
 
     if (uprsValues.length < 3) return null;
 
