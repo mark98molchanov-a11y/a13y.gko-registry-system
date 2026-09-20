@@ -1003,6 +1003,16 @@ if (cadastralValueIndex !== -1 && values[cadastralValueIndex]) {
         numberCount = numberCountLocal;
         ratioCategoryCount = ratioCategoryCountLocal;
         
+        // ✅ ПРАВКА C: ИНДЕКС ПО КВАРТАЛАМ ДЛЯ УСКОРЕНИЯ ПОИСКА АНАЛОГОВ
+        const dealsByQuarter = {};
+        allDealsFlat.forEach(deal => {
+            const q = getQuarter(deal.cad_number);
+            if (!dealsByQuarter[q]) dealsByQuarter[q] = [];
+            dealsByQuarter[q].push(deal);
+        });
+        window.dealsByQuarter = dealsByQuarter;
+        console.log(`📊 Индекс по кварталам: ${Object.keys(dealsByQuarter).length} кварталов`);
+        
         console.log('✅ CSV загружен:', Object.keys(dealsData).length, 'кварталов');
         console.log('📊 Сделок с cad_nspd:', allDealsFlat.filter(d => d.cad_nspd).length);
         
@@ -6686,9 +6696,30 @@ function findComparableDeals(nspdData, deal) {
         ? window.originalAllDealsFlat
         : allDealsFlat;
 
+    // ✅ ПРАВКА C: ИСПОЛЬЗУЕМ ИНДЕКС ПО КВАРТАЛАМ ДЛЯ УСКОРЕНИЯ
+    // Для tier'ов уровня "квартал+..." берём только сделки из этого квартала
+    const quarterDeals = (window.dealsByQuarter && window.dealsByQuarter[target.quarter])
+        ? window.dealsByQuarter[target.quarter]
+        : null;
+
     for (const tier of tiers) {
-        const candidates = source.filter(d => {
+        // ✅ ЕСЛИ ЭТО TIER УРОВНЯ КВАРТАЛА — ИСПОЛЬЗУЕМ ИНДЕКС
+        const isQuarterTier = tier.name.startsWith('точный') || 
+                              tier.name.startsWith('квартал');
+        
+        const sourceForTier = (isQuarterTier && quarterDeals) 
+            ? quarterDeals 
+            : source;
+        
+        const candidates = sourceForTier.filter(d => {
             if (!(d.uprs_rub > 0)) return false;
+            
+            // ✅ ПРАВКА A: ОТСЕКАЕМ МУСОРНЫЕ СДЕЛКИ
+            if (d.uprs_rub < 5000) return false;              // < 5 тыс ₽/м² — дарение/приватизация
+            if (d.uprs_rub > 500000) return false;            // > 500 тыс ₽/м² — опечатка
+            if (d.deal_price_rub < 100000) return false;      // < 100 тыс ₽ — не рыночная
+            if (d.deal_price_rub > 100000000) return false;   // > 100 млн ₽ — опечатка
+            
             // Исключаем тот же объект (только если cad_number реально задан)
             if (target.cadNumber && d.cad_number === target.cadNumber) return false;
             return tier.filter(d);
@@ -6773,8 +6804,11 @@ function calculateNSPDPriceRange(nspdData, deal) {
     const hi = q3 + 1.5 * iqr;
     uprsValues = uprsValues.filter(v => v >= lo && v <= hi);
 
-    if (uprsValues.length < 3) return null;
-
+    // ✅ ПРАВКА B: МИНИМУМ 5 АНАЛОГОВ ДЛЯ НАДЁЖНОГО РАСЧЁТА
+    if (uprsValues.length < 5) {
+        console.warn(`⚠️ Только ${uprsValues.length} аналогов — недостаточно`);
+        return null;
+    }
     // ─── 3. ПЕРЦЕНТИЛИ ───
     const p10 = uprsValues[Math.floor(uprsValues.length * 0.10)];
     const p25 = uprsValues[Math.floor(uprsValues.length * 0.25)];
@@ -6791,6 +6825,12 @@ function calculateNSPDPriceRange(nspdData, deal) {
 
     // ─── 5. МЕТРИКИ ───
     const dispersion = ((p90 - p10) / p50) * 100;
+
+    // ✅ ПРАВКА B: ПРОВЕРКА РАЗБРОСА
+    if (dispersion > 200) {
+        console.warn(`⚠️ Разброс ${dispersion.toFixed(0)}% — данные ненадёжны`);
+        return null;  // → в карточке будет "Недостаточно сопоставимых аналогов"
+    }
 
     const cadastralValue = parseFloat(nspdData.options?.cost_value)
                         || parseFloat(nspdData.options?.cadastral_value)
