@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-08-21T05:21:55.604Z",
+  "exportDate": "2026-09-20T14:59:06.164Z",
   "npas": [
     {
       "id": 2,
@@ -820,6 +820,27 @@
     }
   ],
   "dashboards": [
+    {
+      "id": 1789916313652,
+      "title": "GKO_14. Финансы ГБУ \"ГКО\"",
+      "url": "https://bi.yanao.ru/superset/dashboard/1475/?native_filters_key=936sB_tufVQ",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/1778/dtable/%D0%9F%D0%BB%D0%B0%D1%82%D0%BD%D0%B0%D1%8F%20%D0%B4%D0%B5%D1%8F%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D0%93%D0%91%D0%A3%20%D0%AF%D0%9D%D0%90%D0%9E%20%22%D0%93%D0%9A%D0%9E%22/?tid=0000&vid=0000",
+        "https://ditable.yanao.ru/workspace/1778/dtable/%D0%9E%D1%81%D1%82%D0%B0%D1%82%D0%BE%D0%BA%20%D1%81%D1%83%D0%B1%D1%81%D0%B8%D0%B4%D0%B8%D0%B8%20%D0%93%D0%91%D0%A3%20%D0%AF%D0%9D%D0%90%D0%9E%20%22%D0%93%D0%9A%D0%9E%22/?tid=0000&vid=0000",
+        "https://ditable.yanao.ru/workspace/1778/dtable/%D0%9F%D0%BB%D0%B0%D1%82%D0%BD%D1%8B%D0%B5%20%D1%83%D1%81%D0%BB%D1%83%D0%B3%D0%B8%20%D0%93%D0%91%D0%A3%20%D0%AF%D0%9D%D0%90%D0%9E%20%22%D0%93%D0%9A%D0%9E%22/?tid=gJxd&vid=0000"
+      ],
+      "description": "1. Доходы от платной деятельности ГБУ ЯНАО ГКО\n2. Расходы ГБУ ЯНАО ГКО",
+      "analysisType": "monitoring",
+      "status": "active",
+      "owner": "Молчанов Марк Грантович",
+      "tags": [
+        "ГБУ"
+      ],
+      "dataSource": "Ditable",
+      "updateFrequency": "monthly",
+      "notes": "",
+      "createdDate": 1789689600000
+    },
     {
       "id": 1782813509737,
       "title": "USL__08. Услуги и меры СВО",
@@ -5331,12 +5352,12 @@
   },
   "metadata": {
     "npaCount": 51,
-    "dashboardsCount": 16,
+    "dashboardsCount": 17,
     "orgStructureVersion": "3.0",
     "departmentsCount": 19,
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1787289715604
+    "exportTimestamp": 1789916346164
   }
 }
