@@ -6758,18 +6758,6 @@ function calculateNSPDPriceRange(nspdData, deal) {
     return dArea > 0 && Math.abs(dArea - area) / area <= 0.15;
 });
 
-// ✅ ПРАВКА E: ОГРАНИЧИВАЕМ 50 САМЫМИ БЛИЗКИМИ ПО ПЛОЩАДИ
-if (narrowByArea.length > 50) {
-    narrowByArea = [...narrowByArea]
-        .sort((a, b) => {
-            const aDiff = Math.abs((parseFloat(a.area) || 0) - area);
-            const bDiff = Math.abs((parseFloat(b.area) || 0) - area);
-            return aDiff - bDiff;
-        })
-        .slice(0, 50);
-    console.log(`   📐 Ограничение по площади: 50 самых близких`);
-}
-    
     if (narrowByArea.length < 5) {
         narrowByArea = candidates.filter(d => {
             const dArea = parseFloat(d.area) || 0;
