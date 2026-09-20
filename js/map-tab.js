@@ -6834,10 +6834,10 @@ function calculateNSPDPriceRange(nspdData, deal) {
     const dispersion = ((p90 - p10) / p50) * 100;
 
     // ✅ ПРАВКА B: ПРОВЕРКА РАЗБРОСА
-    if (dispersion > 200) {
-        console.warn(`⚠️ Разброс ${dispersion.toFixed(0)}% — данные ненадёжны`);
-        return null;  // → в карточке будет "Недостаточно сопоставимых аналогов"
-    }
+  if (dispersion > 120) {
+    console.warn(`⚠️ Разброс ${dispersion.toFixed(0)}% — данные ненадёжны`);
+    return null;
+}
 
     const cadastralValue = parseFloat(nspdData.options?.cost_value)
                         || parseFloat(nspdData.options?.cadastral_value)
