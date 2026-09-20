@@ -8974,7 +8974,7 @@ function showNSPDInfoPanel(nspdData, deal) {
     `;
 
     panel.innerHTML = `
-        <div style="font-weight:600;color:#dc2626;margin-bottom:4px;font-size:14px;">🔴 ${name}</div>
+        <div style="font-weight:600;color:#dc2626;margin-bottom:4px;font-size:14px;">${name}</div>
         <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${address}</div>
         <div style="font-size:11px;color:#64748b;font-family:monospace;">${cadNspd}</div>
         ${priceBlock}
