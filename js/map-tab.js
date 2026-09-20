@@ -6937,6 +6937,247 @@ function getQuarter(cadNumber) {
     
     return cadNumber;
 }
+function findComparableDeals(nspdData, deal) {
+    const opts = nspdData.options || {};
+
+    // ─── 1. ХАРАКТЕРИСТИКИ ИСКОМОГО ОБЪЕКТА ───
+    const targetCadNumber = deal.cad_number || '';
+    const target = {
+        quarter:   getQuarter(deal.cad_nspd || deal.cad_number || ''),
+        objKind:   (deal.obj_kind_text || '').trim(),
+        dealKind:  (deal.deal_kind_text || '').trim(),
+        purpose:   (deal.purpose_text || '').trim(),
+        wall:      (deal.wall_material_name || '').trim(),
+        yearBuild: parseInt(deal.year_build) || 0,
+        vri:       (deal.vri || '').trim(),
+        city:      (deal.city || '').trim(),
+        cadNumber: targetCadNumber,
+        area:      parseFloat(opts.area)
+                || parseFloat(opts.params_area)
+                || parseFloat(opts.specified_area)
+                || parseFloat(deal.area)
+                || 0
+    };
+
+    // ─── 2. КАСКАД: от строгого к мягкому ───
+    const tiers = [
+        {
+            name: 'точный',
+            filter: d =>
+                getQuarter(d.cad_number) === target.quarter &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind &&
+                d.purpose_text === target.purpose &&
+                d.wall_material_name === target.wall,
+            minCount: 5
+        },
+        {
+            name: 'квартал+тип+назначение',
+            filter: d =>
+                getQuarter(d.cad_number) === target.quarter &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind &&
+                d.purpose_text === target.purpose,
+            minCount: 5
+        },
+        {
+            name: 'квартал+тип',
+            filter: d =>
+                getQuarter(d.cad_number) === target.quarter &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind,
+            minCount: 5
+        },
+        {
+            name: 'район+тип+назначение',
+            filter: d =>
+                d.cad_number.startsWith(target.quarter.substring(0, 5)) &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind &&
+                d.purpose_text === target.purpose,
+            minCount: 5
+        },
+        {
+            name: 'район+тип',
+            filter: d =>
+                d.cad_number.startsWith(target.quarter.substring(0, 5)) &&
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind,
+            minCount: 5
+        },
+        {
+            name: 'регион+тип',
+            filter: d =>
+                d.deal_kind_text === target.dealKind &&
+                d.obj_kind_text === target.objKind,
+            minCount: 10
+        }
+    ];
+
+    const source = (window.originalAllDealsFlat && window.originalAllDealsFlat.length > 0)
+        ? window.originalAllDealsFlat
+        : allDealsFlat;
+
+    for (const tier of tiers) {
+        const candidates = source.filter(d => {
+            if (!(d.uprs_rub > 0)) return false;
+            // Исключаем тот же объект (только если cad_number реально задан)
+            if (target.cadNumber && d.cad_number === target.cadNumber) return false;
+            return tier.filter(d);
+        });
+
+        if (candidates.length >= tier.minCount) {
+            console.log(`✅ Аналоги [${tier.name}]: ${candidates.length}`);
+            return { candidates, tier: tier.name, target };
+        }
+    }
+
+    console.warn('⚠️ Недостаточно аналогов ни на одном уровне');
+    return null;
+}
+
+/**
+ * Расчёт диапазона: перцентили 10/90/50 с отсечением выбросов (IQR).
+ */
+function calculateNSPDPriceRange(nspdData, deal) {
+    const comparison = findComparableDeals(nspdData, deal);
+    if (!comparison) return null;
+
+    const { candidates, tier, target } = comparison;
+    const area = target.area;
+    if (area <= 0) return null;
+
+    // ─── 1. СУЖАЕМ ПО ПЛОЩАДИ (±30%) ───
+    let narrowByArea = candidates.filter(d => {
+        const dArea = parseFloat(d.area) || 0;
+        return dArea > 0 && Math.abs(dArea - area) / area <= 0.30;
+    });
+    if (narrowByArea.length < 3) narrowByArea = candidates;
+
+    // ─── 2. ОТСЕКАЕМ ВЫБРОСЫ (IQR) ───
+    let uprsValues = narrowByArea
+        .map(d => d.uprs_rub)
+        .filter(v => v > 0)
+        .sort((a, b) => a - b);
+
+    if (uprsValues.length < 3) return null;
+
+    const q1 = uprsValues[Math.floor(uprsValues.length * 0.25)];
+    const q3 = uprsValues[Math.floor(uprsValues.length * 0.75)];
+    const iqr = q3 - q1;
+    const lo = q1 - 1.5 * iqr;
+    const hi = q3 + 1.5 * iqr;
+    uprsValues = uprsValues.filter(v => v >= lo && v <= hi);
+
+    if (uprsValues.length < 3) return null;
+
+    // ─── 3. ПЕРЦЕНТИЛИ ───
+    const p10 = uprsValues[Math.floor(uprsValues.length * 0.10)];
+    const p50 = uprsValues[Math.floor(uprsValues.length * 0.50)];
+    const p90 = uprsValues[Math.ceil(uprsValues.length * 0.90) - 1];
+
+    // ─── 4. УМНОЖАЕМ НА ПЛОЩАДЬ ───
+    const priceMin    = p10 * area;
+    const priceMedian = p50 * area;
+    const priceMax    = p90 * area;
+
+    // ─── 5. МЕТРИКИ ───
+    const dispersion = ((p90 - p10) / p50) * 100;
+
+    const cadastralValue = parseFloat(nspdData.options?.cost_value)
+                        || parseFloat(nspdData.options?.cadastral_value)
+                        || null;
+
+    let deviationFromCadastral = null;
+    if (cadastralValue > 0) {
+        deviationFromCadastral = ((priceMedian - cadastralValue) / cadastralValue) * 100;
+    }
+
+    return {
+        area, uprsP10: p10, uprsP50: p50, uprsP90: p90,
+        priceMin, priceMedian, priceMax,
+        cadastralValue, deviationFromCadastral,
+        dispersion, count: uprsValues.length, tier, target
+    };
+}
+
+/**
+ * Форматирование и оценка качества диапазона.
+ */
+function formatPriceRange(range) {
+    if (!range) return null;
+
+    const fmt = (n) => {
+        if (!n || n <= 0) return '—';
+        if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + ' млрд ₽';
+        if (n >= 1_000_000)     return (n / 1_000_000).toFixed(1) + ' млн ₽';
+        if (n >= 1_000)         return (n / 1_000).toFixed(0) + ' тыс ₽';
+        return n.toFixed(0) + ' ₽';
+    };
+
+    let quality, qualityColor, qualityIcon;
+    if (range.count >= 10 && range.dispersion <= 40) {
+        quality = 'высокая';  qualityColor = '#22c55e'; qualityIcon = '🟢';
+    } else if (range.count >= 5 && range.dispersion <= 70) {
+        quality = 'средняя';  qualityColor = '#f59e0b'; qualityIcon = '🟡';
+    } else {
+        quality = 'низкая';   qualityColor = '#ef4444'; qualityIcon = '🔴';
+    }
+
+    const tierLabels = {
+        'точный':                 'точное совпадение (назначение + материал)',
+        'квартал+тип+назначение': 'квартал + назначение',
+        'квартал+тип':            'квартал + тип объекта',
+        'район+тип+назначение':   'район + назначение',
+        'район+тип':              'район + тип объекта',
+        'регион+тип':             'регион + тип объекта'
+    };
+
+    return {
+        min: fmt(range.priceMin),
+        max: fmt(range.priceMax),
+        median: fmt(range.priceMedian),
+        uprsP10: range.uprsP10.toFixed(0),
+        uprsP50: range.uprsP50.toFixed(0),
+        uprsP90: range.uprsP90.toFixed(0),
+        area: range.area.toFixed(1),
+        cadastral: range.cadastralValue ? fmt(range.cadastralValue) : null,
+        deviation: range.deviationFromCadastral !== null
+            ? (range.deviationFromCadastral > 0 ? '+' : '')
+              + range.deviationFromCadastral.toFixed(1) + '%'
+            : null,
+        deviationRaw: range.deviationFromCadastral,
+        count: range.count,
+        dispersion: range.dispersion.toFixed(0),
+        tierLabel: tierLabels[range.tier] || range.tier,
+        quality, qualityColor, qualityIcon
+    };
+}
+
+// ============================================================
+// 🎨 СТИЛЬ ПОЛИГОНА ПО ОТКЛОНЕНИЮ ОТ КАДАСТРА
+// ============================================================
+function getNSPDPolygonStyle(range) {
+    if (!range || !range.cadastralValue || range.deviationFromCadastral === null) {
+        return { fillColor: '#ef4444', color: '#dc2626', weight: 4, fillOpacity: 0.25, dashArray: '6 4' };
+    }
+
+    const dev = range.deviationFromCadastral;
+    let fillColor;
+    if      (dev >= -10 && dev <= 10) fillColor = '#22c55e';  // норма
+    else if (dev > 10  && dev <= 30)  fillColor = '#84cc16';  // выше на 10–30%
+    else if (dev > 30)                fillColor = '#ef4444';  // сильно выше
+    else if (dev < -10 && dev >= -30) fillColor = '#f59e0b';  // ниже на 10–30%
+    else                              fillColor = '#dc2626';  // сильно ниже
+
+    return {
+        fillColor,
+        color: '#dc2626',
+        weight: 4,
+        fillOpacity: 0.35,
+        dashArray: '6 4'
+    };
+}
 async function searchNSPD(quarter, targetArea, targetType, locationKeywords = [], tolerance = 0.1, signal = null) {
     console.log(`🔍 Поиск в НСПД: ${quarter}, площадь ${targetArea} ±${tolerance} м², тип ${targetType}`);
     if (locationKeywords && locationKeywords.length > 0) {
@@ -8572,28 +8813,29 @@ function drawNSPDPolygon(nspdData, deal) {
         }
     };
     
+      const _range = calculateNSPDPriceRange(nspdData, deal);
+    const _styleBase = getNSPDPolygonStyle(_range);
+
     nspdObjectLayer = L.geoJSON(geojson, {
-        style: {
-            fillColor: '#ef4444',
-            fillOpacity: 0.25,
-            color: '#dc2626',
-            weight: 4,
-            opacity: 0.9,
-            dashArray: '6 4'
-        },
+        style: _styleBase,
         onEachFeature: function(feature, layer) {
             const popupContent = buildNSPDPopupContent(nspdData, deal);
             layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 350 });
-            
+
             layer.on('mouseover', function() {
-                this.setStyle({ fillOpacity: 0.4, weight: 5, color: '#ef4444', opacity: 1 });
+                this.setStyle({
+                    fillOpacity: Math.min((_styleBase.fillOpacity || 0.35) + 0.15, 0.7),
+                    weight: 5,
+                    color: '#ef4444',
+                    opacity: 1
+                });
             });
             layer.on('mouseout', function() {
-                this.setStyle({ fillOpacity: 0.25, weight: 4, color: '#dc2626', opacity: 0.9 });
+                this.setStyle(_styleBase);   // ← возвращаем цвет по отклонению, а не фиксированный
             });
         }
     });
-    
+
     if (window.mapInstance) {
         nspdObjectLayer.addTo(window.mapInstance);
         const bounds = nspdObjectLayer.getBounds();
@@ -8601,28 +8843,68 @@ function drawNSPDPolygon(nspdData, deal) {
             window.mapInstance.fitBounds(bounds, { padding: [50, 50] });
         }
     }
-    
+
     showNSPDInfoPanel(nspdData, deal);
 }
-
 function buildNSPDPopupContent(nspdData, deal) {
     const opts = nspdData.options || {};
     const name = opts.params_name || opts.name || opts.building_name || '—';
     const address = opts.readable_address || opts.address_readable_address || '—';
-    const area = opts.area || opts.params_area || opts.specified_area || '—';
     const type = opts.type || opts.object_type_value || opts.land_record_type || '—';
     const cadNspd = deal.cad_nspd || '—';
-    
+
+    // ✅ РАСЧЁТ ДИАПАЗОНА ПО АНАЛОГАМ
+    const range = calculateNSPDPriceRange(nspdData, deal);
+    const fmt = range ? formatPriceRange(range) : null;
+
+    const priceBlock = fmt ? `
+        <div style="margin-top:8px;padding:10px;background:#f0f9ff;border-radius:8px;border-left:3px solid #0ea5e9;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:10px;color:#0369a1;font-weight:700;text-transform:uppercase;">
+                    💰 Ориентировочная стоимость
+                </span>
+                <span style="font-size:9px;color:${fmt.qualityColor};font-weight:700;background:white;padding:2px 6px;border-radius:4px;">
+                    ${fmt.qualityIcon} ${fmt.quality}
+                </span>
+            </div>
+            <div style="font-size:15px;font-weight:700;color:#0369a1;text-align:center;padding:6px 0;">
+                ${fmt.min} — ${fmt.max}
+            </div>
+            <div style="font-size:11px;color:#475569;text-align:center;margin-bottom:8px;">
+                Медиана: <b>${fmt.median}</b>
+            </div>
+            <div style="font-size:10px;color:#64748b;line-height:1.6;border-top:1px dashed #bae6fd;padding-top:6px;">
+                <div>УПРС (P10–P90): <b>${fmt.uprsP10} – ${fmt.uprsP90}</b> ₽/м²</div>
+                <div>Площадь: <b>${fmt.area}</b> м²</div>
+                <div>Аналогов: <b>${fmt.count}</b> (разброс ${fmt.dispersion}%)</div>
+            </div>
+            ${fmt.cadastral ? `
+            <div style="font-size:11px;color:#475569;margin-top:6px;padding-top:6px;border-top:1px dashed #bae6fd;">
+                <div>Кад. стоимость: <b>${fmt.cadastral}</b></div>
+                ${fmt.deviation ? `
+                <div style="margin-top:2px;">
+                    Отклонение:
+                    <b style="color:${fmt.deviationRaw > 10 ? '#ef4444' : fmt.deviationRaw < -10 ? '#f59e0b' : '#22c55e'};">
+                        ${fmt.deviation}
+                    </b>
+                </div>` : ''}
+            </div>` : ''}
+            <div style="font-size:9px;color:#94a3b8;margin-top:6px;font-style:italic;">
+                ${fmt.tierLabel}
+            </div>
+        </div>
+    ` : '<div style="margin-top:8px;font-size:11px;color:#94a3b8;">Недостаточно аналогов для расчёта</div>';
+
     return `
         <div class="popup-title" style="color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:6px;">
             🏠 ${name}
         </div>
         <div class="popup-row"><span class="popup-label">Кад. номер НСПД</span><span class="popup-value" style="font-family:monospace;">${cadNspd}</span></div>
         <div class="popup-row"><span class="popup-label">Тип</span><span class="popup-value">${type}</span></div>
-        <div class="popup-row"><span class="popup-label">Площадь</span><span class="popup-value">${typeof area === 'number' ? area.toFixed(1) : area} м²</span></div>
         <div class="popup-row"><span class="popup-label">Адрес</span><span class="popup-value" style="font-size:11px;">${address}</span></div>
+        ${priceBlock}
         <div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;">
-            🔴 Выделенный объект из НСПД
+            Выделенный объект из НСПД
         </div>
     `;
 }
@@ -8630,12 +8912,46 @@ function buildNSPDPopupContent(nspdData, deal) {
 function showNSPDInfoPanel(nspdData, deal) {
     const oldPanel = document.getElementById('nspd-object-info');
     if (oldPanel) oldPanel.remove();
-    
+
     const opts = nspdData.options || {};
     const name = opts.params_name || opts.name || opts.building_name || 'Объект НСПД';
     const address = opts.readable_address || opts.address_readable_address || '—';
     const cadNspd = deal.cad_nspd || '—';
-    
+
+    // ✅ РАСЧЁТ ДИАПАЗОНА
+    const range = calculateNSPDPriceRange(nspdData, deal);
+    const fmt = range ? formatPriceRange(range) : null;
+
+    const priceBlock = fmt ? `
+        <div style="margin-top:10px;padding:10px;background:#f0f9ff;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:#0369a1;font-weight:700;">💰 ОРИЕНТИРОВОЧНАЯ СТОИМОСТЬ</span>
+                <span style="font-size:9px;color:${fmt.qualityColor};font-weight:700;background:white;padding:2px 6px;border-radius:4px;">
+                    ${fmt.qualityIcon} ${fmt.quality}
+                </span>
+            </div>
+            <div style="font-size:16px;font-weight:700;color:#0369a1;margin-top:6px;">
+                ${fmt.min} — ${fmt.max}
+            </div>
+            <div style="font-size:11px;color:#475569;margin-top:4px;">
+                Медиана: <b>${fmt.median}</b>
+            </div>
+            <div style="font-size:10px;color:#64748b;margin-top:6px;line-height:1.6;border-top:1px dashed #bae6fd;padding-top:6px;">
+                <div>УПРС: ${fmt.uprsP10} – ${fmt.uprsP90} ₽/м²</div>
+                <div>Площадь: <b>${fmt.area}</b> м²</div>
+                <div>Аналогов: <b>${fmt.count}</b> (разброс ${fmt.dispersion}%)</div>
+            </div>
+            ${fmt.cadastral ? `
+            <div style="font-size:11px;color:#475569;margin-top:6px;padding-top:6px;border-top:1px dashed #bae6fd;">
+                Кад. стоимость: <b>${fmt.cadastral}</b>
+                ${fmt.deviation ? `<br>Отклонение: <b style="color:${fmt.deviationRaw > 10 ? '#ef4444' : fmt.deviationRaw < -10 ? '#f59e0b' : '#22c55e'};">${fmt.deviation}</b>` : ''}
+            </div>` : ''}
+            <div style="font-size:9px;color:#94a3b8;margin-top:6px;font-style:italic;">
+                ${fmt.tierLabel}
+            </div>
+        </div>
+    ` : '<div style="font-size:11px;color:#94a3b8;margin-top:8px;">Недостаточно аналогов для расчёта</div>';
+
     const panel = document.createElement('div');
     panel.id = 'nspd-object-info';
     panel.style.cssText = `
@@ -8650,16 +8966,17 @@ function showNSPDInfoPanel(nspdData, deal) {
         font-family: 'Inter', sans-serif;
         z-index: 1000;
         border-left: 4px solid #dc2626;
-        max-width: 280px;
-        min-width: 200px;
+        max-width: 300px;
+        min-width: 240px;
     `;
-    
+
     panel.innerHTML = `
         <div style="font-weight:600;color:#dc2626;margin-bottom:4px;font-size:14px;">🔴 ${name}</div>
         <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${address}</div>
         <div style="font-size:11px;color:#64748b;font-family:monospace;">${cadNspd}</div>
+        ${priceBlock}
         <button onclick="closeNSPDObject()" style="
-            margin-top:8px;
+            margin-top:10px;
             padding:3px 12px;
             background:#f1f5f9;
             border:1px solid #e2e8f0;
@@ -8672,13 +8989,14 @@ function showNSPDInfoPanel(nspdData, deal) {
             ✕ Закрыть
         </button>
     `;
-    
+
     const mapContainer = document.getElementById('map-container');
     if (mapContainer) {
         mapContainer.style.position = 'relative';
         mapContainer.appendChild(panel);
     }
 }
+
 
 function closeNSPDObject() {
     if (nspdObjectLayer) {
@@ -8709,18 +9027,24 @@ function showNSPDObjectByNspd(cadNspd) {
         return;
     }
     
-    // Загружаем данные из НСПД по cad_nspd
+    // ✅ Ищем РЕАЛЬНУЮ сделку с этим cad_nspd, чтобы получить полные характеристики
+    const realDeal = allDealsFlat.find(d => d.cad_nspd === cadNspd);
+    
     fetchNSPDObject(cadNspd).then(nspdData => {
         if (!nspdData) {
             showNotification('❌ Объект не найден в НСПД', 'error');
             return;
         }
         
-        // Создаем фейковый deal для отображения
-        const deal = {
+        // ✅ Если нашли сделку — используем её характеристики для подбора аналогов
+        const deal = realDeal || {
             cad_nspd: cadNspd,
             cad_number: cadNspd
         };
+        
+        if (!realDeal) {
+            console.warn(`⚠️ Сделка с cad_nspd=${cadNspd} не найдена — аналоги будут искаться по региону`);
+        }
         
         drawNSPDPolygon(nspdData, deal);
     });
