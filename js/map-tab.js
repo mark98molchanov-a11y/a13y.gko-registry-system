@@ -8257,6 +8257,10 @@ window.createCSVFromData = createCSVFromData;
 window.searchCadastralByNumber = searchCadastralByNumber;
 window.sortDealsTable = sortDealsTable;
 window.resetAllFiltersMap = resetAllFiltersMap;
+window.calculateNSPDPriceRange = calculateNSPDPriceRange;
+window.findComparableDeals = findComparableDeals;
+window.formatPriceRange = formatPriceRange;
+window.getNSPDPolygonStyle = getNSPDPolygonStyle;
 
 // ✅ ДОБАВЬТЕ ФУНКЦИИ ФИЛЬТРОВ:
 window.applyDealTypeFilter = applyDealTypeFilter;
