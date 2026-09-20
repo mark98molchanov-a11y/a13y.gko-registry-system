@@ -7073,12 +7073,16 @@ function calculateNSPDPriceRange(nspdData, deal) {
 
     // ─── 3. ПЕРЦЕНТИЛИ ───
     const p10 = uprsValues[Math.floor(uprsValues.length * 0.10)];
+    const p25 = uprsValues[Math.floor(uprsValues.length * 0.25)];
     const p50 = uprsValues[Math.floor(uprsValues.length * 0.50)];
+    const p75 = uprsValues[Math.ceil(uprsValues.length * 0.75) - 1];
     const p90 = uprsValues[Math.ceil(uprsValues.length * 0.90) - 1];
 
     // ─── 4. УМНОЖАЕМ НА ПЛОЩАДЬ ───
     const priceMin    = p10 * area;
+    const priceP25    = p25 * area;
     const priceMedian = p50 * area;
+    const priceP75    = p75 * area;
     const priceMax    = p90 * area;
 
     // ─── 5. МЕТРИКИ ───
@@ -7094,8 +7098,9 @@ function calculateNSPDPriceRange(nspdData, deal) {
     }
 
     return {
-        area, uprsP10: p10, uprsP50: p50, uprsP90: p90,
-        priceMin, priceMedian, priceMax,
+        area,
+        uprsP10: p10, uprsP25: p25, uprsP50: p50, uprsP75: p75, uprsP90: p90,
+        priceMin, priceP25, priceMedian, priceP75, priceMax,
         cadastralValue, deviationFromCadastral,
         dispersion, count: uprsValues.length, tier, target
     };
@@ -7115,15 +7120,6 @@ function formatPriceRange(range) {
         return n.toFixed(0) + ' ₽';
     };
 
-    let quality, qualityColor, qualityIcon;
-    if (range.count >= 10 && range.dispersion <= 40) {
-        quality = 'высокая';  qualityColor = '#22c55e'; qualityIcon = '🟢';
-    } else if (range.count >= 5 && range.dispersion <= 70) {
-        quality = 'средняя';  qualityColor = '#f59e0b'; qualityIcon = '🟡';
-    } else {
-        quality = 'низкая';   qualityColor = '#ef4444'; qualityIcon = '🔴';
-    }
-
     const tierLabels = {
         'точный':                 'точное совпадение (назначение + материал)',
         'квартал+тип+назначение': 'квартал + назначение',
@@ -7137,8 +7133,12 @@ function formatPriceRange(range) {
         min: fmt(range.priceMin),
         max: fmt(range.priceMax),
         median: fmt(range.priceMedian),
+        p25: fmt(range.priceP25),
+        p75: fmt(range.priceP75),
         uprsP10: range.uprsP10.toFixed(0),
+        uprsP25: range.uprsP25.toFixed(0),
         uprsP50: range.uprsP50.toFixed(0),
+        uprsP75: range.uprsP75.toFixed(0),
         uprsP90: range.uprsP90.toFixed(0),
         area: range.area.toFixed(1),
         cadastral: range.cadastralValue ? fmt(range.cadastralValue) : null,
@@ -7149,8 +7149,7 @@ function formatPriceRange(range) {
         deviationRaw: range.deviationFromCadastral,
         count: range.count,
         dispersion: range.dispersion.toFixed(0),
-        tierLabel: tierLabels[range.tier] || range.tier,
-        quality, qualityColor, qualityIcon
+        tierLabel: tierLabels[range.tier] || range.tier
     };
 }
 
@@ -8859,12 +8858,9 @@ function buildNSPDPopupContent(nspdData, deal) {
 
     const priceBlock = fmt ? `
         <div style="margin-top:8px;padding:10px;background:#f0f9ff;border-radius:8px;border-left:3px solid #0ea5e9;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="margin-bottom:8px;">
                 <span style="font-size:10px;color:#0369a1;font-weight:700;text-transform:uppercase;">
-                    💰 Ориентировочная стоимость
-                </span>
-                <span style="font-size:9px;color:${fmt.qualityColor};font-weight:700;background:white;padding:2px 6px;border-radius:4px;">
-                    ${fmt.qualityIcon} ${fmt.quality}
+                    Ориентировочная стоимость
                 </span>
             </div>
             <div style="font-size:15px;font-weight:700;color:#0369a1;text-align:center;padding:6px 0;">
@@ -8872,6 +8868,10 @@ function buildNSPDPopupContent(nspdData, deal) {
             </div>
             <div style="font-size:11px;color:#475569;text-align:center;margin-bottom:8px;">
                 Медиана: <b>${fmt.median}</b>
+            </div>
+                   <div style="font-size:11px;color:#475569;text-align:center;margin-bottom:8px;padding:6px 0;border-top:1px dashed #bae6fd;">
+                Типичный диапазон (P25–P75):
+                <b style="color:#0369a1;">${fmt.p25} — ${fmt.p75}</b>
             </div>
             <div style="font-size:10px;color:#64748b;line-height:1.6;border-top:1px dashed #bae6fd;padding-top:6px;">
                 <div>УПРС (P10–P90): <b>${fmt.uprsP10} – ${fmt.uprsP90}</b> ₽/м²</div>
@@ -8924,17 +8924,20 @@ function showNSPDInfoPanel(nspdData, deal) {
 
     const priceBlock = fmt ? `
         <div style="margin-top:10px;padding:10px;background:#f0f9ff;border-radius:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:10px;color:#0369a1;font-weight:700;">💰 ОРИЕНТИРОВОЧНАЯ СТОИМОСТЬ</span>
-                <span style="font-size:9px;color:${fmt.qualityColor};font-weight:700;background:white;padding:2px 6px;border-radius:4px;">
-                    ${fmt.qualityIcon} ${fmt.quality}
-                </span>
+            <div>
+                <span style="font-size:10px;color:#0369a1;font-weight:700;">ОРИЕНТИРОВОЧНАЯ СТОИМОСТЬ</span>
             </div>
             <div style="font-size:16px;font-weight:700;color:#0369a1;margin-top:6px;">
                 ${fmt.min} — ${fmt.max}
             </div>
             <div style="font-size:11px;color:#475569;margin-top:4px;">
                 Медиана: <b>${fmt.median}</b>
+            </div>
+                   <div style="font-size:11px;color:#475569;margin-top:6px;padding-top:6px;border-top:1px dashed #bae6fd;">
+                Типичный диапазон (P25–P75):
+                <div style="font-size:13px;font-weight:700;color:#0369a1;margin-top:2px;">
+                    ${fmt.p25} — ${fmt.p75}
+                </div>
             </div>
             <div style="font-size:10px;color:#64748b;margin-top:6px;line-height:1.6;border-top:1px dashed #bae6fd;padding-top:6px;">
                 <div>УПРС: ${fmt.uprsP10} – ${fmt.uprsP90} ₽/м²</div>
