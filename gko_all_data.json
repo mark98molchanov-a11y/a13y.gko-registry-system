@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-09-20T14:59:06.164Z",
+  "exportDate": "2026-09-30T10:05:15.063Z",
   "npas": [
     {
       "id": 2,
@@ -930,23 +930,6 @@
       "updateFrequency": "quarterly",
       "notes": "",
       "createdDate": 1769817600000
-    },
-    {
-      "id": 1771770179697,
-      "title": "GKO_12. Штатное расписание муниципальных образований",
-      "url": "https://bi.yanao.ru/superset/dashboard/p/WAJO9rqBvdV/",
-      "externalLink": "https://ditable.yanao.ru/workspace/1766/dtable/Сводная%20информация/?tid=0000&vid=0000",
-      "description": "Мониторинг исполнение рекомендаций ДИО ЯНАО по штатной численности ОМСУ в сфере земельно-имущественных отношений",
-      "analysisType": "analytical",
-      "status": "active",
-      "owner": "Молчанов Марк Грантович",
-      "tags": [
-        "МО"
-      ],
-      "dataSource": "Базы Ditable",
-      "updateFrequency": "daily",
-      "notes": "",
-      "createdDate": 1771027200000
     },
     {
       "id": 1769080842449,
@@ -5352,12 +5335,12 @@
   },
   "metadata": {
     "npaCount": 51,
-    "dashboardsCount": 17,
+    "dashboardsCount": 16,
     "orgStructureVersion": "3.0",
     "departmentsCount": 19,
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1789916346164
+    "exportTimestamp": 1790762715063
   }
 }
