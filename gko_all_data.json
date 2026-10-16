@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-10-13T11:02:35.187Z",
+  "exportDate": "2026-10-16T10:02:26.994Z",
   "npas": [
     {
       "id": 2,
@@ -5284,20 +5284,20 @@
       "k_vyyavl": 0,
       "k_on_obsh_reestr": 0,
       "k_nkor": 0,
-      "s_vyyavl": 0,
-      "s_ter": 0,
-      "s_vuf": 0,
-      "s_gosmun": 0,
-      "k_ps": 0,
-      "k_pdpr": 0,
-      "k_reg": 0,
-      "k_obsh_reg": 0,
-      "k_vknm_gzn": 0,
-      "k_vknm_mzk": 0,
-      "k_pknm_gzn": 0,
-      "k_pknm_mzk": 0,
-      "k_uknm_gzn": 0,
-      "k_uknm_mzk": 0
+      "s_vyyavl": 15128000,
+      "s_ter": 17296000,
+      "s_vuf": 123397580068.78,
+      "s_gosmun": 173439237125.78,
+      "k_ps": 32,
+      "k_pdpr": 32,
+      "k_reg": 75,
+      "k_obsh_reg": 143,
+      "k_vknm_gzn": 265,
+      "k_vknm_mzk": 1229,
+      "k_pknm_gzn": 1135,
+      "k_pknm_mzk": 3761,
+      "k_uknm_gzn": 90,
+      "k_uknm_mzk": 633
     },
     "2026_4_kv": {
       "ks_otch": 0,
@@ -5341,6 +5341,6 @@
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1791889355187
+    "exportTimestamp": 1792144946994
   }
 }
