@@ -2717,7 +2717,7 @@ function EfficiencyCalculator() {
         const bad_net = Math.max(0, data.k_bezrp - data.k_mkd - data.k_vyyavl);
         const sub2_1 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (bad_net / data.k_on_obsh_reestr)) * 100)) : 0;
         const sub2_2 = 0;
-        const ind2 = (sub2_1 + sub2_2) / 2;
+        const ind2 = sub2_1;
         let sub3_1 = calcPerc(data.s_vyyavl, data.s_ter);
         const sub3_2 = calcPerc(data.s_vuf, data.s_gosmun);
         const ind3 = (sub3_1 + sub3_2) / 2;
