@@ -2589,11 +2589,20 @@ function EfficiencyCalculator() {
     React.useEffect(() => {
         const periodsList = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
         const emptyDataModel = {
+            // 1. Кадастровая оценка — без изменений
             ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
             ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+            // 2. Реестр — без изменений
             k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+            // 3. Выявление земель — НОВЫЕ поля (старые s_ter/s_gosmun оставляем для обратной совместимости)
+            s_vyyavl: 0, s_plan_znach: 0, s_vuf: 0, s_obraz: 0,
+            s_ter: 0, s_gosmun: 0,
+            // 4. НСПД — НОВЫЕ поля для полной формулы 4.2
+            k_ps: 0, k_pdpr: 0,
+            k_usl_s: 0, k_usl_S: 12, k_uo_n: 0, k_uo_N: 0,
+            k_reg: 0, k_obsh_reg: 0,
+            // 5. Земельный контроль — НОВЫЕ поля + старые (для обратной совместимости)
+            p_prov: 0, p_akt: 0, rosreestr_pokaz: 0,
             k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
         };
         
@@ -2604,7 +2613,26 @@ function EfficiencyCalculator() {
             const newData = {};
             periodsList.forEach(p => {
                 if (window.githubCalculatorData[p]) {
-                    newData[p] = { ...emptyDataModel, ...window.githubCalculatorData[p] };
+                    const src = window.githubCalculatorData[p];
+                    const merged = { ...emptyDataModel, ...src };
+
+                    // ===== МИГРАЦИЯ СТАРЫХ ПОЛЕЙ В НОВЫЕ =====
+                    // Если в JSON нет s_obraz, но есть s_gosmun — используем s_gosmun
+                    if (!src.s_obraz && src.s_gosmun) {
+                        merged.s_obraz = src.s_gosmun;
+                        console.warn(`⚠️ ${p}: s_obraz отсутствует, мигрировано из s_gosmun`);
+                    }
+                    // Если нет s_plan_znach, но есть s_ter — используем s_ter
+                    if (!src.s_plan_znach && src.s_ter) {
+                        merged.s_plan_znach = src.s_ter;
+                        console.warn(`⚠️ ${p}: s_plan_znach отсутствует, мигрировано из s_ter`);
+                    }
+                    // Для 5.1 новые поля не мигрируются (это разные величины)
+                    if (!src.p_prov || !src.p_akt) {
+                        console.warn(`⚠️ ${p}: p_prov/p_akt отсутствуют, показатель 5.1 будет считаться по старой формуле (fallback)`);
+                    }
+
+                    newData[p] = merged;
                     console.log(`✅ Загружен период ${p}:`, newData[p]);
                 } else {
                     newData[p] = { ...emptyDataModel };
@@ -2660,14 +2688,23 @@ function EfficiencyCalculator() {
     
     const moneyLabels = { 'rub': 'руб.', 'mln': 'млн руб.', 'bln': 'млрд руб.', 'trln': 'трлн руб.' };
     
-    const emptyDataModel = {
-        ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
-        ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
-        k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-        s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-        k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
-        k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
-    };
+        const emptyDataModel = {
+            // 1. Кадастровая оценка — без изменений
+            ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
+            ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
+            // 2. Реестр — без изменений
+            k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
+            // 3. Выявление земель — НОВЫЕ поля (старые s_ter/s_gosmun оставляем для обратной совместимости)
+            s_vyyavl: 0, s_plan_znach: 0, s_vuf: 0, s_obraz: 0,
+            s_ter: 0, s_gosmun: 0,
+            // 4. НСПД — НОВЫЕ поля для полной формулы 4.2
+            k_ps: 0, k_pdpr: 0,
+            k_usl_s: 0, k_usl_S: 12, k_uo_n: 0, k_uo_N: 0,
+            k_reg: 0, k_obsh_reg: 0,
+            // 5. Земельный контроль — НОВЫЕ поля + старые (для обратной совместимости)
+            p_prov: 0, p_akt: 0, rosreestr_pokaz: 0,
+            k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
+        };
     
     const currentData = calculatorData[period] || { ...emptyDataModel };
     
@@ -2702,36 +2739,113 @@ function EfficiencyCalculator() {
         }
     };
     
-    const calculateResults = (data) => {
+      const calculateResults = (data) => {
+        // Утилита для процентов без верхнего ограничения (для 1.1 и 1.3)
+        const calcPercNoCap = (num, den) => {
+            if (den === 0) return 0;
+            return Math.max(0, (num / den) * 100);
+        };
+        // Утилита для долей 0..100% (для 1.2, 2.1, 2.2)
         const calcPerc = (num, den) => {
             if (den === 0) return 0;
-            let val = (num / den) * 100;
-            return Math.min(100, Math.max(0, val));
+            return Math.min(100, Math.max(0, (num / den) * 100));
         };
-        let sub1_1 = calcPerc(data.ks_otch, data.ks_cel);
+
+        // ===== 1.1 И_сум — ИСПРАВЛЕНО: без обрезки до 100% =====
+        const sub1_1 = calcPercNoCap(data.ks_otch, data.ks_cel);
+
+        // ===== 1.2 И_изм.к — БЕЗ ИЗМЕНЕНИЙ =====
         const k_changes = data.k_21 + (data.k_22 + data.k_22_1) + data.k_sud;
-        const sub1_2 = (data.k_on_obsh > 0) ? Math.min(100, Math.max(0, (1 - (k_changes / data.k_on_obsh)) * 100)) : 0;
-        const ks_changes = data.ks_21 + (data.ks_22 + data.ks_22_1) + data.ks_sud;
-        const sub1_3 = (data.ks_on_obsh > 0) ? Math.min(100, Math.max(0, (1 - (ks_changes / data.ks_on_obsh)) * 100)) : 0;
+        const sub1_2 = (data.k_on_obsh > 0)
+            ? Math.min(100, Math.max(0, (1 - (k_changes / data.k_on_obsh)) * 100))
+            : 0;
+
+        // ===== 1.3 И_изм.кс — ИСПРАВЛЕНО: сложение по методике =====
+        // Формула: (КС_он.общ + КС21 + КС22 + КС22.1 + КСсуд) / КС_он.общ
+        const sub1_3 = data.ks_on_obsh > 0
+            ? calcPercNoCap(
+                data.ks_on_obsh + data.ks_21 + data.ks_22 + data.ks_22_1 + data.ks_sud,
+                data.ks_on_obsh
+              )
+            : 0;
+
         const ind1 = (sub1_1 + sub1_2 + sub1_3) / 3;
+
+        // ===== 2.1 И_он — БЕЗ ИЗМЕНЕНИЙ =====
         const bad_net = Math.max(0, data.k_bezrp - data.k_mkd - data.k_vyyavl);
-        const sub2_1 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (bad_net / data.k_on_obsh_reestr)) * 100)) : 0;
-        const sub2_2 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (data.k_nkor / data.k_on_obsh_reestr)) * 100)) : 0;
+        const sub2_1 = (data.k_on_obsh_reestr > 0)
+            ? Math.min(100, Math.max(0, (1 - (bad_net / data.k_on_obsh_reestr)) * 100))
+            : 0;
+
+        // ===== 2.2 И_кач — БЕЗ ИЗМЕНЕНИЙ =====
+        const sub2_2 = (data.k_on_obsh_reestr > 0)
+            ? Math.min(100, Math.max(0, (1 - (data.k_nkor / data.k_on_obsh_reestr)) * 100))
+            : 0;
+
         const ind2 = (sub2_1 + sub2_2) / 2;
-        let sub3_1 = calcPerc(data.s_vyyavl, data.s_ter);
-        const sub3_2 = calcPerc(data.s_vuf, data.s_gosmun);
+
+        // ===== 3.1 / 3.2 — ИСПРАВЛЕНО: новые поля (с fallback на старые для обратной совместимости) =====
+        // 3.1 И_вовлеч = S_пред / S_образ
+        const s_obraz = data.s_obraz > 0 ? data.s_obraz : data.s_gosmun; // fallback
+        const sub3_1 = s_obraz > 0 ? Math.max(0, (data.s_vuf / s_obraz) * 100) : 0;
+        // 3.2 I_выявл = S_выявл / S_план.знач
+        const s_plan_znach = data.s_plan_znach > 0 ? data.s_plan_znach : data.s_ter; // fallback
+        const sub3_2 = s_plan_znach > 0 ? Math.max(0, (data.s_vyyavl / s_plan_znach) * 100) : 0;
+
         const ind3 = (sub3_1 + sub3_2) / 2;
-        let sub4_1 = calcPerc(data.k_ps, data.k_pdpr);
-        const sub4_2 = calcPerc(data.k_reg, data.k_obsh_reg);
+
+        // ===== 4.1 П_свсуб — БЕЗ ИЗМЕНЕНИЙ =====
+        const sub4_1 = calcPerc(data.k_ps, data.k_pdpr);
+
+        // ===== 4.2 С_св — ИСПРАВЛЕНО: полная формула (среднее из 3 компонентов) =====
+        // Если k_usl_s/k_uo_n не заполнены — используем fallback: k_usl = k_uo = k_regl
+        const k_usl = data.k_usl_S > 0 ? Math.min(1, data.k_usl_s / data.k_usl_S) : 0;
+        const k_uo = data.k_uo_N > 0 ? Math.min(1, data.k_uo_n / data.k_uo_N) : 0;
+        const k_regl = data.k_obsh_reg > 0 ? Math.min(1, data.k_reg / data.k_obsh_reg) : 0;
+        // Fallback: если новые поля не заполнены, считаем по-старому (только k_regl)
+        const hasNew4_2Fields = data.k_usl_s > 0 || data.k_uo_n > 0;
+        const sub4_2 = hasNew4_2Fields
+            ? ((k_usl + k_uo + k_regl) / 3) * 100
+            : calcPerc(data.k_reg, data.k_obsh_reg);
+
         const ind4 = (sub4_1 + sub4_2) / 2;
+
+        // ===== 5.1 И_кнм — ИСПРАВЛЕНО: П_пров/П_акт → фикс. значение =====
+        let sub5_1 = 0;
+        if (data.p_akt > 0 && data.rosreestr_pokaz > 0) {
+            const ratio = data.p_prov / data.p_akt;
+            const rr = data.rosreestr_pokaz;
+            if (ratio >= 0.1 * rr) sub5_1 = 100;      // 1,00
+            else if (ratio > 0.07 * rr) sub5_1 = 75;  // 0,75
+            else if (ratio > 0) sub5_1 = 50;          // 0,50
+            else sub5_1 = 0;                          // 0,00
+        } else {
+            // Fallback: если новые поля не заполнены — считаем по-старому
+            // (доля выявленных к проверкам), но это НЕ по методике
+            const violations_total = data.k_vknm_gzn + data.k_vknm_mzk;
+            const checks_total = data.k_pknm_gzn + data.k_pknm_mzk;
+            sub5_1 = calcPerc(violations_total, checks_total);
+        }
+
+        // ===== 5.2 — в методике нет, но оставляем как справочное =====
         const violations_total = data.k_vknm_gzn + data.k_vknm_mzk;
-        const checks_total = data.k_pknm_gzn + data.k_pknm_mzk;
         const fixed_total = data.k_uknm_gzn + data.k_uknm_mzk;
-        const sub5_1 = calcPerc(violations_total, checks_total);
         const sub5_2 = calcPerc(fixed_total, violations_total);
-        const ind5 = (sub5_1 + sub5_2) / 2;
+
+        // ===== Индикатор 5 = только 5.1 (по методике) =====
+        const ind5 = sub5_1;
+
+        // ===== Итог =====
         const total = (ind1 * 0.25) + (ind2 * 0.25) + (ind3 * 0.25) + (ind4 * 0.125) + (ind5 * 0.125);
-        return { ind1, ind2, ind3, ind4, ind5, total, sub1_1, sub1_2, sub1_3, sub2_1, sub2_2, sub3_1, sub3_2, sub4_1, sub4_2, sub5_1, sub5_2 };
+
+        return {
+            ind1, ind2, ind3, ind4, ind5, total,
+            sub1_1, sub1_2, sub1_3,
+            sub2_1, sub2_2,
+            sub3_1, sub3_2,
+            sub4_1, sub4_2,
+            sub5_1, sub5_2
+        };
     };
     
     const results = React.useMemo(() => calculateResults(currentData), [currentData]);
@@ -2744,8 +2858,9 @@ function EfficiencyCalculator() {
             ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
             ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
             k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+            s_vyyavl: 0, s_plan_znach: 0, s_vuf: 0, s_obraz: 0, s_ter: 0, s_gosmun: 0,
+            k_ps: 0, k_pdpr: 0, k_usl_s: 0, k_usl_S: 12, k_uo_n: 0, k_uo_N: 0, k_reg: 0, k_obsh_reg: 0,
+            p_prov: 0, p_akt: 0, rosreestr_pokaz: 0,
             k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
         };
         const updatedData = { ...calculatorData, [period]: emptyData };
@@ -2836,18 +2951,18 @@ function EfficiencyCalculator() {
                     activeCalcTab === 0 ? React.createElement("div", null,
                         React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
                             React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "font-semibold text-slate-900 text-sm mb-3" }, "5.1. Уровень достижения суммарной КС (И_сум)"),
+                                React.createElement("h3", { className: "font-semibold text-slate-900 text-sm mb-3" }, "1.1. Уровень достижения суммарной КС (И_сум)"),
                                 React.createElement(CalculatorInputGroup, { label: `КС_отч - Текущая (${moneyLabels[moneyUnit]})`, value: currentData.ks_otch, onChange: (v) => updateCalcData('ks_otch', v) }),
                                 React.createElement(CalculatorInputGroup, { label: `КС_цел - Целевая 2030 (${moneyLabels[moneyUnit]})`, value: currentData.ks_cel, onChange: (v) => updateCalcData('ks_cel', v) })
                             ),
                             React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "font-semibold text-slate-900 text-sm mb-3" }, "5.2 & 5.3 Общие данные для снижения"),
+                                React.createElement("h3", { className: "font-semibold text-slate-900 text-sm mb-3" }, "Общие данные (для 1.2 и 1.3)"),
                                 React.createElement(CalculatorInputGroup, { label: "К_он.общ - Всего объектов с КС (шт)", value: currentData.k_on_obsh, onChange: (v) => updateCalcData('k_on_obsh', v) }),
                                 React.createElement(CalculatorInputGroup, { label: `КС_общ - Общая стоимость (${moneyLabels[moneyUnit]})`, value: currentData.ks_on_obsh, onChange: (v) => updateCalcData('ks_on_obsh', v) })
                             )
                         ),
                         React.createElement("div", { className: "bg-orange-50 p-3 rounded mt-4 border border-orange-100 print:bg-white print:border-slate-300" },
-                            React.createElement("h3", { className: "text-sm font-bold text-orange-800 mb-3" }, "Объекты с измененной КС (для И_изм.к и И_изм.кс)"),
+                            React.createElement("h3", { className: "text-sm font-bold text-orange-800 mb-3" }, "Объекты с изменённой КС (для 1.2 и 1.3)"),
                             React.createElement("div", { className: "grid grid-cols-2 gap-4" },
                                 React.createElement("div", null,
                                     React.createElement(CalculatorInputGroup, { label: "К21 - Ст. 21 (шт)", value: currentData.k_21, onChange: (v) => updateCalcData('k_21', v) }),
@@ -2867,11 +2982,11 @@ function EfficiencyCalculator() {
                                 )
                             )
                         ),
-                        React.createElement(ResultBreakdown, { total: results.ind1, items: [
-                            { label: "5.1 И_сум", desc: "Достижение цели 2030", value: results.sub1_1 },
-                            { label: "5.2 И_изм.к", desc: "Снижение кол-ва изменений", value: results.sub1_2 },
-                            { label: "5.3 И_изм.кс", desc: "Снижение суммы изменений", value: results.sub1_3 }
-                        ] })
+                   React.createElement(ResultBreakdown, { total: results.ind1, items: [
+    { label: "1.1 И_сум", desc: "Достижение цели 2030", value: results.sub1_1 },
+    { label: "1.2 И_изм.к", desc: "Снижение кол-ва изменений", value: results.sub1_2 },
+    { label: "1.3 И_изм.кс", desc: "Снижение суммы изменений", value: results.sub1_3 }
+] })
                     ) : null,
                     
                     activeCalcTab === 1 ? React.createElement("div", null,
@@ -2884,68 +2999,115 @@ function EfficiencyCalculator() {
                             ),
                             React.createElement(CalculatorInputGroup, { label: "К_нкор - Без характеристик", value: currentData.k_nkor, onChange: (v) => updateCalcData('k_nkor', v), hint: "Количество объектов с отсутствующими характеристиками" })
                         ),
-                        React.createElement(ResultBreakdown, { total: results.ind2, items: [
-                            { label: "6.1 И_он", desc: "Доля объектов с правами", value: results.sub2_1 },
-                            { label: "6.2 И_кач", desc: "Качество сведений ЕГРН", value: results.sub2_2 }
-                        ] })
+                    React.createElement(ResultBreakdown, { total: results.ind2, items: [
+    { label: "2.1 И_он", desc: "Доля объектов с правами", value: results.sub2_1 },
+    { label: "2.2 И_кач", desc: "Качество сведений ЕГРН", value: results.sub2_2 }
+] })
                     ) : null,
                     
                     activeCalcTab === 2 ? React.createElement("div", null,
                         React.createElement("div", { className: "space-y-4" },
                             React.createElement("div", { className: "bg-green-50 p-3 rounded border border-green-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "font-semibold text-green-900 mb-2 text-sm" }, "7.1. Доля выявленной территории (И_выявл)"),
-                                React.createElement(CalculatorInputGroup, { label: "S_выявл - Площадь выявленная (га)", value: currentData.s_vyyavl, onChange: (v) => updateCalcData('s_vyyavl', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "S_тер - Общая площадь территории (га)", value: currentData.s_ter, onChange: (v) => updateCalcData('s_ter', v) })
+                                React.createElement("h3", { className: "font-semibold text-green-900 mb-2 text-sm" }, "3.1. Доля вовлечённой территории (И_вовлеч)"),
+                                React.createElement("p", { className: "text-xs text-green-700 mb-2 italic" }, "И_вовлеч = S_пред. / S_образ."),
+                                React.createElement(CalculatorInputGroup, { label: "S_пред. - Площадь предоставленных участков (тыс. га)", value: currentData.s_vuf, onChange: (v) => updateCalcData('s_vuf', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "S_образ. - Площадь образованных участков (тыс. га)", value: currentData.s_obraz, onChange: (v) => updateCalcData('s_obraz', v), hint: "Площадь участков, образованных в целях вовлечения в оборот (по методике)" })
                             ),
                             React.createElement("div", { className: "bg-green-50 p-3 rounded border border-green-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "font-semibold text-green-900 mb-2 text-sm" }, "7.2. Вовлечение в оборот (И_оборот)"),
-                                React.createElement(CalculatorInputGroup, { label: "S_предоставл - Площадь вовлеченная/сделки (га)", value: currentData.s_vuf, onChange: (v) => updateCalcData('s_vuf', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "S_госмун - Всего гос. и мун. земель (га)", value: currentData.s_gosmun, onChange: (v) => updateCalcData('s_gosmun', v) })
+                                React.createElement("h3", { className: "font-semibold text-green-900 mb-2 text-sm" }, "3.2. Выявленные участки для ЖС (I_выявл)"),
+                                React.createElement("p", { className: "text-xs text-green-700 mb-2 italic" }, "I_выявл = S_выявл. / S_план.знач."),
+                                React.createElement(CalculatorInputGroup, { label: "S_выявл. - Выявлено участков (тыс. га)", value: currentData.s_vyyavl, onChange: (v) => updateCalcData('s_vyyavl', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "S_план.знач. - Плановое значение (тыс. га)", value: currentData.s_plan_znach, onChange: (v) => updateCalcData('s_plan_znach', v), hint: "План по проекту «Земля для стройки» (по методике)" })
+                            ),
+                            React.createElement("div", { className: "bg-slate-50 p-2 rounded border border-slate-200 text-xs text-slate-500" },
+                                React.createElement("div", null, "Старые поля (используются как fallback, если новые пусты):"),
+                                React.createElement("div", { className: "grid grid-cols-2 gap-2 mt-1" },
+                                    React.createElement(CalculatorInputGroup, { label: "S_тер — общая площадь территории", value: currentData.s_ter, onChange: (v) => updateCalcData('s_ter', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: "S_госмун — всего гос/мун земель", value: currentData.s_gosmun, onChange: (v) => updateCalcData('s_gosmun', v) })
+                                )
                             )
                         ),
                         React.createElement(ResultBreakdown, { total: results.ind3, items: [
-                            { label: "7.1 И_выявл", desc: "Эффективность выявления", value: results.sub3_1 },
-                            { label: "7.2 И_оборот", desc: "Эффективность вовлечения", value: results.sub3_2 }
+                            { label: "3.1 И_вовлеч", desc: "Доля вовлечённой территории", value: results.sub3_1 },
+                            { label: "3.2 I_выявл", desc: "Выявленные к плану", value: results.sub3_2 }
                         ] })
                     ) : null,
                     
-                    activeCalcTab === 3 ? React.createElement("div", null,
+                                    activeCalcTab === 3 ? React.createElement("div", null,
                         React.createElement("div", { className: "space-y-4" },
                             React.createElement("div", { className: "bg-purple-50 p-3 rounded border border-purple-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "font-semibold text-purple-900 mb-2 text-sm" }, "8.1. Передача пространственных данных (И_пд)"),
-                                React.createElement(CalculatorInputGroup, { label: "К_пс - Передано слоев", value: currentData.k_ps, onChange: (v) => updateCalcData('k_ps', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "К_пдпр - План по протоколу", value: currentData.k_pdpr, onChange: (v) => updateCalcData('k_pdpr', v) })
+                                React.createElement("h3", { className: "font-semibold text-purple-900 mb-2 text-sm" }, "4.1. Передача пространственных данных (П_свсуб)"),
+                                React.createElement("p", { className: "text-xs text-purple-700 mb-2 italic" }, "П_свсуб = ΣК_пс / ΣК_спд"),
+                                React.createElement(CalculatorInputGroup, { label: "К_пс - Передано слоёв", value: currentData.k_ps, onChange: (v) => updateCalcData('k_ps', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "К_спд - Всего слоёв по протоколам", value: currentData.k_pdpr, onChange: (v) => updateCalcData('k_pdpr', v) })
                             ),
                             React.createElement("div", { className: "bg-purple-50 p-3 rounded border border-purple-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "font-semibold text-purple-900 mb-2 text-sm" }, "8.2. Использование НСПД в услугах (И_усл)"),
-                                React.createElement(CalculatorInputGroup, { label: "К_рег - Регламенты с НСПД", value: currentData.k_reg, onChange: (v) => updateCalcData('k_reg', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "К_общ - Всего регламентов", value: currentData.k_obsh_reg, onChange: (v) => updateCalcData('k_obsh_reg', v) })
+                                React.createElement("h3", { className: "font-semibold text-purple-900 mb-2 text-sm" }, "4.2. Использование НСПД в услугах (С_св)"),
+                                React.createElement("p", { className: "text-xs text-purple-700 mb-2 italic" }, "С_св = (k_усл + k_уо + k_регл) / 3"),
+                                React.createElement("div", { className: "text-xs font-medium text-purple-800 mb-1" }, "k_усл = s / S (S = 12)"),
+                                React.createElement("div", { className: "grid grid-cols-2 gap-2" },
+                                    React.createElement(CalculatorInputGroup, { label: "s — услуг с актуализир. регламентами (0..12)", value: currentData.k_usl_s, onChange: (v) => updateCalcData('k_usl_s', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: "S — всего услуг (по методике = 12)", value: currentData.k_usl_S, onChange: (v) => updateCalcData('k_usl_S', v) })
+                                ),
+                                React.createElement("div", { className: "text-xs font-medium text-purple-800 mb-1 mt-2" }, "k_уо = n / N"),
+                                React.createElement("div", { className: "grid grid-cols-2 gap-2" },
+                                    React.createElement(CalculatorInputGroup, { label: "n — органов актуализировали регламенты", value: currentData.k_uo_n, onChange: (v) => updateCalcData('k_uo_n', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: "N — всего уполномоченных органов", value: currentData.k_uo_N, onChange: (v) => updateCalcData('k_uo_N', v) })
+                                ),
+                                React.createElement("div", { className: "text-xs font-medium text-purple-800 mb-1 mt-2" }, "k_регл = r / R"),
+                                React.createElement("div", { className: "grid grid-cols-2 gap-2" },
+                                    React.createElement(CalculatorInputGroup, { label: "r — фактически утверждённых регламентов", value: currentData.k_reg, onChange: (v) => updateCalcData('k_reg', v) }),
+                                    React.createElement(CalculatorInputGroup, { label: "R — плановое количество регламентов", value: currentData.k_obsh_reg, onChange: (v) => updateCalcData('k_obsh_reg', v) })
+                                ),
+                                React.createElement("div", { className: "mt-2 text-xs text-slate-500 italic" },
+                                    "Если s и n не заполнены — используется fallback: только k_регл (как раньше)"
+                                )
                             )
                         ),
                         React.createElement(ResultBreakdown, { total: results.ind4, items: [
-                            { label: "8.1 И_пд", desc: "Выполнение плана", value: results.sub4_1 },
-                            { label: "8.2 И_усл", desc: "Цифровые услуги", value: results.sub4_2 }
+                            { label: "4.1 П_свсуб", desc: "Передача данных в НСПД", value: results.sub4_1 },
+                            { label: "4.2 С_св", desc: "Использование НСПД (среднее из 3)", value: results.sub4_2 }
                         ] })
                     ) : null,
                     
-                    activeCalcTab === 4 ? React.createElement("div", null,
-                        React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
+                                      activeCalcTab === 4 ? React.createElement("div", null,
+                        React.createElement("div", { className: "space-y-4" },
                             React.createElement("div", { className: "bg-red-50 p-3 rounded border border-red-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "text-red-900 font-bold text-sm mb-2" }, "Федеральный (ГЗН)"),
-                                React.createElement(CalculatorInputGroup, { label: "Квкнм - Выявлено нарушений", value: currentData.k_vknm_gzn, onChange: (v) => updateCalcData('k_vknm_gzn', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "Кпкнм - Проведено проверок", value: currentData.k_pknm_gzn, onChange: (v) => updateCalcData('k_pknm_gzn', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "Кукнм - Устранено нарушений", value: currentData.k_uknm_gzn, onChange: (v) => updateCalcData('k_uknm_gzn', v) })
+                                React.createElement("h3", { className: "text-red-900 font-bold text-sm mb-2" }, "5.1. Доля площади с проведёнными КНМ (И_кнм)"),
+                                React.createElement("p", { className: "text-xs text-red-700 mb-2 italic" }, "И_кнм = П_пров / П_акт → фикс. значение по сравнению с Росреестром"),
+                                React.createElement(CalculatorInputGroup, { label: "П_пров — площадь проверенных объектов (тыс. га)", value: currentData.p_prov, onChange: (v) => updateCalcData('p_prov', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "П_акт — площадь всех объектов земельных отношений (тыс. га)", value: currentData.p_akt, onChange: (v) => updateCalcData('p_akt', v) }),
+                                React.createElement(CalculatorInputGroup, { label: "Показатель терр. органа Росреестра (для сравнения)", value: currentData.rosreestr_pokaz, onChange: (v) => updateCalcData('rosreestr_pokaz', v), hint: "Аналогичный показатель территориального органа Росреестра" })
                             ),
-                            React.createElement("div", { className: "bg-red-50 p-3 rounded border border-red-100 print:bg-white print:border-slate-300" },
-                                React.createElement("h3", { className: "text-red-900 font-bold text-sm mb-2" }, "Муниципальный (МЗК)"),
-                                React.createElement(CalculatorInputGroup, { label: "Квкнм - Выявлено нарушений", value: currentData.k_vknm_mzk, onChange: (v) => updateCalcData('k_vknm_mzk', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "Кпкнм - Проведено проверок", value: currentData.k_pknm_mzk, onChange: (v) => updateCalcData('k_pknm_mzk', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "Кукнм - Устранено нарушений", value: currentData.k_uknm_mzk, onChange: (v) => updateCalcData('k_uknm_mzk', v) })
+                            React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-200 text-xs text-slate-600" },
+                                React.createElement("div", { className: "font-bold mb-1" }, "Логика присвоения значения:"),
+                                React.createElement("div", null, "• 1,00 — если И_кнм ≥ 0,1 × показатель Росреестра"),
+                                React.createElement("div", null, "• 0,75 — если 0,07 × показ. < И_кнм < 0,1 × показ."),
+                                React.createElement("div", null, "• 0,50 — если 0 < И_кнм ≤ 0,07 × показ."),
+                                React.createElement("div", null, "• 0,00 — если И_кнм = 0")
+                            ),
+                            React.createElement("div", { className: "bg-amber-50 p-3 rounded border border-amber-200" },
+                                React.createElement("h3", { className: "text-amber-800 font-bold text-sm mb-2" }, "⚠️ Старые поля (fallback, если новые пусты)"),
+                                React.createElement("p", { className: "text-xs text-amber-700 mb-2 italic" }, "Используются только для обратной совместимости. По методике НЕ считаются."),
+                                React.createElement("div", { className: "grid md:grid-cols-2 gap-4" },
+                                    React.createElement("div", null,
+                                        React.createElement("div", { className: "text-xs font-bold text-amber-800 mb-1" }, "ГЗН (федеральный)"),
+                                        React.createElement(CalculatorInputGroup, { label: "Квкнм - Выявлено нарушений", value: currentData.k_vknm_gzn, onChange: (v) => updateCalcData('k_vknm_gzn', v) }),
+                                        React.createElement(CalculatorInputGroup, { label: "Кпкнм - Проведено проверок", value: currentData.k_pknm_gzn, onChange: (v) => updateCalcData('k_pknm_gzn', v) }),
+                                        React.createElement(CalculatorInputGroup, { label: "Кукнм - Устранено нарушений", value: currentData.k_uknm_gzn, onChange: (v) => updateCalcData('k_uknm_gzn', v) })
+                                    ),
+                                    React.createElement("div", null,
+                                        React.createElement("div", { className: "text-xs font-bold text-amber-800 mb-1" }, "МЗК (муниципальный)"),
+                                        React.createElement(CalculatorInputGroup, { label: "Квкнм - Выявлено нарушений", value: currentData.k_vknm_mzk, onChange: (v) => updateCalcData('k_vknm_mzk', v) }),
+                                        React.createElement(CalculatorInputGroup, { label: "Кпкнм - Проведено проверок", value: currentData.k_pknm_mzk, onChange: (v) => updateCalcData('k_pknm_mzk', v) }),
+                                        React.createElement(CalculatorInputGroup, { label: "Кукнм - Устранено нарушений", value: currentData.k_uknm_mzk, onChange: (v) => updateCalcData('k_uknm_mzk', v) })
+                                    )
+                                )
                             )
                         ),
                         React.createElement(ResultBreakdown, { total: results.ind5, items: [
-                            { label: "9.1 И_вкнм", desc: "Выявляемость (к проверкам)", value: results.sub5_1 },
-                            { label: "9.2 И_укнм", desc: "Устраняемость (к выявленным)", value: results.sub5_2 }
+                            { label: "5.1 И_кнм", desc: "Доля площади с КНМ (фикс. значение)", value: results.sub5_1 },
+                            { label: "5.2 (справочно)", desc: "Устраняемость (не входит в индикатор 5)", value: results.sub5_2 }
                         ] })
                     ) : null,
                     
@@ -3379,20 +3541,51 @@ async function loadFromGitHub() {
         }
         
         // ===== КАЛЬКУЛЯТОР - НЕ СОХРАНЯЕМ В localStorage =====
-        if (json.calculator && typeof json.calculator === 'object') {
+              if (json.calculator && typeof json.calculator === 'object') {
             console.log('🧮 Данные калькулятора найдены в GitHub');
             console.log('📊 Периоды:', Object.keys(json.calculator));
             
-            if (json.calculator['2026_2_kv']) {
-                console.log('✅ 2026_2_kv ks_otch:', json.calculator['2026_2_kv'].ks_otch);
+            // ✅ МИГРАЦИЯ СТАРЫХ ПОЛЕЙ В НОВЫЕ (чтобы при saveToGitHub ушли новые поля)
+            const periodsListForMigration = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
+            const migratedCalculator = {};
+            let migrationCount = 0;
+            
+            periodsListForMigration.forEach(p => {
+                if (json.calculator[p]) {
+                    const src = json.calculator[p];
+                    const merged = { ...src };
+                    
+                    // Миграция: s_gosmun → s_obraz (если нового нет)
+                    if (!merged.s_obraz && merged.s_gosmun) {
+                        merged.s_obraz = merged.s_gosmun;
+                        migrationCount++;
+                    }
+                    // Миграция: s_ter → s_plan_znach (если нового нет)
+                    if (!merged.s_plan_znach && merged.s_ter) {
+                        merged.s_plan_znach = merged.s_ter;
+                        migrationCount++;
+                    }
+                    
+                    // Дефолтные значения для новых полей
+                    if (merged.k_usl_S === undefined) merged.k_usl_S = 12;
+                    if (merged.k_usl_s === undefined) merged.k_usl_s = 0;
+                    if (merged.k_uo_n === undefined) merged.k_uo_n = 0;
+                    if (merged.k_uo_N === undefined) merged.k_uo_N = 0;
+                    if (merged.p_prov === undefined) merged.p_prov = 0;
+                    if (merged.p_akt === undefined) merged.p_akt = 0;
+                    if (merged.rosreestr_pokaz === undefined) merged.rosreestr_pokaz = 0;
+                    
+                    migratedCalculator[p] = merged;
+                }
+            });
+            
+            if (migrationCount > 0) {
+                console.log(`✅ Мигрировано ${migrationCount} полей (s_gosmun→s_obraz, s_ter→s_plan_znach)`);
             }
             
-            // ❌ НЕ СОХРАНЯЕМ В localStorage
-            // localStorage.setItem(STORAGE_KEY_CALCULATOR, JSON.stringify(json.calculator));
-            
             // ✅ СОХРАНЯЕМ В ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ ДЛЯ КАЛЬКУЛЯТОРА
-            window.githubCalculatorData = json.calculator;
-            console.log('✅ Данные калькулятора сохранены в window.githubCalculatorData');
+            window.githubCalculatorData = migratedCalculator;
+            console.log('✅ Данные калькулятора (с миграцией) сохранены в window.githubCalculatorData');
             
             // ✅ ЗАПУСКАЕМ КАЛЬКУЛЯТОР С ДАННЫМИ ИЗ GITHUB
             if (typeof window.initCalculator === 'function') {
@@ -3541,11 +3734,11 @@ async function saveToGitHub() {
     }
     
     // ===== ✅ ПОЛУЧАЕМ ДАННЫЕ КАЛЬКУЛЯТОРА =====
-    let calculatorData = {};
+       let calculatorData = {};
     
     // 1. ПЫТАЕМСЯ ПОЛУЧИТЬ ИЗ window.githubCalculatorData (данные из GitHub)
-    if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object') {
-        calculatorData = window.githubCalculatorData;
+if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object') {
+    calculatorData = JSON.parse(JSON.stringify(window.githubCalculatorData));
         console.log('✅ Данные калькулятора взяты из window.githubCalculatorData');
         console.log('📊 Периодов:', Object.keys(calculatorData).length);
     } 
@@ -3570,8 +3763,12 @@ async function saveToGitHub() {
             ks_otch: 0, ks_cel: 0, k_on_obsh: 0, k_21: 0, k_22: 0, k_22_1: 0, k_sud: 0,
             ks_on_obsh: 0, ks_21: 0, ks_22: 0, ks_22_1: 0, ks_sud: 0,
             k_bezrp: 0, k_mkd: 0, k_vyyavl: 0, k_on_obsh_reestr: 0, k_nkor: 0,
-            s_vyyavl: 0, s_ter: 0, s_vuf: 0, s_gosmun: 0,
-            k_ps: 0, k_pdpr: 0, k_reg: 0, k_obsh_reg: 0,
+            s_vyyavl: 0, s_plan_znach: 0, s_vuf: 0, s_obraz: 0,
+            s_ter: 0, s_gosmun: 0,
+            k_ps: 0, k_pdpr: 0,
+            k_usl_s: 0, k_usl_S: 12, k_uo_n: 0, k_uo_N: 0,
+            k_reg: 0, k_obsh_reg: 0,
+            p_prov: 0, p_akt: 0, rosreestr_pokaz: 0,
             k_vknm_gzn: 0, k_vknm_mzk: 0, k_pknm_gzn: 0, k_pknm_mzk: 0, k_uknm_gzn: 0, k_uknm_mzk: 0,
         };
         const newData = {};
@@ -3580,6 +3777,44 @@ async function saveToGitHub() {
         });
         calculatorData = newData;
         console.log('✅ Создана пустая структура калькулятора');
+    }
+    
+    // ===== ✅ МИГРАЦИЯ СТАРЫХ ПОЛЕЙ В НОВЫЕ ПЕРЕД СОХРАНЕНИЕМ =====
+    // Это гарантирует, что при сохранении в GitHub уйдут ВСЕ поля (новые + старые)
+    if (calculatorData && Object.keys(calculatorData).length > 0) {
+        const periodsListForMigration = ['2025_year', '2026_1_kv', '2026_2_kv', '2026_3_kv', '2026_4_kv'];
+        let migrationCount = 0;
+        
+        periodsListForMigration.forEach(p => {
+            if (calculatorData[p]) {
+                const src = calculatorData[p];
+                
+                // Миграция: s_gosmun → s_obraz (если нового нет)
+                if (!src.s_obraz && src.s_gosmun) {
+                    src.s_obraz = src.s_gosmun;
+                    migrationCount++;
+                }
+                // Миграция: s_ter → s_plan_znach (если нового нет)
+                if (!src.s_plan_znach && src.s_ter) {
+                    src.s_plan_znach = src.s_ter;
+                    migrationCount++;
+                }
+                
+                // Дефолтные значения для новых полей (если отсутствуют)
+                if (src.k_usl_S === undefined) src.k_usl_S = 12;
+                if (src.k_usl_s === undefined) src.k_usl_s = 0;
+                if (src.k_uo_n === undefined) src.k_uo_n = 0;
+                if (src.k_uo_N === undefined) src.k_uo_N = 0;
+                if (src.p_prov === undefined) src.p_prov = 0;
+                if (src.p_akt === undefined) src.p_akt = 0;
+                if (src.rosreestr_pokaz === undefined) src.rosreestr_pokaz = 0;
+            }
+        });
+        
+        if (migrationCount > 0) {
+            console.log(`✅ Мигрировано ${migrationCount} полей перед сохранением в GitHub`);
+        }
+        console.log('✅ Все периоды подготовлены к сохранению (все поля на месте)');
     }
     
     // ===== ФОРМИРУЕМ ПОЛНЫЙ JSON =====
@@ -3749,7 +3984,15 @@ function showNotification(message, type = 'info') {
     let currentTab = 'npas';
 
 function exportJson() {
-    const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
+    // ✅ Приоритет: данные из window.githubCalculatorData (актуальные, с новыми полями)
+    let calculatorData = {};
+    if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object' && Object.keys(window.githubCalculatorData).length > 0) {
+        calculatorData = window.githubCalculatorData;
+        console.log('✅ exportJson: данные калькулятора взяты из window.githubCalculatorData');
+    } else {
+        calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
+        console.log('⚠️ exportJson: window.githubCalculatorData пуст, взято из localStorage');
+    }
     
     // Получаем данные организационной структуры
     let orgStructure = null;
@@ -3912,17 +4155,20 @@ function importJson() {
                         }
                     }
                     
-                    // ===== КАЛЬКУЛЯТОР (с проверкой изменений) =====
-                    if (hasCalculator && json.calculator) {
+                                     if (hasCalculator && json.calculator) {
                         try {
                             const oldData = localStorage.getItem(STORAGE_KEY_CALCULATOR);
                             const newData = JSON.stringify(json.calculator);
                             
+                            // ✅ ВСЕГДА обновляем window.githubCalculatorData (даже если localStorage не изменился)
+                            window.githubCalculatorData = json.calculator;
+                            console.log('✅ window.githubCalculatorData обновлён из импортированного файла');
+                            console.log('📊 Периоды:', Object.keys(json.calculator));
+                            
                             if (oldData !== newData) {
-                                console.log('🔄 Данные калькулятора изменились при импорте, обновляем...');
+                                console.log('🔄 Данные калькулятора изменились при импорте, обновляем localStorage...');
                                 localStorage.setItem(STORAGE_KEY_CALCULATOR, newData);
                                 console.log('✅ Данные калькулятора сохранены в localStorage');
-                                console.log('📊 Периоды:', Object.keys(json.calculator));
                                 
                                 // Перезагружаем калькулятор
                                 if (typeof window.initCalculator === 'function') {
@@ -3936,7 +4182,14 @@ function importJson() {
                                     }
                                 }
                             } else {
-                                console.log('ℹ️ Данные калькулятора не изменились');
+                                console.log('ℹ️ Данные калькулятора в localStorage не изменились, но window.githubCalculatorData обновлён');
+                                // Всё равно перезагружаем калькулятор, если он открыт
+                                if (currentTab === 'calculator' && typeof window.initCalculator === 'function') {
+                                    setTimeout(() => {
+                                        window.initCalculator();
+                                        showNotification('✅ Данные калькулятора обновлены!', 'success');
+                                    }, 300);
+                                }
                             }
                         } catch (e) {
                             console.error('Ошибка сохранения калькулятора:', e);
