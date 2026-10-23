@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "exportDate": "2026-10-23T05:16:04.590Z",
+  "exportDate": "2026-10-23T05:24:09.632Z",
   "npas": [
     {
       "id": 2,
@@ -820,6 +820,25 @@
     }
   ],
   "dashboards": [
+    {
+      "id": 1792729947349,
+      "title": "GKO_12. Финансовый эффект пересмотра КС",
+      "url": "http://bi.yanao.ru/superset/dashboard/p/qExlBeQG1o5/",
+      "externalLinks": [
+        "https://ditable.yanao.ru/workspace/530/dtable/Снижение%20КС/?tid=KUed&vid=0000"
+      ],
+      "description": "Дашборд для анализа изменений КС: общий финансовый эффект, динамика по периодам, структура причин (аварийность, износ, ВРИ) и контроль статусов обработки. Включает реестр объектов с возможностью фильтрации дублей и аномалий.",
+      "analysisType": "analytical",
+      "status": "active",
+      "owner": "Молчанов Марк Грантович",
+      "tags": [
+        "ГКО"
+      ],
+      "dataSource": "Ditable",
+      "updateFrequency": "weekly",
+      "notes": "",
+      "createdDate": 1792713600000
+    },
     {
       "id": 1789916313652,
       "title": "GKO_14. Финансы ГБУ \"ГКО\"",
@@ -5279,10 +5298,10 @@
       "ks_22": 0,
       "ks_22_1": 0,
       "ks_sud": 0,
-      "k_bezrp": 33710,
-      "k_mkd": 6254,
-      "k_vyyavl": 2667,
-      "k_on_obsh_reestr": 624824,
+      "k_bezrp": 0,
+      "k_mkd": 0,
+      "k_vyyavl": 0,
+      "k_on_obsh_reestr": 0,
       "k_nkor": 0,
       "s_vyyavl": 15128000,
       "s_ter": 17296000,
@@ -5335,12 +5354,12 @@
   },
   "metadata": {
     "npaCount": 51,
-    "dashboardsCount": 16,
+    "dashboardsCount": 17,
     "orgStructureVersion": "3.0",
     "departmentsCount": 19,
     "employeesCount": 96,
     "photosEmbedded": 93,
     "exportFormat": "combined_v3_with_photos",
-    "exportTimestamp": 1792732564590
+    "exportTimestamp": 1792733049632
   }
 }
