@@ -2716,7 +2716,7 @@ function EfficiencyCalculator() {
         const ind1 = (sub1_1 + sub1_2 + sub1_3) / 3;
         const bad_net = Math.max(0, data.k_bezrp - data.k_mkd - data.k_vyyavl);
         const sub2_1 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (bad_net / data.k_on_obsh_reestr)) * 100)) : 0;
-        const sub2_2 = (data.k_on_obsh_reestr > 0) ? Math.min(100, Math.max(0, (1 - (data.k_nkor / data.k_on_obsh_reestr)) * 100)) : 0;
+        const sub2_2 = 0;
         const ind2 = (sub2_1 + sub2_2) / 2;
         let sub3_1 = calcPerc(data.s_vyyavl, data.s_ter);
         const sub3_2 = calcPerc(data.s_vuf, data.s_gosmun);
@@ -2874,16 +2874,15 @@ function EfficiencyCalculator() {
                         ] })
                     ) : null,
                     
-                    activeCalcTab === 1 ? React.createElement("div", null,
-                        React.createElement("div", { className: "space-y-4" },
-                            React.createElement(CalculatorInputGroup, { label: "К_он.общ - Всего объектов в ЕГРН", value: currentData.k_on_obsh_reestr, onChange: (v) => updateCalcData('k_on_obsh_reestr', v) }),
-                            React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 grid md:grid-cols-3 gap-2 print:bg-white print:border-slate-300" },
-                                React.createElement(CalculatorInputGroup, { label: "Кбезрп - Права не зарег.", value: currentData.k_bezrp, onChange: (v) => updateCalcData('k_bezrp', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "Кмкд - МКД (исключение)", value: currentData.k_mkd, onChange: (v) => updateCalcData('k_mkd', v) }),
-                                React.createElement(CalculatorInputGroup, { label: "Квыявл - Выявленные (искл)", value: currentData.k_vyyavl, onChange: (v) => updateCalcData('k_vyyavl', v) })
-                            ),
-                            React.createElement(CalculatorInputGroup, { label: "К_нкор - Без характеристик", value: currentData.k_nkor, onChange: (v) => updateCalcData('k_nkor', v), hint: "Количество объектов с отсутствующими характеристиками" })
-                        ),
+activeCalcTab === 1 ? React.createElement("div", null,
+    React.createElement("div", { className: "space-y-4" },
+        React.createElement(CalculatorInputGroup, { label: "К_он.общ - Всего объектов в ЕГРН", value: currentData.k_on_obsh_reestr, onChange: (v) => updateCalcData('k_on_obsh_reestr', v) }),
+        React.createElement("div", { className: "bg-slate-50 p-3 rounded border border-slate-100 grid md:grid-cols-3 gap-2 print:bg-white print:border-slate-300" },
+            React.createElement(CalculatorInputGroup, { label: "Кбезрп - Права не зарег.", value: currentData.k_bezrp, onChange: (v) => updateCalcData('k_bezrp', v) }),
+            React.createElement(CalculatorInputGroup, { label: "Кмкд - МКД (исключение)", value: currentData.k_mkd, onChange: (v) => updateCalcData('k_mkd', v) }),
+            React.createElement(CalculatorInputGroup, { label: "Квыявл - Выявленные (искл)", value: currentData.k_vyyavl, onChange: (v) => updateCalcData('k_vyyavl', v) })
+        )
+    ),
                         React.createElement(ResultBreakdown, { total: results.ind2, items: [
                             { label: "6.1 И_он", desc: "Доля объектов с правами", value: results.sub2_1 },
                             { label: "6.2 И_кач", desc: "Качество сведений ЕГРН", value: results.sub2_2 }
@@ -3749,7 +3748,22 @@ function showNotification(message, type = 'info') {
     let currentTab = 'npas';
 
 function exportJson() {
-    const calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
+    // ===== КАЛЬКУЛЯТОР: приоритет window → localStorage → пустой объект =====
+    // Так же, как в saveToGitHub(), чтобы экспорт не отдавал устаревшие данные
+    // при переполненном/очищенном localStorage.
+    let calculatorData = {};
+    if (window.githubCalculatorData && typeof window.githubCalculatorData === 'object' && Object.keys(window.githubCalculatorData).length > 0) {
+        calculatorData = window.githubCalculatorData;
+        console.log('📤 exportJson: калькулятор взят из window.githubCalculatorData');
+    } else {
+        try {
+            calculatorData = JSON.parse(localStorage.getItem(STORAGE_KEY_CALCULATOR) || '{}');
+            console.log('📤 exportJson: калькулятор взят из localStorage');
+        } catch (e) {
+            console.warn('⚠️ exportJson: не удалось прочитать калькулятор из localStorage', e);
+            calculatorData = {};
+        }
+    }
     
     // Получаем данные организационной структуры
     let orgStructure = null;
